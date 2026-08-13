@@ -7,3 +7,7 @@ pub mod timers;
 
 #[cfg(target_os = "android")]
 mod dispatcher;
+#[cfg(target_os = "android")]
+mod display;
+#[cfg(target_os = "android")]
+mod window;
