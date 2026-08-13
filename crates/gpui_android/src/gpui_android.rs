@@ -10,4 +10,9 @@ mod dispatcher;
 #[cfg(target_os = "android")]
 mod display;
 #[cfg(target_os = "android")]
+mod platform;
+#[cfg(target_os = "android")]
 mod window;
+
+#[cfg(target_os = "android")]
+pub use platform::AndroidPlatform;
