@@ -240,6 +240,7 @@ impl raw_window_handle::HasWindowHandle for AndroidWindow {
         let ptr = std::ptr::NonNull::new(native_window.ptr().as_ptr().cast())
             .ok_or(raw_window_handle::HandleError::Unavailable)?;
         let handle = raw_window_handle::AndroidNdkWindowHandle::new(ptr);
+        // handle 必须即取即用，不得跨 handle_surface_destroyed 持有，否则底层 ANativeWindow 指针悬垂
         Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(handle.into()) })
     }
 }
