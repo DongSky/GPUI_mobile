@@ -54,7 +54,7 @@ impl ComponentDemoView {
             InputState::new(window, cx).default_value("gpui-component on Android")
         });
         let delegate = RowListDelegate {
-            rows: (1..=20).map(|i| format!("Row {i}")).collect(),
+            rows: (1..=50).map(|i| format!("Row {i}")).collect(),
         };
         let list_state = cx.new(|cx| ListState::new(delegate, window, cx).searchable(false));
         Self {
