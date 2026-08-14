@@ -1,12 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/gpui_android", "crates/hello_gpui"]
+members = ["crates/gpui_android", "crates/hello_gpui", "crates/component_demo"]
 
 [workspace.dependencies]
 # 无 rev 的 git 源声明（与 gpui-component 的声明一致以便 cargo 统一源）；
 # 具体 commit 由提交进仓库的 Cargo.lock 锁定。
 gpui = { git = "https://github.com/zed-industries/zed", default-features = false }
 gpui_wgpu = { git = "https://github.com/zed-industries/zed" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 
 anyhow = "1"
 log = "0.4"

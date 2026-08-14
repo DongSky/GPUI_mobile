@@ -1,0 +1,19 @@
+[package]
+name = "component_demo"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/component_demo.rs"
+
+[dependencies]
+log.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+gpui.workspace = true
+gpui_android.workspace = true
+gpui-component.workspace = true
+android-activity.workspace = true
+android_logger.workspace = true
