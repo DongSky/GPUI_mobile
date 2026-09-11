@@ -1,7 +1,7 @@
-//! FAB (baseline small / regular / large / extended).
-//! Specs: https://m3.material.io/components/floating-action-button/specs
+//! FAB — M3 Expressive. Specs: https://m3.material.io/components/floating-action-button/specs
 //!
-//! Not M3 Expressive (no XS–XL morph). Small 40 / regular 56 / large 96 / extended 56+label.
+//! Regular 56 / medium 80 / large 96 / small-extended 56+label.
+//! Baseline 40dp “small FAB” is deprecated in Expressive.
 
 use crate::components::Appearance;
 use crate::shape::Corners;
@@ -9,13 +9,13 @@ use crate::state::{apply_state_layer, resolve_content, InteractionState};
 use crate::theme::Theme;
 
 pub const SIZE_DP: f32 = 56.0;
-pub const SMALL_DP: f32 = 40.0;
+pub const MEDIUM_DP: f32 = 80.0;
 pub const LARGE_DP: f32 = 96.0;
 pub const ICON_DP: f32 = 24.0;
-pub const SMALL_ICON_DP: f32 = 24.0;
+pub const MEDIUM_ICON_DP: f32 = 28.0;
 pub const LARGE_ICON_DP: f32 = 36.0;
 pub const CORNER_DP: f32 = 16.0;
-pub const SMALL_CORNER_DP: f32 = 12.0;
+pub const MEDIUM_CORNER_DP: f32 = 20.0;
 pub const LARGE_CORNER_DP: f32 = 28.0;
 pub const EXTENDED_MIN_WIDTH_DP: f32 = 80.0;
 
@@ -47,19 +47,19 @@ impl FabVariant {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FabSize {
-    Small,
     Regular,
+    Medium,
     Large,
     Extended,
 }
 
 impl FabSize {
-    pub const ALL: [Self; 4] = [Self::Small, Self::Regular, Self::Large, Self::Extended];
+    pub const ALL: [Self; 4] = [Self::Regular, Self::Medium, Self::Large, Self::Extended];
 
     pub const fn label(self) -> &'static str {
         match self {
-            Self::Small => "small",
             Self::Regular => "regular",
+            Self::Medium => "medium",
             Self::Large => "large",
             Self::Extended => "extended",
         }
@@ -100,13 +100,13 @@ pub fn resolve_size(
         (apply_state_layer(base, icon, state.layer_opacity()), icon)
     };
     let (width, height, min_width, corner, icon_dp, pad_h) = match size {
-        FabSize::Small => (
-            Some(SMALL_DP),
-            SMALL_DP,
-            Some(SMALL_DP),
-            SMALL_CORNER_DP,
-            SMALL_ICON_DP,
-            (SMALL_DP - SMALL_ICON_DP) / 2.0,
+        FabSize::Medium => (
+            Some(MEDIUM_DP),
+            MEDIUM_DP,
+            Some(MEDIUM_DP),
+            MEDIUM_CORNER_DP,
+            MEDIUM_ICON_DP,
+            (MEDIUM_DP - MEDIUM_ICON_DP) / 2.0,
         ),
         FabSize::Regular => (
             Some(SIZE_DP),

@@ -24,6 +24,13 @@ pub struct MotionTokens {
     pub standard: &'static str,
     pub standard_decelerate: &'static str,
     pub standard_accelerate: &'static str,
+    /// Expressive spatial spring (shape / size morph). m3.material.io motion physics.
+    pub spatial_fast: &'static str,
+    pub spatial_fast_ms: u16,
+    pub effects_fast: &'static str,
+    pub effects_fast_ms: u16,
+    pub effects_default: &'static str,
+    pub effects_default_ms: u16,
 }
 
 impl MotionTokens {
@@ -47,6 +54,12 @@ impl MotionTokens {
             standard: "cubic-bezier(0.2, 0.0, 0.0, 1.0)",
             standard_decelerate: "cubic-bezier(0.0, 0.0, 0.0, 1.0)",
             standard_accelerate: "cubic-bezier(0.3, 0.0, 1.0, 1.0)",
+            spatial_fast: "cubic-bezier(0.42, 1.67, 0.21, 0.90)",
+            spatial_fast_ms: 350,
+            effects_fast: "cubic-bezier(0.31, 0.94, 0.34, 1.00)",
+            effects_fast_ms: 150,
+            effects_default: "cubic-bezier(0.34, 0.80, 0.34, 1.00)",
+            effects_default_ms: 200,
         }
     }
 
@@ -63,13 +76,14 @@ impl MotionTokens {
         from + (to - from) * self.emphasized_at(t)
     }
 
-    /// CSS `transition` for state changes (short4 + emphasized).
+    /// CSS `transition` for Expressive state + shape morph.
     pub fn css_state_transition(self) -> String {
         format!(
-            "background-color {d}ms {e}, color {d}ms {e}, border-color {d}ms {e}, box-shadow {d}ms {e}, transform {d}ms {e}, width {md}ms {e}, left {md}ms {e}, opacity {d}ms {e}",
-            d = self.short4_ms,
-            md = self.medium2_ms,
-            e = self.emphasized
+            "background-color {ed}ms {ee}, color {ed}ms {ee}, border-color {ed}ms {ee}, box-shadow {ed}ms {ee}, opacity {ed}ms {ee}, border-radius {sd}ms {se}, transform {sd}ms {se}, width {sd}ms {se}, left {sd}ms {se}",
+            ed = self.effects_default_ms,
+            ee = self.effects_default,
+            sd = self.spatial_fast_ms,
+            se = self.spatial_fast,
         )
     }
 }

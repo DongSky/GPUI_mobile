@@ -8,11 +8,15 @@ pub struct Shapes {
     pub small: f32,
     pub medium: f32,
     pub large: f32,
+    pub large_increased: f32,
     pub extra_large: f32,
+    pub extra_large_increased: f32,
+    pub extra_extra_large: f32,
     pub full: f32,
 }
 
 impl Shapes {
+    /// Current M3 Expressive shape scale (m3.material.io / shape-scale-tokens).
     pub const fn baseline() -> Self {
         Self {
             none: 0.0,
@@ -20,7 +24,10 @@ impl Shapes {
             small: 8.0,
             medium: 12.0,
             large: 16.0,
+            large_increased: 20.0,
             extra_large: 28.0,
+            extra_large_increased: 32.0,
+            extra_extra_large: 48.0,
             full: 999.0,
         }
     }

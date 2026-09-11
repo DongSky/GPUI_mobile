@@ -1,8 +1,11 @@
 //! Standard icon button. Specs: https://m3.material.io/components/icon-buttons/specs
 
+use crate::components::button::{self, ButtonShape, ButtonSize};
 use crate::components::Appearance;
 use crate::shape::Corners;
-use crate::state::{apply_state_layer, resolve_content, InteractionState, DISABLED_CONTAINER_OPACITY};
+use crate::state::{
+    apply_state_layer, resolve_content, InteractionState, DISABLED_CONTAINER_OPACITY,
+};
 use crate::theme::Theme;
 
 pub const CONTAINER_DP: f32 = 40.0;
@@ -36,7 +39,11 @@ pub fn resolve(theme: &Theme, variant: IconButtonVariant, state: InteractionStat
         IconButtonVariant::Standard => (c.surface, c.on_surface_variant, None),
         IconButtonVariant::Filled => (c.primary, c.on_primary, None),
         IconButtonVariant::Tonal => (c.secondary_container, c.on_secondary_container, None),
-        IconButtonVariant::Outlined => (c.surface, c.on_surface_variant, Some((c.outline, 1.0))),
+        IconButtonVariant::Outlined => (
+            c.surface,
+            c.on_surface_variant,
+            Some((c.outline_variant, 1.0)),
+        ),
     };
     let (container, content, outline) = if state.is_disabled() {
         let container = match variant {
@@ -69,7 +76,11 @@ pub fn resolve(theme: &Theme, variant: IconButtonVariant, state: InteractionStat
         width_dp: Some(CONTAINER_DP),
         height_dp: CONTAINER_DP,
         min_width_dp: Some(TARGET_DP),
-        corners: Corners::all(CONTAINER_DP / 2.0),
+        corners: Corners::all(button::corner_dp(
+            ButtonSize::Small,
+            ButtonShape::Round,
+            state,
+        )),
         container,
         content,
         secondary_content: None,

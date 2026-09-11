@@ -202,10 +202,10 @@ fn catalog_body(
     );
     let sw = switch::resolve(theme, this.switched, InteractionState::Enabled);
     let fab_reg = fab::resolve(theme, fab::FabVariant::Primary, InteractionState::Enabled);
-    let fab_small = fab::resolve_size(
+    let fab_medium = fab::resolve_size(
         theme,
         fab::FabVariant::Primary,
-        fab::FabSize::Small,
+        fab::FabSize::Medium,
         InteractionState::Enabled,
     );
     let fab_large = fab::resolve_size(
@@ -506,7 +506,7 @@ fn catalog_body(
                         .justify_center()
                         .child("★"),
                 )
-                .child(fab_box(&fab_small, "+"))
+                .child(fab_box(&fab_medium, "+"))
                 .child(fab_box(&fab_reg, "+"))
                 .child(fab_box(&fab_large, "+"))
                 .child(
@@ -540,14 +540,30 @@ fn catalog_body(
                 .child(
                     div()
                         .w_full()
-                        .h(px(slide.track_h))
-                        .rounded(px(2.))
-                        .bg(paint(slide.inactive))
+                        .h(px(slide.handle_h))
+                        .flex()
+                        .items_center()
                         .child(
                             div()
-                                .h_full()
-                                .w(px(220. * slide.value.max(0.04)))
+                                .h(px(slide.track_h))
+                                .w(px(140. * slide.value.max(0.12)))
+                                .rounded(px(slide.track_corner))
                                 .bg(paint(slide.active)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(slide.gap_dp))
+                                .w(px(slide.handle_w))
+                                .h(px(slide.handle_h))
+                                .rounded(px(2.))
+                                .bg(paint(slide.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(slide.track_h))
+                                .flex_1()
+                                .rounded(px(slide.track_corner))
+                                .bg(paint(slide.inactive)),
                         ),
                 )
                 .on_click(cx.listener(|this, _, _, cx| {
@@ -562,7 +578,10 @@ fn catalog_body(
             div()
                 .text_size(px(12.))
                 .text_color(paint(c.on_surface_variant))
-                .child(format!("Value {:.0}% · 4dp track / 20dp thumb", this.slider * 100.0)),
+                .child(format!(
+                    "Value {:.0}% · Expressive XS 16dp / 4×44 handle",
+                    this.slider * 100.0
+                )),
         )
         .child(section_title(theme, "Tabs"))
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
@@ -1081,13 +1100,7 @@ fn onscreen_keys(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                     })),
             );
         }
-        row_els.push(
-            div()
-                .flex()
-                .justify_center()
-                .gap(px(4.))
-                .children(keys),
-        );
+        row_els.push(div().flex().justify_center().gap(px(4.)).children(keys));
     }
     div()
         .w_full()

@@ -65,7 +65,7 @@ pub fn render_html(theme: &Theme) -> String {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>GPUI Material 3 catalog ({mode})</title>
+<title>GPUI Material 3 Expressive catalog ({mode})</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
@@ -128,6 +128,11 @@ a {{ color: var(--primary); }}
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 22px;
 }}
+.hero-card {{
+  background: {surface_low}; border-radius: 28px; padding: 24px; margin: 12px 0 20px;
+  display: flex; flex-direction: column; gap: 16px;
+}}
+.btn:active {{ border-radius: 8px !important; }}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -135,6 +140,34 @@ a {{ color: var(--primary); }}
 .field .lab {{ font-size: 12px; line-height: 16px; }}
 .field .val {{ font-size: 16px; line-height: 24px; }}
 .field-wrap {{ display: flex; flex-direction: column; gap: 4px; }}
+.ol {{
+  width: 280px; min-height: 56px; margin: 8px 0 0; padding: 0 12px 8px;
+  display: flex; align-items: center; gap: 12px; background: transparent;
+}}
+.ol legend {{
+  padding: 0 4px; margin-left: 4px; font-size: 12px; line-height: 16px;
+}}
+.ol input, .filled-hero input {{
+  border: none; outline: none; background: transparent; width: 100%;
+  font: 400 16px/24px Roboto, sans-serif; color: inherit; padding: 8px 0 4px;
+}}
+.filled-hero {{
+  width: 280px; height: 56px; padding: 6px 16px 8px; position: relative;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}}
+.filled-hero .lab {{ font-size: 12px; line-height: 16px; }}
+.xslider {{
+  display: flex; align-items: center; width: 100%; max-width: 420px; height: 48px;
+}}
+.xseg {{
+  position: relative; display: flex; align-items: center;
+}}
+.xseg .xstop {{
+  position: absolute; width: 4px; height: 4px; border-radius: 2px;
+}}
+.xseg.active .xstop {{ left: 8px; }}
+.xseg.inactive .xstop {{ right: 8px; }}
+.xhandle {{ flex: 0 0 auto; border-radius: 2px; }}
 .support {{ font-size: 12px; line-height: 16px; padding: 0 16px; }}
 .list-item {{
   width: 100%; max-width: 420px; padding: 8px 16px;
@@ -287,7 +320,7 @@ fn hero(theme: &Theme) -> String {
   <div>{mode}</div>
 </header>
 <h1>Material 3 component catalog</h1>
-<p class="lead">Resolved from <code>gpui_material</code> tokens (androidx Material 3 v0_210 baseline / Material You). Same appearances drive the Android GPUI demo.</p>"#,
+<p class="lead">Current <a href="https://m3.material.io">Material 3 / Expressive</a> (m3.material.io). Heroes match official overview scenes; state matrices follow. Same <code>resolve()</code> drives the Android demo.</p>"#,
         bg = bar.container.css_hex(),
         fg = bar.title.css_hex(),
         sz = bar.title_style.size_sp,
@@ -419,7 +452,33 @@ fn paint_button(theme: &Theme, variant: button::ButtonVariant, state: Interactio
 }
 
 fn buttons(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Buttons</h2><p class=\"note\">Filled, tonal, elevated, outlined, text — 40dp, full corner, labelLarge. <a href=\"https://m3.material.io/components/buttons/specs\">spec</a></p>");
+    let mut out = String::from("<h2>Buttons</h2><p class=\"note\">M3 Expressive: five colors, XS–XL, round/square, press morph. Default S is 40×16. <a href=\"https://m3.material.io/components/buttons/specs\">spec</a></p>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"buttons\"><div class=\"state-body\">");
+    for variant in button::ButtonVariant::ALL {
+        out.push_str(&paint_button(theme, variant, InteractionState::Enabled));
+    }
+    out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
+    for size in button::ButtonSize::ALL {
+        let a = button::resolve_expressive(
+            theme,
+            button::ButtonVariant::Filled,
+            size,
+            button::ButtonShape::Round,
+            InteractionState::Enabled,
+        );
+        out.push_str(&format!(
+            "<button class=\"btn\" data-button-size=\"{s}\" style=\"background:{bg};color:{fg};height:{h}px;padding:0 {pad}px;border-radius:{r}px;font-size:{fs}px;min-width:{mw}px\">Label</button>",
+            s = size.label(),
+            mw = a.min_width_dp.unwrap_or(64.0).max(a.height_dp * 0.6),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            h = a.height_dp,
+            pad = a.pad_start_dp,
+            r = a.corners.top_left,
+            fs = a.label_style.size_sp,
+        ));
+    }
+    out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp).</p></div>");
     for variant in button::ButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in InteractionState::ALL_COMMON {
@@ -457,7 +516,7 @@ fn icon_buttons(theme: &Theme) -> String {
 }
 
 fn fabs(theme: &Theme) -> String {
-    let mut out = String::from("<h2>FAB</h2><p class=\"note\">Baseline small 40 / regular 56 / large 96 / extended. Color roles: primary, surface, secondary, tertiary.</p><div class=\"state-body\">");
+    let mut out = String::from("<h2>FAB</h2><p class=\"note\">Expressive: regular 56 / medium 80 / large 96 / small-extended. Baseline 40dp small FAB is deprecated.</p><div class=\"hero-card\" data-hero=\"fab\"><div class=\"state-body\">");
     for variant in fab::FabVariant::ALL {
         let a = fab::resolve(theme, variant, InteractionState::Enabled);
         out.push_str(&format!(
@@ -505,18 +564,52 @@ fn fabs(theme: &Theme) -> String {
             fs = if matches!(size, fab::FabSize::Large) { 28 } else { 18 },
         ));
     }
-    out.push_str("</div>");
+    out.push_str("</div></div>");
     out
 }
 
 fn text_fields(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Filled / outlined · 56dp. Error and focus indicator 2dp. Catalog inputs are editable. Android system IME is a NativeActivity stub; the demo uses the same editor + on-screen keys.</p>");
+    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official outlined uses a <em>notched floating label</em> on the outline (4dp gap). Filled floats the label inside. Focus outline is 3dp (Expressive). <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
     let filled = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Filled,
         InteractionState::Focused,
         true,
     );
+    let outlined = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    out.push_str(&format!(
+        r#"<div class="hero-card" data-hero="text-fields">
+<fieldset class="ol" data-field-hero="outlined" style="border:{ow}px solid {oc};border-radius:{or}px;color:{inp}">
+  <legend style="color:{lab}">Label</legend>
+  <span style="color:{lead};font-size:20px">⌕</span>
+  <input class="val" value="Input" data-editor="outlined"/>
+  <span style="color:{trail};font-size:18px">✕</span>
+</fieldset>
+<div class="filled-hero" data-field-hero="filled" style="background:{fbg};border-radius:{fr}px {fr}px 0 0;box-shadow:inset 0 -{fw}px 0 {fc}">
+  <div class="lab" style="color:{flab}">Label</div>
+  <input class="val" style="color:{finp}" value="Input text" data-editor="filled"/>
+</div>
+<p class="note">Leading / trailing icons as on the official overview. System IME remains a NativeActivity stub.</p>
+</div>"#,
+        ow = outlined.field.outline.map(|(_, w)| w).unwrap_or(3.0),
+        oc = outlined.field.outline.map(|(c, _)| c.css_hex()).unwrap_or_default(),
+        or = outlined.field.corners.top_left,
+        inp = outlined.input.css_hex(),
+        lab = outlined.label.css_hex(),
+        lead = outlined.leading_icon.css_hex(),
+        trail = outlined.trailing_icon.css_hex(),
+        fbg = filled.field.container.css_hex(),
+        fr = filled.field.corners.top_left,
+        fw = filled.field.outline.map(|(_, w)| w).unwrap_or(2.0),
+        fc = filled.field.outline.map(|(c, _)| c.css_hex()).unwrap_or_default(),
+        flab = filled.label.css_hex(),
+        finp = filled.input.css_hex(),
+    ));
     let outlined = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Outlined,
@@ -809,12 +902,13 @@ fn dialogs(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Dialog</h2>
-<p class="note">Basic dialog · 28dp · elevation 3 · 32% scrim. <a href="https://m3.material.io/components/dialogs/specs">spec</a></p>
+<p class="note">Official basic dialog hero: optional icon (centered), headlineSmall, bodyMedium, text actions. 28dp · elev 3 · 32% scrim. <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
 <div class="scrim" data-dialog="scrim" style="background:{scrim}">
-  <div class="dialog" data-dialog="basic" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px">
+  <div class="dialog" data-dialog="basic" data-hero="dialog" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px;text-align:center;align-items:center">
+    <div style="font-size:24px;color:{icon}">♡</div>
     <div style="font-size:{hs}px;line-height:{hl}px;color:{head}">Reset settings?</div>
-    <div style="font-size:{bs}px;line-height:{bl}px;color:{sup}">This will restore defaults. You can change them again later.</div>
-    <div class="actions">
+    <div style="font-size:{bs}px;line-height:{bl}px;color:{sup};text-align:center">This will restore defaults. You can change them again later.</div>
+    <div class="actions" style="width:100%;justify-content:flex-end">
       <button class="btn" style="background:{abg};color:{act}">Cancel</button>
       <button class="btn" style="background:{abg};color:{act}">Accept</button>
     </div>
@@ -834,6 +928,7 @@ fn dialogs(theme: &Theme) -> String {
         sup = a.supporting.css_hex(),
         act = a.action.css_hex(),
         abg = filled.container.css_hex(),
+        icon = a.icon.css_hex(),
     )
 }
 
@@ -890,8 +985,41 @@ fn menus(theme: &Theme) -> String {
     )
 }
 
+fn paint_expressive_slider(a: &slider::SliderAppearance, label: &str) -> String {
+    let active_pct = (a.value * 42.0).max(8.0);
+    format!(
+        r#"<div class="xslider" data-slider="{label}" data-value="{value}" data-hero-slider="1">
+  <div class="xseg active" style="width:{aw}%;height:{th}px;background:{active};border-radius:{oc}px {ic}px {ic}px {oc}px">
+    <span class="xstop" style="background:{sa}"></span>
+  </div>
+  <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
+  <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px">
+    <span class="xstop" style="background:{si}"></span>
+  </div>
+</div>"#,
+        value = a.value,
+        aw = active_pct,
+        th = a.track_h,
+        active = a.active.css_hex(),
+        oc = a.track_corner,
+        ic = a.inner_corner,
+        sa = a.stop_active.css_hex(),
+        hw = a.handle_w,
+        hh = a.handle_h,
+        handle = a.handle.css_hex(),
+        gap = a.gap_dp,
+        inactive = a.inactive.css_hex(),
+        si = a.stop_inactive.css_hex(),
+    )
+}
+
 fn sliders(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Slider</h2><p class=\"note\">Baseline Material You: 4dp track, 20dp thumb (not Expressive).</p>");
+    let mut out = String::from("<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical stop handle, 6dp gap, 4dp end stops. Default XS. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>");
+    let hero = slider::resolve(theme, 0.55, InteractionState::Enabled);
+    out.push_str(&format!(
+        "<div class=\"hero-card\" data-hero=\"slider\">{}<p class=\"note\">XS 16dp track · handle 4×44 · press compresses to 2dp.</p></div>",
+        paint_expressive_slider(&hero, "hero")
+    ));
     for (label, value, state) in [
         ("0.3 enabled", 0.3, InteractionState::Enabled),
         ("0.7 pressed", 0.7, InteractionState::Pressed),
@@ -899,22 +1027,19 @@ fn sliders(theme: &Theme) -> String {
     ] {
         let a = slider::resolve(theme, value, state);
         out.push_str(&state_row_open(label));
-        out.push_str(&format!(
-            r#"<div class="slider" data-slider="{label}" data-value="{value}">
-  <div class="track" style="height:{th}px;background:{inactive}">
-    <i style="display:block;height:100%;width:{p}%;background:{active}"></i>
-    <div class="slider-thumb" style="left:{p}%;width:{td}px;height:{td}px;background:{thumb}"></div>
-  </div>
-</div>"#,
-            th = a.track_h,
-            inactive = a.inactive.css_hex(),
-            active = a.active.css_hex(),
-            p = a.value * 100.0,
-            td = a.thumb_dp,
-            thumb = a.thumb.css_hex(),
-        ));
+        out.push_str(&paint_expressive_slider(&a, label));
         out.push_str("</div></div>");
     }
+    out.push_str("<h3>sizes</h3><div class=\"state-body\" style=\"flex-direction:column;align-items:stretch\">");
+    for size in slider::SliderSize::ALL {
+        let a = slider::resolve_size(theme, size, 0.45, InteractionState::Enabled);
+        out.push_str(&format!(
+            "<div><div class=\"state-name\">{}</div>{}</div>",
+            size.label(),
+            paint_expressive_slider(&a, size.label())
+        ));
+    }
+    out.push_str("</div>");
     out
 }
 
@@ -1027,10 +1152,10 @@ fn date_pickers(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Modal calendar · 40dp days · Monday-first · selected / today / out-of-month.</p>
-<div class="cal dialog" data-datepicker="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">Official modal calendar hero: “Select date” + headlineLarge + 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="head">
-    <div style="color:{hy};font-size:{ys}px">{year}</div>
+    <div style="color:{hy};font-size:{ys}px">Select date</div>
     <div style="color:{hd};font-size:{ds}px">{headline}</div>
   </div>
   <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
@@ -1042,7 +1167,6 @@ fn date_pickers(theme: &Theme) -> String {
         sh = ElevationLevels::css_shadow(a.elevation_dp),
         hy = a.header_year.css_hex(),
         ys = a.year_style.size_sp,
-        year = selected.year,
         hd = a.header_date.css_hex(),
         ds = a.date_style.size_sp,
         headline = date_picker::header_date_label(selected),
@@ -1053,11 +1177,10 @@ fn date_pickers(theme: &Theme) -> String {
 fn motion_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Motion</h2>
-<p class="note">M3 emphasized <code>{ease}</code> · short4 {short}ms · medium2 {med}ms. Catalog widgets use these transitions. GPUI has no shared animation clock; hosts can call <code>emphasized_at</code>.</p>
+<p class="note">Expressive spatial <code>{ease}</code> ({sd}ms) + effects springs. GPUI has no shared animation clock.</p>
 <div class="motion-box" data-motion="emphasized" style="background:{p}"></div>"#,
-        ease = theme.motion.emphasized,
-        short = theme.motion.short4_ms,
-        med = theme.motion.medium2_ms,
+        ease = theme.motion.spatial_fast,
+        sd = theme.motion.spatial_fast_ms,
         p = theme.color.primary.css_hex(),
     )
 }

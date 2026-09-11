@@ -17,8 +17,11 @@ pub const PAD_H_DP: f32 = 16.0;
 pub const INDICATOR_DP: f32 = 1.0;
 pub const INDICATOR_FOCUSED_DP: f32 = 2.0;
 pub const OUTLINE_DP: f32 = 1.0;
-pub const OUTLINE_FOCUSED_DP: f32 = 2.0;
+/// Expressive outlined focus chrome (m3.material.io text-fields specs).
+pub const OUTLINE_FOCUSED_DP: f32 = 3.0;
 pub const SUPPORTING_GAP_DP: f32 = 4.0;
+pub const ICON_DP: f32 = 24.0;
+pub const NOTCH_PAD_DP: f32 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextFieldVariant {
@@ -46,6 +49,13 @@ pub struct TextFieldAppearance {
     pub input_style: TypeStyle,
     pub supporting_style: TypeStyle,
     pub populated: bool,
+    /// Label is floated (populated or focused).
+    pub floating: bool,
+    /// Outlined + floating: cut a 4dp-padded notch in the top outline.
+    pub notched: bool,
+    pub leading_icon: Argb,
+    pub trailing_icon: Argb,
+    pub caret: Argb,
 }
 
 pub fn resolve(
@@ -160,7 +170,30 @@ pub fn resolve(
         input_style: theme.typography.body_large,
         supporting_style: theme.typography.body_small,
         populated,
+        floating: populated || focused,
+        notched: matches!(variant, TextFieldVariant::Outlined) && (populated || focused),
+        leading_icon: if disabled {
+            muted_icon(theme)
+        } else {
+            c.on_surface_variant
+        },
+        trailing_icon: if disabled {
+            muted_icon(theme)
+        } else if error {
+            c.error
+        } else {
+            c.on_surface_variant
+        },
+        caret: if error { c.error } else { c.primary },
     }
+}
+
+fn muted_icon(theme: &Theme) -> Argb {
+    theme
+        .color
+        .on_surface
+        .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
+        .composite_over(theme.color.surface)
 }
 
 /// Host-testable caret editor. Used by the HTML catalog and the Android demo

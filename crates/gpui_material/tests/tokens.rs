@@ -91,13 +91,20 @@ fn shape_and_elevation_and_motion_tokens() {
     assert_eq!(th.shapes.extra_small, 4.0);
     assert_eq!(th.shapes.medium, 12.0);
     assert_eq!(th.shapes.large, 16.0);
+    assert_eq!(th.shapes.large_increased, 20.0);
     assert_eq!(th.shapes.extra_large, 28.0);
+    assert_eq!(th.shapes.extra_extra_large, 48.0);
     assert_eq!(th.elevation.level1, 1.0);
     assert_eq!(th.elevation.level3, 6.0);
     assert_eq!(th.elevation.level5, 12.0);
     assert_eq!(th.motion.short4_ms, 200);
     assert_eq!(th.motion.medium2_ms, 300);
     assert_eq!(th.motion.emphasized, "cubic-bezier(0.2, 0.0, 0.0, 1.0)");
+    assert_eq!(
+        th.motion.spatial_fast,
+        "cubic-bezier(0.42, 1.67, 0.21, 0.90)"
+    );
+    assert_eq!(th.motion.spatial_fast_ms, 350);
 }
 
 #[test]
@@ -120,11 +127,25 @@ fn filled_button_enabled_uses_primary_on_primary() {
     assert_eq!(a.height_dp, 40.0);
     assert_eq!(a.min_width_dp, Some(64.0));
     assert_eq!(a.corners.top_left, 20.0);
-    assert_eq!(a.pad_start_dp, 24.0);
+    assert_eq!(a.pad_start_dp, 16.0);
     assert_eq!(a.label_style.name, "labelLarge");
     assert_eq!(a.container, theme.color.primary);
     assert_eq!(a.content, theme.color.on_primary);
     assert_eq!(a.elevation_dp, 0.0);
+    let xl = button::resolve_expressive(
+        &theme,
+        button::ButtonVariant::Filled,
+        button::ButtonSize::ExtraLarge,
+        button::ButtonShape::Round,
+        InteractionState::Enabled,
+    );
+    assert_eq!(xl.height_dp, 136.0);
+    let pressed = button::resolve(
+        &theme,
+        button::ButtonVariant::Filled,
+        InteractionState::Pressed,
+    );
+    assert_eq!(pressed.corners.top_left, 8.0);
 }
 
 #[test]
@@ -159,8 +180,8 @@ fn outlined_and_text_buttons_keep_transparent_container() {
         InteractionState::Enabled,
     );
     assert_eq!(outlined.container, theme.color.surface);
-    assert_eq!(outlined.outline, Some((theme.color.outline, 1.0)));
-    assert_eq!(outlined.content, theme.color.primary);
+    assert_eq!(outlined.outline, Some((theme.color.outline_variant, 1.0)));
+    assert_eq!(outlined.content, theme.color.on_surface_variant);
     let text = button::resolve(
         &theme,
         button::ButtonVariant::Text,
@@ -236,7 +257,9 @@ fn text_field_metrics_and_error_focus() {
         InteractionState::Focused,
         true,
     );
-    assert_eq!(focused.field.outline, Some((theme.color.primary, 2.0)));
+    assert_eq!(focused.field.outline, Some((theme.color.primary, 3.0)));
+    assert!(focused.notched);
+    assert!(focused.floating);
     assert_eq!(focused.label, theme.color.primary);
     assert_eq!(focused.label_style.name, "bodySmall");
 
@@ -366,6 +389,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-sheet=\"modal\""));
     assert!(html.contains("data-menu=\"1\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
+    assert!(html.contains("data-hero=\"slider\""));
+    assert!(html.contains("data-hero=\"buttons\""));
+    assert!(html.contains("data-field-hero=\"outlined\""));
+    assert!(html.contains("data-button-size=\"xl\""));
     assert!(html.contains("data-tabs=\"primary\""));
     assert!(html.contains("data-badge=\"large\""));
     assert!(html.contains("data-datepicker=\"1\""));
@@ -438,10 +465,15 @@ fn dialog_sheet_menu_tokens() {
 fn slider_tabs_badge_tokens() {
     let theme = Theme::light();
     let s = slider::resolve(&theme, 0.4, InteractionState::Enabled);
-    assert_eq!(s.track_h, 4.0);
-    assert_eq!(s.thumb_dp, 20.0);
+    assert_eq!(s.track_h, 16.0);
+    assert_eq!(s.handle_w, 4.0);
+    assert_eq!(s.handle_h, 44.0);
+    assert_eq!(s.gap_dp, 6.0);
+    assert_eq!(s.stop_dp, 4.0);
     assert_eq!(s.active, theme.color.primary);
     assert_eq!(s.value, 0.4);
+    let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
+    assert_eq!(pressed.handle_w, 2.0);
 
     let primary = tabs::resolve(&theme, tabs::TabsVariant::Primary);
     assert_eq!(primary.height_dp, 48.0);
@@ -525,14 +557,14 @@ fn motion_emphasized_easing_bounds() {
 #[test]
 fn fab_baseline_sizes() {
     let theme = Theme::light();
-    let small = fab::resolve_size(
+    let medium = fab::resolve_size(
         &theme,
         fab::FabVariant::Primary,
-        fab::FabSize::Small,
+        fab::FabSize::Medium,
         InteractionState::Enabled,
     );
-    assert_eq!(small.height_dp, 40.0);
-    assert_eq!(small.corners.top_left, 12.0);
+    assert_eq!(medium.height_dp, 80.0);
+    assert_eq!(medium.corners.top_left, 20.0);
     let large = fab::resolve_size(
         &theme,
         fab::FabVariant::Primary,
