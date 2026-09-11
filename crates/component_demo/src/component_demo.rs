@@ -134,10 +134,10 @@ impl Render for CatalogView {
             );
 
         let body = match self.overlay {
-            Overlay::None => catalog_body(self, &theme, cx),
-            Overlay::Dialog => dialog_overlay(&theme, cx),
-            Overlay::Sheet => sheet_overlay(&theme, cx),
-            Overlay::Menu => menu_overlay(self, &theme, cx),
+            Overlay::None => catalog_body(self, &theme, cx).into_any_element(),
+            Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
+            Overlay::Sheet => sheet_overlay(&theme, cx).into_any_element(),
+            Overlay::Menu => menu_overlay(self, &theme, cx).into_any_element(),
         };
 
         let keyboard = self.field_focused().then(|| onscreen_keys(&theme, cx));
@@ -946,7 +946,7 @@ fn menu_overlay(
 }
 
 fn tab_row(
-    theme: &Theme,
+    _theme: &Theme,
     a: &tabs::TabsAppearance,
     selected: usize,
     prefix: &'static str,
@@ -1054,6 +1054,41 @@ fn onscreen_keys(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
         &["z", "x", "c", "v", "b", "n", "m", "⌫"],
         &["@", ".", "-", "_", " "],
     ];
+    let mut row_els = Vec::new();
+    for (ri, row) in rows.iter().enumerate() {
+        let mut keys = Vec::new();
+        for (ci, key) in row.iter().enumerate() {
+            let key = (*key).to_string();
+            let key_click = key.clone();
+            let label = if key == " " {
+                "space".to_string()
+            } else {
+                key.clone()
+            };
+            keys.push(
+                div()
+                    .id(SharedString::from(format!("key-{ri}-{ci}")))
+                    .px(px(if key == " " { 28. } else { 10. }))
+                    .py(px(10.))
+                    .rounded(px(8.))
+                    .bg(paint(theme.color.surface_container_high))
+                    .text_color(paint(theme.color.on_surface))
+                    .text_size(px(14.))
+                    .child(label)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.apply_key(&key_click);
+                        cx.notify();
+                    })),
+            );
+        }
+        row_els.push(
+            div()
+                .flex()
+                .justify_center()
+                .gap(px(4.))
+                .children(keys),
+        );
+    }
     div()
         .w_full()
         .p(px(6.))
@@ -1061,34 +1096,7 @@ fn onscreen_keys(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
         .flex()
         .flex_col()
         .bg(paint(theme.color.surface_container))
-        .children(rows.into_iter().enumerate().map(|(ri, row)| {
-            div()
-                .flex()
-                .justify_center()
-                .gap(px(4.))
-                .children(row.iter().enumerate().map(move |(ci, key)| {
-                    let key = (*key).to_string();
-                    let id = SharedString::from(format!("key-{ri}-{ci}"));
-                    let label = if key == " " {
-                        "space".to_string()
-                    } else {
-                        key.clone()
-                    };
-                    div()
-                        .id(id)
-                        .px(px(if key == " " { 28. } else { 10. }))
-                        .py(px(10.))
-                        .rounded(px(8.))
-                        .bg(paint(theme.color.surface_container_high))
-                        .text_color(paint(theme.color.on_surface))
-                        .text_size(px(14.))
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.apply_key(&key);
-                            cx.notify();
-                        }))
-                }))
-        }))
+        .children(row_els)
 }
 
 fn m_button(
