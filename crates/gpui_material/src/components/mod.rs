@@ -1,16 +1,23 @@
+pub mod badge;
+pub mod bottom_sheet;
 pub mod button;
 pub mod card;
 pub mod checkbox;
 pub mod chip;
+pub mod date_picker;
+pub mod dialog;
 pub mod divider;
 pub mod fab;
 pub mod icon_button;
 pub mod list;
+pub mod menu;
 pub mod navigation_bar;
 pub mod progress;
 pub mod radio;
+pub mod slider;
 pub mod snackbar;
 pub mod switch;
+pub mod tabs;
 pub mod text_field;
 pub mod top_app_bar;
 

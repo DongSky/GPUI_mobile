@@ -1,0 +1,47 @@
+//! Bottom sheet. Specs: https://m3.material.io/components/bottom-sheets/specs
+//! Tokens: androidx `SheetBottomTokens` v0_210.
+
+use crate::argb::Argb;
+use crate::shape::Corners;
+use crate::theme::Theme;
+
+pub const CORNER_TOP_DP: f32 = 28.0;
+pub const HANDLE_W_DP: f32 = 32.0;
+pub const HANDLE_H_DP: f32 = 4.0;
+pub const HANDLE_PAD_TOP_DP: f32 = 16.0;
+pub const SCRIM_OPACITY: f32 = 0.32;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BottomSheetAppearance {
+    pub corners: Corners,
+    pub container: Argb,
+    pub handle: Argb,
+    pub content: Argb,
+    pub scrim: Argb,
+    pub elevation_dp: f32,
+    pub handle_w: f32,
+    pub handle_h: f32,
+}
+
+pub fn resolve(theme: &Theme, modal: bool) -> BottomSheetAppearance {
+    let c = theme.color;
+    BottomSheetAppearance {
+        corners: Corners {
+            top_left: CORNER_TOP_DP,
+            top_right: CORNER_TOP_DP,
+            bottom_right: 0.0,
+            bottom_left: 0.0,
+        },
+        container: c.surface_container_low,
+        handle: c.on_surface_variant,
+        content: c.on_surface,
+        scrim: if modal {
+            c.scrim.with_alpha(SCRIM_OPACITY).composite_over(c.surface)
+        } else {
+            c.surface
+        },
+        elevation_dp: theme.elevation.level1,
+        handle_w: HANDLE_W_DP,
+        handle_h: HANDLE_H_DP,
+    }
+}

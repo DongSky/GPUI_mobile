@@ -1,10 +1,12 @@
 //! Golden tests against androidx Material 3 token values (v0_210 palette / type scale).
 
 use gpui_material::components::{
-    button, card, checkbox, chip, divider, fab, icon_button, list, navigation_bar, progress, radio,
-    snackbar, switch, text_field, top_app_bar,
+    badge, bottom_sheet, button, card, checkbox, chip, date_picker, dialog, divider, fab,
+    icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
+    text_field, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
+use gpui_material::motion;
 use gpui_material::palette;
 use gpui_material::state::{
     InteractionState, DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY,
@@ -64,9 +66,20 @@ fn dark_scheme_matches_androidx_color_dark_tokens() {
 #[test]
 fn type_scale_matches_androidx_type_scale_tokens() {
     let t = Theme::light().typography;
-    assert_eq!((t.display_large.size_sp, t.display_large.line_height_sp), (57.0, 64.0));
+    assert_eq!(
+        (t.display_large.size_sp, t.display_large.line_height_sp),
+        (57.0, 64.0)
+    );
     assert_eq!(t.display_large.tracking_sp, -0.2);
-    assert_eq!((t.body_large.size_sp, t.body_large.line_height_sp, t.body_large.tracking_sp, t.body_large.weight), (16.0, 24.0, 0.5, 400));
+    assert_eq!(
+        (
+            t.body_large.size_sp,
+            t.body_large.line_height_sp,
+            t.body_large.tracking_sp,
+            t.body_large.weight
+        ),
+        (16.0, 24.0, 0.5, 400)
+    );
     assert_eq!((t.label_large.size_sp, t.label_large.weight), (14.0, 500));
     assert_eq!((t.title_medium.size_sp, t.title_medium.weight), (16.0, 500));
     assert_eq!(t.label_small.size_sp, 11.0);
@@ -99,7 +112,11 @@ fn state_layer_opacities_match_m3_guidance() {
 #[test]
 fn filled_button_enabled_uses_primary_on_primary() {
     let theme = Theme::light();
-    let a = button::resolve(&theme, button::ButtonVariant::Filled, InteractionState::Enabled);
+    let a = button::resolve(
+        &theme,
+        button::ButtonVariant::Filled,
+        InteractionState::Enabled,
+    );
     assert_eq!(a.height_dp, 40.0);
     assert_eq!(a.min_width_dp, Some(64.0));
     assert_eq!(a.corners.top_left, 20.0);
@@ -113,7 +130,11 @@ fn filled_button_enabled_uses_primary_on_primary() {
 #[test]
 fn filled_button_disabled_composites_on_surface() {
     let theme = Theme::light();
-    let a = button::resolve(&theme, button::ButtonVariant::Filled, InteractionState::Disabled);
+    let a = button::resolve(
+        &theme,
+        button::ButtonVariant::Filled,
+        InteractionState::Disabled,
+    );
     let expected_container = theme
         .color
         .on_surface
@@ -132,11 +153,19 @@ fn filled_button_disabled_composites_on_surface() {
 #[test]
 fn outlined_and_text_buttons_keep_transparent_container() {
     let theme = Theme::light();
-    let outlined = button::resolve(&theme, button::ButtonVariant::Outlined, InteractionState::Enabled);
+    let outlined = button::resolve(
+        &theme,
+        button::ButtonVariant::Outlined,
+        InteractionState::Enabled,
+    );
     assert_eq!(outlined.container, theme.color.surface);
     assert_eq!(outlined.outline, Some((theme.color.outline, 1.0)));
     assert_eq!(outlined.content, theme.color.primary);
-    let text = button::resolve(&theme, button::ButtonVariant::Text, InteractionState::Enabled);
+    let text = button::resolve(
+        &theme,
+        button::ButtonVariant::Text,
+        InteractionState::Enabled,
+    );
     assert_eq!(text.outline, None);
     assert_eq!(text.content, theme.color.primary);
 }
@@ -144,10 +173,18 @@ fn outlined_and_text_buttons_keep_transparent_container() {
 #[test]
 fn tonal_and_elevated_button_roles() {
     let theme = Theme::light();
-    let tonal = button::resolve(&theme, button::ButtonVariant::Tonal, InteractionState::Enabled);
+    let tonal = button::resolve(
+        &theme,
+        button::ButtonVariant::Tonal,
+        InteractionState::Enabled,
+    );
     assert_eq!(tonal.container, theme.color.secondary_container);
     assert_eq!(tonal.content, theme.color.on_secondary_container);
-    let elevated = button::resolve(&theme, button::ButtonVariant::Elevated, InteractionState::Enabled);
+    let elevated = button::resolve(
+        &theme,
+        button::ButtonVariant::Elevated,
+        InteractionState::Enabled,
+    );
     assert_eq!(elevated.container, theme.color.surface_container_low);
     assert_eq!(elevated.content, theme.color.primary);
     assert_eq!(elevated.elevation_dp, 1.0);
@@ -156,8 +193,16 @@ fn tonal_and_elevated_button_roles() {
 #[test]
 fn pressed_state_layer_tints_filled_button() {
     let theme = Theme::light();
-    let enabled = button::resolve(&theme, button::ButtonVariant::Filled, InteractionState::Enabled);
-    let pressed = button::resolve(&theme, button::ButtonVariant::Filled, InteractionState::Pressed);
+    let enabled = button::resolve(
+        &theme,
+        button::ButtonVariant::Filled,
+        InteractionState::Enabled,
+    );
+    let pressed = button::resolve(
+        &theme,
+        button::ButtonVariant::Filled,
+        InteractionState::Pressed,
+    );
     assert_ne!(pressed.container, enabled.container);
     let expected = theme
         .color
@@ -179,7 +224,10 @@ fn text_field_metrics_and_error_focus() {
     assert_eq!(filled.field.height_dp, 56.0);
     assert_eq!(filled.field.corners.top_left, 4.0);
     assert_eq!(filled.field.corners.bottom_left, 0.0);
-    assert_eq!(filled.field.container, theme.color.surface_container_highest);
+    assert_eq!(
+        filled.field.container,
+        theme.color.surface_container_highest
+    );
     assert_eq!(filled.label_style.name, "bodyLarge");
 
     let focused = text_field::resolve(
@@ -222,7 +270,11 @@ fn list_heights_match_m3() {
 #[test]
 fn checkbox_radio_switch_metrics() {
     let theme = Theme::light();
-    let box_on = checkbox::resolve(&theme, checkbox::CheckValue::Checked, InteractionState::Enabled);
+    let box_on = checkbox::resolve(
+        &theme,
+        checkbox::CheckValue::Checked,
+        InteractionState::Enabled,
+    );
     assert_eq!(box_on.box_size_dp, 18.0);
     assert_eq!(box_on.corner_dp, 2.0);
     assert_eq!(box_on.target_dp, 48.0);
@@ -244,12 +296,21 @@ fn checkbox_radio_switch_metrics() {
 #[test]
 fn card_chip_fab_chrome_tokens() {
     let theme = Theme::light();
-    let elevated = card::resolve(&theme, card::CardVariant::Elevated, InteractionState::Enabled);
+    let elevated = card::resolve(
+        &theme,
+        card::CardVariant::Elevated,
+        InteractionState::Enabled,
+    );
     assert_eq!(elevated.corners.top_left, 12.0);
     assert_eq!(elevated.container, theme.color.surface_container_low);
     assert_eq!(elevated.elevation_dp, 1.0);
 
-    let filter = chip::resolve(&theme, chip::ChipVariant::Filter, true, InteractionState::Enabled);
+    let filter = chip::resolve(
+        &theme,
+        chip::ChipVariant::Filter,
+        true,
+        InteractionState::Enabled,
+    );
     assert_eq!(filter.height_dp, 32.0);
     assert_eq!(filter.container, theme.color.secondary_container);
 
@@ -301,6 +362,16 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-card=\"elevated\""));
     assert!(html.contains("data-navbar=\"1\""));
     assert!(html.contains("labelLarge"));
+    assert!(html.contains("data-dialog=\"basic\""));
+    assert!(html.contains("data-sheet=\"modal\""));
+    assert!(html.contains("data-menu=\"1\""));
+    assert!(html.contains("data-slider=\"0.3 enabled\""));
+    assert!(html.contains("data-tabs=\"primary\""));
+    assert!(html.contains("data-badge=\"large\""));
+    assert!(html.contains("data-datepicker=\"1\""));
+    assert!(html.contains("data-motion=\"emphasized\""));
+    assert!(html.contains("data-fab-size=\"extended\""));
+    assert!(html.contains("data-field=\"filled-edit\""));
 }
 
 #[test]
@@ -309,7 +380,174 @@ fn inventory_covers_claimed_and_followups() {
     for required in ["Button", "Text field", "List", "Checkbox", "Switch", "Card"] {
         assert!(names.contains(&required), "missing {required}");
     }
-    assert!(INVENTORY.iter().any(|e| e.name == "Button" && e.parity == Parity::Done));
-    assert!(INVENTORY.iter().any(|e| e.name == "Text field" && e.parity == Parity::Partial));
-    assert!(INVENTORY.iter().any(|e| e.name == "Dialog" && e.parity == Parity::NotStarted));
+    assert!(INVENTORY
+        .iter()
+        .any(|e| e.name == "Button" && e.parity == Parity::Done));
+    assert!(INVENTORY
+        .iter()
+        .any(|e| e.name == "Text field" && e.parity == Parity::Done));
+    for required in [
+        "Dialog",
+        "Bottom sheet",
+        "Menu",
+        "Slider",
+        "Tabs",
+        "Badge",
+        "Date picker",
+        "Motion tokens",
+    ] {
+        assert!(
+            INVENTORY
+                .iter()
+                .any(|e| e.name == required && e.parity == Parity::Done),
+            "{required} must be done"
+        );
+    }
+    assert!(!INVENTORY.iter().any(|e| e.parity == Parity::NotStarted));
+}
+
+#[test]
+fn dialog_sheet_menu_tokens() {
+    let theme = Theme::light();
+    let d = dialog::resolve(&theme);
+    assert_eq!(d.corners.top_left, 28.0);
+    assert_eq!(d.container, theme.color.surface_container_high);
+    assert_eq!(d.headline_style.name, "headlineSmall");
+    assert_eq!(d.supporting_style.name, "bodyMedium");
+    assert_eq!(d.action, theme.color.primary);
+    assert_eq!(d.elevation_dp, 6.0);
+    assert_eq!(d.min_width_dp, 280.0);
+
+    let sheet = bottom_sheet::resolve(&theme, true);
+    assert_eq!(sheet.corners.top_left, 28.0);
+    assert_eq!(sheet.corners.bottom_left, 0.0);
+    assert_eq!(sheet.container, theme.color.surface_container_low);
+    assert_eq!((sheet.handle_w, sheet.handle_h), (32.0, 4.0));
+    assert_eq!(sheet.elevation_dp, 1.0);
+
+    let menu = menu::resolve_menu(&theme);
+    assert_eq!(menu.corners.top_left, 4.0);
+    assert_eq!(menu.container, theme.color.surface_container);
+    assert_eq!(menu.elevation_dp, 3.0);
+    let selected = menu::resolve_item(&theme, true, InteractionState::Enabled);
+    assert_eq!(selected.container, theme.color.secondary_container);
+    assert_eq!(selected.height_dp, 48.0);
+}
+
+#[test]
+fn slider_tabs_badge_tokens() {
+    let theme = Theme::light();
+    let s = slider::resolve(&theme, 0.4, InteractionState::Enabled);
+    assert_eq!(s.track_h, 4.0);
+    assert_eq!(s.thumb_dp, 20.0);
+    assert_eq!(s.active, theme.color.primary);
+    assert_eq!(s.value, 0.4);
+
+    let primary = tabs::resolve(&theme, tabs::TabsVariant::Primary);
+    assert_eq!(primary.height_dp, 48.0);
+    assert_eq!(primary.indicator_h, 3.0);
+    assert!(!primary.indicator_full_width);
+    assert_eq!(primary.active_label, theme.color.primary);
+    let secondary = tabs::resolve(&theme, tabs::TabsVariant::Secondary);
+    assert_eq!(secondary.indicator_h, 2.0);
+    assert!(secondary.indicator_full_width);
+
+    let small = badge::resolve(&theme, badge::BadgeKind::Small);
+    assert_eq!(small.size_dp, 6.0);
+    assert_eq!(small.container, theme.color.error);
+    let large = badge::resolve(&theme, badge::BadgeKind::Large);
+    assert_eq!(large.size_dp, 16.0);
+    assert_eq!(badge::label_for_count(8), "8");
+    assert_eq!(badge::label_for_count(1000), "999+");
+}
+
+#[test]
+fn date_picker_grid_and_weekday() {
+    let theme = Theme::light();
+    let a = date_picker::resolve(&theme);
+    assert_eq!(a.day_dp, 40.0);
+    assert_eq!(a.corners.top_left, 28.0);
+    assert_eq!(a.container, theme.color.surface_container_high);
+    assert_eq!(a.day_selected_container, theme.color.primary);
+    // 2026-09-01 is Tuesday → Monday=0 → 1
+    assert_eq!(date_picker::weekday_monday0(2026, 9, 1), 1);
+    assert_eq!(date_picker::days_in_month(2024, 2), 29);
+    assert_eq!(date_picker::add_months(2026, 1, -1), (2025, 12));
+    let today = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 11,
+    };
+    let selected = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 15,
+    };
+    let cells = date_picker::month_grid_classified(2026, 9, selected, today);
+    assert_eq!(cells.len(), 42);
+    let fifteenth = cells
+        .iter()
+        .find(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected);
+    assert!(fifteenth.is_some());
+    assert!(cells.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
+}
+
+#[test]
+fn text_field_editor_insert_backspace_caret() {
+    let mut ed = text_field::TextFieldEditor::new(text_field::TextFieldVariant::Filled, "ab");
+    assert_eq!(ed.caret(), 2);
+    ed.move_caret(-1);
+    ed.insert_char('X');
+    assert_eq!(ed.value(), "aXb");
+    assert_eq!(ed.caret(), 2);
+    ed.backspace();
+    assert_eq!(ed.value(), "ab");
+    ed.set_focus(true);
+    assert_eq!(ed.interaction_state(), InteractionState::Focused);
+    assert!(ed.display_with_caret().contains('|'));
+    ed.error = true;
+    assert_eq!(ed.interaction_state(), InteractionState::ErrorFocused);
+    assert!(text_field::looks_like_email("a@b.c"));
+    assert!(!text_field::looks_like_email("not-an-email"));
+}
+
+#[test]
+fn motion_emphasized_easing_bounds() {
+    let m = Theme::light().motion;
+    assert_eq!(m.emphasized_at(0.0), 0.0);
+    assert_eq!(m.emphasized_at(1.0), 1.0);
+    let mid = m.emphasized_at(0.5);
+    assert!(mid > 0.5, "emphasized should lead (mid={mid})");
+    assert_eq!(motion::cubic_bezier(0.0, 0.0, 1.0, 1.0, 0.3), 0.3);
+    assert!((m.lerp(0.0, 10.0, 1.0) - 10.0).abs() < 1e-5);
+}
+
+#[test]
+fn fab_baseline_sizes() {
+    let theme = Theme::light();
+    let small = fab::resolve_size(
+        &theme,
+        fab::FabVariant::Primary,
+        fab::FabSize::Small,
+        InteractionState::Enabled,
+    );
+    assert_eq!(small.height_dp, 40.0);
+    assert_eq!(small.corners.top_left, 12.0);
+    let large = fab::resolve_size(
+        &theme,
+        fab::FabVariant::Primary,
+        fab::FabSize::Large,
+        InteractionState::Enabled,
+    );
+    assert_eq!(large.height_dp, 96.0);
+    assert_eq!(large.corners.top_left, 28.0);
+    let ext = fab::resolve_size(
+        &theme,
+        fab::FabVariant::Primary,
+        fab::FabSize::Extended,
+        InteractionState::Enabled,
+    );
+    assert_eq!(ext.height_dp, 56.0);
+    assert_eq!(ext.min_width_dp, Some(80.0));
+    assert!(ext.width_dp.is_none());
 }

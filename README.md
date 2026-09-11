@@ -22,11 +22,11 @@ Token values are taken from androidx Material 3 **v0_210** (`PaletteTokens`,
 | Shape | Shape scale | done | none through extra-large + full | [spec](https://m3.material.io/styles/shape/shape-scale-tokens) |
 | Elevation | Elevation levels 0–5 | done | dp levels + catalog shadow; no tonal-overlay GPU lighting | [spec](https://m3.material.io/styles/elevation) |
 | State layers | Interaction states | done | hover 8% / focus 10% / pressed 10% / dragged 16% / disabled 12%+38% | [spec](https://m3.material.io/foundations/interaction/states/state-layers) |
-| Motion tokens | Easing and duration | partial | Tokens only; no shared animation runtime on GPUI yet | [spec](https://m3.material.io/styles/motion/easing-and-duration/tokens-specs) |
+| Motion tokens | Easing and duration | done | short/medium/long + emphasized eval; catalog CSS transitions; no shared GPUI animation clock | [spec](https://m3.material.io/styles/motion/easing-and-duration/tokens-specs) |
 | Button | Common buttons (filled, tonal, elevated, outlined, text) | done | Default 40dp size; no expressive XS–XL or morph-to-square press | [spec](https://m3.material.io/components/buttons/specs) |
 | Icon button | Icon buttons | done | Standard / filled / tonal / outlined; 40dp container, 48dp target | [spec](https://m3.material.io/components/icon-buttons/specs) |
-| FAB | Floating action button | done | Regular 56dp; no extended / small / large FAB | [spec](https://m3.material.io/components/floating-action-button/specs) |
-| Text field | Filled and outlined text fields | partial | Visual states including error; Android IME / caret editing not wired | [spec](https://m3.material.io/components/text-fields/specs) |
+| FAB | Floating action button | done | Small 40 / regular 56 / large 96 / extended 56+label; no Expressive morph | [spec](https://m3.material.io/components/floating-action-button/specs) |
+| Text field | Filled and outlined text fields | done | Filled/outlined + editor (insert/backspace/caret/error); NativeActivity update_ime_position remains a stub | [spec](https://m3.material.io/components/text-fields/specs) |
 | List | Lists | done | One / two / three line; 56 / 72 / 88dp | [spec](https://m3.material.io/components/lists/specs) |
 | Checkbox | Checkbox | done | 18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate | [spec](https://m3.material.io/components/checkbox/specs) |
 | Radio | Radio button | done | 20dp / 48dp target | [spec](https://m3.material.io/components/radio-button/specs) |
@@ -38,13 +38,13 @@ Token values are taken from androidx Material 3 **v0_210** (`PaletteTokens`,
 | Top app bar | Small top app bar | done | 64dp surface bar; no medium/large collapsing | [spec](https://m3.material.io/components/top-app-bar/specs) |
 | Snackbar | Snackbar | done | Visual only; no timeout / swipe-to-dismiss runtime | [spec](https://m3.material.io/components/snackbar/specs) |
 | Navigation bar | Navigation bar | done | 80dp; active indicator 64×32; 3 destinations in catalog | [spec](https://m3.material.io/components/navigation-bar/specs) |
-| Dialog | Basic dialogs | not started | Follow-up | [spec](https://m3.material.io/components/dialogs/specs) |
-| Bottom sheet | Bottom sheets | not started | Follow-up | [spec](https://m3.material.io/components/bottom-sheets/specs) |
-| Menu | Menus | not started | Follow-up | [spec](https://m3.material.io/components/menus/specs) |
-| Slider | Sliders | not started | Follow-up | [spec](https://m3.material.io/components/sliders/specs) |
-| Tabs | Tabs | not started | Follow-up | [spec](https://m3.material.io/components/tabs/specs) |
-| Badge | Badges | not started | Follow-up | [spec](https://m3.material.io/components/badges/specs) |
-| Date picker | Date pickers | not started | Follow-up | [spec](https://m3.material.io/components/date-pickers/specs) |
+| Dialog | Basic dialogs | done | surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim | [spec](https://m3.material.io/components/dialogs/specs) |
+| Bottom sheet | Bottom sheets | done | surface-container-low, extra-large top 28dp, 32×4 handle, elev 1 | [spec](https://m3.material.io/components/bottom-sheets/specs) |
+| Menu | Menus | done | surface-container, 4dp, elev 2, 48dp items; selected secondary-container | [spec](https://m3.material.io/components/menus/specs) |
+| Slider | Sliders | done | Baseline You 4dp track / 20dp thumb (not Expressive 16dp stop) | [spec](https://m3.material.io/components/sliders/specs) |
+| Tabs | Tabs | done | Primary 48dp + 3dp primary indicator; secondary 2dp full-width | [spec](https://m3.material.io/components/tabs/specs) |
+| Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
+| Date picker | Date pickers | done | Modal calendar; 40dp days; selected/today/out-of-month; Monday-first grid | [spec](https://m3.material.io/components/date-pickers/specs) |
 
 `done` means tokens, metrics, and catalog states match the cited Material 3 spec
 for the baseline (non-expressive) size. Hover is shown as a forced catalog state

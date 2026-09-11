@@ -1,8 +1,9 @@
 //! Filled and outlined text fields.
 //! Specs: https://m3.material.io/components/text-fields/specs
 //!
-//! Android IME / caret editing is out of scope for the platform layer; this
-//! module resolves visual tokens and states (enabled/disabled/hover/focus/error).
+//! Visual tokens plus a host-testable editor (`TextFieldEditor`). Android
+//! NativeActivity still stubs `update_ime_position`; the catalog and demo edit
+//! through this editor (HTML `<input>` / on-screen keys).
 
 use crate::argb::Argb;
 use crate::components::Appearance;
@@ -70,13 +71,23 @@ pub fn resolve(
     } else if error && focused {
         (c.error, c.on_surface, c.error, c.error)
     } else if error && state == InteractionState::Hovered {
-        (c.on_error_container, c.on_surface, c.error, c.on_error_container)
+        (
+            c.on_error_container,
+            c.on_surface,
+            c.error,
+            c.on_error_container,
+        )
     } else if error {
         (c.error, c.on_surface, c.error, c.error)
     } else if focused {
         (c.primary, c.on_surface, c.on_surface_variant, c.primary)
     } else if state == InteractionState::Hovered {
-        (c.on_surface_variant, c.on_surface, c.on_surface_variant, c.on_surface)
+        (
+            c.on_surface_variant,
+            c.on_surface,
+            c.on_surface_variant,
+            c.on_surface,
+        )
     } else {
         (
             c.on_surface_variant,
@@ -89,9 +100,7 @@ pub fn resolve(
     let (container, corners, outline) = match variant {
         TextFieldVariant::Filled => {
             let base = if disabled {
-                c.on_surface
-                    .with_alpha(0.04)
-                    .composite_over(c.surface)
+                c.on_surface.with_alpha(0.04).composite_over(c.surface)
             } else {
                 c.surface_container_highest
             };
@@ -152,4 +161,139 @@ pub fn resolve(
         supporting_style: theme.typography.body_small,
         populated,
     }
+}
+
+/// Host-testable caret editor. Used by the HTML catalog and the Android demo
+/// so fields are actually editable without a system `InputConnection`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextFieldEditor {
+    pub variant: TextFieldVariant,
+    value: String,
+    caret: usize,
+    pub focused: bool,
+    pub error: bool,
+    pub disabled: bool,
+}
+
+impl TextFieldEditor {
+    pub fn new(variant: TextFieldVariant, initial: impl Into<String>) -> Self {
+        let value = initial.into();
+        let caret = value.chars().count();
+        Self {
+            variant,
+            value,
+            caret,
+            focused: false,
+            error: false,
+            disabled: false,
+        }
+    }
+
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    pub fn caret(&self) -> usize {
+        self.caret
+    }
+
+    pub fn populated(&self) -> bool {
+        !self.value.is_empty()
+    }
+
+    pub fn interaction_state(&self) -> InteractionState {
+        if self.disabled {
+            InteractionState::Disabled
+        } else if self.error && self.focused {
+            InteractionState::ErrorFocused
+        } else if self.error {
+            InteractionState::Error
+        } else if self.focused {
+            InteractionState::Focused
+        } else {
+            InteractionState::Enabled
+        }
+    }
+
+    pub fn set_focus(&mut self, focused: bool) {
+        if !self.disabled {
+            self.focused = focused;
+        }
+    }
+
+    pub fn insert_char(&mut self, ch: char) {
+        if self.disabled {
+            return;
+        }
+        if ch == '\u{8}' || ch == '\u{7f}' {
+            self.backspace();
+            return;
+        }
+        if ch.is_control() {
+            return;
+        }
+        let mut chars: Vec<char> = self.value.chars().collect();
+        let i = self.caret.min(chars.len());
+        chars.insert(i, ch);
+        self.caret = i + 1;
+        self.value = chars.into_iter().collect();
+    }
+
+    pub fn insert_str(&mut self, s: &str) {
+        for ch in s.chars() {
+            self.insert_char(ch);
+        }
+    }
+
+    pub fn backspace(&mut self) {
+        if self.disabled || self.caret == 0 {
+            return;
+        }
+        let mut chars: Vec<char> = self.value.chars().collect();
+        chars.remove(self.caret - 1);
+        self.caret -= 1;
+        self.value = chars.into_iter().collect();
+    }
+
+    pub fn move_caret(&mut self, delta: i32) {
+        let len = self.value.chars().count() as i32;
+        self.caret = (self.caret as i32 + delta).clamp(0, len) as usize;
+    }
+
+    pub fn appearance(&self, theme: &Theme) -> TextFieldAppearance {
+        resolve(
+            theme,
+            self.variant,
+            self.interaction_state(),
+            self.populated(),
+        )
+    }
+
+    /// Visible value with a `|` caret when focused (Android demo / tests).
+    pub fn display_with_caret(&self) -> String {
+        if !self.focused {
+            return self.value.clone();
+        }
+        let chars: Vec<char> = self.value.chars().collect();
+        let i = self.caret.min(chars.len());
+        let mut out = String::new();
+        for (idx, ch) in chars.iter().enumerate() {
+            if idx == i {
+                out.push('|');
+            }
+            out.push(*ch);
+        }
+        if i == chars.len() {
+            out.push('|');
+        }
+        out
+    }
+}
+
+/// Lightweight email check used by the outlined error demo.
+pub fn looks_like_email(s: &str) -> bool {
+    let Some(at) = s.find('@') else {
+        return false;
+    };
+    at > 0 && s[at + 1..].contains('.')
 }

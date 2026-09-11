@@ -367,5 +367,8 @@ impl PlatformWindow for AndroidWindow {
     fn gpu_specs(&self) -> Option<GpuSpecs> {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
-    fn update_ime_position(&self, _bounds: Bounds<Pixels>) {}
+    fn update_ime_position(&self, _bounds: Bounds<Pixels>) {
+        // NativeActivity has no InputConnection. Text fields edit via
+        // `gpui_material::text_field::TextFieldEditor` + the demo on-screen keys.
+    }
 }
