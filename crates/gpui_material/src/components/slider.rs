@@ -122,11 +122,14 @@ pub fn resolve_size(
         (muted, track, muted, muted, track)
     } else {
         (
+            // MDC-Android Slider: active = colorPrimary,
+            // inactive = colorSurfaceContainerHighest
+            // (https://github.com/material-components/material-components-android/blob/master/docs/components/Slider.md).
             c.primary,
-            c.secondary_container,
+            c.surface_container_highest,
             c.primary,
             c.on_primary,
-            c.on_secondary_container,
+            c.primary,
         )
     };
     SliderAppearance {

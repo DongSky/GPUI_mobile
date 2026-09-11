@@ -1,4 +1,6 @@
-//! Standard icon button. Specs: https://m3.material.io/components/icon-buttons/specs
+//! Icon buttons — M3 Expressive.
+//! Specs: https://m3.material.io/components/icon-buttons/specs
+//! Tokens: androidx Compose `*IconButtonTokens` (XS 32 / S 40 / M 56 / L 96 / XL 136).
 
 use crate::components::button::{self, ButtonShape, ButtonSize};
 use crate::components::Appearance;
@@ -33,8 +35,38 @@ impl IconButtonVariant {
     }
 }
 
+pub const fn container_dp(size: ButtonSize) -> f32 {
+    size.height_dp()
+}
+
+pub const fn icon_dp(size: ButtonSize) -> f32 {
+    match size {
+        ButtonSize::ExtraSmall => 20.0,
+        ButtonSize::Small | ButtonSize::Medium => 24.0,
+        ButtonSize::Large => 32.0,
+        ButtonSize::ExtraLarge => 40.0,
+    }
+}
+
 pub fn resolve(theme: &Theme, variant: IconButtonVariant, state: InteractionState) -> Appearance {
+    resolve_expressive(
+        theme,
+        variant,
+        ButtonSize::Small,
+        ButtonShape::Round,
+        state,
+    )
+}
+
+pub fn resolve_expressive(
+    theme: &Theme,
+    variant: IconButtonVariant,
+    size: ButtonSize,
+    shape: ButtonShape,
+    state: InteractionState,
+) -> Appearance {
     let c = theme.color;
+    let outline_w = size.outline_dp();
     let (base, icon, outline) = match variant {
         IconButtonVariant::Standard => (c.surface, c.on_surface_variant, None),
         IconButtonVariant::Filled => (c.primary, c.on_primary, None),
@@ -42,7 +74,7 @@ pub fn resolve(theme: &Theme, variant: IconButtonVariant, state: InteractionStat
         IconButtonVariant::Outlined => (
             c.surface,
             c.on_surface_variant,
-            Some((c.outline_variant, 1.0)),
+            Some((c.outline_variant, outline_w)),
         ),
     };
     let (container, content, outline) = if state.is_disabled() {
@@ -72,24 +104,23 @@ pub fn resolve(theme: &Theme, variant: IconButtonVariant, state: InteractionStat
             outline,
         )
     };
+    let side = container_dp(size);
+    let icon = icon_dp(size);
+    let pad = (side - icon) / 2.0;
     Appearance {
-        width_dp: Some(CONTAINER_DP),
-        height_dp: CONTAINER_DP,
-        min_width_dp: Some(TARGET_DP),
-        corners: Corners::all(button::corner_dp(
-            ButtonSize::Small,
-            ButtonShape::Round,
-            state,
-        )),
+        width_dp: Some(side),
+        height_dp: side,
+        min_width_dp: Some(TARGET_DP.max(side)),
+        corners: Corners::all(button::corner_dp(size, shape, state)),
         container,
         content,
         secondary_content: None,
         outline,
         elevation_dp: 0.0,
-        pad_start_dp: (CONTAINER_DP - ICON_DP) / 2.0,
-        pad_end_dp: (CONTAINER_DP - ICON_DP) / 2.0,
-        pad_top_dp: (CONTAINER_DP - ICON_DP) / 2.0,
-        pad_bottom_dp: (CONTAINER_DP - ICON_DP) / 2.0,
+        pad_start_dp: pad,
+        pad_end_dp: pad,
+        pad_top_dp: pad,
+        pad_bottom_dp: pad,
         label_style: theme.typography.label_large,
         supporting_style: None,
     }

@@ -257,7 +257,7 @@ fn text_field_metrics_and_error_focus() {
         InteractionState::Focused,
         true,
     );
-    assert_eq!(focused.field.outline, Some((theme.color.primary, 3.0)));
+    assert_eq!(focused.field.outline, Some((theme.color.primary, 2.0)));
     assert!(focused.notched);
     assert!(focused.floating);
     assert_eq!(focused.label, theme.color.primary);
@@ -348,6 +348,15 @@ fn card_chip_fab_chrome_tokens() {
         InteractionState::Enabled,
     );
     assert_eq!(icon.height_dp, 40.0);
+    let icon_xl = icon_button::resolve_expressive(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        button::ButtonSize::ExtraLarge,
+        button::ButtonShape::Round,
+        InteractionState::Enabled,
+    );
+    assert_eq!(icon_xl.height_dp, 136.0);
+    assert_eq!(icon_button::icon_dp(button::ButtonSize::ExtraLarge), 40.0);
 
     let bar = top_app_bar::resolve(&theme);
     assert_eq!(bar.height_dp, 64.0);
@@ -392,7 +401,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"slider\""));
     assert!(html.contains("data-hero=\"buttons\""));
     assert!(html.contains("data-field-hero=\"outlined\""));
+    assert!(html.contains("data-notched=\"1\""));
+    assert!(html.contains("<legend"));
     assert!(html.contains("data-button-size=\"xl\""));
+    assert!(html.contains("data-button-shape=\"square\""));
+    assert!(html.contains("data-icon-size=\"xl\""));
+    assert!(html.contains("data-hero=\"icon-buttons\""));
+    assert!(html.contains("Filled tonal"));
     assert!(html.contains("data-tabs=\"primary\""));
     assert!(html.contains("data-badge=\"large\""));
     assert!(html.contains("data-datepicker=\"1\""));
@@ -407,6 +422,15 @@ fn inventory_covers_claimed_and_followups() {
     for required in ["Button", "Text field", "List", "Checkbox", "Switch", "Card"] {
         assert!(names.contains(&required), "missing {required}");
     }
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Button" && e.parity == Parity::Done && e.notes.contains("Expressive")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Slider" && e.notes.contains("4×44") && e.notes.contains("surface-container-highest")
+    }));
+    assert!(!INVENTORY
+        .iter()
+        .any(|e| e.notes.contains("intentionally not") || e.notes.contains("skip Expressive")));
     assert!(INVENTORY
         .iter()
         .any(|e| e.name == "Button" && e.parity == Parity::Done));
@@ -471,6 +495,7 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.gap_dp, 6.0);
     assert_eq!(s.stop_dp, 4.0);
     assert_eq!(s.active, theme.color.primary);
+    assert_eq!(s.inactive, theme.color.surface_container_highest);
     assert_eq!(s.value, 0.4);
     let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
     assert_eq!(pressed.handle_w, 2.0);

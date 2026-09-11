@@ -268,7 +268,7 @@ fn catalog_body(
             div()
                 .text_size(px(theme.typography.body_medium.size_sp))
                 .text_color(paint(c.on_surface_variant))
-                .child("Material You baseline. Tokens: androidx v0_210."),
+                .child("Material 3 / Expressive (m3.material.io). Color roles: androidx v0_210."),
         )
         .child(section_title(theme, "Buttons"))
         .child(
@@ -328,6 +328,33 @@ fn catalog_body(
                     "Disabled",
                     |_, _, _| {},
                 )),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(button::ButtonSize::ALL.iter().map(|size| {
+                    let a = button::resolve_expressive(
+                        theme,
+                        button::ButtonVariant::Filled,
+                        *size,
+                        button::ButtonShape::Round,
+                        InteractionState::Enabled,
+                    );
+                    div()
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_start_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .text_size(type_size(a.label_style))
+                        .font_weight(FontWeight::MEDIUM)
+                        .flex()
+                        .items_center()
+                        .child("Label")
+                })),
         )
         .child(section_title(theme, "Text fields"))
         .child(
@@ -548,7 +575,17 @@ fn catalog_body(
                                 .h(px(slide.track_h))
                                 .w(px(140. * slide.value.max(0.12)))
                                 .rounded(px(slide.track_corner))
-                                .bg(paint(slide.active)),
+                                .bg(paint(slide.active))
+                                .flex()
+                                .items_center()
+                                .pl(px(8.))
+                                .child(
+                                    div()
+                                        .w(px(slide.stop_dp))
+                                        .h(px(slide.stop_dp))
+                                        .rounded(px(slide.stop_dp / 2.0))
+                                        .bg(paint(slide.stop_active)),
+                                ),
                         )
                         .child(
                             div()
@@ -563,7 +600,18 @@ fn catalog_body(
                                 .h(px(slide.track_h))
                                 .flex_1()
                                 .rounded(px(slide.track_corner))
-                                .bg(paint(slide.inactive)),
+                                .bg(paint(slide.inactive))
+                                .flex()
+                                .items_center()
+                                .justify_end()
+                                .pr(px(8.))
+                                .child(
+                                    div()
+                                        .w(px(slide.stop_dp))
+                                        .h(px(slide.stop_dp))
+                                        .rounded(px(slide.stop_dp / 2.0))
+                                        .bg(paint(slide.stop_inactive)),
+                                ),
                         ),
                 )
                 .on_click(cx.listener(|this, _, _, cx| {
@@ -616,6 +664,12 @@ fn catalog_body(
                 ),
         )
         .child(section_title(theme, "Date picker"))
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child("Select date"),
+        )
         .child(
             div()
                 .flex()
@@ -815,6 +869,13 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                 .gap(px(16.))
                 .flex()
                 .flex_col()
+                .items_center()
+                .child(
+                    div()
+                        .text_size(px(24.))
+                        .text_color(paint(a.icon))
+                        .child("♡"),
+                )
                 .child(
                     div()
                         .text_size(type_size(a.headline_style))
@@ -1174,36 +1235,109 @@ fn field_block(
     supporting: impl Into<SharedString>,
     on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
+    let outline = field.field.outline.unwrap_or((field.label, 1.0));
+    let outlined = field.field.corners.bottom_left > 0.0;
+    let label = label.into();
+    let value = value.into();
+    let box_el = if outlined && field.notched {
+        div()
+            .id(id)
+            .flex()
+            .flex_col()
+            .on_click(on_click)
+            .child(
+                div()
+                    .h(px(0.))
+                    .pl(px(12.))
+                    .child(
+                        div()
+                            .px(px(text_field::NOTCH_PAD_DP))
+                            .bg(paint(field.field.container))
+                            .text_size(px(field.label_style.size_sp))
+                            .text_color(paint(field.label))
+                            .child(label),
+                    ),
+            )
+            .child(
+                div()
+                    .mt(px(-8.))
+                    .h(px(field.field.height_dp))
+                    .px(px(16.))
+                    .pt(px(12.))
+                    .rounded(px(field.field.corners.top_left))
+                    .bg(paint(field.field.container))
+                    .when(outline.1 >= 2.0, |el| {
+                        el.border_2().border_color(paint(outline.0))
+                    })
+                    .when(outline.1 < 2.0, |el| {
+                        el.border_1().border_color(paint(outline.0))
+                    })
+                    .flex()
+                    .items_center()
+                    .child(
+                        div()
+                            .text_size(px(field.input_style.size_sp))
+                            .text_color(paint(field.input))
+                            .child(value),
+                    ),
+            )
+            .into_any_element()
+    } else if outlined {
+        div()
+            .id(id)
+            .h(px(field.field.height_dp))
+            .px(px(16.))
+            .rounded(px(field.field.corners.top_left))
+            .bg(paint(field.field.container))
+            .border_1()
+            .border_color(paint(outline.0))
+            .flex()
+            .items_center()
+            .on_click(on_click)
+            .child(
+                div()
+                    .text_size(px(field.label_style.size_sp))
+                    .text_color(paint(field.label))
+                    .child(label),
+            )
+            .into_any_element()
+    } else {
+        div()
+            .id(id)
+            .h(px(field.field.height_dp))
+            .px(px(16.))
+            .rounded(px(field.field.corners.top_left))
+            .bg(paint(field.field.container))
+            .flex()
+            .flex_col()
+            .justify_end()
+            .pb(px(8.))
+            .on_click(on_click)
+            .child(
+                div()
+                    .text_size(px(field.label_style.size_sp))
+                    .text_color(paint(field.label))
+                    .child(label),
+            )
+            .child(
+                div()
+                    .text_size(px(field.input_style.size_sp))
+                    .text_color(paint(field.input))
+                    .child(value),
+            )
+            .child(
+                div()
+                    .h(px(outline.1.max(1.0)))
+                    .w_full()
+                    .bg(paint(outline.0)),
+            )
+            .into_any_element()
+    };
     div()
         .flex()
         .flex_col()
         .gap(px(4.))
-        .child(
-            div()
-                .id(id)
-                .h(px(field.field.height_dp))
-                .px(px(16.))
-                .rounded(px(field.field.corners.top_left))
-                .bg(paint(field.field.container))
-                .border_1()
-                .border_color(paint(field.field.outline.unwrap().0))
-                .flex()
-                .flex_col()
-                .justify_center()
-                .on_click(on_click)
-                .child(
-                    div()
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(label.into()),
-                )
-                .child(
-                    div()
-                        .text_size(px(field.input_style.size_sp))
-                        .text_color(paint(field.input))
-                        .child(value.into()),
-                ),
-        )
+        .child(box_el)
         .child(
             div()
                 .px(px(16.))

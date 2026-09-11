@@ -81,7 +81,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Icon buttons",
         docs: "https://m3.material.io/components/icon-buttons/specs",
         parity: Parity::Done,
-        notes: "Expressive press morph (S → 8dp); outlined uses outline-variant; 48dp target",
+        notes: "Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24",
     },
     ComponentEntry {
         name: "FAB",
@@ -95,7 +95,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch (4dp); focus outline 3dp; icons; IME still NativeActivity stub",
+        notes: "Floating label; outlined notch (4dp) on every populated/focused state; focus outline 2dp; icons; IME still NativeActivity stub",
     },
     ComponentEntry {
         name: "List",
@@ -200,7 +200,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",

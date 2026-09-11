@@ -114,14 +114,14 @@ a {{ color: var(--primary); }}
   font-family: Roboto, sans-serif; border: none; text-decoration: none;
 }}
 .btn {{
-  height: 40px; min-width: 64px; padding: 0 24px;
+  height: 40px; min-width: 64px; padding: 0 16px;
   border-radius: 20px; font-size: 14px; line-height: 20px; font-weight: 500;
   letter-spacing: 0.1px;
 }}
 .icon-btn {{
   width: 40px; height: 40px; border-radius: 20px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 18px;
+  font-size: 18px; flex: 0 0 auto;
 }}
 .fab {{
   width: 56px; height: 56px; border-radius: 16px;
@@ -132,7 +132,8 @@ a {{ color: var(--primary); }}
   background: {surface_low}; border-radius: 28px; padding: 24px; margin: 12px 0 20px;
   display: flex; flex-direction: column; gap: 16px;
 }}
-.btn:active {{ border-radius: 8px !important; }}
+.btn:active {{ border-radius: var(--press-r, 8px) !important; }}
+.icon-btn:active {{ border-radius: var(--press-r, 8px) !important; }}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -157,7 +158,8 @@ a {{ color: var(--primary); }}
 }}
 .filled-hero .lab {{ font-size: 12px; line-height: 16px; }}
 .xslider {{
-  display: flex; align-items: center; width: 100%; max-width: 420px; height: 48px;
+  display: flex; align-items: center; width: 100%; max-width: 420px;
+  min-height: 48px; height: auto;
 }}
 .xseg {{
   position: relative; display: flex; align-items: center;
@@ -285,11 +287,31 @@ table.inv th {{ font-weight: 500; }}
 {body}
 <script>
 document.querySelectorAll("[data-editor] input").forEach(function (input) {{
-  input.addEventListener("input", function () {{
+  function sync() {{
     var wrap = input.closest("[data-editor]");
+    if (!wrap) return;
     var lab = wrap.querySelector(".lab");
-    if (lab) lab.style.fontSize = input.value ? "12px" : "16px";
-  }});
+    if (lab) lab.style.fontSize = (input.value || document.activeElement === input) ? "12px" : "16px";
+    var box = wrap.querySelector("[data-field='outlined-edit']");
+    if (box && box.tagName !== "FIELDSET" && (input.value || document.activeElement === input)) {{
+      var fs = document.createElement("fieldset");
+      fs.className = box.className;
+      fs.setAttribute("data-field", "outlined-edit");
+      fs.setAttribute("data-notched", "1");
+      fs.setAttribute("style", box.getAttribute("style") || "");
+      var legend = document.createElement("legend");
+      legend.textContent = (box.querySelector(".lab") || {{textContent: "Email"}}).textContent || "Email";
+      legend.style.padding = "0 4px";
+      while (box.firstChild) fs.appendChild(box.firstChild);
+      var innerLab = fs.querySelector(".lab");
+      if (innerLab) innerLab.remove();
+      fs.insertBefore(legend, fs.firstChild);
+      box.replaceWith(fs);
+    }}
+  }}
+  input.addEventListener("input", sync);
+  input.addEventListener("focus", sync);
+  input.addEventListener("blur", sync);
 }});
 </script>
 </body>
@@ -437,24 +459,27 @@ fn type_section(theme: &Theme) -> String {
 fn paint_button(theme: &Theme, variant: button::ButtonVariant, state: InteractionState) -> String {
     let a = button::resolve(theme, variant, state);
     format!(
-        "<button class=\"btn\" data-button=\"{v}\" data-state=\"{s}\" style=\"background:{bg};color:{fg};border:{bd};box-shadow:{sh};min-width:{mw}px;height:{h}px;border-radius:{r}\">{label}</button>",
+        "<button class=\"btn\" data-button=\"{v}\" data-state=\"{s}\" style=\"--press-r:{pr}px;background:{bg};color:{fg};border:{bd};box-shadow:{sh};min-width:{mw}px;height:{h}px;padding:0 {pad}px;border-radius:{r}px;font-size:{fs}px\">{label}</button>",
         v = variant.label(),
         s = state.label(),
+        pr = button::ButtonSize::Small.pressed_corner_dp(),
         bg = a.container.css_hex(),
         fg = a.content.css_hex(),
         bd = a.outline_css(),
         sh = ElevationLevels::css_shadow(a.elevation_dp),
         mw = a.min_width_dp.unwrap_or(64.0),
         h = a.height_dp,
+        pad = a.pad_start_dp,
         r = a.corners.top_left,
-        label = variant.label(),
+        fs = a.label_style.size_sp,
+        label = variant.overview_label(),
     )
 }
 
 fn buttons(theme: &Theme) -> String {
     let mut out = String::from("<h2>Buttons</h2><p class=\"note\">M3 Expressive: five colors, XS–XL, round/square, press morph. Default S is 40×16. <a href=\"https://m3.material.io/components/buttons/specs\">spec</a></p>");
     out.push_str("<div class=\"hero-card\" data-hero=\"buttons\"><div class=\"state-body\">");
-    for variant in button::ButtonVariant::ALL {
+    for variant in button::OVERVIEW_ORDER {
         out.push_str(&paint_button(theme, variant, InteractionState::Enabled));
     }
     out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
@@ -467,8 +492,9 @@ fn buttons(theme: &Theme) -> String {
             InteractionState::Enabled,
         );
         out.push_str(&format!(
-            "<button class=\"btn\" data-button-size=\"{s}\" style=\"background:{bg};color:{fg};height:{h}px;padding:0 {pad}px;border-radius:{r}px;font-size:{fs}px;min-width:{mw}px\">Label</button>",
+            "<button class=\"btn\" data-button-size=\"{s}\" style=\"--press-r:{pr}px;background:{bg};color:{fg};height:{h}px;padding:0 {pad}px;border-radius:{r}px;font-size:{fs}px;min-width:{mw}px\">Label</button>",
             s = size.label(),
+            pr = size.pressed_corner_dp(),
             mw = a.min_width_dp.unwrap_or(64.0).max(a.height_dp * 0.6),
             bg = a.container.css_hex(),
             fg = a.content.css_hex(),
@@ -478,7 +504,31 @@ fn buttons(theme: &Theme) -> String {
             fs = a.label_style.size_sp,
         ));
     }
-    out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp).</p></div>");
+    out.push_str("</div><h3>shapes</h3><div class=\"state-body\">");
+    for shape in [button::ButtonShape::Round, button::ButtonShape::Square] {
+        let a = button::resolve_expressive(
+            theme,
+            button::ButtonVariant::Filled,
+            button::ButtonSize::Small,
+            shape,
+            InteractionState::Enabled,
+        );
+        out.push_str(&format!(
+            "<button class=\"btn\" data-button-shape=\"{s}\" style=\"--press-r:8px;background:{bg};color:{fg};height:{h}px;padding:0 {pad}px;border-radius:{r}px\">{label}</button>",
+            s = shape.label(),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            h = a.height_dp,
+            pad = a.pad_start_dp,
+            r = a.corners.top_left,
+            label = if matches!(shape, button::ButtonShape::Round) {
+                "Round"
+            } else {
+                "Square"
+            },
+        ));
+    }
+    out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p></div>");
     for variant in button::ButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in InteractionState::ALL_COMMON {
@@ -491,7 +541,44 @@ fn buttons(theme: &Theme) -> String {
 }
 
 fn icon_buttons(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Icon buttons</h2>");
+    let mut out = String::from("<h2>Icon buttons</h2><p class=\"note\">Expressive: filled / tonal / outlined / standard, XS–XL, round/square, press morph. Default S is 40×24. <a href=\"https://m3.material.io/components/icon-buttons/specs\">spec</a></p>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"icon-buttons\"><div class=\"state-body\">");
+    for variant in icon_button::IconButtonVariant::ALL {
+        let a = icon_button::resolve(theme, variant, InteractionState::Enabled);
+        out.push_str(&format!(
+            "<div class=\"icon-btn\" data-icon-button=\"{v}\" style=\"--press-r:8px;width:{w}px;height:{h}px;background:{bg};color:{fg};border:{bd};border-radius:{r}px;font-size:18px\">★</div>",
+            v = variant.label(),
+            w = a.width_dp.unwrap_or(a.height_dp),
+            h = a.height_dp,
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            bd = a.outline_css(),
+            r = a.corners.top_left,
+        ));
+    }
+    out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
+    for size in button::ButtonSize::ALL {
+        let a = icon_button::resolve_expressive(
+            theme,
+            icon_button::IconButtonVariant::Filled,
+            size,
+            button::ButtonShape::Round,
+            InteractionState::Enabled,
+        );
+        let fs = icon_button::icon_dp(size);
+        out.push_str(&format!(
+            "<div class=\"icon-btn\" data-icon-size=\"{s}\" style=\"--press-r:{pr}px;width:{w}px;height:{h}px;background:{bg};color:{fg};border-radius:{r}px;font-size:{fs}px\">★</div>",
+            s = size.label(),
+            pr = size.pressed_corner_dp(),
+            w = a.width_dp.unwrap_or(a.height_dp),
+            h = a.height_dp,
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            r = a.corners.top_left,
+            fs = fs * 0.75,
+        ));
+    }
+    out.push_str("</div></div>");
     for variant in icon_button::IconButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in [
@@ -502,12 +589,13 @@ fn icon_buttons(theme: &Theme) -> String {
             let a = icon_button::resolve(theme, variant, state);
             out.push_str(&state_row_open(state.label()));
             out.push_str(&format!(
-                "<div class=\"icon-btn\" data-icon-button=\"{v}\" data-state=\"{s}\" style=\"background:{bg};color:{fg};border:{bd}\">★</div>",
+                "<div class=\"icon-btn\" data-icon-button=\"{v}\" data-state=\"{s}\" style=\"--press-r:8px;background:{bg};color:{fg};border:{bd};border-radius:{r}px\">★</div>",
                 v = variant.label(),
                 s = state.label(),
                 bg = a.container.css_hex(),
                 fg = a.content.css_hex(),
                 bd = a.outline_css(),
+                r = a.corners.top_left,
             ));
             out.push_str("</div></div>");
         }
@@ -568,8 +656,69 @@ fn fabs(theme: &Theme) -> String {
     out
 }
 
+fn paint_filled_field(
+    a: &text_field::TextFieldAppearance,
+    attrs: &str,
+    label: &str,
+    value_html: &str,
+) -> String {
+    let (oc, ow) = a
+        .field
+        .outline
+        .map(|(c, w)| (c.css_hex(), w))
+        .unwrap_or_else(|| ("transparent".into(), 1.0));
+    format!(
+        r#"<div class="filled-hero" {attrs} style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{inp}">
+  <div class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</div>
+  {value_html}
+</div>"#,
+        bg = a.field.container.css_hex(),
+        r = a.field.corners.top_left,
+        inp = a.input.css_hex(),
+        lab = a.label.css_hex(),
+        ls = a.label_style.size_sp,
+        lh = a.label_style.line_height_sp,
+    )
+}
+
+fn paint_outlined_field(
+    a: &text_field::TextFieldAppearance,
+    attrs: &str,
+    label: &str,
+    inner_html: &str,
+) -> String {
+    let (oc, ow) = a
+        .field
+        .outline
+        .map(|(c, w)| (c.css_hex(), w))
+        .unwrap_or_else(|| ("transparent".into(), 1.0));
+    if a.notched {
+        format!(
+            r#"<fieldset class="ol" data-notched="1" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
+  <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
+  {inner_html}
+</fieldset>"#,
+            r = a.field.corners.top_left,
+            inp = a.input.css_hex(),
+            lab = a.label.css_hex(),
+            pad = text_field::NOTCH_PAD_DP,
+        )
+    } else {
+        format!(
+            r#"<div class="ol" data-notched="0" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{lab};min-height:56px">
+  <span class="lab" style="font-size:{ls}px;line-height:{lh}px">{label}</span>
+  {inner_html}
+</div>"#,
+            r = a.field.corners.top_left,
+            lab = a.label.css_hex(),
+            ls = a.label_style.size_sp,
+            lh = a.label_style.line_height_sp,
+        )
+    }
+}
+
 fn text_fields(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official outlined uses a <em>notched floating label</em> on the outline (4dp gap). Filled floats the label inside. Focus outline is 3dp (Expressive). <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
+    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official outlined uses a <em>notched floating label</em> on the outline (4dp gap). Filled floats the label inside. Focus/error outline is 2dp (Compose <code>FocusedBorderThickness</code>). <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
     let filled = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Filled,
@@ -582,65 +731,69 @@ fn text_fields(theme: &Theme) -> String {
         InteractionState::Focused,
         true,
     );
-    out.push_str(&format!(
-        r#"<div class="hero-card" data-hero="text-fields">
-<fieldset class="ol" data-field-hero="outlined" style="border:{ow}px solid {oc};border-radius:{or}px;color:{inp}">
-  <legend style="color:{lab}">Label</legend>
-  <span style="color:{lead};font-size:20px">⌕</span>
+    let hero_outlined_inner = format!(
+        r#"<span style="color:{lead};font-size:20px">⌕</span>
   <input class="val" value="Input" data-editor="outlined"/>
-  <span style="color:{trail};font-size:18px">✕</span>
-</fieldset>
-<div class="filled-hero" data-field-hero="filled" style="background:{fbg};border-radius:{fr}px {fr}px 0 0;box-shadow:inset 0 -{fw}px 0 {fc}">
-  <div class="lab" style="color:{flab}">Label</div>
-  <input class="val" style="color:{finp}" value="Input text" data-editor="filled"/>
-</div>
-<p class="note">Leading / trailing icons as on the official overview. System IME remains a NativeActivity stub.</p>
-</div>"#,
-        ow = outlined.field.outline.map(|(_, w)| w).unwrap_or(3.0),
-        oc = outlined.field.outline.map(|(c, _)| c.css_hex()).unwrap_or_default(),
-        or = outlined.field.corners.top_left,
-        inp = outlined.input.css_hex(),
-        lab = outlined.label.css_hex(),
+  <span style="color:{trail};font-size:18px">✕</span>"#,
         lead = outlined.leading_icon.css_hex(),
         trail = outlined.trailing_icon.css_hex(),
-        fbg = filled.field.container.css_hex(),
-        fr = filled.field.corners.top_left,
-        fw = filled.field.outline.map(|(_, w)| w).unwrap_or(2.0),
-        fc = filled.field.outline.map(|(c, _)| c.css_hex()).unwrap_or_default(),
-        flab = filled.label.css_hex(),
-        finp = filled.input.css_hex(),
+    );
+    out.push_str("<div class=\"hero-card\" data-hero=\"text-fields\">");
+    out.push_str(&paint_outlined_field(
+        &outlined,
+        "data-field-hero=\"outlined\"",
+        "Label",
+        &hero_outlined_inner,
     ));
-    let outlined = text_field::resolve(
+    out.push_str(&paint_filled_field(
+        &filled,
+        "data-field-hero=\"filled\"",
+        "Label",
+        &format!(
+            r#"<input class="val" style="color:{}" value="Input text" data-editor="filled"/>"#,
+            filled.input.css_hex()
+        ),
+    ));
+    out.push_str("<p class=\"note\">Leading / trailing icons as on the official overview. System IME remains a NativeActivity stub.</p></div>");
+
+    let filled_edit = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        true,
+    );
+    let outlined_empty = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Outlined,
         InteractionState::Enabled,
         false,
     );
+    out.push_str("<h3>editable</h3><div class=\"state-body\">");
     out.push_str(&format!(
-        r#"<h3>editable</h3>
-<div class="state-body">
-<div class="field-wrap" data-editor="filled"><div class="field" data-field="filled-edit" style="background:{fbg};border:none;border-bottom:{fbd};border-radius:{fr} {fr} 0 0">
-  <div class="lab" style="color:{flab}">Label</div>
-  <input class="val" style="color:{finp}" value="Editable filled"/>
-</div><div class="support" style="color:{fsup}">Supporting text</div></div>
-<div class="field-wrap" data-editor="outlined"><div class="field" data-field="outlined-edit" style="background:{obg};border:{obd};border-radius:{or}px">
-  <div class="lab" style="color:{olab}">Email</div>
-  <input class="val" style="color:{oinp}" value="" placeholder="you@domain"/>
-</div><div class="support" style="color:{osup}">Supporting text</div></div>
-</div>"#,
-        fbg = filled.field.container.css_hex(),
-        fbd = filled.field.outline_css(),
-        fr = filled.field.corners.top_left,
-        flab = filled.label.css_hex(),
-        finp = filled.input.css_hex(),
-        fsup = filled.supporting.css_hex(),
-        obg = outlined.field.container.css_hex(),
-        obd = outlined.field.outline_css(),
-        or = outlined.field.corners.top_left,
-        olab = outlined.label.css_hex(),
-        oinp = outlined.input.css_hex(),
-        osup = outlined.supporting.css_hex(),
+        r#"<div class="field-wrap" data-editor="filled">{}<div class="support" style="color:{}">Supporting text</div></div>"#,
+        paint_filled_field(
+            &filled_edit,
+            "data-field=\"filled-edit\"",
+            "Label",
+            &format!(
+                r#"<input class="val" style="color:{}" value="Editable filled"/>"#,
+                filled_edit.input.css_hex()
+            ),
+        ),
+        filled_edit.supporting.css_hex()
     ));
+    out.push_str(&format!(
+        r#"<div class="field-wrap" data-editor="outlined">{}<div class="support" style="color:{}">Supporting text</div></div>"#,
+        paint_outlined_field(
+            &outlined_empty,
+            "data-field=\"outlined-edit\"",
+            "Email",
+            r#"<input class="val" value="" placeholder="you@domain"/>"#,
+        ),
+        outlined_empty.supporting.css_hex()
+    ));
+    out.push_str("</div>");
+
     let states = [
         InteractionState::Enabled,
         InteractionState::Disabled,
@@ -658,32 +811,28 @@ fn text_fields(theme: &Theme) -> String {
             } else {
                 "Supporting text"
             };
-            let border = match variant {
-                text_field::TextFieldVariant::Filled => format!(
-                    "border:none;border-bottom:{};border-radius:{} {} 0 0",
-                    a.field.outline_css(),
-                    a.field.corners.top_left,
-                    a.field.corners.top_right
-                ),
-                text_field::TextFieldVariant::Outlined => format!(
-                    "border:{};border-radius:{}",
-                    a.field.outline_css(),
-                    a.field.corners.top_left
-                ),
-            };
+            let value = format!(
+                r#"<div class="val" style="color:{}">Input text</div>"#,
+                a.input.css_hex()
+            );
+            let attrs = format!(
+                "data-field=\"{}\" data-state=\"{}\"",
+                variant.label(),
+                state.label()
+            );
             out.push_str(&state_row_open(state.label()));
+            out.push_str("<div class=\"field-wrap\">");
+            match variant {
+                text_field::TextFieldVariant::Filled => {
+                    out.push_str(&paint_filled_field(&a, &attrs, "Label", &value));
+                }
+                text_field::TextFieldVariant::Outlined => {
+                    out.push_str(&paint_outlined_field(&a, &attrs, "Label", &value));
+                }
+            }
             out.push_str(&format!(
-                r#"<div class="field-wrap"><div class="field" data-field="{v}" data-state="{s}" style="background:{bg};{border}">
-  <div class="lab" style="color:{lab}">Label</div>
-  <div class="val" style="color:{inp}">Input text</div>
-</div><div class="support" style="color:{sup}">{support}</div></div>"#,
-                v = variant.label(),
-                s = state.label(),
-                bg = a.field.container.css_hex(),
-                border = border,
-                lab = a.label.css_hex(),
-                inp = a.input.css_hex(),
-                sup = a.supporting.css_hex(),
+                r#"<div class="support" style="color:{}">{support}</div></div>"#,
+                a.supporting.css_hex()
             ));
             out.push_str("</div></div>");
         }

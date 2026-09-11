@@ -39,7 +39,27 @@ impl ButtonVariant {
             Self::Text => "text",
         }
     }
+
+    /// Labels as shown on the current m3.material.io buttons overview.
+    pub const fn overview_label(self) -> &'static str {
+        match self {
+            Self::Elevated => "Elevated",
+            Self::Filled => "Filled",
+            Self::Tonal => "Filled tonal",
+            Self::Outlined => "Outlined",
+            Self::Text => "Text",
+        }
+    }
 }
+
+/// Official overview order: Elevated, Filled, Filled tonal, Outlined, Text.
+pub const OVERVIEW_ORDER: [ButtonVariant; 5] = [
+    ButtonVariant::Elevated,
+    ButtonVariant::Filled,
+    ButtonVariant::Tonal,
+    ButtonVariant::Outlined,
+    ButtonVariant::Text,
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonSize {

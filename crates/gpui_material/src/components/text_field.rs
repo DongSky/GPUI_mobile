@@ -17,8 +17,9 @@ pub const PAD_H_DP: f32 = 16.0;
 pub const INDICATOR_DP: f32 = 1.0;
 pub const INDICATOR_FOCUSED_DP: f32 = 2.0;
 pub const OUTLINE_DP: f32 = 1.0;
-/// Expressive outlined focus chrome (m3.material.io text-fields specs).
-pub const OUTLINE_FOCUSED_DP: f32 = 3.0;
+/// Compose `OutlinedTextFieldDefaults.FocusedBorderThickness` = 2.dp
+/// (https://developer.android.com/reference/kotlin/androidx/compose/material3/OutlinedTextFieldDefaults).
+pub const OUTLINE_FOCUSED_DP: f32 = 2.0;
 pub const SUPPORTING_GAP_DP: f32 = 4.0;
 pub const ICON_DP: f32 = 24.0;
 pub const NOTCH_PAD_DP: f32 = 4.0;
