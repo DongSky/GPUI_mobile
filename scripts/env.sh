@@ -32,8 +32,9 @@ fi
 export PATH="${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator:${PATH}"
 
 if [[ -z "${GRADLE_BIN:-}" ]]; then
-  if [[ -x "$(dirname "$0")/../android/gradlew" ]]; then
-    export GRADLE_BIN="$(cd "$(dirname "$0")/.." && pwd)/android/gradlew"
+  _here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+  if [[ -n "${_here}" && -x "${_here}/../android/gradlew" ]]; then
+    export GRADLE_BIN="$(cd "${_here}/.." && pwd)/android/gradlew"
   elif [[ -x "${PWD}/android/gradlew" ]]; then
     export GRADLE_BIN="${PWD}/android/gradlew"
   else
