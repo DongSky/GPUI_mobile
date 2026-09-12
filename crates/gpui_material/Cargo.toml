@@ -1,0 +1,15 @@
+[package]
+name = "gpui_material"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Material 3 / Material You tokens and resolved component appearances for GPUI on Android."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "material_catalog"
+path = "src/bin/material_catalog.rs"
+
+[dependencies]

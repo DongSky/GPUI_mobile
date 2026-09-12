@@ -10,10 +10,10 @@ path = "src/component_demo.rs"
 
 [dependencies]
 log.workspace = true
+gpui_material.workspace = true
 
 [target.'cfg(target_os = "android")'.dependencies]
 gpui.workspace = true
 gpui_android.workspace = true
-gpui-component.workspace = true
 android-activity.workspace = true
 android_logger.workspace = true
