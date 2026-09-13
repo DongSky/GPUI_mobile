@@ -9,6 +9,7 @@ appearances in `crates/gpui_material`, used by:
 - host unit tests (no Android SDK)
 - an HTML catalog for visual QA
 - the Android `component_demo` catalog APK
+- the desktop `material_desktop_demo` catalog (upstream Zed GPUI)
 
 Color roles still match androidx **v0_210** light/dark schemes. Component metrics
 follow the **current** [Material 3 / Expressive](https://m3.material.io) site
@@ -45,7 +46,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Slider | Sliders | done | Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; inactive = surface-container-highest; S–XL sizes | [spec](https://m3.material.io/components/sliders/specs) |
 | Tabs | Tabs | done | Primary 48dp + 3dp primary indicator; secondary 2dp full-width | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
-| Date picker | Date pickers | done | Modal calendar; 40dp days; selected/today/out-of-month; Monday-first grid | [spec](https://m3.material.io/components/date-pickers/specs) |
+| Date picker | Date pickers | done | Modal calendar; 40dp days; selected/today/out-of-month; Sunday-first grid (official modal) | [spec](https://m3.material.io/components/date-pickers/specs) |
 
 `done` means tokens, metrics, and catalog **heroes** match the current
 [m3.material.io](https://m3.material.io) Expressive language (not the older
@@ -58,12 +59,30 @@ Requires Rust **1.85+** (edition 2024). This repo pins `stable` via
 
 ```bash
 rustup show          # should select stable from rust-toolchain.toml
-scripts/test.sh      # cargo test -p gpui_material && cargo test -p gpui_android
+scripts/test.sh      # gpui_material + gpui_android + desktop unit test + HTML catalog
 scripts/catalog.sh   # writes target/material-catalog-light.html and -dark.html
 ```
 
 Open the HTML catalog in a browser for visual QA of every supported component
 in canonical states.
+
+## Run (desktop catalog — Linux / macOS / Windows)
+
+Same `gpui_material::resolve()` appearances as the Android APK and HTML catalog,
+painted with upstream Zed GPUI (`gpui_platform::application()` + `open_window`).
+
+```bash
+cargo run -p material_desktop_demo
+# or
+scripts/desktop.sh
+```
+
+Needs a display (X11 or Wayland). `cargo test -p material_desktop_demo` checks
+that heroes read metrics from `resolve()` and does not open a window.
+
+Linux first compile of the desktop crate needs Zed/GPUI native headers
+(`libfontconfig1-dev`, `libfreetype6-dev`, `libxkbcommon-dev`,
+`libxkbcommon-x11-dev`, `libwayland-dev`). Android builds do not.
 
 ## Build (Android APK)
 
@@ -103,15 +122,17 @@ The first Android compile downloads the pinned Zed `gpui` git dependency
 |---|---|---|
 | Material tokens | `cargo test -p gpui_material` | Palette RGB, light/dark roles, type scale, button/field/list/selection metrics, disabled compositing, catalog HTML evidence |
 | Touch / timers | `cargo test -p gpui_android` | Touch→mouse/scroll mapping, timer queue |
+| Desktop catalog | `cargo test -p material_desktop_demo` | Shared `resolve()` heroes (no window). Run the app with `scripts/desktop.sh` |
 | Visual catalog | `scripts/catalog.sh` | Light + dark HTML rendered from the same `resolve()` functions |
 
 ## Layout
 
 ```
-crates/gpui_material/     Material 3 tokens + resolve() + HTML catalog
-crates/gpui_android/      GPUI Platform for Android (wgpu + NativeActivity)
-crates/component_demo/    Material catalog APK
-crates/hello_gpui/        PoC-1 (rect + CJK text + tap counter)
-android/                  Gradle NativeActivity packager
-scripts/                  env, build, run, test, catalog, SDK setup
+crates/gpui_material/          Material 3 tokens + resolve() + HTML catalog
+crates/gpui_android/           GPUI Platform for Android (wgpu + NativeActivity)
+crates/component_demo/         Material catalog APK
+crates/material_desktop_demo/  Desktop GPUI catalog (same resolve() → div)
+crates/hello_gpui/             PoC-1 (rect + CJK text + tap counter)
+android/                       Gradle NativeActivity packager
+scripts/                       env, build, run, test, catalog, desktop, SDK setup
 ```

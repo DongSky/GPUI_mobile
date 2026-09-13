@@ -5,12 +5,15 @@ members = [
     "crates/hello_gpui",
     "crates/component_demo",
     "crates/gpui_material",
+    "crates/material_desktop_demo",
 ]
 
 [workspace.dependencies]
-# Unpinned git source; Cargo.lock holds the Zed commit (a8fafdd).
-gpui = { git = "https://github.com/zed-industries/zed", default-features = false }
-gpui_wgpu = { git = "https://github.com/zed-industries/zed" }
+# Pin every Zed crate to the same lockfile commit. An unpinned second crate
+# (gpui_platform) would otherwise float the whole git source to origin/HEAD.
+gpui = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74", default-features = false }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
+gpui_wgpu = { git = "https://github.com/zed-industries/zed", rev = "a8fafdd7ee36fb3fb98ebbfe5d3be983301d9e74" }
 anyhow = "1"
 log = "0.4"
 flume = "0.12"

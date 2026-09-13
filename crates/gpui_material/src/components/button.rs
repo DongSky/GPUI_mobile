@@ -4,6 +4,7 @@
 //! Sizes XS–XL, round/square, press shape-morph. Default size is Small (40dp).
 //! Small horizontal padding is 16dp (Expressive recommendation).
 
+use crate::argb::Argb;
 use crate::components::Appearance;
 use crate::shape::Corners;
 use crate::state::{
@@ -208,7 +209,9 @@ pub fn resolve_expressive(
             Some((c.outline_variant, outline_w)),
             0.0,
         ),
-        ButtonVariant::Text => (surface, c.primary, None, 0.0),
+        // Text buttons have no filled container (official dialog Cancel/Accept).
+        // Using `surface` painted as an opaque pill on desktop/Android.
+        ButtonVariant::Text => (Argb::TRANSPARENT, c.primary, None, 0.0),
     };
 
     let elevation = match (variant, state) {
@@ -225,7 +228,8 @@ pub fn resolve_expressive(
                 .on_surface
                 .with_alpha(DISABLED_CONTAINER_OPACITY)
                 .composite_over(surface),
-            ButtonVariant::Outlined | ButtonVariant::Text => surface,
+            ButtonVariant::Outlined => surface,
+            ButtonVariant::Text => Argb::TRANSPARENT,
         };
         let outline = outline.map(|(_, w)| {
             (
