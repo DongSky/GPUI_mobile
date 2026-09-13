@@ -10,7 +10,7 @@
 use gpui::prelude::*;
 use gpui::{
     div, px, rgb, size, App, Bounds, Context, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, Window, WindowBounds, WindowOptions,
+    SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -79,6 +79,7 @@ impl Render for CatalogView {
                 div()
                     .text_size(px(bar.title_style.size_sp))
                     .text_color(paint(bar.title))
+                    .whitespace_nowrap()
                     .child("Material 3 desktop"),
             )
             .child(
@@ -107,6 +108,7 @@ impl Render for CatalogView {
             .flex_col()
             .size_full()
             .bg(paint(c.background))
+            .font_family("Noto Sans")
             .text_color(paint(c.on_background))
             .child(chrome)
             .child(body)
@@ -154,8 +156,9 @@ fn catalog_body(
             div()
                 .text_size(px(theme.typography.body_medium.size_sp))
                 .text_color(paint(c.on_surface_variant))
+                .whitespace_nowrap()
                 .child(
-                    "Desktop catalog · same gpui_material::resolve() as Android + HTML. Expressive (m3.material.io).",
+                    "Desktop catalog · same gpui_material::resolve() as Android + HTML.",
                 ),
         )
         .child(section_title(theme, "Buttons"))
@@ -691,6 +694,7 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
         .text_size(px(theme.typography.title_medium.size_sp))
         .font_weight(FontWeight::MEDIUM)
         .text_color(paint(theme.color.on_surface))
+        .whitespace_nowrap()
         .child(title)
 }
 
@@ -817,6 +821,11 @@ fn main() {
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
+                titlebar: Some(TitlebarOptions {
+                    title: Some("Material 3 desktop catalog".into()),
+                    ..Default::default()
+                }),
+                app_id: Some("dev.gpui.material_desktop_demo".into()),
                 ..Default::default()
             },
             |_, cx| {

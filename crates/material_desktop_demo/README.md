@@ -36,6 +36,9 @@ sudo apt-get install -y libfontconfig1-dev libfreetype6-dev \
   libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev
 ```
 
+Hosts without `/dev/dri` (typical cloud agent) should keep `WGPU_BACKEND=gl`
+so wgpu uses Mesa llvmpipe. `scripts/desktop.sh` sets that automatically.
+
 ## Skeleton scope
 
 Heroes: Expressive buttons, outlined text-field notch, Expressive slider,
