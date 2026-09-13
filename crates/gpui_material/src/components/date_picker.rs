@@ -83,22 +83,37 @@ pub fn is_leap(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
 }
 
-/// Monday = 0 … Sunday = 6 (ISO), for the 1st of the month.
-pub fn weekday_monday0(year: i32, month: u32, day: u32) -> u32 {
-    // Sakamoto
+/// Sakamoto weekday: 0 = Sunday … 6 = Saturday.
+fn weekday_sakamoto(year: i32, month: u32, day: u32) -> u32 {
     const T: [u32; 12] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
     let mut y = year;
     if month < 3 {
         y -= 1;
     }
     let w = (y + y / 4 - y / 100 + y / 400 + T[month as usize - 1] as i32 + day as i32) % 7;
-    // Sakamoto: 0 = Sunday. Convert to Monday = 0.
-    ((w + 6) % 7) as u32
+    w as u32
+}
+
+/// Official m3.material.io modal date picker is Sunday-first (US locale
+/// default on the live overview / modal variant). Catalogs match that rather
+/// than ISO Monday-first so Visual QA lines up with the site. `weekday_monday0`
+/// remains for ISO callers.
+pub const WEEK_STARTS_ON_SUNDAY: bool = true;
+
+/// Sunday = 0 … Saturday = 6. Used by `month_grid` / `WEEKDAYS`.
+pub fn weekday_sunday0(year: i32, month: u32, day: u32) -> u32 {
+    weekday_sakamoto(year, month, day)
+}
+
+/// Monday = 0 … Sunday = 6 (ISO).
+pub fn weekday_monday0(year: i32, month: u32, day: u32) -> u32 {
+    (weekday_sakamoto(year, month, day) + 6) % 7
 }
 
 /// 6×7 cells covering the month; `OutOfMonth` pads prev/next.
+/// Column 0 is Sunday, matching the official modal.
 pub fn month_grid(year: i32, month: u32) -> [(u32, DayKind); 42] {
-    let first = weekday_monday0(year, month, 1);
+    let first = weekday_sunday0(year, month, 1);
     let dim = days_in_month(year, month);
     let prev_month = if month == 1 { 12 } else { month - 1 };
     let prev_year = if month == 1 { year - 1 } else { year };
@@ -134,8 +149,9 @@ pub fn classify_day(
     }
 }
 
-pub const WEEKDAYS: [&str; 7] = ["M", "T", "W", "T", "F", "S", "S"];
-pub const WEEKDAYS_FULL: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/// Sunday-first, matching official modal date picker columns.
+pub const WEEKDAYS: [&str; 7] = ["S", "M", "T", "W", "T", "F", "S"];
+pub const WEEKDAYS_FULL: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 pub const MONTHS: [&str; 12] = [
     "January",
     "February",
@@ -169,8 +185,12 @@ pub fn month_title(year: i32, month: u32) -> String {
     format!("{name} {year}")
 }
 
+pub fn header_year_label(year: i32) -> String {
+    format!("{year} ▾")
+}
+
 pub fn header_date_label(date: CivilDate) -> String {
-    let wd = weekday_monday0(date.year, date.month, date.day) as usize;
+    let wd = weekday_sunday0(date.year, date.month, date.day) as usize;
     let mon = MONTHS_SHORT
         .get((date.month.saturating_sub(1)) as usize)
         .copied()

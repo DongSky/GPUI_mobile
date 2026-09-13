@@ -90,6 +90,61 @@ pub struct SliderAppearance {
     pub stop_active: Argb,
     pub stop_inactive: Argb,
     pub value: f32,
+    /// Discrete stop indicators along the track. Default 2 = ends only.
+    /// Official overview Alarm row uses mid-track stops.
+    pub stop_count: usize,
+}
+
+/// One volume-like row as on the official sliders overview.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverviewRow {
+    pub icon: &'static str,
+    pub label: &'static str,
+    pub value: f32,
+    pub stop_count: usize,
+}
+
+/// Official overview scene: Call / Alarm / Ring / Media.
+/// Alarm is the mid-stop example.
+pub const OVERVIEW_ROWS: [OverviewRow; 4] = [
+    OverviewRow {
+        icon: "☎",
+        label: "Call volume",
+        value: 0.35,
+        stop_count: 2,
+    },
+    OverviewRow {
+        icon: "⏰",
+        label: "Alarm volume",
+        value: 0.52,
+        stop_count: 11,
+    },
+    OverviewRow {
+        icon: "🔔",
+        label: "Ring volume",
+        value: 0.72,
+        stop_count: 2,
+    },
+    OverviewRow {
+        icon: "♪",
+        label: "Media volume",
+        value: 0.85,
+        stop_count: 2,
+    },
+];
+
+/// Evenly spaced stop positions in 0..=1.
+pub fn stop_fractions(count: usize) -> Vec<f32> {
+    let n = count.max(2);
+    (0..n).map(|i| i as f32 / (n as f32 - 1.0)).collect()
+}
+
+/// How many stop dots belong on the active vs inactive segments.
+pub fn segmented_stop_counts(value: f32, count: usize) -> (usize, usize) {
+    let stops = stop_fractions(count);
+    let active = stops.iter().filter(|s| **s <= value + 0.001).count();
+    let inactive = stops.len().saturating_sub(active);
+    (active.max(1), inactive.max(1))
 }
 
 pub fn resolve(theme: &Theme, value: f32, state: InteractionState) -> SliderAppearance {
@@ -147,5 +202,29 @@ pub fn resolve_size(
         stop_active,
         stop_inactive,
         value,
+        stop_count: 2,
     }
+}
+
+pub fn resolve_with_stops(
+    theme: &Theme,
+    value: f32,
+    state: InteractionState,
+    stop_count: usize,
+) -> SliderAppearance {
+    let mut a = resolve(theme, value, state);
+    a.stop_count = stop_count.max(2);
+    a
+}
+
+pub fn resolve_size_with_stops(
+    theme: &Theme,
+    size: SliderSize,
+    value: f32,
+    state: InteractionState,
+    stop_count: usize,
+) -> SliderAppearance {
+    let mut a = resolve_size(theme, size, value, state);
+    a.stop_count = stop_count.max(2);
+    a
 }

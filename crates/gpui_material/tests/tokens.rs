@@ -189,6 +189,7 @@ fn outlined_and_text_buttons_keep_transparent_container() {
     );
     assert_eq!(text.outline, None);
     assert_eq!(text.content, theme.color.primary);
+    assert_eq!(text.container, Argb::TRANSPARENT);
 }
 
 #[test]
@@ -250,6 +251,8 @@ fn text_field_metrics_and_error_focus() {
         theme.color.surface_container_highest
     );
     assert_eq!(filled.label_style.name, "bodyLarge");
+    assert!(!filled.floating);
+    assert!(!filled.notched);
 
     let focused = text_field::resolve(
         &theme,
@@ -395,6 +398,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-navbar=\"1\""));
     assert!(html.contains("labelLarge"));
     assert!(html.contains("data-dialog=\"basic\""));
+    assert!(html.contains("data-dialog=\"list\""));
+    assert!(html.contains("Phone ringtone"));
+    assert!(html.contains("data-field-hero=\"empty-filled\""));
+    assert!(html.contains("data-field-hero=\"empty-outlined\""));
+    assert!(html.contains("data-week-start=\"sunday\""));
+    assert!(html.contains("data-stops=\"11\""));
+    assert!(html.contains("Alarm volume"));
     assert!(html.contains("data-sheet=\"modal\""));
     assert!(html.contains("data-menu=\"1\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
@@ -497,6 +507,11 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.active, theme.color.primary);
     assert_eq!(s.inactive, theme.color.surface_container_highest);
     assert_eq!(s.value, 0.4);
+    assert_eq!(s.stop_count, 2);
+    assert_eq!(slider::stop_fractions(5), vec![0.0, 0.25, 0.5, 0.75, 1.0]);
+    let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 11);
+    assert_eq!(alarm.stop_count, 11);
+    assert_eq!(slider::segmented_stop_counts(0.52, 11).0, 6);
     let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
     assert_eq!(pressed.handle_w, 2.0);
 
@@ -526,8 +541,20 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(a.corners.top_left, 28.0);
     assert_eq!(a.container, theme.color.surface_container_high);
     assert_eq!(a.day_selected_container, theme.color.primary);
-    // 2026-09-01 is Tuesday → Monday=0 → 1
+    // 2026-09-01 is Tuesday → Sunday=0 → 2; Monday=0 → 1
+    assert!(date_picker::WEEK_STARTS_ON_SUNDAY);
+    assert_eq!(date_picker::WEEKDAYS[0], "S");
+    assert_eq!(date_picker::WEEKDAYS[1], "M");
+    assert_eq!(date_picker::weekday_sunday0(2026, 9, 1), 2);
     assert_eq!(date_picker::weekday_monday0(2026, 9, 1), 1);
+    assert_eq!(
+        date_picker::header_date_label(date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 15,
+        }),
+        "Tue, Sep 15"
+    );
     assert_eq!(date_picker::days_in_month(2024, 2), 29);
     assert_eq!(date_picker::add_months(2026, 1, -1), (2025, 12));
     let today = date_picker::CivilDate {
@@ -542,6 +569,8 @@ fn date_picker_grid_and_weekday() {
     };
     let cells = date_picker::month_grid_classified(2026, 9, selected, today);
     assert_eq!(cells.len(), 42);
+    assert_eq!(cells[0], (30, date_picker::DayKind::OutOfMonth));
+    assert_eq!(cells[2], (1, date_picker::DayKind::InMonth));
     let fifteenth = cells
         .iter()
         .find(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected);

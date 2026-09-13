@@ -13,6 +13,21 @@ pub const MIN_WIDTH_DP: f32 = 280.0;
 pub const ICON_DP: f32 = 24.0;
 pub const SCRIM_OPACITY: f32 = 0.32;
 
+/// Guidelines basic-dialog anatomy (icon + headline + supporting + text actions).
+pub const RESET_HEADLINE: &str = "Reset settings?";
+pub const RESET_SUPPORTING: &str =
+    "This will reset your app preferences back to their default settings. You can't undo this action.";
+/// Refresh-style glyph; official guidelines use a circular-arrows icon.
+pub const RESET_ICON: &str = "↻";
+pub const RESET_CANCEL: &str = "Cancel";
+pub const RESET_ACCEPT: &str = "Accept";
+
+/// Overview list-dialog hero (Phone ringtone).
+pub const RINGTONE_HEADLINE: &str = "Phone ringtone";
+pub const RINGTONE_OPTIONS: [&str; 4] = ["None", "Callisto", "Ganymede", "Luna"];
+pub const RINGTONE_CANCEL: &str = "Cancel";
+pub const RINGTONE_OK: &str = "OK";
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DialogAppearance {
     pub corners: Corners,

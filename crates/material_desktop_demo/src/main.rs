@@ -9,20 +9,25 @@
 
 use gpui::prelude::*;
 use gpui::{
-    div, px, rgb, size, App, Bounds, Context, FontWeight, IntoElement, ParentElement, Render,
+    div, px, size, App, Bounds, Context, FontWeight, IntoElement, ParentElement, Render,
     SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::{
-    button, checkbox, dialog, icon_button, slider, switch, tabs, text_field, top_app_bar,
+    button, checkbox, dialog, icon_button, radio, slider, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::{Argb, InteractionState};
 use gpui_platform::application;
 
 fn paint(c: Argb) -> gpui::Rgba {
-    rgb(c.rgb_u32())
+    gpui::Rgba {
+        r: c.r() as f32 / 255.0,
+        g: c.g() as f32 / 255.0,
+        b: c.b() as f32 / 255.0,
+        a: c.a() as f32 / 255.0,
+    }
 }
 
 fn type_size(style: gpui_material::typography::TypeStyle) -> gpui::Pixels {
@@ -33,6 +38,7 @@ fn type_size(style: gpui_material::typography::TypeStyle) -> gpui::Pixels {
 enum Overlay {
     None,
     Dialog,
+    ListDialog,
 }
 
 struct CatalogView {
@@ -42,6 +48,7 @@ struct CatalogView {
     switched: bool,
     overlay: Overlay,
     slider: f32,
+    ringtone: usize,
     tab: usize,
     picker_year: i32,
     picker_month: u32,
@@ -101,6 +108,7 @@ impl Render for CatalogView {
         let body = match self.overlay {
             Overlay::None => catalog_body(self, &theme, cx).into_any_element(),
             Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
+            Overlay::ListDialog => list_dialog_overlay(self, &theme, cx).into_any_element(),
         };
 
         div()
@@ -123,7 +131,18 @@ fn catalog_body(
     let c = theme.color;
     let filled_a = this.filled.appearance(theme);
     let outlined_a = this.outlined.appearance(theme);
-    let slide = slider::resolve(theme, this.slider, InteractionState::Enabled);
+    let empty_filled = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        false,
+    );
+    let empty_outlined = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Enabled,
+        false,
+    );
     let check = checkbox::resolve(
         theme,
         if this.checked {
@@ -244,6 +263,22 @@ fn catalog_body(
         )
         .child(section_title(theme, "Text fields"))
         .child(field_block(
+            "hero-empty-filled",
+            &empty_filled,
+            "Label",
+            "",
+            "",
+            |_, _, _| {},
+        ))
+        .child(field_block(
+            "hero-empty-outlined",
+            &empty_outlined,
+            "Label",
+            "",
+            "",
+            |_, _, _| {},
+        ))
+        .child(field_block(
             "field-outlined",
             &outlined_a,
             "Email",
@@ -276,28 +311,13 @@ fn catalog_body(
             }),
         ))
         .child(section_title(theme, "Slider"))
-        .child(
-            div()
-                .id("slider")
-                .w_full()
-                .h(px(slide.target_dp))
-                .flex()
-                .items_center()
-                .child(expressive_slider(&slide))
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.slider = ((this.slider + 0.1) * 10.0).round() / 10.0;
-                    if this.slider > 1.0 {
-                        this.slider = 0.0;
-                    }
-                    cx.notify();
-                })),
-        )
+        .child(volume_slider_scene(theme, this.slider, cx))
         .child(
             div()
                 .text_size(px(12.))
                 .text_color(paint(c.on_surface_variant))
                 .child(format!(
-                    "Value {:.0}% · Expressive XS 16dp track / 4×44 handle",
+                    "Media {:.0}% · Expressive XS 16dp track / 4×44 handle · Alarm mid-stops",
                     this.slider * 100.0
                 )),
         )
@@ -365,128 +385,51 @@ fn catalog_body(
         )
         .child(tab_row(&tabs_p, this.tab, cx))
         .child(section_title(theme, "Dialog"))
-        .child(m_button(
-            "open-dialog",
-            theme,
-            button::ButtonVariant::Tonal,
-            InteractionState::Enabled,
-            "Open dialog",
-            cx.listener(|this, _, _, cx| {
-                this.overlay = Overlay::Dialog;
-                cx.notify();
-            }),
-        ))
-        .child(section_title(theme, "Date picker"))
         .child(
             div()
-                .p(px(16.))
-                .rounded(px(pick.corners.top_left))
-                .bg(paint(pick.container))
                 .flex()
-                .flex_col()
                 .gap(px(8.))
-                .child(
-                    div()
-                        .text_size(px(pick.year_style.size_sp))
-                        .text_color(paint(pick.header_year))
-                        .child("Select date"),
-                )
-                .child(
-                    div()
-                        .text_size(px(pick.date_style.size_sp))
-                        .text_color(paint(pick.header_date))
-                        .child(date_picker::header_date_label(this.selected)),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child(
-                            div()
-                                .id("month-prev")
-                                .p(px(8.))
-                                .child("<")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    let (y, m) = date_picker::add_months(
-                                        this.picker_year,
-                                        this.picker_month,
-                                        -1,
-                                    );
-                                    this.picker_year = y;
-                                    this.picker_month = m;
-                                    cx.notify();
-                                })),
-                        )
-                        .child(date_picker::month_title(this.picker_year, this.picker_month))
-                        .child(
-                            div()
-                                .id("month-next")
-                                .p(px(8.))
-                                .child(">")
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    let (y, m) = date_picker::add_months(
-                                        this.picker_year,
-                                        this.picker_month,
-                                        1,
-                                    );
-                                    this.picker_year = y;
-                                    this.picker_month = m;
-                                    cx.notify();
-                                })),
-                        ),
-                )
-                .child(
-                    div().flex().flex_wrap().children(date_picker::WEEKDAYS.iter().map(|d| {
-                        div()
-                            .w(px(pick.day_dp))
-                            .h(px(32.))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .text_color(paint(pick.weekday))
-                            .child(*d)
-                    })),
-                )
-                .child(div().flex().flex_wrap().children(cells.into_iter().enumerate().map(
-                    |(i, (day, kind))| {
-                        let (bg, fg) = match kind {
-                            DayKind::Selected => {
-                                (paint(pick.day_selected_container), paint(pick.day_selected))
-                            }
-                            DayKind::Today => (paint(pick.container), paint(pick.day)),
-                            DayKind::InMonth => (paint(pick.container), paint(pick.day)),
-                            DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out)),
-                        };
-                        let in_month = kind != DayKind::OutOfMonth;
-                        let year = this.picker_year;
-                        let month = this.picker_month;
-                        div()
-                            .id(SharedString::from(format!("day-{i}")))
-                            .w(px(pick.day_dp))
-                            .h(px(pick.day_dp))
-                            .rounded(px(pick.day_dp / 2.0))
-                            .bg(bg)
-                            .text_color(fg)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when(kind == DayKind::Today, |el| {
-                                el.border_1().border_color(paint(pick.day_today_outline))
-                            })
-                            .child(day.to_string())
-                            .when(in_month, |el| {
-                                el.on_click(cx.listener(move |this, _, _, cx| {
-                                    this.selected = CivilDate { year, month, day };
-                                    cx.notify();
-                                }))
-                            })
-                    },
-                ))),
+                .child(m_button(
+                    "open-dialog",
+                    theme,
+                    button::ButtonVariant::Tonal,
+                    InteractionState::Enabled,
+                    "Reset settings",
+                    cx.listener(|this, _, _, cx| {
+                        this.overlay = Overlay::Dialog;
+                        cx.notify();
+                    }),
+                ))
+                .child(m_button(
+                    "open-list-dialog",
+                    theme,
+                    button::ButtonVariant::Tonal,
+                    InteractionState::Enabled,
+                    "Phone ringtone",
+                    cx.listener(|this, _, _, cx| {
+                        this.overlay = Overlay::ListDialog;
+                        cx.notify();
+                    }),
+                )),
         )
+        .child(section_title(theme, "Date picker"))
+        .child(date_picker_card(this, theme, &pick, &cells, cx))
+}
+
+fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoElement {
+    div()
+        .w(px(slide.stop_dp))
+        .h(px(slide.stop_dp))
+        .rounded(px(slide.stop_dp / 2.0))
+        .bg(paint(if active {
+            slide.stop_active
+        } else {
+            slide.stop_inactive
+        }))
 }
 
 fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
+    let (active_n, inactive_n) = slider::segmented_stop_counts(slide.value, slide.stop_count);
     div()
         .w_full()
         .h(px(slide.handle_h))
@@ -500,14 +443,9 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .bg(paint(slide.active))
                 .flex()
                 .items_center()
-                .pl(px(8.))
-                .child(
-                    div()
-                        .w(px(slide.stop_dp))
-                        .h(px(slide.stop_dp))
-                        .rounded(px(slide.stop_dp / 2.0))
-                        .bg(paint(slide.stop_active)),
-                ),
+                .justify_between()
+                .px(px(8.))
+                .children((0..active_n).map(|_| slider_stop(slide, true))),
         )
         .child(
             div()
@@ -525,16 +463,72 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .bg(paint(slide.inactive))
                 .flex()
                 .items_center()
-                .justify_end()
-                .pr(px(8.))
+                .justify_between()
+                .px(px(8.))
+                .children((0..inactive_n).map(|_| slider_stop(slide, false))),
+        )
+}
+
+fn volume_slider_scene(
+    theme: &Theme,
+    media_value: f32,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .children(slider::OVERVIEW_ROWS.iter().copied().map(|row| {
+            let value = if row.label.starts_with("Media") {
+                media_value
+            } else {
+                row.value
+            };
+            let slide = slider::resolve_with_stops(
+                theme,
+                value,
+                InteractionState::Enabled,
+                row.stop_count,
+            );
+            let interactive = row.label.starts_with("Media");
+            div()
+                .id(SharedString::from(row.label))
+                .w_full()
+                .flex()
+                .items_center()
+                .gap(px(12.))
                 .child(
                     div()
-                        .w(px(slide.stop_dp))
-                        .h(px(slide.stop_dp))
-                        .rounded(px(slide.stop_dp / 2.0))
-                        .bg(paint(slide.stop_inactive)),
-                ),
-        )
+                        .w(px(24.))
+                        .h(px(24.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(theme.color.on_surface_variant))
+                        .child(row.icon),
+                )
+                .child(expressive_slider(&slide))
+                .when(interactive, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        this.slider = ((this.slider + 0.1) * 10.0).round() / 10.0;
+                        if this.slider > 1.0 {
+                            this.slider = 0.0;
+                        }
+                        cx.notify();
+                    }))
+                })
+        }))
+}
+
+fn dismiss_overlay(
+    this: &mut CatalogView,
+    _: &gpui::ClickEvent,
+    _: &mut Window,
+    cx: &mut Context<CatalogView>,
+) {
+    this.overlay = Overlay::None;
+    cx.notify();
 }
 
 fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElement {
@@ -548,13 +542,11 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
         .items_center()
         .justify_center()
         .p(px(24.))
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.overlay = Overlay::None;
-            cx.notify();
-        }))
+        .on_click(cx.listener(dismiss_overlay))
         .child(
             div()
                 .id("dialog-card")
+                .w(px(a.min_width_dp + 40.0))
                 .min_w(px(a.min_width_dp))
                 .p(px(a.pad_dp))
                 .rounded(px(a.corners.top_left))
@@ -562,53 +554,308 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                 .gap(px(16.))
                 .flex()
                 .flex_col()
-                .items_center()
                 .child(
                     div()
-                        .text_size(px(24.))
+                        .w_full()
+                        .flex()
+                        .justify_center()
+                        .text_size(px(dialog::ICON_DP))
                         .text_color(paint(a.icon))
-                        .child("♡"),
+                        .child(dialog::RESET_ICON),
                 )
                 .child(
                     div()
+                        .w_full()
+                        .flex()
+                        .justify_center()
                         .text_size(type_size(a.headline_style))
                         .text_color(paint(a.headline))
-                        .child("Reset settings?"),
+                        .child(dialog::RESET_HEADLINE),
                 )
                 .child(
                     div()
+                        .w_full()
                         .text_size(type_size(a.supporting_style))
                         .text_color(paint(a.supporting))
-                        .child("This will restore defaults. You can change them again later."),
+                        .child(dialog::RESET_SUPPORTING),
                 )
                 .child(
                     div()
+                        .w_full()
                         .flex()
                         .justify_end()
-                        .gap(px(8.))
+                        .gap(px(dialog::ACTION_GAP_DP))
                         .child(m_button(
                             "dialog-cancel",
                             theme,
                             button::ButtonVariant::Text,
                             InteractionState::Enabled,
-                            "Cancel",
-                            cx.listener(|this, _, _, cx| {
-                                this.overlay = Overlay::None;
-                                cx.notify();
-                            }),
+                            dialog::RESET_CANCEL,
+                            cx.listener(dismiss_overlay),
                         ))
                         .child(m_button(
                             "dialog-ok",
                             theme,
                             button::ButtonVariant::Text,
                             InteractionState::Enabled,
-                            "Accept",
-                            cx.listener(|this, _, _, cx| {
-                                this.overlay = Overlay::None;
-                                cx.notify();
-                            }),
+                            dialog::RESET_ACCEPT,
+                            cx.listener(dismiss_overlay),
                         )),
                 ),
+        )
+}
+
+fn list_dialog_overlay(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = dialog::resolve(theme);
+    div()
+        .id("dialog-list-scrim")
+        .flex_1()
+        .w_full()
+        .bg(paint(a.scrim))
+        .flex()
+        .items_center()
+        .justify_center()
+        .p(px(24.))
+        .on_click(cx.listener(dismiss_overlay))
+        .child(
+            div()
+                .id("dialog-list-card")
+                .w(px(a.min_width_dp + 40.0))
+                .min_w(px(a.min_width_dp))
+                .p(px(a.pad_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+                .gap(px(8.))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .text_size(type_size(a.headline_style))
+                        .text_color(paint(a.headline))
+                        .child(dialog::RINGTONE_HEADLINE),
+                )
+                .children(dialog::RINGTONE_OPTIONS.iter().enumerate().map(|(i, label)| {
+                    let selected = this.ringtone == i;
+                    let r = radio::resolve(theme, selected, InteractionState::Enabled);
+                    div()
+                        .id(SharedString::from(format!("ringtone-{i}")))
+                        .w_full()
+                        .h(px(r.target_dp))
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .child(
+                            div()
+                                .text_size(px(theme.typography.body_large.size_sp))
+                                .text_color(paint(r.label))
+                                .child(*label),
+                        )
+                        .child(
+                            div()
+                                .w(px(r.outer_dp))
+                                .h(px(r.outer_dp))
+                                .rounded(px(r.outer_dp / 2.0))
+                                .border_2()
+                                .border_color(paint(r.ring))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .when(r.inner.is_some(), |el| {
+                                    el.child(
+                                        div()
+                                            .w(px(r.inner_dp))
+                                            .h(px(r.inner_dp))
+                                            .rounded(px(r.inner_dp / 2.0))
+                                            .bg(paint(r.inner.unwrap())),
+                                    )
+                                }),
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.ringtone = i;
+                            cx.notify();
+                        }))
+                }))
+                .child(
+                    div()
+                        .w_full()
+                        .flex()
+                        .justify_end()
+                        .gap(px(dialog::ACTION_GAP_DP))
+                        .child(m_button(
+                            "list-cancel",
+                            theme,
+                            button::ButtonVariant::Text,
+                            InteractionState::Enabled,
+                            dialog::RINGTONE_CANCEL,
+                            cx.listener(dismiss_overlay),
+                        ))
+                        .child(m_button(
+                            "list-ok",
+                            theme,
+                            button::ButtonVariant::Text,
+                            InteractionState::Enabled,
+                            dialog::RINGTONE_OK,
+                            cx.listener(dismiss_overlay),
+                        )),
+                ),
+        )
+}
+
+fn date_picker_card(
+    this: &CatalogView,
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+    cells: &[(u32, DayKind); 42],
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let cal_w = pick.day_dp * 7.0;
+    div()
+        .w(px(cal_w + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child("Select date"),
+        )
+        .child(
+            div()
+                .text_size(px(pick.date_style.size_sp))
+                .text_color(paint(pick.header_date))
+                .child(date_picker::header_date_label(this.selected)),
+        )
+        .child(
+            div()
+                .id("year-control")
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child(date_picker::header_year_label(this.picker_year))
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.picker_year += 1;
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_between()
+                .child(
+                    div()
+                        .id("month-prev")
+                        .p(px(8.))
+                        .child("<")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (y, m) = date_picker::add_months(
+                                this.picker_year,
+                                this.picker_month,
+                                -1,
+                            );
+                            this.picker_year = y;
+                            this.picker_month = m;
+                            cx.notify();
+                        })),
+                )
+                .child(date_picker::month_title(this.picker_year, this.picker_month))
+                .child(
+                    div()
+                        .id("month-next")
+                        .p(px(8.))
+                        .child(">")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (y, m) = date_picker::add_months(
+                                this.picker_year,
+                                this.picker_month,
+                                1,
+                            );
+                            this.picker_year = y;
+                            this.picker_month = m;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .flex_wrap()
+                .children(date_picker::WEEKDAYS.iter().map(|d| {
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(32.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(pick.weekday))
+                        .child(*d)
+                })),
+        )
+        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+            cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                let (bg, fg) = match kind {
+                    DayKind::Selected => {
+                        (paint(pick.day_selected_container), paint(pick.day_selected))
+                    }
+                    DayKind::Today => (paint(pick.container), paint(pick.day)),
+                    DayKind::InMonth => (paint(pick.container), paint(pick.day)),
+                    DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out)),
+                };
+                let in_month = kind != DayKind::OutOfMonth;
+                let year = this.picker_year;
+                let month = this.picker_month;
+                div()
+                    .id(SharedString::from(format!("day-{i}")))
+                    .w(px(pick.day_dp))
+                    .h(px(pick.day_dp))
+                    .rounded(px(pick.day_dp / 2.0))
+                    .bg(bg)
+                    .text_color(fg)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(kind == DayKind::Today, |el| {
+                        el.border_1().border_color(paint(pick.day_today_outline))
+                    })
+                    .child(day.to_string())
+                    .when(in_month, |el| {
+                        el.on_click(cx.listener(move |this, _, _, cx| {
+                            this.selected = CivilDate { year, month, day };
+                            cx.notify();
+                        }))
+                    })
+            }),
+        ))
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .justify_end()
+                .gap(px(dialog::ACTION_GAP_DP))
+                .child(m_button(
+                    "date-cancel",
+                    theme,
+                    button::ButtonVariant::Text,
+                    InteractionState::Enabled,
+                    "Cancel",
+                    |_, _, _| {},
+                ))
+                .child(m_button(
+                    "date-ok",
+                    theme,
+                    button::ButtonVariant::Text,
+                    InteractionState::Enabled,
+                    "OK",
+                    |_, _, _| {},
+                )),
         )
 }
 
@@ -675,8 +922,10 @@ fn m_button(
         .flex()
         .items_center()
         .justify_center()
-        .rounded(px(a.corners.top_left))
-        .bg(paint(a.container))
+        .when(a.container.a() > 0, |el| {
+            el.rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+        })
         .text_color(paint(a.content))
         .text_size(type_size(a.label_style))
         .font_weight(FontWeight::MEDIUM)
@@ -711,13 +960,14 @@ fn field_block(
     let label = label.into();
     let value = value.into();
     let box_el = if outlined && field.notched {
+        let label_h = field.label_style.line_height_sp;
         div()
             .id(id)
             .flex()
             .flex_col()
             .on_click(on_click)
             .child(
-                div().h(px(0.)).pl(px(12.)).child(
+                div().h(px(label_h)).pl(px(12.)).child(
                     div()
                         .px(px(text_field::NOTCH_PAD_DP))
                         .bg(paint(field.field.container))
@@ -728,10 +978,10 @@ fn field_block(
             )
             .child(
                 div()
-                    .mt(px(-8.))
+                    .mt(px(-label_h * 0.5))
                     .h(px(field.field.height_dp))
                     .px(px(16.))
-                    .pt(px(12.))
+                    .pt(px(8.))
                     .rounded(px(field.field.corners.top_left))
                     .bg(paint(field.field.container))
                     .when(outline.1 >= 2.0, |el| {
@@ -769,7 +1019,7 @@ fn field_block(
                     .child(label),
             )
             .into_any_element()
-    } else {
+    } else if field.floating {
         div()
             .id(id)
             .h(px(field.field.height_dp))
@@ -792,6 +1042,35 @@ fn field_block(
                     .text_size(px(field.input_style.size_sp))
                     .text_color(paint(field.input))
                     .child(value),
+            )
+            .child(
+                div()
+                    .h(px(outline.1.max(1.0)))
+                    .w_full()
+                    .bg(paint(outline.0)),
+            )
+            .into_any_element()
+    } else {
+        div()
+            .id(id)
+            .h(px(field.field.height_dp))
+            .px(px(16.))
+            .rounded(px(field.field.corners.top_left))
+            .bg(paint(field.field.container))
+            .flex()
+            .flex_col()
+            .on_click(on_click)
+            .child(
+                div()
+                    .flex_1()
+                    .flex()
+                    .items_center()
+                    .child(
+                        div()
+                            .text_size(px(field.label_style.size_sp))
+                            .text_color(paint(field.label))
+                            .child(label),
+                    ),
             )
             .child(
                 div()
@@ -835,7 +1114,8 @@ fn main() {
                     checked: true,
                     switched: true,
                     overlay: Overlay::None,
-                    slider: 0.55,
+                    slider: slider::OVERVIEW_ROWS[3].value,
+                    ringtone: 2,
                     tab: 0,
                     picker_year: 2026,
                     picker_month: 9,
@@ -894,5 +1174,18 @@ mod tests {
         assert_eq!(s.handle_w, 4.0);
         assert_eq!(s.handle_h, 44.0);
         assert_eq!(s.inactive, theme.color.surface_container_highest);
+        assert_eq!(s.stop_count, 2);
+        let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 11);
+        assert_eq!(alarm.stop_count, 11);
+
+        let empty_outlined = text_field::resolve(
+            &theme,
+            text_field::TextFieldVariant::Outlined,
+            InteractionState::Enabled,
+            false,
+        );
+        assert!(!empty_outlined.notched);
+        assert!(!empty_outlined.floating);
+        assert_eq!(empty_outlined.label_style.name, "bodyLarge");
     }
 }

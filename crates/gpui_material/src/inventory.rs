@@ -221,7 +221,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/out-of-month; Monday-first grid",
+        notes: "Modal calendar; 40dp days; selected/today/out-of-month; Sunday-first grid (official modal)",
     },
 ];
 

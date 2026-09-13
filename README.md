@@ -46,7 +46,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Slider | Sliders | done | Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; inactive = surface-container-highest; S–XL sizes | [spec](https://m3.material.io/components/sliders/specs) |
 | Tabs | Tabs | done | Primary 48dp + 3dp primary indicator; secondary 2dp full-width | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
-| Date picker | Date pickers | done | Modal calendar; 40dp days; selected/today/out-of-month; Monday-first grid | [spec](https://m3.material.io/components/date-pickers/specs) |
+| Date picker | Date pickers | done | Modal calendar; 40dp days; selected/today/out-of-month; Sunday-first grid (official modal) | [spec](https://m3.material.io/components/date-pickers/specs) |
 
 `done` means tokens, metrics, and catalog **heroes** match the current
 [m3.material.io](https://m3.material.io) Expressive language (not the older

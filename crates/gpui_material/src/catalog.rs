@@ -157,19 +157,25 @@ a {{ color: var(--primary); }}
   display: flex; flex-direction: column; justify-content: flex-end;
 }}
 .filled-hero .lab {{ font-size: 12px; line-height: 16px; }}
+.filled-hero.empty {{ justify-content: center; }}
+.filled-hero.empty .lab {{ font-size: 16px; line-height: 24px; }}
 .xslider {{
   display: flex; align-items: center; width: 100%; max-width: 420px;
-  min-height: 48px; height: auto;
+  min-height: 48px; height: auto; gap: 12px;
 }}
 .xseg {{
   position: relative; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 8px; box-sizing: border-box;
 }}
 .xseg .xstop {{
-  position: absolute; width: 4px; height: 4px; border-radius: 2px;
+  width: 4px; height: 4px; border-radius: 2px; flex: 0 0 auto;
 }}
-.xseg.active .xstop {{ left: 8px; }}
-.xseg.inactive .xstop {{ right: 8px; }}
 .xhandle {{ flex: 0 0 auto; border-radius: 2px; }}
+.slider-row {{ display: flex; align-items: center; gap: 12px; width: 100%; }}
+.slider-icon {{
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  color: {on_var}; font-size: 18px;
+}}
 .support {{ font-size: 12px; line-height: 16px; padding: 0 16px; }}
 .list-item {{
   width: 100%; max-width: 420px; padding: 8px 16px;
@@ -228,7 +234,13 @@ table.inv th {{ font-weight: 500; }}
   min-width: 280px; max-width: 420px; padding: 24px;
   display: flex; flex-direction: column; gap: 16px;
 }}
-.dialog .actions {{ display: flex; justify-content: flex-end; gap: 8px; }}
+.dialog .actions {{ display: flex; justify-content: flex-end; gap: 8px; width: 100%; }}
+.dialog .actions .btn {{ background: transparent; box-shadow: none; min-width: 64px; }}
+.dialog-list {{ align-items: stretch; text-align: left; }}
+.dialog-list .ringtone {{
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 48px; width: 100%;
+}}
 .scrim {{
   border-radius: 12px; padding: 24px; display: flex; justify-content: center;
 }}
@@ -667,8 +679,20 @@ fn paint_filled_field(
         .outline
         .map(|(c, w)| (c.css_hex(), w))
         .unwrap_or_else(|| ("transparent".into(), 1.0));
+    if !a.floating {
+        return format!(
+            r#"<div class="filled-hero empty" {attrs} data-floating="0" style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{lab}">
+  <div class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</div>
+</div>"#,
+            bg = a.field.container.css_hex(),
+            r = a.field.corners.top_left,
+            lab = a.label.css_hex(),
+            ls = a.label_style.size_sp,
+            lh = a.label_style.line_height_sp,
+        );
+    }
     format!(
-        r#"<div class="filled-hero" {attrs} style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{inp}">
+        r#"<div class="filled-hero" {attrs} data-floating="1" style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{inp}">
   <div class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</div>
   {value_html}
 </div>"#,
@@ -718,7 +742,19 @@ fn paint_outlined_field(
 }
 
 fn text_fields(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official outlined uses a <em>notched floating label</em> on the outline (4dp gap). Filled floats the label inside. Focus/error outline is 2dp (Compose <code>FocusedBorderThickness</code>). <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
+    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official overview heroes are <em>empty</em> filled + outlined with the label inside the box. Populated/focused outlined uses a <em>notched floating label</em> (4dp gap). Focus/error outline is 2dp. <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
+    let empty_filled = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        false,
+    );
+    let empty_outlined = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Enabled,
+        false,
+    );
     let filled = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Filled,
@@ -739,10 +775,22 @@ fn text_fields(theme: &Theme) -> String {
         trail = outlined.trailing_icon.css_hex(),
     );
     out.push_str("<div class=\"hero-card\" data-hero=\"text-fields\">");
+    out.push_str(&paint_filled_field(
+        &empty_filled,
+        "data-field-hero=\"empty-filled\"",
+        "Label",
+        "",
+    ));
+    out.push_str(&paint_outlined_field(
+        &empty_outlined,
+        "data-field-hero=\"empty-outlined\"",
+        "Label",
+        "",
+    ));
     out.push_str(&paint_outlined_field(
         &outlined,
         "data-field-hero=\"outlined\"",
-        "Label",
+        "Email",
         &hero_outlined_inner,
     ));
     out.push_str(&paint_filled_field(
@@ -754,7 +802,7 @@ fn text_fields(theme: &Theme) -> String {
             filled.input.css_hex()
         ),
     ));
-    out.push_str("<p class=\"note\">Leading / trailing icons as on the official overview. System IME remains a NativeActivity stub.</p></div>");
+    out.push_str("<p class=\"note\">Empty pair matches the official overview; Email is the populated/notched example. System IME remains a NativeActivity stub.</p></div>");
 
     let filled_edit = text_field::resolve(
         theme,
@@ -1044,22 +1092,46 @@ fn progress_section(theme: &Theme) -> String {
 
 fn dialogs(theme: &Theme) -> String {
     let a = dialog::resolve(theme);
-    let filled = button::resolve(
+    let text_btn = button::resolve(
         theme,
         button::ButtonVariant::Text,
         InteractionState::Enabled,
     );
+    let selected = radio::resolve(theme, true, InteractionState::Enabled);
+    let idle = radio::resolve(theme, false, InteractionState::Enabled);
+    let mut rows = String::new();
+    for (i, label) in dialog::RINGTONE_OPTIONS.iter().enumerate() {
+        let r = if i == 2 { &selected } else { &idle };
+        let inner = r
+            .inner
+            .map(|c| format!("<i style=\"background:{}\"></i>", c.css_hex()))
+            .unwrap_or_default();
+        rows.push_str(&format!(
+            r#"<div class="ringtone" data-ringtone="{label}"><span>{label}</span><div class="radio"><div class="dot" style="border:2px solid {ring}">{inner}</div></div></div>"#,
+            ring = r.ring.css_hex(),
+        ));
+    }
     format!(
         r#"<h2>Dialog</h2>
-<p class="note">Official basic dialog hero: optional icon (centered), headlineSmall, bodyMedium, text actions. 28dp · elev 3 · 32% scrim. <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
+<p class="note">Guidelines Reset settings (icon, headline, supporting, text Cancel/Accept) plus overview Phone ringtone list dialog. 28dp · elev 3 · 32% scrim. Actions use the Text button resolve (transparent container). <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
 <div class="scrim" data-dialog="scrim" style="background:{scrim}">
   <div class="dialog" data-dialog="basic" data-hero="dialog" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px;text-align:center;align-items:center">
-    <div style="font-size:24px;color:{icon}">♡</div>
-    <div style="font-size:{hs}px;line-height:{hl}px;color:{head}">Reset settings?</div>
-    <div style="font-size:{bs}px;line-height:{bl}px;color:{sup};text-align:center">This will restore defaults. You can change them again later.</div>
-    <div class="actions" style="width:100%;justify-content:flex-end">
-      <button class="btn" style="background:{abg};color:{act}">Cancel</button>
-      <button class="btn" style="background:{abg};color:{act}">Accept</button>
+    <div style="font-size:{icon_dp}px;color:{icon}">{reset_icon}</div>
+    <div style="font-size:{hs}px;line-height:{hl}px;color:{head}">{reset_h}</div>
+    <div style="font-size:{bs}px;line-height:{bl}px;color:{sup};text-align:center">{reset_s}</div>
+    <div class="actions">
+      <button class="btn" style="background:{abg};color:{act}">{cancel}</button>
+      <button class="btn" style="background:{abg};color:{act}">{accept}</button>
+    </div>
+  </div>
+</div>
+<div class="scrim" data-dialog="list-scrim" style="background:{scrim};margin-top:16px">
+  <div class="dialog dialog-list" data-dialog="list" data-hero="dialog-list" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px">
+    <div style="font-size:{hs}px;line-height:{hl}px;color:{head};text-align:left">{list_h}</div>
+    {rows}
+    <div class="actions">
+      <button class="btn" style="background:{abg};color:{act}">{list_cancel}</button>
+      <button class="btn" style="background:{abg};color:{act}">{list_ok}</button>
     </div>
   </div>
 </div>"#,
@@ -1076,8 +1148,18 @@ fn dialogs(theme: &Theme) -> String {
         bl = a.supporting_style.line_height_sp,
         sup = a.supporting.css_hex(),
         act = a.action.css_hex(),
-        abg = filled.container.css_hex(),
+        abg = text_btn.container.css_hex(),
         icon = a.icon.css_hex(),
+        icon_dp = dialog::ICON_DP,
+        reset_icon = dialog::RESET_ICON,
+        reset_h = dialog::RESET_HEADLINE,
+        reset_s = dialog::RESET_SUPPORTING,
+        cancel = dialog::RESET_CANCEL,
+        accept = dialog::RESET_ACCEPT,
+        list_h = dialog::RINGTONE_HEADLINE,
+        list_cancel = dialog::RINGTONE_CANCEL,
+        list_ok = dialog::RINGTONE_OK,
+        rows = rows,
     )
 }
 
@@ -1134,41 +1216,56 @@ fn menus(theme: &Theme) -> String {
     )
 }
 
+fn paint_slider_stops(count: usize, color: &str) -> String {
+    (0..count)
+        .map(|_| format!(r#"<span class="xstop" style="background:{color}"></span>"#))
+        .collect()
+}
+
 fn paint_expressive_slider(a: &slider::SliderAppearance, label: &str) -> String {
     let active_pct = (a.value * 42.0).max(8.0);
+    let (active_n, inactive_n) = slider::segmented_stop_counts(a.value, a.stop_count);
     format!(
-        r#"<div class="xslider" data-slider="{label}" data-value="{value}" data-hero-slider="1">
-  <div class="xseg active" style="width:{aw}%;height:{th}px;background:{active};border-radius:{oc}px {ic}px {ic}px {oc}px">
-    <span class="xstop" style="background:{sa}"></span>
-  </div>
+        r#"<div class="xslider" data-slider="{label}" data-value="{value}" data-stops="{stops}" data-hero-slider="1">
+  <div class="xseg active" style="width:{aw}%;height:{th}px;background:{active};border-radius:{oc}px {ic}px {ic}px {oc}px">{sa}</div>
   <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
-  <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px">
-    <span class="xstop" style="background:{si}"></span>
-  </div>
+  <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px">{si}</div>
 </div>"#,
         value = a.value,
+        stops = a.stop_count,
         aw = active_pct,
         th = a.track_h,
         active = a.active.css_hex(),
         oc = a.track_corner,
         ic = a.inner_corner,
-        sa = a.stop_active.css_hex(),
+        sa = paint_slider_stops(active_n, &a.stop_active.css_hex()),
         hw = a.handle_w,
         hh = a.handle_h,
         handle = a.handle.css_hex(),
         gap = a.gap_dp,
         inactive = a.inactive.css_hex(),
-        si = a.stop_inactive.css_hex(),
+        si = paint_slider_stops(inactive_n, &a.stop_inactive.css_hex()),
     )
 }
 
 fn sliders(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical stop handle, 6dp gap, 4dp end stops. Default XS. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>");
-    let hero = slider::resolve(theme, 0.55, InteractionState::Enabled);
-    out.push_str(&format!(
-        "<div class=\"hero-card\" data-hero=\"slider\">{}<p class=\"note\">XS 16dp track · handle 4×44 · press compresses to 2dp.</p></div>",
-        paint_expressive_slider(&hero, "hero")
-    ));
+    let mut out = String::from("<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical handle, 6dp gap, 4dp stops. Overview scene is volume rows; Alarm has mid-track stops. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"slider\">");
+    for row in slider::OVERVIEW_ROWS {
+        let a = slider::resolve_with_stops(
+            theme,
+            row.value,
+            InteractionState::Enabled,
+            row.stop_count,
+        );
+        out.push_str(&format!(
+            r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div>{}</div>"#,
+            paint_expressive_slider(&a, row.label),
+            label = row.label,
+            icon = row.icon,
+        ));
+    }
+    out.push_str("<p class=\"note\">XS 16dp track · handle 4×44 · Alarm mid-track stops from resolve_with_stops().</p></div>");
     for (label, value, state) in [
         ("0.3 enabled", 0.3, InteractionState::Enabled),
         ("0.7 pressed", 0.7, InteractionState::Pressed),
@@ -1301,15 +1398,20 @@ fn date_pickers(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal calendar hero: “Select date” + headlineLarge + 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
-<div class="cal dialog" data-datepicker="1" data-hero="datepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">Official modal: “Select date” + headlineLarge + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">Select date</div>
     <div style="color:{hd};font-size:{ds}px">{headline}</div>
+    <div style="color:{hy};font-size:{ys}px;margin-top:8px">{year}</div>
   </div>
   <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
   <div class="week">{week}</div>
   <div class="grid">{grid}</div>
+  <div class="actions" style="padding:8px 12px 0">
+    <button class="btn" style="background:transparent;color:{act}">Cancel</button>
+    <button class="btn" style="background:transparent;color:{act}">OK</button>
+  </div>
 </div>"#,
         bg = a.container.css_hex(),
         r = a.corners.top_left,
@@ -1319,7 +1421,9 @@ fn date_pickers(theme: &Theme) -> String {
         hd = a.header_date.css_hex(),
         ds = a.date_style.size_sp,
         headline = date_picker::header_date_label(selected),
+        year = date_picker::header_year_label(selected.year),
         month = date_picker::month_title(2026, 9),
+        act = theme.color.primary.css_hex(),
     )
 }
 
