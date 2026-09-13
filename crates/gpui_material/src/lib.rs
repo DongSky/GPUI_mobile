@@ -1,7 +1,8 @@
 //! Material 3 / Material You tokens and resolved component appearances.
 //!
-//! This crate is host-testable (no GPUI / Android). The Android `component_demo`
-//! and the HTML catalog both consume the same `resolve` functions.
+//! This crate is host-testable (no GPUI / Android). The Android `component_demo`,
+//! the HTML catalog, and the desktop `material_desktop_demo` all consume the
+//! same `resolve` functions.
 
 pub mod argb;
 pub mod catalog;

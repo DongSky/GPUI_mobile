@@ -1,0 +1,17 @@
+[package]
+name = "material_desktop_demo"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Desktop GPUI catalog that paints gpui_material::resolve() appearances."
+
+[[bin]]
+name = "material_desktop_demo"
+path = "src/main.rs"
+
+[dependencies]
+gpui.workspace = true
+gpui_material.workspace = true
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+gpui_platform = { workspace = true, features = ["wayland", "x11"] }
