@@ -95,7 +95,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch (4dp) on every populated/focused state; focus outline 2dp; icons; IME still NativeActivity stub",
+        notes: "Floating label; outlined true cutout (segmented stroke / fieldset legend) on populated/focused; focus outline 2dp; icons; IME still NativeActivity stub",
     },
     ComponentEntry {
         name: "List",
@@ -179,7 +179,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Basic dialogs",
         docs: "https://m3.material.io/components/dialogs/specs",
         parity: Parity::Done,
-        notes: "surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim",
+        notes: "surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept",
     },
     ComponentEntry {
         name: "Bottom sheet",
@@ -200,7 +200,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -221,7 +221,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/out-of-month; Sunday-first grid (official modal)",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + month ▾ chrome",
     },
 ];
 

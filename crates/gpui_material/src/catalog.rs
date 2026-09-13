@@ -148,6 +148,7 @@ a {{ color: var(--primary); }}
 .ol legend {{
   padding: 0 4px; margin-left: 4px; font-size: 12px; line-height: 16px;
 }}
+.ol[data-notch="cutout"] {{ border-style: solid; }}
 .ol input, .filled-hero input {{
   border: none; outline: none; background: transparent; width: 100%;
   font: 400 16px/24px Roboto, sans-serif; color: inherit; padding: 8px 0 4px;
@@ -160,18 +161,25 @@ a {{ color: var(--primary); }}
 .filled-hero.empty {{ justify-content: center; }}
 .filled-hero.empty .lab {{ font-size: 16px; line-height: 24px; }}
 .xslider {{
-  display: flex; align-items: center; width: 100%; max-width: 420px;
-  min-height: 48px; height: auto; gap: 12px;
+  position: relative; display: flex; align-items: center; width: 100%; max-width: 420px;
+  min-height: 48px; height: auto; gap: 6px;
 }}
 .xseg {{
   position: relative; display: flex; align-items: center;
-  justify-content: space-between; padding: 0 8px; box-sizing: border-box;
+  box-sizing: border-box;
 }}
-.xseg .xstop {{
+.xstops {{
+  position: absolute; left: 8px; right: 8px; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  pointer-events: none;
+}}
+.xstop {{
   width: 4px; height: 4px; border-radius: 2px; flex: 0 0 auto;
 }}
-.xhandle {{ flex: 0 0 auto; border-radius: 2px; }}
+.xhandle {{ flex: 0 0 auto; border-radius: 2px; position: relative; z-index: 1; }}
 .slider-row {{ display: flex; align-items: center; gap: 12px; width: 100%; }}
+.slider-meta {{ display: flex; flex-direction: column; flex: 1; gap: 4px; min-width: 0; }}
+.slider-label {{ font-size: 12px; line-height: 16px; color: {on_surface}; }}
 .slider-icon {{
   width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
   color: {on_var}; font-size: 18px;
@@ -240,6 +248,16 @@ table.inv th {{ font-weight: 500; }}
 .dialog-list .ringtone {{
   display: flex; align-items: center; justify-content: space-between;
   min-height: 48px; width: 100%;
+}}
+.accounts {{ width: 100%; display: flex; flex-direction: column; gap: 4px; text-align: left; }}
+.account {{
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px; width: 100%;
+}}
+.avatar {{
+  width: 40px; height: 40px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 500; flex: 0 0 auto;
 }}
 .scrim {{
   border-radius: 12px; padding: 24px; display: flex; justify-content: center;
@@ -310,6 +328,7 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
       fs.className = box.className;
       fs.setAttribute("data-field", "outlined-edit");
       fs.setAttribute("data-notched", "1");
+      fs.setAttribute("data-notch", "cutout");
       fs.setAttribute("style", box.getAttribute("style") || "");
       var legend = document.createElement("legend");
       legend.textContent = (box.querySelector(".lab") || {{textContent: "Email"}}).textContent || "Email";
@@ -718,7 +737,7 @@ fn paint_outlined_field(
         .unwrap_or_else(|| ("transparent".into(), 1.0));
     if a.notched {
         format!(
-            r#"<fieldset class="ol" data-notched="1" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
   {inner_html}
 </fieldset>"#,
@@ -1099,6 +1118,16 @@ fn dialogs(theme: &Theme) -> String {
     );
     let selected = radio::resolve(theme, true, InteractionState::Enabled);
     let idle = radio::resolve(theme, false, InteractionState::Enabled);
+    let mut accounts = String::from(r#"<div class="accounts" data-dialog-accounts="1">"#);
+    for email in dialog::RESET_ACCOUNTS {
+        accounts.push_str(&format!(
+            r#"<div class="account" data-account="{email}"><div class="avatar" style="background:{abg};color:{afg}">{initial}</div><span>{email}</span></div>"#,
+            abg = theme.color.secondary_container.css_hex(),
+            afg = theme.color.on_secondary_container.css_hex(),
+            initial = dialog::account_initials(email),
+        ));
+    }
+    accounts.push_str("</div>");
     let mut rows = String::new();
     for (i, label) in dialog::RINGTONE_OPTIONS.iter().enumerate() {
         let r = if i == 2 { &selected } else { &idle };
@@ -1119,6 +1148,7 @@ fn dialogs(theme: &Theme) -> String {
     <div style="font-size:{icon_dp}px;color:{icon}">{reset_icon}</div>
     <div style="font-size:{hs}px;line-height:{hl}px;color:{head}">{reset_h}</div>
     <div style="font-size:{bs}px;line-height:{bl}px;color:{sup};text-align:center">{reset_s}</div>
+    {accounts}
     <div class="actions">
       <button class="btn" style="background:{abg};color:{act}">{cancel}</button>
       <button class="btn" style="background:{abg};color:{act}">{accept}</button>
@@ -1160,6 +1190,7 @@ fn dialogs(theme: &Theme) -> String {
         list_cancel = dialog::RINGTONE_CANCEL,
         list_ok = dialog::RINGTONE_OK,
         rows = rows,
+        accounts = accounts,
     )
 }
 
@@ -1216,35 +1247,48 @@ fn menus(theme: &Theme) -> String {
     )
 }
 
-fn paint_slider_stops(count: usize, color: &str) -> String {
-    (0..count)
-        .map(|_| format!(r#"<span class="xstop" style="background:{color}"></span>"#))
+fn paint_slider_stops(a: &slider::SliderAppearance) -> String {
+    slider::stop_fractions(a.stop_count)
+        .into_iter()
+        .map(|frac| {
+            let color = if frac <= a.value + 0.001 {
+                a.stop_active.css_hex()
+            } else {
+                a.stop_inactive.css_hex()
+            };
+            format!(r#"<span class="xstop" style="background:{color}"></span>"#)
+        })
         .collect()
 }
 
 fn paint_expressive_slider(a: &slider::SliderAppearance, label: &str) -> String {
     let active_pct = (a.value * 42.0).max(8.0);
-    let (active_n, inactive_n) = slider::segmented_stop_counts(a.value, a.stop_count);
+    let stops = if a.stop_count > 2 {
+        format!(r#"<div class="xstops">{}</div>"#, paint_slider_stops(a))
+    } else {
+        String::new()
+    };
     format!(
-        r#"<div class="xslider" data-slider="{label}" data-value="{value}" data-stops="{stops}" data-hero-slider="1">
-  <div class="xseg active" style="width:{aw}%;height:{th}px;background:{active};border-radius:{oc}px {ic}px {ic}px {oc}px">{sa}</div>
+        r#"<div class="xslider" data-slider="{label}" data-value="{value}" data-stops="{n}" data-handle-visual="{hv}" data-hero-slider="1">
+  <div class="xseg active" style="width:{aw}%;height:{th}px;background:{active};border-radius:{oc}px {ic}px {ic}px {oc}px"></div>
   <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
-  <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px">{si}</div>
+  <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px"></div>
+  {stops}
 </div>"#,
         value = a.value,
-        stops = a.stop_count,
+        n = a.stop_count,
+        hv = a.handle_h_visual,
         aw = active_pct,
         th = a.track_h,
         active = a.active.css_hex(),
         oc = a.track_corner,
         ic = a.inner_corner,
-        sa = paint_slider_stops(active_n, &a.stop_active.css_hex()),
         hw = a.handle_w,
-        hh = a.handle_h,
+        hh = a.handle_h_visual,
         handle = a.handle.css_hex(),
         gap = a.gap_dp,
         inactive = a.inactive.css_hex(),
-        si = paint_slider_stops(inactive_n, &a.stop_inactive.css_hex()),
+        stops = stops,
     )
 }
 
@@ -1259,13 +1303,13 @@ fn sliders(theme: &Theme) -> String {
             row.stop_count,
         );
         out.push_str(&format!(
-            r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div>{}</div>"#,
+            r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div><div class="slider-meta"><div class="slider-label">{label}</div>{}</div></div>"#,
             paint_expressive_slider(&a, row.label),
             label = row.label,
             icon = row.icon,
         ));
     }
-    out.push_str("<p class=\"note\">XS 16dp track · handle 4×44 · Alarm mid-track stops from resolve_with_stops().</p></div>");
+    out.push_str("<p class=\"note\">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops().</p></div>");
     for (label, value, state) in [
         ("0.3 enabled", 0.3, InteractionState::Enabled),
         ("0.7 pressed", 0.7, InteractionState::Pressed),
@@ -1353,33 +1397,23 @@ fn badges(theme: &Theme) -> String {
     )
 }
 
-fn date_pickers(theme: &Theme) -> String {
-    let a = date_picker::resolve(theme);
-    let today = date_picker::CivilDate {
-        year: 2026,
-        month: 9,
-        day: 11,
-    };
-    let selected = date_picker::CivilDate {
-        year: 2026,
-        month: 9,
-        day: 15,
-    };
-    let cells = date_picker::month_grid_classified(2026, 9, selected, today);
-    let mut week = String::new();
-    for d in date_picker::WEEKDAYS {
-        week.push_str(&format!(
-            "<div class=\"day\" style=\"color:{}\">{}</div>",
-            a.weekday.css_hex(),
-            d
-        ));
-    }
+fn paint_date_grid(a: &date_picker::DatePickerAppearance, cells: [(u32, date_picker::DayKind); 42]) -> String {
     let mut grid = String::new();
     for (day, kind) in cells {
+        let radius = if kind == date_picker::DayKind::InRange {
+            "0"
+        } else {
+            "20px"
+        };
         let (bg, fg, outline) = match kind {
             date_picker::DayKind::Selected => (
                 a.day_selected_container.css_hex(),
                 a.day_selected.css_hex(),
+                "none".into(),
+            ),
+            date_picker::DayKind::InRange => (
+                a.day_range_container.css_hex(),
+                a.day_range.css_hex(),
                 "none".into(),
             ),
             date_picker::DayKind::Today => (
@@ -1393,17 +1427,58 @@ fn date_pickers(theme: &Theme) -> String {
             }
         };
         grid.push_str(&format!(
-            "<div class=\"day\" data-day=\"{day}\" data-kind=\"{kind:?}\" style=\"background:{bg};color:{fg};border:{outline}\">{day}</div>"
+            "<div class=\"day\" data-day=\"{day}\" data-kind=\"{kind:?}\" style=\"background:{bg};color:{fg};border:{outline};border-radius:{radius}\">{day}</div>"
         ));
     }
+    grid
+}
+
+fn date_pickers(theme: &Theme) -> String {
+    let a = date_picker::resolve(theme);
+    let today = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 11,
+    };
+    let selected = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 15,
+    };
+    let cells = date_picker::month_grid_classified(2026, 9, selected, today);
+    let range_cells = date_picker::month_grid_range(
+        date_picker::RANGE_DEMO_START.year,
+        date_picker::RANGE_DEMO_START.month,
+        date_picker::RANGE_DEMO_START,
+        date_picker::RANGE_DEMO_END,
+        today,
+    );
+    let mut week = String::new();
+    for d in date_picker::WEEKDAYS {
+        week.push_str(&format!(
+            "<div class=\"day\" style=\"color:{}\">{}</div>",
+            a.weekday.css_hex(),
+            d
+        ));
+    }
+    let grid = paint_date_grid(&a, cells);
+    let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLarge + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLarge + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+  <div class="head">
+    <div style="color:{hy};font-size:{ys}px">{range_title}</div>
+    <div style="color:{hd};font-size:{ds}px">{range_headline}</div>
+    <div style="color:{hy};font-size:{ys}px;margin-top:8px">{range_month}</div>
+  </div>
+  <div class="week">{week}</div>
+  <div class="grid">{range_grid}</div>
+</div>
 <div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">Select date</div>
     <div style="color:{hd};font-size:{ds}px">{headline}</div>
-    <div style="color:{hy};font-size:{ys}px;margin-top:8px">{year}</div>
   </div>
   <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
   <div class="week">{week}</div>
@@ -1421,8 +1496,16 @@ fn date_pickers(theme: &Theme) -> String {
         hd = a.header_date.css_hex(),
         ds = a.date_style.size_sp,
         headline = date_picker::header_date_label(selected),
-        year = date_picker::header_year_label(selected.year),
-        month = date_picker::month_title(2026, 9),
+        month = date_picker::month_nav_label(2026, 9),
+        range_title = date_picker::RANGE_HERO_TITLE,
+        range_headline = date_picker::header_range_label(
+            date_picker::RANGE_DEMO_START,
+            date_picker::RANGE_DEMO_END
+        ),
+        range_month = date_picker::month_nav_label(
+            date_picker::RANGE_DEMO_START.year,
+            date_picker::RANGE_DEMO_START.month
+        ),
         act = theme.color.primary.css_hex(),
     )
 }

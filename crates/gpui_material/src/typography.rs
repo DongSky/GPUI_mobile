@@ -95,3 +95,14 @@ impl TypeScale {
 }
 
 pub const FONT_FAMILY: &str = "Roboto";
+/// Desktop fallback when Roboto is not installed. Liberation Sans keeps
+/// a real space advance under Mesa llvmpipe / cosmic-text (Noto Sans often
+/// collapses word gaps in this environment).
+pub const FONT_FAMILY_DESKTOP: &str = "Liberation Sans";
+/// Gap used when mapping a string as separate word elements so spaces stay
+/// visible even if the font engine reports 0-width space glyphs.
+pub const WORD_GAP_DP: f32 = 4.0;
+
+pub fn words(s: &str) -> Vec<&str> {
+    s.split_whitespace().filter(|w| !w.is_empty()).collect()
+}

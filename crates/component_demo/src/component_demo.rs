@@ -639,6 +639,21 @@ fn catalog_body(
             div()
                 .text_size(px(pick.year_style.size_sp))
                 .text_color(paint(pick.header_year))
+                .child(date_picker::RANGE_HERO_TITLE),
+        )
+        .child(
+            div()
+                .text_size(px(22.))
+                .text_color(paint(pick.header_date))
+                .child(date_picker::header_range_label(
+                    date_picker::RANGE_DEMO_START,
+                    date_picker::RANGE_DEMO_END,
+                )),
+        )
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
                 .child("Select date"),
         )
         .child(
@@ -661,7 +676,7 @@ fn catalog_body(
                 .child(
                     div()
                         .text_size(px(pick.date_style.size_sp.min(22.0)))
-                        .child(date_picker::month_title(this.picker_year, this.picker_month)),
+                        .child(date_picker::month_nav_label(this.picker_year, this.picker_month)),
                 )
                 .child(
                     div()
@@ -706,13 +721,22 @@ fn catalog_body(
         )
         .child(div().w(px(pick.day_dp * 7.0)).flex().flex_wrap().children(
             cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                let (bg, fg) = match kind {
-                    DayKind::Selected => {
-                        (paint(pick.day_selected_container), paint(pick.day_selected))
+                let (bg, fg, radius) = match kind {
+                    DayKind::Selected => (
+                        paint(pick.day_selected_container),
+                        paint(pick.day_selected),
+                        pick.day_dp / 2.0,
+                    ),
+                    DayKind::InRange => (
+                        paint(pick.day_range_container),
+                        paint(pick.day_range),
+                        0.0,
+                    ),
+                    DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::OutOfMonth => {
+                        (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
                     }
-                    DayKind::Today => (paint(pick.container), paint(pick.day)),
-                    DayKind::InMonth => (paint(pick.container), paint(pick.day)),
-                    DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out)),
                 };
                 let in_month = kind != DayKind::OutOfMonth;
                 let year = this.picker_year;
@@ -721,7 +745,7 @@ fn catalog_body(
                     .id(SharedString::from(format!("day-{i}")))
                     .w(px(pick.day_dp))
                     .h(px(pick.day_dp))
-                    .rounded(px(pick.day_dp / 2.0))
+                    .rounded(px(radius))
                     .bg(bg)
                     .text_color(fg)
                     .flex()
@@ -875,6 +899,36 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                         .text_color(paint(a.supporting))
                         .child(dialog::RESET_SUPPORTING),
                 )
+                .children(dialog::RESET_ACCOUNTS.iter().map(|email| {
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(12.))
+                        .child(
+                            div()
+                                .w(px(40.))
+                                .h(px(40.))
+                                .rounded(px(20.))
+                                .bg(paint(theme.color.secondary_container))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(
+                                    div()
+                                        .text_size(px(14.))
+                                        .text_color(paint(theme.color.on_secondary_container))
+                                        .child(dialog::account_initials(email)),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(14.))
+                                .text_color(paint(theme.color.on_surface))
+                                .child(*email),
+                        )
+                }))
                 .child(
                     div()
                         .w_full()
@@ -1029,10 +1083,10 @@ fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoEleme
 }
 
 fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
-    let (active_n, inactive_n) = slider::segmented_stop_counts(slide.value, slide.stop_count);
-    div()
+    let fractions = slider::stop_fractions(slide.stop_count);
+    let rail = div()
         .w_full()
-        .h(px(slide.handle_h))
+        .h(px(slide.target_dp))
         .flex()
         .items_center()
         .child(
@@ -1040,18 +1094,13 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .w(px(140. * slide.value.max(0.12)))
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.active))
-                .flex()
-                .items_center()
-                .justify_between()
-                .px(px(8.))
-                .children((0..active_n).map(|_| slider_stop(slide, true))),
+                .bg(paint(slide.active)),
         )
         .child(
             div()
                 .mx(px(slide.gap_dp))
                 .w(px(slide.handle_w))
-                .h(px(slide.handle_h))
+                .h(px(slide.handle_h_visual))
                 .rounded(px(2.))
                 .bg(paint(slide.handle)),
         )
@@ -1060,13 +1109,30 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .flex_1()
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.inactive))
+                .bg(paint(slide.inactive)),
+        );
+    if slide.stop_count <= 2 {
+        return rail.into_any_element();
+    }
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .child(rail)
+        .child(
+            div()
+                .w_full()
+                .h(px(slide.target_dp))
+                .mt(px(-slide.target_dp))
+                .px(px(8.))
                 .flex()
                 .items_center()
                 .justify_between()
-                .px(px(8.))
-                .children((0..inactive_n).map(|_| slider_stop(slide, false))),
+                .children(fractions.into_iter().map(|frac| {
+                    slider_stop(slide, frac <= slide.value + 0.001)
+                })),
         )
+        .into_any_element()
 }
 
 fn volume_slider_scene(
@@ -1108,7 +1174,20 @@ fn volume_slider_scene(
                         .text_color(paint(theme.color.on_surface_variant))
                         .child(row.icon),
                 )
-                .child(expressive_slider(&slide))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(paint(theme.color.on_surface))
+                                .child(row.label),
+                        )
+                        .child(expressive_slider(&slide)),
+                )
                 .when(interactive, |el| {
                     el.on_click(cx.listener(|this, _, _, cx| {
                         this.slider = ((this.slider + 0.1) * 10.0).round() / 10.0;
@@ -1444,47 +1523,81 @@ fn field_block(
     let label = label.into();
     let value = value.into();
     let box_el = if outlined && field.notched {
-        let label_h = field.label_style.line_height_sp;
+        let cut = text_field::notch_cutout(label.as_ref(), field);
+        let radius = field.field.corners.top_left;
+        let mid_h = field.field.height_dp - cut.stroke_dp;
         div()
             .id(id)
             .flex()
             .flex_col()
+            .w_full()
             .on_click(on_click)
             .child(
                 div()
-                    .h(px(label_h))
-                    .pl(px(12.))
+                    .flex()
+                    .flex_row()
+                    .items_end()
+                    .w_full()
+                    .h(px(cut.label_h_dp))
                     .child(
                         div()
-                            .px(px(text_field::NOTCH_PAD_DP))
-                            .bg(paint(field.field.container))
-                            .text_size(px(field.label_style.size_sp))
-                            .text_color(paint(field.label))
-                            .child(label),
+                            .w(px(cut.start_dp))
+                            .h(px(cut.stroke_dp))
+                            .rounded_tl(px(radius))
+                            .bg(paint(outline.0)),
+                    )
+                    .child(
+                        div()
+                            .w(px(cut.width_dp))
+                            .h_full()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(
+                                div()
+                                    .text_size(px(field.label_style.size_sp))
+                                    .text_color(paint(field.label))
+                                    .child(label),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .h(px(cut.stroke_dp))
+                            .rounded_tr(px(radius))
+                            .bg(paint(outline.0)),
                     ),
             )
             .child(
                 div()
-                    .mt(px(-label_h * 0.5))
-                    .h(px(field.field.height_dp))
-                    .px(px(16.))
-                    .pt(px(8.))
-                    .rounded(px(field.field.corners.top_left))
-                    .bg(paint(field.field.container))
-                    .when(outline.1 >= 2.0, |el| {
-                        el.border_2().border_color(paint(outline.0))
-                    })
-                    .when(outline.1 < 2.0, |el| {
-                        el.border_1().border_color(paint(outline.0))
-                    })
                     .flex()
-                    .items_center()
+                    .flex_row()
+                    .w_full()
+                    .h(px(mid_h))
+                    .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0)))
                     .child(
                         div()
-                            .text_size(px(field.input_style.size_sp))
-                            .text_color(paint(field.input))
-                            .child(value),
-                    ),
+                            .flex_1()
+                            .h_full()
+                            .px(px(16.))
+                            .flex()
+                            .items_center()
+                            .child(
+                                div()
+                                    .text_size(px(field.input_style.size_sp))
+                                    .text_color(paint(field.input))
+                                    .child(value),
+                            ),
+                    )
+                    .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0))),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .h(px(cut.stroke_dp))
+                    .rounded_bl(px(radius))
+                    .rounded_br(px(radius))
+                    .bg(paint(outline.0)),
             )
             .into_any_element()
     } else if outlined {

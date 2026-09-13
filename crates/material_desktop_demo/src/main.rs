@@ -3,6 +3,12 @@
 //! Paints `gpui_material::resolve()` appearances with the same GPUI `div`
 //! mapping as Android `component_demo`. Tokens live only in `gpui_material`.
 //!
+//! Desktop type: Liberation Sans (`typography::FONT_FAMILY_DESKTOP`). Roboto is
+//! not installed here; Mesa llvmpipe / cosmic-text often collapses space
+//! glyphs, so multi-word copy is mapped as separate word elements with
+//! `WORD_GAP_DP`. Hardware GL is unavailable when `/dev/dri` is missing
+//! (`scripts/desktop.sh` sets `WGPU_BACKEND=gl`).
+//!
 //! Boot pattern matches upstream Zed GPUI examples (`gpui_platform::application`).
 
 #![cfg(not(target_os = "android"))]
@@ -18,6 +24,7 @@ use gpui_material::components::{
     button, checkbox, dialog, icon_button, radio, slider, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
+use gpui_material::typography;
 use gpui_material::{Argb, InteractionState};
 use gpui_platform::application;
 
@@ -87,7 +94,11 @@ impl Render for CatalogView {
                     .text_size(px(bar.title_style.size_sp))
                     .text_color(paint(bar.title))
                     .whitespace_nowrap()
-                    .child("Material 3 desktop"),
+                    .child(spaced_line(
+                        "Material 3 desktop",
+                        bar.title_style.size_sp,
+                        paint(bar.title),
+                    )),
             )
             .child(
                 div()
@@ -116,7 +127,7 @@ impl Render for CatalogView {
             .flex_col()
             .size_full()
             .bg(paint(c.background))
-            .font_family("Noto Sans")
+            .font_family(typography::FONT_FAMILY_DESKTOP)
             .text_color(paint(c.on_background))
             .child(chrome)
             .child(body)
@@ -176,9 +187,11 @@ fn catalog_body(
                 .text_size(px(theme.typography.body_medium.size_sp))
                 .text_color(paint(c.on_surface_variant))
                 .whitespace_nowrap()
-                .child(
+                .child(spaced_line(
                     "Desktop catalog · same gpui_material::resolve() as Android + HTML.",
-                ),
+                    theme.typography.body_medium.size_sp,
+                    paint(c.on_surface_variant),
+                )),
         )
         .child(section_title(theme, "Buttons"))
         .child(
@@ -316,9 +329,13 @@ fn catalog_body(
             div()
                 .text_size(px(12.))
                 .text_color(paint(c.on_surface_variant))
-                .child(format!(
-                    "Media {:.0}% · Expressive XS 16dp track / 4×44 handle · Alarm mid-stops",
-                    this.slider * 100.0
+                .child(spaced_line(
+                    format!(
+                        "Media {:.0}% · XS track 16 / handle visual 28 (token 44) · Alarm 13 stops",
+                        this.slider * 100.0
+                    ),
+                    12.0,
+                    paint(c.on_surface_variant),
                 )),
         )
         .child(section_title(theme, "Selection · tabs"))
@@ -413,6 +430,7 @@ fn catalog_body(
                 )),
         )
         .child(section_title(theme, "Date picker"))
+        .child(date_range_hero(theme, &pick))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
 }
 
@@ -429,10 +447,10 @@ fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoEleme
 }
 
 fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
-    let (active_n, inactive_n) = slider::segmented_stop_counts(slide.value, slide.stop_count);
-    div()
+    let fractions = slider::stop_fractions(slide.stop_count);
+    let rail = div()
         .w_full()
-        .h(px(slide.handle_h))
+        .h(px(slide.target_dp))
         .flex()
         .items_center()
         .child(
@@ -440,18 +458,13 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .w(px(180. * slide.value.max(0.12)))
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.active))
-                .flex()
-                .items_center()
-                .justify_between()
-                .px(px(8.))
-                .children((0..active_n).map(|_| slider_stop(slide, true))),
+                .bg(paint(slide.active)),
         )
         .child(
             div()
                 .mx(px(slide.gap_dp))
                 .w(px(slide.handle_w))
-                .h(px(slide.handle_h))
+                .h(px(slide.handle_h_visual))
                 .rounded(px(2.))
                 .bg(paint(slide.handle)),
         )
@@ -460,13 +473,31 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .flex_1()
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.inactive))
+                .bg(paint(slide.inactive)),
+        );
+    if slide.stop_count <= 2 {
+        return rail.into_any_element();
+    }
+    // Unified rail overlay: even mid-stops across the full track (official Alarm).
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .child(rail)
+        .child(
+            div()
+                .w_full()
+                .h(px(slide.target_dp))
+                .mt(px(-slide.target_dp))
+                .px(px(8.))
                 .flex()
                 .items_center()
                 .justify_between()
-                .px(px(8.))
-                .children((0..inactive_n).map(|_| slider_stop(slide, false))),
+                .children(fractions.into_iter().map(|frac| {
+                    slider_stop(slide, frac <= slide.value + 0.001)
+                })),
         )
+        .into_any_element()
 }
 
 fn volume_slider_scene(
@@ -478,7 +509,7 @@ fn volume_slider_scene(
         .w_full()
         .flex()
         .flex_col()
-        .gap(px(8.))
+        .gap(px(12.))
         .children(slider::OVERVIEW_ROWS.iter().copied().map(|row| {
             let value = if row.label.starts_with("Media") {
                 media_value
@@ -508,7 +539,19 @@ fn volume_slider_scene(
                         .text_color(paint(theme.color.on_surface_variant))
                         .child(row.icon),
                 )
-                .child(expressive_slider(&slide))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .gap(px(4.))
+                        .child(spaced_line(
+                            row.label,
+                            12.0,
+                            paint(theme.color.on_surface),
+                        ))
+                        .child(expressive_slider(&slide)),
+                )
                 .when(interactive, |el| {
                     el.on_click(cx.listener(|this, _, _, cx| {
                         this.slider = ((this.slider + 0.1) * 10.0).round() / 10.0;
@@ -519,6 +562,39 @@ fn volume_slider_scene(
                     }))
                 })
         }))
+}
+
+fn dialog_account_row(theme: &Theme, email: &'static str) -> impl IntoElement {
+    let c = theme.color;
+    div()
+        .w_full()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(12.))
+        .py(px(4.))
+        .child(
+            div()
+                .w(px(40.))
+                .h(px(40.))
+                .rounded(px(20.))
+                .bg(paint(c.secondary_container))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    div()
+                        .text_size(px(14.))
+                        .text_color(paint(c.on_secondary_container))
+                        .child(dialog::account_initials(email)),
+                ),
+        )
+        .child(
+            div()
+                .text_size(px(14.))
+                .text_color(paint(c.on_surface))
+                .child(email.to_string()),
+        )
 }
 
 fn dismiss_overlay(
@@ -568,17 +644,24 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                         .w_full()
                         .flex()
                         .justify_center()
-                        .text_size(type_size(a.headline_style))
-                        .text_color(paint(a.headline))
-                        .child(dialog::RESET_HEADLINE),
+                        .child(spaced_line(
+                            dialog::RESET_HEADLINE,
+                            a.headline_style.size_sp,
+                            paint(a.headline),
+                        )),
                 )
                 .child(
                     div()
                         .w_full()
-                        .text_size(type_size(a.supporting_style))
-                        .text_color(paint(a.supporting))
-                        .child(dialog::RESET_SUPPORTING),
+                        .child(spaced_line(
+                            dialog::RESET_SUPPORTING,
+                            a.supporting_style.size_sp,
+                            paint(a.supporting),
+                        )),
                 )
+                .children(dialog::RESET_ACCOUNTS.iter().map(|email| {
+                    dialog_account_row(theme, email)
+                }))
                 .child(
                     div()
                         .w_full()
@@ -705,6 +788,96 @@ fn list_dialog_overlay(
         )
 }
 
+fn day_colors(
+    pick: &date_picker::DatePickerAppearance,
+    kind: DayKind,
+) -> (gpui::Rgba, gpui::Rgba, f32) {
+    match kind {
+        DayKind::Selected => (
+            paint(pick.day_selected_container),
+            paint(pick.day_selected),
+            pick.day_dp / 2.0,
+        ),
+        DayKind::InRange => (
+            paint(pick.day_range_container),
+            paint(pick.day_range),
+            0.0,
+        ),
+        DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+        DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+        DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0),
+    }
+}
+
+fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl IntoElement {
+    div().w(px(cal_w)).flex().flex_wrap().children(
+        date_picker::WEEKDAYS.iter().map(|d| {
+            div()
+                .w(px(pick.day_dp))
+                .h(px(32.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(paint(pick.weekday))
+                .child(*d)
+        }),
+    )
+}
+
+fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> impl IntoElement {
+    let start = date_picker::RANGE_DEMO_START;
+    let end = date_picker::RANGE_DEMO_END;
+    let today = CivilDate {
+        year: 2026,
+        month: 9,
+        day: 11,
+    };
+    let cells = date_picker::month_grid_range(start.year, start.month, start, end, today);
+    let cal_w = pick.day_dp * 7.0;
+    div()
+        .w(px(cal_w + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(spaced_line(
+            date_picker::RANGE_HERO_TITLE,
+            pick.year_style.size_sp,
+            paint(pick.header_year),
+        ))
+        .child(spaced_line(
+            date_picker::header_range_label(start, end),
+            pick.date_style.size_sp.min(28.0),
+            paint(pick.header_date),
+        ))
+        .child(spaced_line(
+            date_picker::month_nav_label(start.year, start.month),
+            pick.year_style.size_sp,
+            paint(pick.header_year),
+        ))
+        .child(weekday_row(pick, cal_w))
+        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+            cells.iter().copied().map(|(day, kind)| {
+                let (bg, fg, radius) = day_colors(pick, kind);
+                div()
+                    .w(px(pick.day_dp))
+                    .h(px(pick.day_dp))
+                    .rounded(px(radius))
+                    .bg(bg)
+                    .text_color(fg)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(kind == DayKind::Today, |el| {
+                        el.border_1().border_color(paint(pick.day_today_outline))
+                    })
+                    .child(day.to_string())
+            }),
+        ))
+}
+
 fn date_picker_card(
     this: &CatalogView,
     theme: &Theme,
@@ -721,29 +894,16 @@ fn date_picker_card(
         .flex()
         .flex_col()
         .gap(px(8.))
-        .child(
-            div()
-                .text_size(px(pick.year_style.size_sp))
-                .text_color(paint(pick.header_year))
-                .child("Select date"),
-        )
-        .child(
-            div()
-                .text_size(px(pick.date_style.size_sp))
-                .text_color(paint(pick.header_date))
-                .child(date_picker::header_date_label(this.selected)),
-        )
-        .child(
-            div()
-                .id("year-control")
-                .text_size(px(pick.year_style.size_sp))
-                .text_color(paint(pick.header_year))
-                .child(date_picker::header_year_label(this.picker_year))
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.picker_year += 1;
-                    cx.notify();
-                })),
-        )
+        .child(spaced_line(
+            "Select date",
+            pick.year_style.size_sp,
+            paint(pick.header_year),
+        ))
+        .child(spaced_line(
+            date_picker::header_date_label(this.selected),
+            pick.date_style.size_sp,
+            paint(pick.header_date),
+        ))
         .child(
             div()
                 .flex()
@@ -765,7 +925,19 @@ fn date_picker_card(
                             cx.notify();
                         })),
                 )
-                .child(date_picker::month_title(this.picker_year, this.picker_month))
+                .child(
+                    div()
+                        .id("year-control")
+                        .child(spaced_line(
+                            date_picker::month_nav_label(this.picker_year, this.picker_month),
+                            pick.year_style.size_sp,
+                            paint(pick.header_year),
+                        ))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.picker_year += 1;
+                            cx.notify();
+                        })),
+                )
                 .child(
                     div()
                         .id("month-next")
@@ -783,32 +955,10 @@ fn date_picker_card(
                         })),
                 ),
         )
-        .child(
-            div()
-                .w(px(cal_w))
-                .flex()
-                .flex_wrap()
-                .children(date_picker::WEEKDAYS.iter().map(|d| {
-                    div()
-                        .w(px(pick.day_dp))
-                        .h(px(32.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .text_color(paint(pick.weekday))
-                        .child(*d)
-                })),
-        )
+        .child(weekday_row(pick, cal_w))
         .child(div().w(px(cal_w)).flex().flex_wrap().children(
             cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                let (bg, fg) = match kind {
-                    DayKind::Selected => {
-                        (paint(pick.day_selected_container), paint(pick.day_selected))
-                    }
-                    DayKind::Today => (paint(pick.container), paint(pick.day)),
-                    DayKind::InMonth => (paint(pick.container), paint(pick.day)),
-                    DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out)),
-                };
+                let (bg, fg, radius) = day_colors(pick, kind);
                 let in_month = kind != DayKind::OutOfMonth;
                 let year = this.picker_year;
                 let month = this.picker_month;
@@ -816,7 +966,7 @@ fn date_picker_card(
                     .id(SharedString::from(format!("day-{i}")))
                     .w(px(pick.day_dp))
                     .h(px(pick.day_dp))
-                    .rounded(px(pick.day_dp / 2.0))
+                    .rounded(px(radius))
                     .bg(bg)
                     .text_color(fg)
                     .flex()
@@ -933,7 +1083,11 @@ fn m_button(
             let (color, _) = a.outline.unwrap();
             el.border_1().border_color(paint(color))
         })
-        .child(label.into())
+        .child(spaced_line(
+            label.into().to_string(),
+            a.label_style.size_sp,
+            paint(a.content),
+        ))
         .when(!disabled, |el| el.on_click(on_click))
 }
 
@@ -944,7 +1098,123 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
         .font_weight(FontWeight::MEDIUM)
         .text_color(paint(theme.color.on_surface))
         .whitespace_nowrap()
-        .child(title)
+        .child(spaced_line(title, theme.typography.title_medium.size_sp, paint(theme.color.on_surface)))
+}
+
+fn spaced_line(text: impl AsRef<str>, size: f32, color: gpui::Rgba) -> gpui::AnyElement {
+    let text = text.as_ref();
+    let words = typography::words(text);
+    if words.len() <= 1 {
+        return div()
+            .text_size(px(size))
+            .text_color(color)
+            .line_height(px(size + 6.0))
+            .child(text.to_string())
+            .into_any_element();
+    }
+    let mut row = div()
+        .flex()
+        .flex_row()
+        .flex_wrap()
+        .items_end()
+        .gap(px(typography::WORD_GAP_DP));
+    for w in words {
+        row = row.child(
+            div()
+                .text_size(px(size))
+                .text_color(color)
+                .line_height(px(size + 6.0))
+                .child(w.to_string()),
+        );
+    }
+    row.into_any_element()
+}
+
+fn outlined_notched_field(
+    id: &'static str,
+    field: &text_field::TextFieldAppearance,
+    label: SharedString,
+    value: SharedString,
+    on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    let outline = field.field.outline.unwrap_or((field.label, 1.0));
+    let cut = text_field::notch_cutout(label.as_ref(), field);
+    let radius = field.field.corners.top_left;
+    let mid_h = field.field.height_dp - cut.stroke_dp;
+    div()
+        .id(id)
+        .flex()
+        .flex_col()
+        .w_full()
+        .on_click(on_click)
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .items_end()
+                .w_full()
+                .h(px(cut.label_h_dp))
+                .child(
+                    div()
+                        .w(px(cut.start_dp))
+                        .h(px(cut.stroke_dp))
+                        .rounded_tl(px(radius))
+                        .bg(paint(outline.0)),
+                )
+                .child(
+                    div()
+                        .w(px(cut.width_dp))
+                        .h_full()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .line_height(px(field.label_style.line_height_sp))
+                                .child(label),
+                        ),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .h(px(cut.stroke_dp))
+                        .rounded_tr(px(radius))
+                        .bg(paint(outline.0)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .w_full()
+                .h(px(mid_h))
+                .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0)))
+                .child(
+                    div()
+                        .flex_1()
+                        .h_full()
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(value),
+                        ),
+                )
+                .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0))),
+        )
+        .child(
+            div()
+                .w_full()
+                .h(px(cut.stroke_dp))
+                .rounded_bl(px(radius))
+                .rounded_br(px(radius))
+                .bg(paint(outline.0)),
+        )
 }
 
 fn field_block(
@@ -960,46 +1230,7 @@ fn field_block(
     let label = label.into();
     let value = value.into();
     let box_el = if outlined && field.notched {
-        let label_h = field.label_style.line_height_sp;
-        div()
-            .id(id)
-            .flex()
-            .flex_col()
-            .on_click(on_click)
-            .child(
-                div().h(px(label_h)).pl(px(12.)).child(
-                    div()
-                        .px(px(text_field::NOTCH_PAD_DP))
-                        .bg(paint(field.field.container))
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(label),
-                ),
-            )
-            .child(
-                div()
-                    .mt(px(-label_h * 0.5))
-                    .h(px(field.field.height_dp))
-                    .px(px(16.))
-                    .pt(px(8.))
-                    .rounded(px(field.field.corners.top_left))
-                    .bg(paint(field.field.container))
-                    .when(outline.1 >= 2.0, |el| {
-                        el.border_2().border_color(paint(outline.0))
-                    })
-                    .when(outline.1 < 2.0, |el| {
-                        el.border_1().border_color(paint(outline.0))
-                    })
-                    .flex()
-                    .items_center()
-                    .child(
-                        div()
-                            .text_size(px(field.input_style.size_sp))
-                            .text_color(paint(field.input))
-                            .child(value),
-                    ),
-            )
-            .into_any_element()
+        outlined_notched_field(id, field, label, value, on_click).into_any_element()
     } else if outlined {
         div()
             .id(id)
@@ -1173,10 +1404,13 @@ mod tests {
         assert_eq!(s.track_h, 16.0);
         assert_eq!(s.handle_w, 4.0);
         assert_eq!(s.handle_h, 44.0);
+        assert_eq!(s.handle_h_visual, 28.0);
         assert_eq!(s.inactive, theme.color.surface_container_highest);
         assert_eq!(s.stop_count, 2);
-        let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 11);
-        assert_eq!(alarm.stop_count, 11);
+        let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 13);
+        assert_eq!(alarm.stop_count, 13);
+        assert_eq!(slider::OVERVIEW_ROWS[1].stop_count, 13);
+        assert_eq!(slider::OVERVIEW_ROWS[0].label, "Call volume");
 
         let empty_outlined = text_field::resolve(
             &theme,

@@ -13,6 +13,7 @@ use gpui_material::state::{
     HOVER_OPACITY, PRESSED_OPACITY,
 };
 use gpui_material::theme::Theme;
+use gpui_material::typography;
 use gpui_material::Argb;
 
 fn hex(c: Argb) -> String {
@@ -265,6 +266,11 @@ fn text_field_metrics_and_error_focus() {
     assert!(focused.floating);
     assert_eq!(focused.label, theme.color.primary);
     assert_eq!(focused.label_style.name, "bodySmall");
+    let cut = text_field::notch_cutout("Email", &focused);
+    assert_eq!(cut.start_dp, 12.0);
+    assert_eq!(cut.stroke_dp, 2.0);
+    assert!(cut.width_dp >= 28.0);
+    assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
 
     let error = text_field::resolve(
         &theme,
@@ -403,8 +409,16 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-field-hero=\"empty-filled\""));
     assert!(html.contains("data-field-hero=\"empty-outlined\""));
     assert!(html.contains("data-week-start=\"sunday\""));
-    assert!(html.contains("data-stops=\"11\""));
+    assert!(html.contains("data-stops=\"13\""));
     assert!(html.contains("Alarm volume"));
+    assert!(html.contains("Call volume"));
+    assert!(html.contains("data-notch=\"cutout\""));
+    assert!(html.contains("leevilanuevanotes@google.com"));
+    assert!(html.contains("data-dialog-accounts=\"1\""));
+    assert!(html.contains("data-datepicker-range=\"1\""));
+    assert!(html.contains("Depart – Return dates"));
+    assert!(html.contains("data-handle-visual=\"28\""));
+    assert!(html.contains("September 2026 ▾"));
     assert!(html.contains("data-sheet=\"modal\""));
     assert!(html.contains("data-menu=\"1\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
@@ -478,6 +492,9 @@ fn dialog_sheet_menu_tokens() {
     assert_eq!(d.action, theme.color.primary);
     assert_eq!(d.elevation_dp, 6.0);
     assert_eq!(d.min_width_dp, 280.0);
+    assert_eq!(dialog::RESET_ACCOUNTS.len(), 3);
+    assert!(dialog::RESET_SUPPORTING.contains("The following accounts"));
+    assert_eq!(dialog::account_initials("leevilanuevanotes@google.com"), "L");
 
     let sheet = bottom_sheet::resolve(&theme, true);
     assert_eq!(sheet.corners.top_left, 28.0);
@@ -502,6 +519,7 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.track_h, 16.0);
     assert_eq!(s.handle_w, 4.0);
     assert_eq!(s.handle_h, 44.0);
+    assert_eq!(s.handle_h_visual, 28.0);
     assert_eq!(s.gap_dp, 6.0);
     assert_eq!(s.stop_dp, 4.0);
     assert_eq!(s.active, theme.color.primary);
@@ -509,9 +527,11 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.value, 0.4);
     assert_eq!(s.stop_count, 2);
     assert_eq!(slider::stop_fractions(5), vec![0.0, 0.25, 0.5, 0.75, 1.0]);
-    let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 11);
-    assert_eq!(alarm.stop_count, 11);
-    assert_eq!(slider::segmented_stop_counts(0.52, 11).0, 6);
+    let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 13);
+    assert_eq!(alarm.stop_count, 13);
+    assert_eq!(slider::OVERVIEW_ROWS[1].stop_count, 13);
+    assert_eq!(slider::OVERVIEW_ROWS[0].label, "Call volume");
+    assert_eq!(slider::segmented_stop_counts(0.52, 13).0, 7);
     let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
     assert_eq!(pressed.handle_w, 2.0);
 
@@ -576,6 +596,28 @@ fn date_picker_grid_and_weekday() {
         .find(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected);
     assert!(fifteenth.is_some());
     assert!(cells.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
+    assert_eq!(date_picker::month_nav_label(2026, 9), "September 2026 ▾");
+    assert_eq!(
+        date_picker::header_range_label(date_picker::RANGE_DEMO_START, date_picker::RANGE_DEMO_END),
+        "Sep 15 – Sep 21"
+    );
+    let range = date_picker::month_grid_range(
+        2026,
+        9,
+        date_picker::RANGE_DEMO_START,
+        date_picker::RANGE_DEMO_END,
+        today,
+    );
+    assert!(
+        range
+            .iter()
+            .any(|(d, k)| *d == 18 && *k == date_picker::DayKind::InRange)
+    );
+    assert!(
+        range
+            .iter()
+            .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected)
+    );
 }
 
 #[test]
@@ -595,6 +637,13 @@ fn text_field_editor_insert_backspace_caret() {
     assert_eq!(ed.interaction_state(), InteractionState::ErrorFocused);
     assert!(text_field::looks_like_email("a@b.c"));
     assert!(!text_field::looks_like_email("not-an-email"));
+}
+
+#[test]
+fn desktop_type_fallbacks_keep_word_gaps() {
+    assert_eq!(typography::FONT_FAMILY_DESKTOP, "Liberation Sans");
+    assert_eq!(typography::words("Call volume"), vec!["Call", "volume"]);
+    assert_eq!(typography::WORD_GAP_DP, 4.0);
 }
 
 #[test]

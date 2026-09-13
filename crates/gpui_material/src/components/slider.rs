@@ -80,6 +80,9 @@ pub struct SliderAppearance {
     pub track_corner: f32,
     pub handle_w: f32,
     pub handle_h: f32,
+    /// Painted handle height. Token `handle_h` stays the 44dp touch target;
+    /// official overview photos are closer to track + 12dp (~28dp on XS).
+    pub handle_h_visual: f32,
     pub gap_dp: f32,
     pub inner_corner: f32,
     pub stop_dp: f32,
@@ -117,7 +120,7 @@ pub const OVERVIEW_ROWS: [OverviewRow; 4] = [
         icon: "⏰",
         label: "Alarm volume",
         value: 0.52,
-        stop_count: 11,
+        stop_count: 13,
     },
     OverviewRow {
         icon: "🔔",
@@ -192,6 +195,7 @@ pub fn resolve_size(
         track_corner: size.track_corner(),
         handle_w,
         handle_h: size.handle_h(),
+        handle_h_visual: size.track_h() + 12.0,
         gap_dp: GAP_DP,
         inner_corner: INNER_CORNER_DP,
         stop_dp: STOP_DP,

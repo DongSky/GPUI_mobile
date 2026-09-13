@@ -23,6 +23,16 @@ pub const OUTLINE_FOCUSED_DP: f32 = 2.0;
 pub const SUPPORTING_GAP_DP: f32 = 4.0;
 pub const ICON_DP: f32 = 24.0;
 pub const NOTCH_PAD_DP: f32 = 4.0;
+/// Distance from the left outline to the start of the notched label.
+pub const NOTCH_START_DP: f32 = 12.0;
+
+/// Width of the top-outline *cutout* for `label` (bodySmall-ish glyph width).
+/// Mapping paints left-stroke | gap+label | right-stroke so the border is
+/// actually interrupted, not just a label drawn on top of a full stroke.
+pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
+    let em = label_size_sp * 0.52;
+    (label.chars().count() as f32 * em + NOTCH_PAD_DP * 2.0).max(28.0)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextFieldVariant {
@@ -186,6 +196,31 @@ pub fn resolve(
             c.on_surface_variant
         },
         caret: if error { c.error } else { c.primary },
+    }
+}
+
+/// Shared notch geometry for desktop GPUI / Android / HTML paint tricks.
+/// The gap (`width_dp` starting at `start_dp`) must contain no outline stroke.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NotchCutout {
+    pub start_dp: f32,
+    pub width_dp: f32,
+    pub stroke_dp: f32,
+    pub label_h_dp: f32,
+}
+
+pub fn notch_cutout(label: &str, appearance: &TextFieldAppearance) -> NotchCutout {
+    let stroke = appearance
+        .field
+        .outline
+        .map(|(_, w)| w)
+        .unwrap_or(OUTLINE_DP)
+        .max(1.0);
+    NotchCutout {
+        start_dp: NOTCH_START_DP,
+        width_dp: notch_width_dp(label, appearance.label_style.size_sp),
+        stroke_dp: stroke,
+        label_h_dp: appearance.label_style.line_height_sp,
     }
 }
 
