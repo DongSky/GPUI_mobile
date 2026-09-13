@@ -1525,79 +1525,51 @@ fn field_block(
     let box_el = if outlined && field.notched {
         let cut = text_field::notch_cutout(label.as_ref(), field);
         let radius = field.field.corners.top_left;
-        let mid_h = field.field.height_dp - cut.stroke_dp;
+        let lift = cut.label_h_dp * 0.5;
         div()
             .id(id)
-            .flex()
-            .flex_col()
+            .relative()
             .w_full()
+            .h(px(field.field.height_dp + lift))
             .on_click(on_click)
             .child(
                 div()
-                    .flex()
-                    .flex_row()
-                    .items_end()
+                    .absolute()
+                    .top(px(lift))
+                    .left(px(0.))
                     .w_full()
-                    .h(px(cut.label_h_dp))
+                    .h(px(field.field.height_dp))
+                    .px(px(16.))
+                    .rounded(px(radius))
+                    .bg(paint(field.field.container))
+                    .when(outline.1 >= 2.0, |el| {
+                        el.border_2().border_color(paint(outline.0))
+                    })
+                    .when(outline.1 < 2.0, |el| {
+                        el.border_1().border_color(paint(outline.0))
+                    })
+                    .flex()
+                    .items_center()
                     .child(
                         div()
-                            .w(px(cut.start_dp))
-                            .h(px(cut.stroke_dp))
-                            .rounded_tl(px(radius))
-                            .bg(paint(outline.0)),
-                    )
-                    .child(
-                        div()
-                            .w(px(cut.width_dp))
-                            .h_full()
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(
-                                div()
-                                    .text_size(px(field.label_style.size_sp))
-                                    .text_color(paint(field.label))
-                                    .child(label),
-                            ),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .h(px(cut.stroke_dp))
-                            .rounded_tr(px(radius))
-                            .bg(paint(outline.0)),
+                            .text_size(px(field.input_style.size_sp))
+                            .text_color(paint(field.input))
+                            .child(value),
                     ),
             )
             .child(
                 div()
-                    .flex()
-                    .flex_row()
-                    .w_full()
-                    .h(px(mid_h))
-                    .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0)))
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(cut.start_dp))
+                    .px(px(text_field::NOTCH_PAD_DP))
+                    .bg(paint(field.cutout_fill))
                     .child(
                         div()
-                            .flex_1()
-                            .h_full()
-                            .px(px(16.))
-                            .flex()
-                            .items_center()
-                            .child(
-                                div()
-                                    .text_size(px(field.input_style.size_sp))
-                                    .text_color(paint(field.input))
-                                    .child(value),
-                            ),
-                    )
-                    .child(div().w(px(cut.stroke_dp)).h_full().bg(paint(outline.0))),
-            )
-            .child(
-                div()
-                    .w_full()
-                    .h(px(cut.stroke_dp))
-                    .rounded_bl(px(radius))
-                    .rounded_br(px(radius))
-                    .bg(paint(outline.0)),
+                            .text_size(px(field.label_style.size_sp))
+                            .text_color(paint(field.label))
+                            .child(label),
+                    ),
             )
             .into_any_element()
     } else if outlined {

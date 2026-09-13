@@ -67,6 +67,8 @@ pub struct TextFieldAppearance {
     pub leading_icon: Argb,
     pub trailing_icon: Argb,
     pub caret: Argb,
+    /// Parent/page fill used to erase the outline under a floating label.
+    pub cutout_fill: Argb,
 }
 
 pub fn resolve(
@@ -196,6 +198,7 @@ pub fn resolve(
             c.on_surface_variant
         },
         caret: if error { c.error } else { c.primary },
+        cutout_fill: c.background,
     }
 }
 

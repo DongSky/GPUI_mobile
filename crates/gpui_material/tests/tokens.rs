@@ -270,6 +270,7 @@ fn text_field_metrics_and_error_focus() {
     assert_eq!(cut.start_dp, 12.0);
     assert_eq!(cut.stroke_dp, 2.0);
     assert!(cut.width_dp >= 28.0);
+    assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
 
     let error = text_field::resolve(
@@ -643,7 +644,8 @@ fn text_field_editor_insert_backspace_caret() {
 fn desktop_type_fallbacks_keep_word_gaps() {
     assert_eq!(typography::FONT_FAMILY_DESKTOP, "Liberation Sans");
     assert_eq!(typography::words("Call volume"), vec!["Call", "volume"]);
-    assert_eq!(typography::WORD_GAP_DP, 4.0);
+    assert_eq!(typography::WORD_GAP_DP, 6.0);
+    assert_eq!(typography::words("Reset settings?"), vec!["Reset", "settings?"]);
 }
 
 #[test]

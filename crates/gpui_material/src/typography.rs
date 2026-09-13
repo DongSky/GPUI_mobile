@@ -101,7 +101,7 @@ pub const FONT_FAMILY: &str = "Roboto";
 pub const FONT_FAMILY_DESKTOP: &str = "Liberation Sans";
 /// Gap used when mapping a string as separate word elements so spaces stay
 /// visible even if the font engine reports 0-width space glyphs.
-pub const WORD_GAP_DP: f32 = 4.0;
+pub const WORD_GAP_DP: f32 = 6.0;
 
 pub fn words(s: &str) -> Vec<&str> {
     s.split_whitespace().filter(|w| !w.is_empty()).collect()
