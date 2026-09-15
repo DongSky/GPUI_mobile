@@ -9,7 +9,7 @@
 //! hosts do not use `cx.transform` (height/margin/corner tokens only).
 
 use crate::argb::Argb;
-use crate::components::{list, Appearance};
+use crate::components::{chip, list, Appearance};
 use crate::shape::Corners;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -140,7 +140,60 @@ impl SearchListStatus {
     pub const fn shows_open_affordance(self) -> bool {
         matches!(self, Self::Results)
     }
+
+    /// Guidelines: filter chips narrow queried suggestions / results.
+    pub const fn shows_filters(self) -> bool {
+        !self.shows_suggestion_groups()
+    }
 }
+
+/// Search guidelines: filter chips to narrow results (Apps / Shortcuts / Settings).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SearchFilter {
+    #[default]
+    All,
+    Apps,
+    Shortcuts,
+    Settings,
+}
+
+impl SearchFilter {
+    pub const ALL: [Self; 4] = [Self::All, Self::Apps, Self::Shortcuts, Self::Settings];
+
+    pub const fn attr(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Apps => "apps",
+            Self::Shortcuts => "shortcuts",
+            Self::Settings => "settings",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Apps => "Apps",
+            Self::Shortcuts => "Shortcuts",
+            Self::Settings => "Settings",
+        }
+    }
+
+    pub fn matches(self, label: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::Apps => label.eq_ignore_ascii_case("App"),
+            Self::Shortcuts => label.eq_ignore_ascii_case("Shortcut"),
+            Self::Settings => label.eq_ignore_ascii_case("Setting"),
+        }
+    }
+}
+
+/// Catalog sibling that applies the Settings chip to `DEMO_QUERY` (no matches).
+pub const DEMO_FILTER: SearchFilter = SearchFilter::Settings;
+/// FilterChip height + 8dp vertical padding.
+pub const FILTER_CHIP_H_DP: f32 = chip::HEIGHT_DP;
+pub const FILTER_GAP_DP: f32 = 8.0;
+pub const FILTER_ROW_H_DP: f32 = 48.0;
 
 pub const QUICK_RESULTS_LABEL: &str = "Quick results";
 pub const RESULTS_LABEL: &str = "Results";
@@ -246,13 +299,24 @@ pub fn resolve_activity(theme: &Theme) -> SearchViewAppearance {
 }
 
 pub fn filter_suggestions(query: &str) -> Vec<&'static str> {
-    filter_grouped_suggestions(query)
+    filter_suggestions_in(query, SearchFilter::All)
+}
+
+pub fn filter_suggestions_in(query: &str, filter: SearchFilter) -> Vec<&'static str> {
+    filter_grouped_suggestions_in(query, filter)
         .into_iter()
         .flat_map(|(_, items)| items)
         .collect()
 }
 
 pub fn filter_grouped_suggestions(query: &str) -> Vec<(&'static str, Vec<&'static str>)> {
+    filter_grouped_suggestions_in(query, SearchFilter::All)
+}
+
+pub fn filter_grouped_suggestions_in(
+    query: &str,
+    filter: SearchFilter,
+) -> Vec<(&'static str, Vec<&'static str>)> {
     let q = query.trim().to_ascii_lowercase();
     SUGGESTION_GROUPS
         .iter()
@@ -261,7 +325,7 @@ pub fn filter_grouped_suggestions(query: &str) -> Vec<(&'static str, Vec<&'stati
                 .items
                 .iter()
                 .copied()
-                .filter(|s| q.is_empty() || s.to_ascii_lowercase().contains(&q))
+                .filter(|s| (q.is_empty() || s.to_ascii_lowercase().contains(&q)) && filter.matches(s))
                 .collect();
             if items.is_empty() {
                 None
@@ -270,6 +334,16 @@ pub fn filter_grouped_suggestions(query: &str) -> Vec<(&'static str, Vec<&'stati
             }
         })
         .collect()
+}
+
+/// Category attr for a result row (`all` when it is only visible under All).
+pub fn item_category(label: &str) -> &'static str {
+    SearchFilter::ALL
+        .iter()
+        .copied()
+        .find(|f| *f != SearchFilter::All && f.matches(label))
+        .unwrap_or(SearchFilter::All)
+        .attr()
 }
 
 /// Title + inter-group gap chrome for the visible groups.
@@ -427,6 +501,14 @@ pub fn status_chrome_h_dp(status: SearchListStatus) -> f32 {
     }
 }
 
+pub fn filter_chrome_h_dp(status: SearchListStatus) -> f32 {
+    if status.shows_filters() {
+        FILTER_ROW_H_DP
+    } else {
+        0.0
+    }
+}
+
 pub fn status_live_text(status: SearchListStatus, result_count: usize) -> String {
     match status {
         SearchListStatus::Suggestions => String::new(),
@@ -447,16 +529,27 @@ pub fn status_live_text(status: SearchListStatus, result_count: usize) -> String
     }
 }
 
-/// List height under the 56dp header: groups when idle, status + two-line rows when queried.
+/// List height under the 56dp header: groups when idle, status + filters + rows when queried.
 pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
+    expanded_list_h_dp_in(query, input_focused, SearchFilter::All)
+}
+
+pub fn expanded_list_h_dp_in(
+    query: &str,
+    input_focused: bool,
+    filter: SearchFilter,
+) -> f32 {
     let status = list_status(query, input_focused);
-    let n = filter_suggestions(query).len();
+    let n = filter_suggestions_in(query, filter).len();
     if status.shows_suggestion_groups() {
         grouped_suggestion_list_h_dp(query)
     } else if n == 0 {
-        status_chrome_h_dp(status) + EMPTY_H_DP
+        status_chrome_h_dp(status) + filter_chrome_h_dp(status) + EMPTY_H_DP
     } else {
-        status_chrome_h_dp(status) + row_height_dp(status) * n as f32 + segmented_row_gaps_h_dp(n)
+        status_chrome_h_dp(status)
+            + filter_chrome_h_dp(status)
+            + row_height_dp(status) * n as f32
+            + segmented_row_gaps_h_dp(n)
     }
 }
 
@@ -491,7 +584,11 @@ pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
 pub const EMPTY_H_DP: f32 = SUGGESTION_H_DP;
 
 pub fn shows_empty(query: &str) -> bool {
-    !query.trim().is_empty() && filter_suggestions(query).is_empty()
+    shows_empty_in(query, SearchFilter::All)
+}
+
+pub fn shows_empty_in(query: &str, filter: SearchFilter) -> bool {
+    !query.trim().is_empty() && filter_suggestions_in(query, filter).is_empty()
 }
 
 pub fn empty_content(theme: &Theme) -> Argb {

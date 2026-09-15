@@ -374,6 +374,7 @@ struct CatalogView {
     docked_open: bool,
     search_open: bool,
     search: TextFieldEditor,
+    search_filter: search::SearchFilter,
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
     wide_rail_mode: navigation_rail::RailMode,
@@ -4497,7 +4498,7 @@ fn search_bar_hero(
     let open = this.search_open;
     let a = search::resolve(theme);
     let view = search::resolve_view(theme);
-    let grouped = search::filter_grouped_suggestions(this.search.value());
+    let grouped = search::filter_grouped_suggestions_in(this.search.value(), this.search_filter);
     let suggestion_count = search::contained_suggestion_count();
     let query_label = if this.search.focused {
         this.search.display_with_caret()
@@ -4686,6 +4687,43 @@ fn search_bar_hero(
                 .text_size(px(12.))
                 .text_color(paint(view.suggestion_icon))
                 .child(heading)
+                .into_any_element(),
+        );
+    }
+    if status.shows_filters() {
+        list_children.push(
+            div()
+                .id("search-filters")
+                .h(px(search::FILTER_ROW_H_DP))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .gap(px(search::FILTER_GAP_DP))
+                .children(search::SearchFilter::ALL.iter().copied().map(|f| {
+                    let selected = this.search_filter == f;
+                    let a = chip::resolve(
+                        theme,
+                        chip::ChipVariant::Filter,
+                        selected,
+                        InteractionState::Enabled,
+                    );
+                    div()
+                        .id(SharedString::from(format!("search-filter-{}", f.attr())))
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_start_dp))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .rounded(px(a.corners.top_left))
+                        .when(selected, |el| el.child(chip::CHECK_GLYPH))
+                        .child(f.label())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.search_filter = f;
+                            cx.notify();
+                        }))
+                }))
                 .into_any_element(),
         );
     }
@@ -7331,6 +7369,7 @@ fn main() {
                     range_hit: Rc::new(Cell::new((0.0, slider::RANGE_TRACK_W_DP))),
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
+                    search_filter: search::SearchFilter::All,
                     search: {
                         let mut ed = TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
                         ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
@@ -7523,6 +7562,11 @@ mod tests {
         assert_eq!(search::supporting_for("App"), "Installed application");
         assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
         assert!(search::shows_empty(search::DEMO_EMPTY_QUERY));
+        assert_eq!(search::FILTER_ROW_H_DP, 48.0);
+        assert!(search::shows_empty_in(
+            search::DEMO_QUERY,
+            search::SearchFilter::Settings
+        ));
         assert_eq!(search::EMPTY_H_DP, 56.0);
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),

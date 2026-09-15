@@ -330,6 +330,17 @@ a {{ color: var(--primary); }}
   font-size: 16px; line-height: 24px;
 }}
 .search-morph[data-search-empty="1"] .sv-empty {{ display: flex; }}
+.search-morph .sv-filters {{
+  display: none; align-items: center; gap: 8px; height: 48px; padding: 0 16px;
+  overflow-x: auto;
+}}
+.search-morph[data-search-status="quick-results"] .sv-filters,
+.search-morph[data-search-status="results"] .sv-filters {{ display: flex; }}
+.search-morph .sv-filter {{
+  height: 32px; padding: 0 16px; display: flex; align-items: center; gap: 8px;
+  font: 500 14px/20px Roboto, sans-serif; box-sizing: border-box; cursor: pointer;
+  flex: 0 0 auto;
+}}
 .timepicker {{
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
 }}
@@ -2162,11 +2173,13 @@ function syncSearchStatus(view, input) {{
   var focused = document.activeElement === input;
   var status = !q ? "suggestions" : (focused ? "quick-results" : "results");
   view.setAttribute("data-search-status", status);
+  var filter = view.getAttribute("data-search-filter") || "all";
   var live = view.querySelector("[data-search-status-label]");
   var visible = 0;
   view.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
     var label = (row.getAttribute("data-search-suggestion") || "").toLowerCase();
-    var show = !q || label.indexOf(q.toLowerCase()) >= 0;
+    var cat = row.getAttribute("data-search-category") || "all";
+    var show = (!q || label.indexOf(q.toLowerCase()) >= 0) && (filter === "all" || cat === filter);
     row.style.display = show ? "flex" : "none";
     if (show) visible += 1;
   }});
@@ -2248,6 +2261,26 @@ document.querySelectorAll("[data-search-trailing]").forEach(function (trail) {{
     if (!input) return;
     input.value = "";
     input.focus();
+    syncSearchStatus(view, input);
+  }});
+}});
+document.querySelectorAll("[data-search-filter-chip]").forEach(function (chip) {{
+  chip.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var view = chip.closest("[data-search-view]");
+    if (!view) return;
+    var next = chip.getAttribute("data-search-filter-chip") || "all";
+    view.setAttribute("data-search-filter", next);
+    view.querySelectorAll("[data-search-filter-chip]").forEach(function (other) {{
+      var on = other.getAttribute("data-search-filter-chip") === next;
+      other.setAttribute("data-search-filter-selected", on ? "1" : "0");
+      other.style.background = on ? other.getAttribute("data-on-bg") : other.getAttribute("data-idle-bg");
+      other.style.color = on ? other.getAttribute("data-on-fg") : other.getAttribute("data-idle-fg");
+      other.style.borderRadius = on ? other.getAttribute("data-on-r") : other.getAttribute("data-idle-r");
+      var check = other.querySelector("[data-search-filter-check]");
+      if (check) check.style.display = on ? "inline" : "none";
+    }});
+    var input = view.querySelector("[data-search-input]");
     syncSearchStatus(view, input);
   }});
 }});
@@ -6204,13 +6237,31 @@ fn paint_contained_search_state(
     query: &str,
     input_focused: bool,
 ) -> String {
+    paint_contained_search_filtered(
+        theme,
+        width_class,
+        hero,
+        query,
+        input_focused,
+        search::SearchFilter::All,
+    )
+}
+
+fn paint_contained_search_filtered(
+    theme: &Theme,
+    width_class: search::WindowWidthClass,
+    hero: bool,
+    query: &str,
+    input_focused: bool,
+    filter: search::SearchFilter,
+) -> String {
     let bar = search::resolve(theme);
     let contained = search::resolve_view(theme);
     let layout = width_class.expanded_search();
     let frame =
         search::contained_frame_at_layout(layout, 1.0, search::contained_suggestion_count());
     let status = search::list_status(query, input_focused);
-    let grouped = search::filter_grouped_suggestions(query);
+    let grouped = search::filter_grouped_suggestions_in(query, filter);
     let result_count: usize = grouped.iter().map(|(_, items)| items.len()).sum();
     let live = search::status_live_text(status, result_count);
     let heading = status.heading().unwrap_or("");
@@ -6275,7 +6326,7 @@ fn paint_contained_search_state(
                 ),
             };
             rows.push_str(&format!(
-                r#"<div class="sv-row" data-search-suggestion="{label}" data-search-row="segmented" data-search-lines="{lines}" data-search-selected="{sel}"{open_attr} style="color:{fg};height:{h}px;background:{bg};border-radius:{br}"><span class="sv-lead" data-search-leading="{lead}" style="{lead_style}">{glyph}</span>{body}{trail}</div>"#,
+                r#"<div class="sv-row" data-search-suggestion="{label}" data-search-category="{cat}" data-search-row="segmented" data-search-lines="{lines}" data-search-selected="{sel}"{open_attr} style="color:{fg};height:{h}px;background:{bg};border-radius:{br}"><span class="sv-lead" data-search-leading="{lead}" style="{lead_style}">{glyph}</span>{body}{trail}</div>"#,
                 fg = fg.css_hex(),
                 h = search::row_height_dp(status),
                 bg = bg.css_hex(),
@@ -6286,6 +6337,7 @@ fn paint_contained_search_state(
                 sel = selected as u8,
                 lines = if two { "two" } else { "one" },
                 open_attr = if open { r#" data-search-open="1""# } else { "" },
+                cat = search::item_category(label),
                 body = body,
                 trail = trail,
             ));
@@ -6305,13 +6357,55 @@ fn paint_contained_search_state(
         ico = contained.suggestion_icon.css_hex(),
         heading = heading,
     );
+    let mut chips = String::from(r#"<div class="sv-filters" data-search-filters="1">"#);
+    for f in search::SearchFilter::ALL {
+        let selected = f == filter;
+        let on = chip::resolve(
+            theme,
+            chip::ChipVariant::Filter,
+            true,
+            InteractionState::Enabled,
+        );
+        let idle = chip::resolve(
+            theme,
+            chip::ChipVariant::Filter,
+            false,
+            InteractionState::Enabled,
+        );
+        let a = if selected { &on } else { &idle };
+        let check = if selected {
+            format!(
+                r#"<span data-search-filter-check="1">{}</span>"#,
+                chip::CHECK_GLYPH
+            )
+        } else {
+            r#"<span data-search-filter-check="1" style="display:none">✓</span>"#.to_string()
+        };
+        chips.push_str(&format!(
+            r#"<div class="sv-filter" data-search-filter-chip="{attr}" data-search-filter-selected="{sel}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-r="{ir}" data-on-bg="{obg}" data-on-fg="{ofg}" data-on-r="{orad}" style="background:{bg};color:{fg};border-radius:{r}">{check}{label}</div>"#,
+            attr = f.attr(),
+            sel = selected as u8,
+            ibg = idle.container.css_hex(),
+            ifg = idle.content.css_hex(),
+            ir = idle.corners.css(),
+            obg = on.container.css_hex(),
+            ofg = on.content.css_hex(),
+            orad = on.corners.css(),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            r = a.corners.css(),
+            check = check,
+            label = f.label(),
+        ));
+    }
+    chips.push_str("</div>");
     let value_attr = if query.is_empty() {
         String::new()
     } else {
         format!(r#" value="{}""#, esc(query))
     };
     format!(
-        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-empty="{empty}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
+        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-filter="{filter}" data-search-empty="{empty}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -6321,16 +6415,19 @@ fn paint_contained_search_state(
     <div class="ico" data-search-trailing="1" data-search-clear="{clear}"{clear_aria}>{trail}</div>
     <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
-  <div class="sv-list">{status_row}{rows}</div>
+  <div class="sv-list">{status_row}{chips}{rows}</div>
 </div>"#,
         wc = width_class.label(),
         layout = layout.label(),
         status = status.attr(),
         q = esc(query),
-        empty = search::shows_empty(query) as u8,
+        filter = filter.attr(),
+        empty = search::shows_empty_in(query, filter) as u8,
         hero_attr = if hero {
             r#" data-hero="search""#
-        } else if search::shows_empty(query) {
+        } else if filter != search::SearchFilter::All {
+            r#" data-hero="search-filters""#
+        } else if search::shows_empty_in(query, filter) {
             r#" data-hero="search-empty""#
         } else {
             ""
@@ -6340,8 +6437,10 @@ fn paint_contained_search_state(
         mh = if query.is_empty() {
             frame.height_dp
         } else {
-            search::CONTAINED_HEADER_DP + search::expanded_list_h_dp(query, input_focused)
+            search::CONTAINED_HEADER_DP
+                + search::expanded_list_h_dp_in(query, input_focused, filter)
         },
+        chips = chips,
         mg = frame.margin_dp,
         vh = frame.header_h_dp,
         vfg = contained.header.css_hex(),
@@ -6421,17 +6520,28 @@ fn search_section(theme: &Theme) -> String {
         search::DEMO_EMPTY_QUERY,
         false,
     );
+    let filters = paint_contained_search_filtered(
+        theme,
+        search::WindowWidthClass::Compact,
+        false,
+        search::DEMO_QUERY,
+        true,
+        search::DEMO_FILTER,
+    );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A query with no matches shows a no-results line and a live <code>0 results</code> region. A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). Filter chips (All / Apps / Shortcuts / Settings) narrow queried results. A query with no matches shows a no-results line and a live <code>0 results</code> region. A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
 {docked}
 <h3>queried (Quick results / Results)</h3>
-<p class="note">Focused typing uses a Quick results status, two-line rows (40dp avatar / 20dp icon), and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
+<p class="note">Focused typing uses a Quick results status, two-line rows (40dp avatar / 20dp icon), filter chips, and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
 {quick}
 {results}
+<h3>filter chips</h3>
+<p class="note">Guidelines: filter chips narrow results. All / Apps / Shortcuts / Settings are Expressive FilterChips (12 rest / 16 selected). The sibling applies Settings to <code>app</code>, which matches nothing.</p>
+{filters}
 <h3>no results</h3>
 <p class="note">A query that matches nothing keeps the Results status, a live <code>0 results</code> region, the trailing clear-X, and a one-line empty state.</p>
 {empty}
@@ -6448,6 +6558,7 @@ fn search_section(theme: &Theme) -> String {
         docked = docked,
         quick = quick,
         results = results,
+        filters = filters,
         empty = empty,
         back = search::VIEW_BACK,
         placeholder = search::PLACEHOLDER,

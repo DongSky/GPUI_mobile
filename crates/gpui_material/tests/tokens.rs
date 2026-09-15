@@ -897,6 +897,12 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(search::TRAILING_CLEAR));
     assert!(html.contains(r#"data-hero="search-empty""#));
     assert!(html.contains(r#"data-search-empty="1""#));
+    assert!(html.contains(r#"data-search-filters="1""#));
+    assert!(html.contains(r#"data-search-filter="all""#));
+    assert!(html.contains(r#"data-search-filter="settings""#));
+    assert!(html.contains(r#"data-hero="search-filters""#));
+    assert!(html.contains(r#"data-search-filter-chip="apps""#));
+    assert!(html.contains(r#"data-search-category="apps""#));
     assert!(html.contains(search::EMPTY_SUGGESTIONS));
     assert!(html.contains("0 results"));
     assert!(html.contains("data-timepicker=\"1\""));
@@ -2825,7 +2831,7 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(
         (search::expanded_list_h_dp(search::DEMO_QUERY, true)
-            - (search::STATUS_H_DP + search::RESULT_H_DP))
+            - (search::STATUS_H_DP + search::FILTER_ROW_H_DP + search::RESULT_H_DP))
             .abs()
             < 0.01
     );
@@ -2840,10 +2846,20 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(
         (search::expanded_list_h_dp(search::DEMO_EMPTY_QUERY, false)
-            - (search::STATUS_H_DP + search::EMPTY_H_DP))
+            - (search::STATUS_H_DP + search::FILTER_ROW_H_DP + search::EMPTY_H_DP))
             .abs()
             < 0.01
     );
+    assert!(search::SearchListStatus::QuickResults.shows_filters());
+    assert!(!search::SearchListStatus::Suggestions.shows_filters());
+    assert_eq!(search::FILTER_CHIP_H_DP, 32.0);
+    assert_eq!(search::FILTER_ROW_H_DP, 48.0);
+    assert!(search::SearchFilter::Apps.matches("App"));
+    assert!(!search::SearchFilter::Settings.matches("App"));
+    assert_eq!(search::item_category("App"), "apps");
+    assert_eq!(search::item_category("Recent search"), "all");
+    assert!(search::filter_suggestions_in(search::DEMO_QUERY, search::DEMO_FILTER).is_empty());
+    assert!(search::shows_empty_in(search::DEMO_QUERY, search::DEMO_FILTER));
     assert_eq!(search::supporting_for("App"), "Installed application");
     assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
     assert_eq!(search::ROW_LEADING_ICON_DP, 20.0);
