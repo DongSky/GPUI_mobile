@@ -886,7 +886,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
     assert!(html.contains(r#"data-scroll-field="minute""#));
-    assert!(html.contains("data-dial=\"minute\""));
+    assert!(html.contains("data-dial=\"hour\""));
+    assert!(html.contains(r#"data-ring="inner""#));
+    assert!(html.contains(r#"data-ring="outer""#));
+    assert!(html.contains(r#"data-format="24""#));
     assert!(html.contains("data-progress=\"indeterminate\""));
     assert!(html.contains("data-progress=\"ptr\""));
     assert!(html.contains("data-nav-rail=\"1\""));
@@ -2735,7 +2738,7 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::DEMO_PERIOD.toggle(),
         time_picker::DayPeriod::Am
     );
-    assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
+    assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Hour);
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll
@@ -2935,6 +2938,60 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(slots.iter().any(|s| s.selected && s.value == 6));
     assert_eq!(time_picker::TimePickerStyle::Scroll.label(), "scroll");
+    assert_eq!(
+        time_picker::hour_ring(18, time_picker::TimeFormat::Hour24),
+        time_picker::DialRing::Inner
+    );
+    assert_eq!(
+        time_picker::hour_ring(6, time_picker::TimeFormat::Hour24),
+        time_picker::DialRing::Outer
+    );
+    assert_eq!(
+        time_picker::hour_ring(0, time_picker::TimeFormat::Hour24),
+        time_picker::DialRing::Outer
+    );
+    assert_eq!(
+        time_picker::hour_ring(12, time_picker::TimeFormat::Hour24),
+        time_picker::DialRing::Inner
+    );
+    assert!((time_picker::OUTER_CIRCLE_RADIUS_DP - 101.0).abs() < 0.01);
+    assert!((time_picker::INNER_CIRCLE_RADIUS_DP - 69.0).abs() < 0.01);
+    assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01);
+    assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour12) - 96.0).abs() < 0.01);
+    assert_eq!(
+        time_picker::dial_clock_hour(18, time_picker::TimeFormat::Hour24, time_picker::DayPeriod::Pm),
+        18
+    );
+    assert_eq!(
+        time_picker::hour_from_dial(18, time_picker::DayPeriod::Pm, time_picker::TimeFormat::Hour24),
+        18
+    );
+    assert_eq!(
+        time_picker::select_hour_for(6, 0, time_picker::TimeFormat::Hour24),
+        0
+    );
+    assert_eq!(time_picker::hour_label(0, time_picker::TimeFormat::Hour24), "00");
+    assert_eq!(time_picker::hour_label(18, time_picker::TimeFormat::Hour24), "18");
+    let cells24 = time_picker::hour_cells(time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    assert_eq!(cells24.len(), 24);
+    assert!(cells24.iter().any(|c| c.hour == 18 && c.ring == time_picker::DialRing::Inner));
+    assert!(cells24.iter().any(|c| c.hour == 0 && c.ring == time_picker::DialRing::Outer));
+    let (x0, y0) = time_picker::hour_offset_for(0, time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    let (_x12, y12) = time_picker::hour_offset_for(12, time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    assert!(x0 > 80.0 && x0 < 130.0, "00 sits top-center, x={x0}");
+    assert!(y0 < 20.0, "00 sits on outer top, y={y0}");
+    assert!(y12 > y0 + 20.0, "12 sits on inner top, y12={y12} y0={y0}");
+    let (x18, y18) = time_picker::hour_offset_for(18, time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    let (x6, y6) = time_picker::hour_offset_for(6, time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    assert!(y18 > 140.0 && y18 < y6, "18 inner bottom vs 6 outer, y18={y18} y6={y6}");
+    assert!((x18 - x6).abs() < 8.0);
+    let inner_r = time_picker::selector_radius_dp(
+        time_picker::DialFace::Hour,
+        18,
+        time_picker::TimeFormat::Hour24,
+        256.0,
+    );
+    assert!((inner_r - 69.0).abs() < 0.01);
     let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
     assert!(
         x > 80.0 && x < 130.0,

@@ -1,14 +1,16 @@
-//! Time picker (12-hour dial + Expressive TimeScroll + TimeInput).
+//! Time picker (12-hour + 24-hour dial + Expressive TimeScroll + TimeInput).
 //! Specs: https://m3.material.io/components/time-pickers/specs
 //!
 //! Dial: hour and minute faces plus an analog selector hand. GPUI/HTML
 //! interpolate the hand angle when the face or value changes (spatial-fast).
+//! 24-hour (`is24Hour`) paints Compose `ClockFace` dual rings: outer 00–11
+//! (`OuterCircleToSizeRatio` 101/256) and inner 12–23 (`InnerCircle` 69/256).
 //!
 //! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
 //! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
 //! and `ScrollFieldDefaults.ScrollFieldHeight` 200. `TimeInput` (96×72
 //! fields) + `ScrollDisplayModeToggle` switch Scroll ↔ Input. 24-hour
-//! (`is24Hour`) uses 00–23 and hides the AM/PM selector. Dial remains.
+//! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -16,7 +18,17 @@ use crate::theme::Theme;
 use crate::typography::TypeStyle;
 
 pub const CLOCK_DP: f32 = 256.0;
+/// Compose `ClockDialSelectorHandleContainerSize`.
 pub const NUMBER_DP: f32 = 48.0;
+/// Compose `OuterCircleToSizeRatio` × `ClockDialContainerSize` (101/256).
+pub const OUTER_CIRCLE_RADIUS_DP: f32 = 101.0;
+/// Compose `InnerCircleToSizeRatio` × `ClockDialContainerSize` (69/256).
+pub const INNER_CIRCLE_RADIUS_DP: f32 = 69.0;
+/// Time selector container width (12-hour).
+pub const TIME_SELECTOR_W_DP: f32 = 96.0;
+/// Time selector container width (24h vertical).
+pub const TIME_SELECTOR_W_24H_DP: f32 = 114.0;
+pub const TIME_SELECTOR_H_DP: f32 = 80.0;
 pub const CONTAINER_PAD_DP: f32 = 24.0;
 pub const CORNER_DP: f32 = 28.0;
 pub const PERIOD_W_DP: f32 = 52.0;
@@ -98,7 +110,7 @@ impl DayPeriod {
 
 pub const DEMO_PERIOD: DayPeriod = DayPeriod::Pm;
 
-/// Catalog hero starts on the minute face so Visual QA shows 00–55 + the hand.
+/// Catalog / host hero starts on the hour face so Visual QA shows the 24h rings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DialFace {
     Hour,
@@ -106,6 +118,13 @@ pub enum DialFace {
 }
 
 impl DialFace {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Hour => "hour",
+            Self::Minute => "minute",
+        }
+    }
+
     pub const fn toggle(self) -> Self {
         match self {
             Self::Hour => Self::Minute,
@@ -114,7 +133,42 @@ impl DialFace {
     }
 }
 
-pub const DEMO_DIAL: DialFace = DialFace::Minute;
+pub const DEMO_DIAL: DialFace = DialFace::Hour;
+
+/// Compose `ClockFace` ring (`OuterCircle` 00–11 / `InnerCircle` 12–23).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DialRing {
+    Outer,
+    Inner,
+}
+
+impl DialRing {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Outer => "outer",
+            Self::Inner => "inner",
+        }
+    }
+}
+
+/// Compose `Hours` (12-hour outer ring, 12 at the top).
+pub const HOURS_12: [u8; 12] = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+/// `Hours[i] % 12` — 24-hour outer ring (00 at the top).
+pub const HOURS_24_OUTER: [u8; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+/// Compose `ExtraHours` — `Hours[i] % 12 + 12` (12 at the top).
+pub const HOURS_24_INNER: [u8; 12] = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+
+pub fn inner_to_outer_scale() -> f32 {
+    INNER_CIRCLE_RADIUS_DP / OUTER_CIRCLE_RADIUS_DP
+}
+
+pub fn circle_radius_dp(ring: DialRing, clock_dp: f32) -> f32 {
+    let base = match ring {
+        DialRing::Outer => OUTER_CIRCLE_RADIUS_DP,
+        DialRing::Inner => INNER_CIRCLE_RADIUS_DP,
+    };
+    base * (clock_dp / CLOCK_DP)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TimePickerAppearance {
@@ -180,18 +234,35 @@ pub fn header_label(hour: u8, minute: u8, period: DayPeriod) -> String {
     format!("{} {}", format_time(hour, minute), period.label())
 }
 
-fn polar_offset(angle_deg: f32, clock_dp: f32, number_dp: f32) -> (f32, f32) {
+fn polar_at(angle_deg: f32, radius: f32, clock_dp: f32, number_dp: f32) -> (f32, f32) {
     let angle = angle_deg.to_radians();
-    let radius = (clock_dp / 2.0) - (number_dp / 2.0) - 4.0;
     let cx = clock_dp / 2.0 + radius * angle.cos();
     let cy = clock_dp / 2.0 + radius * angle.sin();
     (cx - number_dp / 2.0, cy - number_dp / 2.0)
 }
 
+fn polar_offset(angle_deg: f32, clock_dp: f32, number_dp: f32) -> (f32, f32) {
+    polar_at(
+        angle_deg,
+        circle_radius_dp(DialRing::Outer, clock_dp),
+        clock_dp,
+        number_dp,
+    )
+}
+
 /// Top-left of the hour cell inside a `clock_dp` square (12 at the top).
 pub fn hour_offset(hour: u8, clock_dp: f32, number_dp: f32) -> (f32, f32) {
-    let idx = if hour == 0 { 12 } else { (hour - 1) % 12 + 1 };
-    polar_offset((idx as f32) * 30.0 - 90.0, clock_dp, number_dp)
+    hour_offset_for(hour, TimeFormat::Hour12, clock_dp, number_dp)
+}
+
+/// 12-hour outer / 24-hour dual-ring hour cell (Compose `ClockFace`).
+pub fn hour_offset_for(hour: u8, format: TimeFormat, clock_dp: f32, number_dp: f32) -> (f32, f32) {
+    polar_at(
+        (hour % 12) as f32 * 30.0 - 90.0,
+        circle_radius_dp(hour_ring(hour, format), clock_dp),
+        clock_dp,
+        number_dp,
+    )
 }
 
 /// Top-left of a 5-minute label (0 at the top, 15 at the right).
@@ -208,6 +279,10 @@ pub fn select_hour(_current: u8, tapped: u8) -> u8 {
     tapped.clamp(1, 12)
 }
 
+pub fn select_hour_for(_current: u8, tapped: u8, format: TimeFormat) -> u8 {
+    tapped.clamp(format.hour_min(), format.hour_max())
+}
+
 pub fn select_minute(_current: u8, tapped: u8) -> u8 {
     let m = tapped.min(59);
     (m / MINUTE_STEP) * MINUTE_STEP
@@ -222,11 +297,12 @@ pub fn hand_angle_deg(face: DialFace, hour: u8, minute: u8) -> f32 {
 }
 
 /// Continuous hour-face motion: `tick` in 0..=1 adds a fraction of a minute
-/// so the analog hand eases while the hour dial is showing.
+/// so the analog hand eases while the hour dial is showing. 24-hour 00 and 12
+/// share 12 o'clock; 18 shares 6 o'clock on the inner ring.
 pub fn hour_face_live_angle_deg(hour: u8, minute: u8, tick: f32) -> f32 {
-    let h = if hour == 0 { 12 } else { hour };
+    let hours = (hour % 12) as f32;
     let minutes = minute as f32 + tick.clamp(0.0, 1.0);
-    (h as f32) * 30.0 + minutes * 0.5
+    hours * 30.0 + minutes * 0.5
 }
 
 /// Degrees from 12 o'clock for a ticking second hand (`tick` is the
@@ -235,9 +311,24 @@ pub fn second_hand_angle_deg(second: u8, tick: f32) -> f32 {
     (second.min(59) as f32 + tick.clamp(0.0, 1.0)) * 6.0
 }
 
-/// Center of the selector knob at an arbitrary clock angle.
+/// Center of the selector knob at an arbitrary clock angle (outer ring).
 pub fn hand_end_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> (f32, f32) {
-    let (x, y) = polar_offset(angle_deg - 90.0, clock_dp, number_dp);
+    hand_end_at_radius(
+        clock_dp,
+        angle_deg,
+        number_dp,
+        circle_radius_dp(DialRing::Outer, clock_dp),
+    )
+}
+
+/// Center of the selector knob at `radius` (outer 101 / inner 69 at 256dp).
+pub fn hand_end_at_radius(
+    clock_dp: f32,
+    angle_deg: f32,
+    number_dp: f32,
+    radius: f32,
+) -> (f32, f32) {
+    let (x, y) = polar_at(angle_deg - 90.0, radius, clock_dp, number_dp);
     (x + number_dp / 2.0, y + number_dp / 2.0)
 }
 
@@ -276,7 +367,25 @@ fn hand_quad_thick(
     thickness: f32,
     length_scale: f32,
 ) -> [(f32, f32); 4] {
-    let (ex0, ey0) = hand_end_at_angle(clock_dp, angle_deg, number_dp);
+    hand_quad_thick_radius(
+        clock_dp,
+        angle_deg,
+        number_dp,
+        thickness,
+        length_scale,
+        circle_radius_dp(DialRing::Outer, clock_dp),
+    )
+}
+
+fn hand_quad_thick_radius(
+    clock_dp: f32,
+    angle_deg: f32,
+    number_dp: f32,
+    thickness: f32,
+    length_scale: f32,
+    radius: f32,
+) -> [(f32, f32); 4] {
+    let (ex0, ey0) = hand_end_at_radius(clock_dp, angle_deg, number_dp, radius);
     let cx = clock_dp / 2.0;
     let cy = clock_dp / 2.0;
     let ex = cx + (ex0 - cx) * length_scale;
@@ -297,6 +406,23 @@ fn hand_quad_thick(
 /// Filled quadrilateral for the analog selector hand at `angle_deg`.
 pub fn hand_quad_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> [(f32, f32); 4] {
     hand_quad_thick(clock_dp, angle_deg, number_dp, HAND_THICKNESS_DP, 1.0)
+}
+
+/// Selector hand at an explicit ring radius (inner 12–23 / outer 00–11).
+pub fn hand_quad_at_radius(
+    clock_dp: f32,
+    angle_deg: f32,
+    number_dp: f32,
+    radius: f32,
+) -> [(f32, f32); 4] {
+    hand_quad_thick_radius(
+        clock_dp,
+        angle_deg,
+        number_dp,
+        HAND_THICKNESS_DP,
+        1.0,
+        radius,
+    )
 }
 
 /// Thinner, slightly longer ticking second hand.
@@ -480,8 +606,79 @@ impl TimeFormat {
     }
 }
 
-/// Catalog / host Expressive hero uses 24-hour TimeInput (no AM/PM).
+/// Catalog / host Expressive hero uses 24-hour TimeInput + 24-hour dial (no AM/PM).
 pub const DEMO_FORMAT: TimeFormat = TimeFormat::Hour24;
+
+pub fn time_selector_w_dp(format: TimeFormat) -> f32 {
+    if format.is_24_hour() {
+        TIME_SELECTOR_W_24H_DP
+    } else {
+        TIME_SELECTOR_W_DP
+    }
+}
+
+pub fn hour_ring(hour: u8, format: TimeFormat) -> DialRing {
+    if format.is_24_hour() && hour >= 12 {
+        DialRing::Inner
+    } else {
+        DialRing::Outer
+    }
+}
+
+pub fn selector_radius_dp(face: DialFace, hour: u8, format: TimeFormat, clock_dp: f32) -> f32 {
+    match face {
+        DialFace::Hour => circle_radius_dp(hour_ring(hour, format), clock_dp),
+        DialFace::Minute => circle_radius_dp(DialRing::Outer, clock_dp),
+    }
+}
+
+pub fn hour_label(hour: u8, format: TimeFormat) -> String {
+    if format.is_24_hour() {
+        format!("{:02}", hour.min(23))
+    } else {
+        hour.clamp(1, 12).to_string()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DialHour {
+    pub hour: u8,
+    pub label: String,
+    pub x: f32,
+    pub y: f32,
+    pub ring: DialRing,
+}
+
+pub fn hour_cells(format: TimeFormat, clock_dp: f32, number_dp: f32) -> Vec<DialHour> {
+    match format {
+        TimeFormat::Hour12 => HOURS_12
+            .iter()
+            .copied()
+            .map(|hour| DialHour {
+                hour,
+                label: hour_label(hour, format),
+                x: hour_offset_for(hour, format, clock_dp, number_dp).0,
+                y: hour_offset_for(hour, format, clock_dp, number_dp).1,
+                ring: DialRing::Outer,
+            })
+            .collect(),
+        TimeFormat::Hour24 => HOURS_24_OUTER
+            .iter()
+            .copied()
+            .chain(HOURS_24_INNER.iter().copied())
+            .map(|hour| {
+                let (x, y) = hour_offset_for(hour, format, clock_dp, number_dp);
+                DialHour {
+                    hour,
+                    label: hour_label(hour, format),
+                    x,
+                    y,
+                    ring: hour_ring(hour, format),
+                }
+            })
+            .collect(),
+    }
+}
 
 pub fn demo_hour(format: TimeFormat) -> u8 {
     match format {
@@ -523,21 +720,18 @@ pub fn to_hour12(hour24: u8) -> (u8, DayPeriod) {
     }
 }
 
-/// 12-hour face number for the analog dial (`is24Hour` still uses 1–12).
+/// Dial hour in the active format (1–12 or 00–23). 24-hour keeps the 0–23 value
+/// so the inner ring (12–23) can be selected without remapping through AM/PM.
 pub fn dial_clock_hour(hour: u8, format: TimeFormat, _period: DayPeriod) -> u8 {
-    if format.is_24_hour() {
-        to_hour12(hour).0
-    } else {
-        hour.clamp(1, 12)
-    }
+    hour.clamp(format.hour_min(), format.hour_max())
 }
 
-/// Map a dial tap (1–12 + AM/PM) into the active `TimeFormat` hour.
-pub fn hour_from_dial(hour12: u8, period: DayPeriod, format: TimeFormat) -> u8 {
+/// Map a dial tap into the active `TimeFormat` hour.
+pub fn hour_from_dial(tapped: u8, _period: DayPeriod, format: TimeFormat) -> u8 {
     if format.is_24_hour() {
-        to_hour24(hour12, period)
+        tapped.min(23)
     } else {
-        hour12.clamp(1, 12)
+        tapped.clamp(1, 12)
     }
 }
 

@@ -5113,10 +5113,16 @@ fn time_picker_hero(
     let number = 32.0;
     let hour_on = this.time_dial == DialFace::Hour;
     let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
-        DialFace::Hour => (1u8..=12)
-            .map(|hour| {
-                let (x, y) = time_picker::hour_offset(hour, clock, number);
-                (hour, hour.to_string(), x, y, hour == this.time_dial_hour())
+        DialFace::Hour => time_picker::hour_cells(this.time_format, clock, number)
+            .into_iter()
+            .map(|cell| {
+                (
+                    cell.hour,
+                    cell.label,
+                    cell.x,
+                    cell.y,
+                    cell.hour == this.time_dial_hour(),
+                )
             })
             .collect(),
         DialFace::Minute => time_picker::minute_labels()
@@ -5134,6 +5140,8 @@ fn time_picker_hero(
     let hour_live = hour_on;
     let live_hour = this.time_dial_hour();
     let live_minute = this.time_minute;
+    let live_format = this.time_format;
+    let live_radius = time_picker::selector_radius_dp(this.time_dial, live_hour, live_format, clock);
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -5177,7 +5185,15 @@ fn time_picker_hero(
                                     a.header
                                 }))
                                 .font_weight(type_weight(a.time_style))
-                                .child(time_picker::format_hour_field(this.time_dial_hour()))
+                                .w(px(time_picker::time_selector_w_dp(this.time_format)))
+                                .h(px(time_picker::TIME_SELECTOR_H_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(time_picker::format_hour_field_for(
+                                    this.time_dial_hour(),
+                                    this.time_format,
+                                ))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.bump_time_hand();
                                     this.time_dial = DialFace::Hour;
@@ -5207,6 +5223,11 @@ fn time_picker_hero(
                                     a.header
                                 }))
                                 .font_weight(type_weight(a.time_style))
+                                .w(px(time_picker::time_selector_w_dp(this.time_format)))
+                                .h(px(time_picker::TIME_SELECTOR_H_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
                                 .child(time_picker::format_minute_field(this.time_minute))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.bump_time_hand();
@@ -5215,7 +5236,8 @@ fn time_picker_hero(
                                 })),
                         ),
                 )
-                .child(
+                .when(this.time_format.shows_period(), |row| {
+                    row.child(
                     div()
                         .flex()
                         .flex_col()
@@ -5247,7 +5269,8 @@ fn time_picker_hero(
                                     cx.notify();
                                 }))
                         })),
-                ),
+                    )
+                })
         )
         .child(
             div()
@@ -5284,7 +5307,12 @@ fn time_picker_hero(
                                 } else {
                                     time_picker::lerp_angle_deg(from_angle, to_angle, delta)
                                 };
-                                let quad = time_picker::hand_quad_at_angle(clock, angle, number);
+                                let quad = time_picker::hand_quad_at_radius(
+                                    clock,
+                                    angle,
+                                    number,
+                                    live_radius,
+                                );
                                 this.child(
                                     canvas(
                                         move |_, _, _| {},
@@ -5405,7 +5433,11 @@ fn time_picker_hero(
                             match face {
                                 DialFace::Hour => {
                                     this.time_hour = time_picker::hour_from_dial(
-                                        time_picker::select_hour(this.time_dial_hour(), value),
+                                        time_picker::select_hour_for(
+                                            this.time_dial_hour(),
+                                            value,
+                                            this.time_format,
+                                        ),
                                         this.time_period,
                                         this.time_format,
                                     );
@@ -7186,7 +7218,7 @@ fn main() {
                     time_dial: time_picker::DEMO_DIAL,
                     time_hand_from: time_picker::hand_angle_deg(
                         time_picker::DEMO_DIAL,
-                        time_picker::DEMO_HOUR,
+                        time_picker::demo_hour(time_picker::DEMO_FORMAT),
                         time_picker::DEMO_MINUTE,
                     ),
                     time_hand_gen: 0,
@@ -7337,7 +7369,13 @@ mod tests {
             time_picker::TimeInputState::demo().hour_value(),
             Some(time_picker::DEMO_HOUR_24)
         );
-        assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
+        assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Hour);
+        assert_eq!(
+            time_picker::hour_ring(18, time_picker::TimeFormat::Hour24),
+            time_picker::DialRing::Inner
+        );
+        assert!((time_picker::INNER_CIRCLE_RADIUS_DP - 69.0).abs() < 0.01);
+        assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01);
         let (s, e, thumb) =
             slider::apply_arrow(0.2, 0.75, slider::RangeThumb::Start, "right").expect("arrow");
         assert!((s - 0.25).abs() < 1e-5);

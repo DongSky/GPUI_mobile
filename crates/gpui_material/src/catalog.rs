@@ -269,9 +269,14 @@ a {{ color: var(--primary); }}
 .timepicker .time-row {{ display: flex; align-items: center; gap: 12px; }}
 .timepicker .time-fields {{ display: flex; align-items: center; gap: 4px; }}
 .timepicker .time-field {{
-  min-width: 64px; padding: 8px 12px; border-radius: 8px; text-align: center;
+  min-width: 96px; min-height: 80px; padding: 8px 12px; border-radius: 8px; text-align: center;
   cursor: pointer; border: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center;
 }}
+.timepicker[data-time-format="24"] .time-field {{
+  min-width: 114px;
+}}
+.timepicker[data-time-format="24"] .period {{ display: none; }}
 .timepicker .clock {{
   position: relative; border-radius: 50%; flex: 0 0 auto;
 }}
@@ -517,8 +522,8 @@ a {{ color: var(--primary); }}
   transform-origin: 50% 50%;
 }}
 @keyframes hourHandLive {{
-  from {{ transform: rotate(var(--hand-base, 0deg)); }}
-  to {{ transform: rotate(calc(var(--hand-base, 0deg) + 15deg)); }}
+  from {{ transform: rotate(var(--hand-base, 0deg)) scale(var(--hand-scale, 1)); }}
+  to {{ transform: rotate(calc(var(--hand-base, 0deg) + 15deg)) scale(var(--hand-scale, 1)); }}
 }}
 @keyframes m3indet {{
   0% {{ transform: translateX(-120%); }}
@@ -1636,25 +1641,33 @@ document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
 document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
   function setDial(face) {{
     picker.setAttribute("data-dial", face);
+    var format = picker.getAttribute("data-time-format") || "12";
     picker.querySelectorAll("[data-hour]").forEach(function (el) {{
-      el.style.display = face === "hour" ? "flex" : "none";
+      var match = !el.getAttribute("data-format") || el.getAttribute("data-format") === format;
+      el.style.display = face === "hour" && match ? "flex" : "none";
     }});
     picker.querySelectorAll("[data-minute]").forEach(function (el) {{
       el.style.display = face === "minute" ? "flex" : "none";
     }});
     var hour = parseInt(picker.getAttribute("data-hour") || "6", 10);
     var minute = parseInt(picker.getAttribute("data-minute") || "30", 10);
-    var deg = face === "minute" ? minute * 6 : hour * 30 + minute * 0.5;
+    var deg = face === "minute" ? minute * 6 : (hour % 12) * 30 + minute * 0.5;
+    var scale = (face === "hour" && format === "24" && hour >= 12) ? (69 / 101) : 1;
     var hand = picker.querySelector(".hand-svg");
     if (hand) {{
       hand.style.setProperty("--hand-base", deg + "deg");
-      hand.style.transform = "rotate(" + deg + "deg)";
+      hand.style.setProperty("--hand-scale", String(scale));
+      hand.style.transform = "rotate(" + deg + "deg) scale(" + scale + ")";
       if (face === "hour") {{
         hand.setAttribute("data-hour-live", "1");
       }} else {{
         hand.removeAttribute("data-hour-live");
         hand.style.animation = "none";
       }}
+    }}
+    var hh = picker.querySelector("[data-time-field='hour']");
+    if (hh) {{
+      hh.textContent = format === "24" ? String(hour).padStart(2, "0") : String(hour);
     }}
     picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
       el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
@@ -1690,7 +1703,10 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
       picker.setAttribute("data-period", btn.getAttribute("data-period"));
     }});
   }});
-  setDial(picker.getAttribute("data-dial") || "minute");
+  picker.addEventListener("repaint-dial", function () {{
+    setDial(picker.getAttribute("data-dial") || "hour");
+  }});
+  setDial(picker.getAttribute("data-dial") || "hour");
   var secondEl = picker.querySelector("[data-second-hand]");
   if (secondEl) {{
     secondEl.setAttribute("data-second-wall", "1");
@@ -1890,6 +1906,12 @@ document.querySelectorAll("[data-time-format-toggle]").forEach(function (btn) {{
     }}
     applyHour(scroll);
     applyHour(input);
+    document.querySelectorAll("[data-timepicker]").forEach(function (dial) {{
+      dial.setAttribute("data-time-format", next);
+      dial.setAttribute("data-hour", String(hour));
+      dial.setAttribute("data-period", period);
+      dial.dispatchEvent(new Event("repaint-dial"));
+    }});
     if (scroll) {{
       var hf = scroll.querySelector("[data-scroll-field='hour']");
       if (hf) {{
@@ -6210,7 +6232,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
 <div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div style="color:{hy};font-size:{ys}px">{title}</div>
@@ -6295,33 +6317,40 @@ fn time_picker_section(theme: &Theme) -> String {
 
     let a = time_picker::resolve(theme);
     let mut hours = String::new();
-    for h in 1u8..=12 {
-        let (x, y) = time_picker::hour_offset(h, a.clock_dp, a.number_dp);
-        let selected = h == time_picker::DEMO_HOUR;
-        let (bg, fg, fw) = if selected {
-            (
-                a.number_selected_container.css_hex(),
-                a.number_selected.css_hex(),
-                a.time_style.weight,
-            )
-        } else {
-            (
-                "transparent".into(),
-                a.number.css_hex(),
-                a.number_style.weight,
-            )
-        };
-        hours.push_str(&format!(
-            r#"<div class="hour" data-hour="{h}" data-selected="{sel}" style="display:none;left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{h}</div>"#,
-            h = h,
-            sel = selected as u8,
-            x = x,
-            y = y,
-            n = a.number_dp,
-            bg = bg,
-            fg = fg,
-            fw = fw,
-        ));
+    for fmt in time_picker::TimeFormat::ALL {
+        let selected_hour = time_picker::demo_hour(fmt);
+        let visible = fmt == format && time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
+        for cell in time_picker::hour_cells(fmt, a.clock_dp, a.number_dp) {
+            let selected = cell.hour == selected_hour;
+            let (bg, fg, fw) = if selected {
+                (
+                    a.number_selected_container.css_hex(),
+                    a.number_selected.css_hex(),
+                    a.time_style.weight,
+                )
+            } else {
+                (
+                    "transparent".into(),
+                    a.number.css_hex(),
+                    a.number_style.weight,
+                )
+            };
+            hours.push_str(&format!(
+                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+                h = cell.hour,
+                ring = cell.ring.label(),
+                fmt = fmt.label(),
+                sel = selected as u8,
+                disp = if visible { "flex" } else { "none" },
+                x = cell.x,
+                y = cell.y,
+                n = a.number_dp,
+                bg = bg,
+                fg = fg,
+                fw = fw,
+                label = cell.label,
+            ));
+        }
     }
     let mut minutes = String::new();
     for m in time_picker::minute_labels() {
@@ -6373,15 +6402,23 @@ fn time_picker_section(theme: &Theme) -> String {
     };
     let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
     let second_d = time_picker::second_hand_svg_d(a.clock_dp, 0.0, a.number_dp);
+    let dial_hour = time_picker::demo_hour(format);
     let hand_deg = time_picker::hand_angle_deg(
         time_picker::DEMO_DIAL,
-        time_picker::DEMO_HOUR,
+        dial_hour,
         time_picker::DEMO_MINUTE,
     );
+    let hand_scale = if time_picker::hour_ring(dial_hour, format) == time_picker::DialRing::Inner
+        && time_picker::DEMO_DIAL == time_picker::DialFace::Hour
+    {
+        time_picker::inner_to_outer_scale()
+    } else {
+        1.0
+    };
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
     out.push_str(&format!(
-        r#"<p class="note">Baseline 12-hour + minute dial, analog selector hand, displaySmallEmphasized header, AM/PM. Header fields toggle the face.</p>
-<div class="timepicker dialog" data-timepicker="1" data-dial="minute" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Header fields toggle the face; format toggle above remaps 12/24.</p>
+<div class="timepicker dialog" data-timepicker="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div style="color:{hy};font-size:{ys}px">{title}</div>
   <div class="time-row">
     <div class="time-fields">
@@ -6395,7 +6432,7 @@ fn time_picker_section(theme: &Theme) -> String {
     </div>
   </div>
   <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
-    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg)">
+    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg) scale({hscale});--hand-base:{hdeg}deg;--hand-scale:{hscale}">
       <path d="{handd}" fill="{hand}"/>
     </svg>
     <svg class="second-hand-svg" data-second-hand="1" data-second-wall="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
@@ -6405,9 +6442,11 @@ fn time_picker_section(theme: &Theme) -> String {
     {hours}{minutes}
   </div>
 </div>"#,
-        hour = time_picker::DEMO_HOUR,
+        hour = dial_hour,
         minute = time_picker::DEMO_MINUTE,
         period = time_picker::DEMO_PERIOD.label(),
+        dial = time_picker::DEMO_DIAL.label(),
+        fmt = format.label(),
         bg = a.container.css_hex(),
         r = a.corners.top_left,
         sh = ElevationLevels::css_shadow(a.elevation_dp),
@@ -6417,7 +6456,7 @@ fn time_picker_section(theme: &Theme) -> String {
         hd = a.header.css_hex(),
         ds = a.time_style.size_sp,
         dw = a.time_style.weight,
-        hh = time_picker::format_hour_field(time_picker::DEMO_HOUR),
+        hh = time_picker::format_hour_field_for(dial_hour, format),
         mm = time_picker::format_minute_field(time_picker::DEMO_MINUTE),
         ha = hour_active as u8,
         ma = (!hour_active) as u8,
@@ -6435,6 +6474,7 @@ fn time_picker_section(theme: &Theme) -> String {
         handd = hand_d,
         secondd = second_d,
         hdeg = hand_deg,
+        hscale = hand_scale,
     ));
     out
 }
