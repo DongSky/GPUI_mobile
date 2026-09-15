@@ -94,16 +94,41 @@ a { color: var(--primary); }
 .search-bar .ico { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 .search-bar .hint { flex: 1; font-size: 16px; line-height: 24px; }
 .search-bar .avatar { width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+.search-view {
+  display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
+}
+.search-view .sv-head {
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+}
+.search-view .sv-list { display: flex; flex-direction: column; }
+.search-view .sv-row {
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  min-height: 56px; font-size: 16px;
+}
 .timepicker {
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
 }
 .timepicker .time-row { display: flex; align-items: center; gap: 12px; }
+.timepicker .time-fields { display: flex; align-items: center; gap: 4px; }
+.timepicker .time-field {
+  min-width: 64px; padding: 8px 12px; border-radius: 8px; text-align: center;
+  cursor: pointer; border: 2px solid transparent;
+}
 .timepicker .clock {
   position: relative; border-radius: 50%; flex: 0 0 auto;
 }
-.timepicker .hour {
+.timepicker .hour, .timepicker .minute {
   position: absolute; display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
+}
+.timepicker .hand {
+  position: absolute; left: 50%; top: 50%; width: 2px; height: 38%;
+  margin-left: -1px; margin-top: -38%;
+  transform-origin: 50% 100%; border-radius: 1px; pointer-events: none;
+}
+.timepicker .hub {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+  margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none;
 }
 .period { display: flex; flex-direction: column; gap: 8px; }
 .period button {
@@ -186,10 +211,23 @@ a { color: var(--primary); }
   position: absolute; top: 50%; transform: translateY(-50%);
   border-radius: 50%;
 }
-.linear { width: 240px; height: 4px; border-radius: 2px; overflow: hidden; }
+.linear { width: 240px; height: 4px; border-radius: 2px; overflow: hidden; position: relative; }
 .linear i { display: block; height: 100%; }
+.linear.indet i {
+  position: absolute; left: 0; top: 0;
+  animation: m3indet 1400ms cubic-bezier(0.2, 0.0, 0.0, 1.0) infinite;
+}
 .circ {
   width: 48px; height: 48px; border-radius: 24px;
+}
+.circ.indet { animation: m3spin 1200ms linear infinite; }
+.ptr { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }
+@keyframes m3indet {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(340%); }
+}
+@keyframes m3spin {
+  to { transform: rotate(360deg); }
 }
 .snack {
   min-height: 48px; padding: 0 16px; border-radius: 4px; gap: 16px;
@@ -201,6 +239,14 @@ a { color: var(--primary); }
 }
 .nav .dest { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; }
 .nav .ind { width: 64px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+.nav-rail {
+  width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 16px 0; border-radius: 0;
+}
+.nav-rail .dest { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; width: 80px; }
+.nav-rail .ind { width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+.month-nav { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; font-weight: 500; }
+.month-nav button { border: none; background: transparent; cursor: pointer; font-size: 18px; padding: 4px 8px; color: inherit; }
 table.inv { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.inv th, table.inv td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #CAC4D0; vertical-align: top; }
 table.inv th { font-weight: 500; }
@@ -294,7 +340,7 @@ table.inv th { font-weight: 500; }
   <div>light theme</div>
 </header>
 <h1 data-type="displaySmallEmphasized">Material 3 component catalog</h1>
-<p class="lead">Current <a href="https://m3.material.io">Material 3 / Expressive</a> (m3.material.io). Heroes match official overview scenes; state matrices follow. Same <code>resolve()</code> drives the Android demo.</p><h2>Inventory</h2><table class="inv"><tr><th>Component</th><th>Material</th><th>Parity</th><th>Notes</th><th>Docs</th></tr><tr><td>Color scheme</td><td>Color roles (baseline light/dark)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>androidx PaletteTokens / ColorLightTokens / ColorDarkTokens v0_210</td><td><a href="https://m3.material.io/styles/color/roles">spec</a></td></tr><tr><td>Typography</td><td>Type scale (15 baseline styles)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Roboto when installed else Liberation Sans + word-gap; 15 baseline + 15 emphasized (400→500 / 500→700); heroes use display/headline emphasized</td><td><a href="https://m3.material.io/styles/typography/type-scale-tokens">spec</a></td></tr><tr><td>Shape</td><td>Shape scale</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive scale: none … extra-extra-large (48) + full; large-increased 20</td><td><a href="https://m3.material.io/styles/shape/shape-scale-tokens">spec</a></td></tr><tr><td>Elevation</td><td>Elevation levels 0–5</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>dp levels + catalog shadow; no tonal-overlay GPU lighting</td><td><a href="https://m3.material.io/styles/elevation">spec</a></td></tr><tr><td>State layers</td><td>Interaction states</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>hover 8% / focus 10% / pressed 10% / dragged 16% / disabled 12%+38%</td><td><a href="https://m3.material.io/foundations/interaction/states/state-layers">spec</a></td></tr><tr><td>Motion tokens</td><td>Easing and duration</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph on buttons/connected group; no GPUI animation clock</td><td><a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">spec</a></td></tr><tr><td>Button</td><td>Common buttons (filled, tonal, elevated, outlined, text)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant</td><td><a href="https://m3.material.io/components/buttons/specs">spec</a></td></tr><tr><td>Button group</td><td>Connected button groups (Expressive)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month demo</td><td><a href="https://m3.material.io/components/button-groups/specs">spec</a></td></tr><tr><td>Icon button</td><td>Icon buttons</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24</td><td><a href="https://m3.material.io/components/icon-buttons/specs">spec</a></td></tr><tr><td>FAB</td><td>Floating action button</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated</td><td><a href="https://m3.material.io/components/floating-action-button/specs">spec</a></td></tr><tr><td>Text field</td><td>Filled and outlined text fields</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Floating label; outlined true cutout with 4dp corner tiles meeting 1–2dp stroke; fieldset legend on HTML; focus outline 2dp; IME still NativeActivity stub</td><td><a href="https://m3.material.io/components/text-fields/specs">spec</a></td></tr><tr><td>List</td><td>Lists</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>One / two / three line; 56 / 72 / 88dp</td><td><a href="https://m3.material.io/components/lists/specs">spec</a></td></tr><tr><td>Checkbox</td><td>Checkbox</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate</td><td><a href="https://m3.material.io/components/checkbox/specs">spec</a></td></tr><tr><td>Radio</td><td>Radio button</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>20dp / 48dp target</td><td><a href="https://m3.material.io/components/radio-button/specs">spec</a></td></tr><tr><td>Switch</td><td>Switch</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>52×32 track; 16/24dp thumb</td><td><a href="https://m3.material.io/components/switch/specs">spec</a></td></tr><tr><td>Chip</td><td>Assist / filter / input / suggestion chips</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>32dp height; selected filter/input use secondary container</td><td><a href="https://m3.material.io/components/chips/specs">spec</a></td></tr><tr><td>Card</td><td>Elevated / filled / outlined cards</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>12dp corners, 16dp padding</td><td><a href="https://m3.material.io/components/cards/specs">spec</a></td></tr><tr><td>Divider</td><td>Divider</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>1dp outline-variant; full-bleed and inset</td><td><a href="https://m3.material.io/components/divider/specs">spec</a></td></tr><tr><td>Progress</td><td>Linear and circular progress indicators</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Determinate only in catalog; no wavy/indeterminate motion</td><td><a href="https://m3.material.io/components/progress-indicators/specs">spec</a></td></tr><tr><td>Top app bar</td><td>Small top app bar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>64dp surface bar; no medium/large collapsing</td><td><a href="https://m3.material.io/components/top-app-bar/specs">spec</a></td></tr><tr><td>Snackbar</td><td>Snackbar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Visual only; no timeout / swipe-to-dismiss runtime</td><td><a href="https://m3.material.io/components/snackbar/specs">spec</a></td></tr><tr><td>Navigation bar</td><td>Navigation bar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>80dp; active indicator 64×32; 3 destinations in catalog</td><td><a href="https://m3.material.io/components/navigation-bar/specs">spec</a></td></tr><tr><td>Dialog</td><td>Basic dialogs</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container-high, 28dp, elev 3, headlineSmallEmphasized/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept</td><td><a href="https://m3.material.io/components/dialogs/specs">spec</a></td></tr><tr><td>Bottom sheet</td><td>Bottom sheets</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container-low, extra-large top 28dp, 32×4 handle, elev 1</td><td><a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></td></tr><tr><td>Menu</td><td>Menus</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container, 4dp, elev 2, 48dp items; selected secondary-container</td><td><a href="https://m3.material.io/components/menus/specs">spec</a></td></tr><tr><td>Slider</td><td>Sliders</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with 5% step / nearest-thumb track tap; inactive = surface-container-highest; S–XL sizes</td><td><a href="https://m3.material.io/components/sliders/specs">spec</a></td></tr><tr><td>Tabs</td><td>Tabs</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Primary 48dp + 3dp primary indicator; secondary 2dp full-width</td><td><a href="https://m3.material.io/components/tabs/specs">spec</a></td></tr><tr><td>Badge</td><td>Badges</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Small 6dp / large 16dp; error/on-error; 999+</td><td><a href="https://m3.material.io/components/badges/specs">spec</a></td></tr><tr><td>Date picker</td><td>Date pickers</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, dismiss, write-back); month ▾ chrome; emphasized large date</td><td><a href="https://m3.material.io/components/date-pickers/specs">spec</a></td></tr><tr><td>Search</td><td>Search bar (docked)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>56dp full-round surface-container-high bar; leading search + hinted text + trailing; no expanded search-view sheet</td><td><a href="https://m3.material.io/components/search/specs">spec</a></td></tr><tr><td>Time picker</td><td>Time pickers (dial)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>12-hour dial tokens; 256dp clock; displaySmallEmphasized header; AM/PM; selected hour morph; no analog hand animation</td><td><a href="https://m3.material.io/components/time-pickers/specs">spec</a></td></tr></table><h2>Color roles</h2><div class="grid"><div class="swatch" data-role="primary" style="background:#6750A4;color:#FFFFFF">primary<code>#6750A4</code></div><div class="swatch" data-role="onPrimary" style="background:#FFFFFF;color:#6750A4">onPrimary<code>#FFFFFF</code></div><div class="swatch" data-role="primaryContainer" style="background:#EADDFF;color:#21005D">primaryContainer<code>#EADDFF</code></div><div class="swatch" data-role="onPrimaryContainer" style="background:#21005D;color:#EADDFF">onPrimaryContainer<code>#21005D</code></div><div class="swatch" data-role="secondary" style="background:#625B71;color:#FFFFFF">secondary<code>#625B71</code></div><div class="swatch" data-role="onSecondary" style="background:#FFFFFF;color:#625B71">onSecondary<code>#FFFFFF</code></div><div class="swatch" data-role="secondaryContainer" style="background:#E8DEF8;color:#1D192B">secondaryContainer<code>#E8DEF8</code></div><div class="swatch" data-role="tertiary" style="background:#7D5260;color:#FFFFFF">tertiary<code>#7D5260</code></div><div class="swatch" data-role="tertiaryContainer" style="background:#FFD8E4;color:#31111D">tertiaryContainer<code>#FFD8E4</code></div><div class="swatch" data-role="error" style="background:#B3261E;color:#FFFFFF">error<code>#B3261E</code></div><div class="swatch" data-role="errorContainer" style="background:#F9DEDC;color:#410E0B">errorContainer<code>#F9DEDC</code></div><div class="swatch" data-role="surface" style="background:#FEF7FF;color:#1D1B20">surface<code>#FEF7FF</code></div><div class="swatch" data-role="onSurface" style="background:#1D1B20;color:#FEF7FF">onSurface<code>#1D1B20</code></div><div class="swatch" data-role="surfaceContainerLow" style="background:#F7F2FA;color:#1D1B20">surfaceContainerLow<code>#F7F2FA</code></div><div class="swatch" data-role="surfaceContainer" style="background:#F3EDF7;color:#1D1B20">surfaceContainer<code>#F3EDF7</code></div><div class="swatch" data-role="surfaceContainerHigh" style="background:#ECE6F0;color:#1D1B20">surfaceContainerHigh<code>#ECE6F0</code></div><div class="swatch" data-role="surfaceContainerHighest" style="background:#E6E0E9;color:#1D1B20">surfaceContainerHighest<code>#E6E0E9</code></div><div class="swatch" data-role="onSurfaceVariant" style="background:#49454F;color:#FEF7FF">onSurfaceVariant<code>#49454F</code></div><div class="swatch" data-role="outline" style="background:#79747E;color:#FEF7FF">outline<code>#79747E</code></div><div class="swatch" data-role="outlineVariant" style="background:#CAC4D0;color:#1D1B20">outlineVariant<code>#CAC4D0</code></div><div class="swatch" data-role="inverseSurface" style="background:#322F35;color:#F5EFF7">inverseSurface<code>#322F35</code></div><div class="swatch" data-role="inversePrimary" style="background:#D0BCFF;color:#322F35">inversePrimary<code>#D0BCFF</code></div></div><h2>Type scale</h2><h3>baseline</h3><div data-type="displayLarge" style="font-size:57px;line-height:64px;letter-spacing:-0.2px;font-weight:400;color:#1D1B20">displayLarge · 57/64 · 400</div><div data-type="displayMedium" style="font-size:45px;line-height:52px;letter-spacing:0px;font-weight:400;color:#1D1B20">displayMedium · 45/52 · 400</div><div data-type="displaySmall" style="font-size:36px;line-height:44px;letter-spacing:0px;font-weight:400;color:#1D1B20">displaySmall · 36/44 · 400</div><div data-type="headlineLarge" style="font-size:32px;line-height:40px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineLarge · 32/40 · 400</div><div data-type="headlineMedium" style="font-size:28px;line-height:36px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineMedium · 28/36 · 400</div><div data-type="headlineSmall" style="font-size:24px;line-height:32px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineSmall · 24/32 · 400</div><div data-type="titleLarge" style="font-size:22px;line-height:28px;letter-spacing:0px;font-weight:400;color:#1D1B20">titleLarge · 22/28 · 400</div><div data-type="titleMedium" style="font-size:16px;line-height:24px;letter-spacing:0.2px;font-weight:500;color:#1D1B20">titleMedium · 16/24 · 500</div><div data-type="titleSmall" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:500;color:#1D1B20">titleSmall · 14/20 · 500</div><div data-type="bodyLarge" style="font-size:16px;line-height:24px;letter-spacing:0.5px;font-weight:400;color:#1D1B20">bodyLarge · 16/24 · 400</div><div data-type="bodyMedium" style="font-size:14px;line-height:20px;letter-spacing:0.2px;font-weight:400;color:#1D1B20">bodyMedium · 14/20 · 400</div><div data-type="bodySmall" style="font-size:12px;line-height:16px;letter-spacing:0.4px;font-weight:400;color:#1D1B20">bodySmall · 12/16 · 400</div><div data-type="labelLarge" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:500;color:#1D1B20">labelLarge · 14/20 · 500</div><div data-type="labelMedium" style="font-size:12px;line-height:16px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">labelMedium · 12/16 · 500</div><div data-type="labelSmall" style="font-size:11px;line-height:16px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">labelSmall · 11/16 · 500</div><h3>emphasized</h3><p class="note">Expressive hero moments: same size/line-height, heavier weight. Wired on catalog display headline, dialog headlines, date-picker large dates, time-picker clock, settings section titles.</p><div data-type="displayLargeEmphasized" style="font-size:57px;line-height:64px;letter-spacing:-0.2px;font-weight:500;color:#1D1B20">displayLargeEmphasized · 57/64 · 500</div><div data-type="displayMediumEmphasized" style="font-size:45px;line-height:52px;letter-spacing:0px;font-weight:500;color:#1D1B20">displayMediumEmphasized · 45/52 · 500</div><div data-type="displaySmallEmphasized" style="font-size:36px;line-height:44px;letter-spacing:0px;font-weight:500;color:#1D1B20">displaySmallEmphasized · 36/44 · 500</div><div data-type="headlineLargeEmphasized" style="font-size:32px;line-height:40px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineLargeEmphasized · 32/40 · 500</div><div data-type="headlineMediumEmphasized" style="font-size:28px;line-height:36px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineMediumEmphasized · 28/36 · 500</div><div data-type="headlineSmallEmphasized" style="font-size:24px;line-height:32px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineSmallEmphasized · 24/32 · 500</div><div data-type="titleLargeEmphasized" style="font-size:22px;line-height:28px;letter-spacing:0px;font-weight:500;color:#1D1B20">titleLargeEmphasized · 22/28 · 500</div><div data-type="titleMediumEmphasized" style="font-size:16px;line-height:24px;letter-spacing:0.2px;font-weight:700;color:#1D1B20">titleMediumEmphasized · 16/24 · 700</div><div data-type="titleSmallEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:700;color:#1D1B20">titleSmallEmphasized · 14/20 · 700</div><div data-type="bodyLargeEmphasized" style="font-size:16px;line-height:24px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">bodyLargeEmphasized · 16/24 · 500</div><div data-type="bodyMediumEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.2px;font-weight:500;color:#1D1B20">bodyMediumEmphasized · 14/20 · 500</div><div data-type="bodySmallEmphasized" style="font-size:12px;line-height:16px;letter-spacing:0.4px;font-weight:500;color:#1D1B20">bodySmallEmphasized · 12/16 · 500</div><div data-type="labelLargeEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:700;color:#1D1B20">labelLargeEmphasized · 14/20 · 700</div><div data-type="labelMediumEmphasized" style="font-size:12px;line-height:16px;letter-spacing:0.5px;font-weight:700;color:#1D1B20">labelMediumEmphasized · 12/16 · 700</div><div data-type="labelSmallEmphasized" style="font-size:11px;line-height:16px;letter-spacing:0.5px;font-weight:700;color:#1D1B20">labelSmallEmphasized · 11/16 · 700</div><h2>Settings scene</h2>
+<p class="lead">Current <a href="https://m3.material.io">Material 3 / Expressive</a> (m3.material.io). Heroes match official overview scenes; state matrices follow. Same <code>resolve()</code> drives the Android demo.</p><h2>Inventory</h2><table class="inv"><tr><th>Component</th><th>Material</th><th>Parity</th><th>Notes</th><th>Docs</th></tr><tr><td>Color scheme</td><td>Color roles (baseline light/dark)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>androidx PaletteTokens / ColorLightTokens / ColorDarkTokens v0_210</td><td><a href="https://m3.material.io/styles/color/roles">spec</a></td></tr><tr><td>Typography</td><td>Type scale (15 baseline styles)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Roboto when installed else Liberation Sans + word-gap; 15 baseline + 15 emphasized (400→500 / 500→700); heroes use display/headline emphasized</td><td><a href="https://m3.material.io/styles/typography/type-scale-tokens">spec</a></td></tr><tr><td>Shape</td><td>Shape scale</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive scale: none … extra-extra-large (48) + full; large-increased 20</td><td><a href="https://m3.material.io/styles/shape/shape-scale-tokens">spec</a></td></tr><tr><td>Elevation</td><td>Elevation levels 0–5</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>dp levels + catalog shadow; no tonal-overlay GPU lighting</td><td><a href="https://m3.material.io/styles/elevation">spec</a></td></tr><tr><td>State layers</td><td>Interaction states</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>hover 8% / focus 10% / pressed 10% / dragged 16% / disabled 12%+38%</td><td><a href="https://m3.material.io/foundations/interaction/states/state-layers">spec</a></td></tr><tr><td>Motion tokens</td><td>Easing and duration</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph on buttons/connected group; no GPUI animation clock</td><td><a href="https://m3.material.io/styles/motion/easing-and-duration/tokens-specs">spec</a></td></tr><tr><td>Button</td><td>Common buttons (filled, tonal, elevated, outlined, text)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant</td><td><a href="https://m3.material.io/components/buttons/specs">spec</a></td></tr><tr><td>Button group</td><td>Connected button groups (Expressive)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month demo</td><td><a href="https://m3.material.io/components/button-groups/specs">spec</a></td></tr><tr><td>Icon button</td><td>Icon buttons</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24</td><td><a href="https://m3.material.io/components/icon-buttons/specs">spec</a></td></tr><tr><td>FAB</td><td>Floating action button</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated</td><td><a href="https://m3.material.io/components/floating-action-button/specs">spec</a></td></tr><tr><td>Text field</td><td>Filled and outlined text fields</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Floating label; outlined notch matches fieldset (8dp start, stroke-height cutout, legend on top stroke); 4dp corner tiles; focus outline 2dp; IME still NativeActivity stub</td><td><a href="https://m3.material.io/components/text-fields/specs">spec</a></td></tr><tr><td>List</td><td>Lists</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>One / two / three line; 56 / 72 / 88dp</td><td><a href="https://m3.material.io/components/lists/specs">spec</a></td></tr><tr><td>Checkbox</td><td>Checkbox</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate</td><td><a href="https://m3.material.io/components/checkbox/specs">spec</a></td></tr><tr><td>Radio</td><td>Radio button</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>20dp / 48dp target</td><td><a href="https://m3.material.io/components/radio-button/specs">spec</a></td></tr><tr><td>Switch</td><td>Switch</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>52×32 track; 16/24dp thumb</td><td><a href="https://m3.material.io/components/switch/specs">spec</a></td></tr><tr><td>Chip</td><td>Assist / filter / input / suggestion chips</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>32dp height; selected filter/input use secondary container</td><td><a href="https://m3.material.io/components/chips/specs">spec</a></td></tr><tr><td>Card</td><td>Elevated / filled / outlined cards</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>12dp corners, 16dp padding</td><td><a href="https://m3.material.io/components/cards/specs">spec</a></td></tr><tr><td>Divider</td><td>Divider</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>1dp outline-variant; full-bleed and inset</td><td><a href="https://m3.material.io/components/divider/specs">spec</a></td></tr><tr><td>Progress</td><td>Linear and circular progress indicators</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Determinate linear/circular + indeterminate sliding head / spinning arc (HTML motion tokens; GPUI static busy frame) + 40dp pull-to-refresh hero</td><td><a href="https://m3.material.io/components/progress-indicators/specs">spec</a></td></tr><tr><td>Top app bar</td><td>Small top app bar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>64dp surface bar; no medium/large collapsing</td><td><a href="https://m3.material.io/components/top-app-bar/specs">spec</a></td></tr><tr><td>Snackbar</td><td>Snackbar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Visual only; no timeout / swipe-to-dismiss runtime</td><td><a href="https://m3.material.io/components/snackbar/specs">spec</a></td></tr><tr><td>Navigation bar</td><td>Navigation bar</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>80dp; active indicator 64×32; 3 destinations in catalog</td><td><a href="https://m3.material.io/components/navigation-bar/specs">spec</a></td></tr><tr><td>Navigation rail</td><td>Navigation rail</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>80dp vertical stub; 56×32 active indicator; Home/Search/Profile heroes; no collapsed/expanded modal or FAB slot</td><td><a href="https://m3.material.io/components/navigation-rail/specs">spec</a></td></tr><tr><td>Dialog</td><td>Basic dialogs</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container-high, 28dp, elev 3, headlineSmallEmphasized/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept</td><td><a href="https://m3.material.io/components/dialogs/specs">spec</a></td></tr><tr><td>Bottom sheet</td><td>Bottom sheets</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container-low, extra-large top 28dp, 32×4 handle, elev 1</td><td><a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></td></tr><tr><td>Menu</td><td>Menus</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>surface-container, 4dp, elev 2, 48dp items; selected secondary-container</td><td><a href="https://m3.material.io/components/menus/specs">spec</a></td></tr><tr><td>Slider</td><td>Sliders</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with pointer-drag, keyboard arrows, and 5% click-step; inactive = surface-container-highest; S–XL sizes</td><td><a href="https://m3.material.io/components/sliders/specs">spec</a></td></tr><tr><td>Tabs</td><td>Tabs</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Primary 48dp + 3dp primary indicator; secondary 2dp full-width</td><td><a href="https://m3.material.io/components/tabs/specs">spec</a></td></tr><tr><td>Badge</td><td>Badges</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Small 6dp / large 16dp; error/on-error; 999+</td><td><a href="https://m3.material.io/components/badges/specs">spec</a></td></tr><tr><td>Date picker</td><td>Date pickers</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, select dismiss, outside-click dismiss, month nav); month ▾ chrome; emphasized large date</td><td><a href="https://m3.material.io/components/date-pickers/specs">spec</a></td></tr><tr><td>Search</td><td>Search bar + view</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>56dp full-round docked bar + expanded search view/sheet (back, input, suggestion list); no full-screen search activity</td><td><a href="https://m3.material.io/components/search/specs">spec</a></td></tr><tr><td>Time picker</td><td>Time pickers (dial)</td><td><span class="pill" style="background:#146C2E;color:#FFFFFF">done</span></td><td>12-hour + minute dial; analog selector hand (HTML rotate / GPUI dots); displaySmallEmphasized header; AM/PM; hand motion not animated</td><td><a href="https://m3.material.io/components/time-pickers/specs">spec</a></td></tr></table><h2>Color roles</h2><div class="grid"><div class="swatch" data-role="primary" style="background:#6750A4;color:#FFFFFF">primary<code>#6750A4</code></div><div class="swatch" data-role="onPrimary" style="background:#FFFFFF;color:#6750A4">onPrimary<code>#FFFFFF</code></div><div class="swatch" data-role="primaryContainer" style="background:#EADDFF;color:#21005D">primaryContainer<code>#EADDFF</code></div><div class="swatch" data-role="onPrimaryContainer" style="background:#21005D;color:#EADDFF">onPrimaryContainer<code>#21005D</code></div><div class="swatch" data-role="secondary" style="background:#625B71;color:#FFFFFF">secondary<code>#625B71</code></div><div class="swatch" data-role="onSecondary" style="background:#FFFFFF;color:#625B71">onSecondary<code>#FFFFFF</code></div><div class="swatch" data-role="secondaryContainer" style="background:#E8DEF8;color:#1D192B">secondaryContainer<code>#E8DEF8</code></div><div class="swatch" data-role="tertiary" style="background:#7D5260;color:#FFFFFF">tertiary<code>#7D5260</code></div><div class="swatch" data-role="tertiaryContainer" style="background:#FFD8E4;color:#31111D">tertiaryContainer<code>#FFD8E4</code></div><div class="swatch" data-role="error" style="background:#B3261E;color:#FFFFFF">error<code>#B3261E</code></div><div class="swatch" data-role="errorContainer" style="background:#F9DEDC;color:#410E0B">errorContainer<code>#F9DEDC</code></div><div class="swatch" data-role="surface" style="background:#FEF7FF;color:#1D1B20">surface<code>#FEF7FF</code></div><div class="swatch" data-role="onSurface" style="background:#1D1B20;color:#FEF7FF">onSurface<code>#1D1B20</code></div><div class="swatch" data-role="surfaceContainerLow" style="background:#F7F2FA;color:#1D1B20">surfaceContainerLow<code>#F7F2FA</code></div><div class="swatch" data-role="surfaceContainer" style="background:#F3EDF7;color:#1D1B20">surfaceContainer<code>#F3EDF7</code></div><div class="swatch" data-role="surfaceContainerHigh" style="background:#ECE6F0;color:#1D1B20">surfaceContainerHigh<code>#ECE6F0</code></div><div class="swatch" data-role="surfaceContainerHighest" style="background:#E6E0E9;color:#1D1B20">surfaceContainerHighest<code>#E6E0E9</code></div><div class="swatch" data-role="onSurfaceVariant" style="background:#49454F;color:#FEF7FF">onSurfaceVariant<code>#49454F</code></div><div class="swatch" data-role="outline" style="background:#79747E;color:#FEF7FF">outline<code>#79747E</code></div><div class="swatch" data-role="outlineVariant" style="background:#CAC4D0;color:#1D1B20">outlineVariant<code>#CAC4D0</code></div><div class="swatch" data-role="inverseSurface" style="background:#322F35;color:#F5EFF7">inverseSurface<code>#322F35</code></div><div class="swatch" data-role="inversePrimary" style="background:#D0BCFF;color:#322F35">inversePrimary<code>#D0BCFF</code></div></div><h2>Type scale</h2><h3>baseline</h3><div data-type="displayLarge" style="font-size:57px;line-height:64px;letter-spacing:-0.2px;font-weight:400;color:#1D1B20">displayLarge · 57/64 · 400</div><div data-type="displayMedium" style="font-size:45px;line-height:52px;letter-spacing:0px;font-weight:400;color:#1D1B20">displayMedium · 45/52 · 400</div><div data-type="displaySmall" style="font-size:36px;line-height:44px;letter-spacing:0px;font-weight:400;color:#1D1B20">displaySmall · 36/44 · 400</div><div data-type="headlineLarge" style="font-size:32px;line-height:40px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineLarge · 32/40 · 400</div><div data-type="headlineMedium" style="font-size:28px;line-height:36px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineMedium · 28/36 · 400</div><div data-type="headlineSmall" style="font-size:24px;line-height:32px;letter-spacing:0px;font-weight:400;color:#1D1B20">headlineSmall · 24/32 · 400</div><div data-type="titleLarge" style="font-size:22px;line-height:28px;letter-spacing:0px;font-weight:400;color:#1D1B20">titleLarge · 22/28 · 400</div><div data-type="titleMedium" style="font-size:16px;line-height:24px;letter-spacing:0.2px;font-weight:500;color:#1D1B20">titleMedium · 16/24 · 500</div><div data-type="titleSmall" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:500;color:#1D1B20">titleSmall · 14/20 · 500</div><div data-type="bodyLarge" style="font-size:16px;line-height:24px;letter-spacing:0.5px;font-weight:400;color:#1D1B20">bodyLarge · 16/24 · 400</div><div data-type="bodyMedium" style="font-size:14px;line-height:20px;letter-spacing:0.2px;font-weight:400;color:#1D1B20">bodyMedium · 14/20 · 400</div><div data-type="bodySmall" style="font-size:12px;line-height:16px;letter-spacing:0.4px;font-weight:400;color:#1D1B20">bodySmall · 12/16 · 400</div><div data-type="labelLarge" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:500;color:#1D1B20">labelLarge · 14/20 · 500</div><div data-type="labelMedium" style="font-size:12px;line-height:16px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">labelMedium · 12/16 · 500</div><div data-type="labelSmall" style="font-size:11px;line-height:16px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">labelSmall · 11/16 · 500</div><h3>emphasized</h3><p class="note">Expressive hero moments: same size/line-height, heavier weight. Wired on catalog display headline, dialog headlines, date-picker large dates, time-picker clock, settings section titles.</p><div data-type="displayLargeEmphasized" style="font-size:57px;line-height:64px;letter-spacing:-0.2px;font-weight:500;color:#1D1B20">displayLargeEmphasized · 57/64 · 500</div><div data-type="displayMediumEmphasized" style="font-size:45px;line-height:52px;letter-spacing:0px;font-weight:500;color:#1D1B20">displayMediumEmphasized · 45/52 · 500</div><div data-type="displaySmallEmphasized" style="font-size:36px;line-height:44px;letter-spacing:0px;font-weight:500;color:#1D1B20">displaySmallEmphasized · 36/44 · 500</div><div data-type="headlineLargeEmphasized" style="font-size:32px;line-height:40px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineLargeEmphasized · 32/40 · 500</div><div data-type="headlineMediumEmphasized" style="font-size:28px;line-height:36px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineMediumEmphasized · 28/36 · 500</div><div data-type="headlineSmallEmphasized" style="font-size:24px;line-height:32px;letter-spacing:0px;font-weight:500;color:#1D1B20">headlineSmallEmphasized · 24/32 · 500</div><div data-type="titleLargeEmphasized" style="font-size:22px;line-height:28px;letter-spacing:0px;font-weight:500;color:#1D1B20">titleLargeEmphasized · 22/28 · 500</div><div data-type="titleMediumEmphasized" style="font-size:16px;line-height:24px;letter-spacing:0.2px;font-weight:700;color:#1D1B20">titleMediumEmphasized · 16/24 · 700</div><div data-type="titleSmallEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:700;color:#1D1B20">titleSmallEmphasized · 14/20 · 700</div><div data-type="bodyLargeEmphasized" style="font-size:16px;line-height:24px;letter-spacing:0.5px;font-weight:500;color:#1D1B20">bodyLargeEmphasized · 16/24 · 500</div><div data-type="bodyMediumEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.2px;font-weight:500;color:#1D1B20">bodyMediumEmphasized · 14/20 · 500</div><div data-type="bodySmallEmphasized" style="font-size:12px;line-height:16px;letter-spacing:0.4px;font-weight:500;color:#1D1B20">bodySmallEmphasized · 12/16 · 500</div><div data-type="labelLargeEmphasized" style="font-size:14px;line-height:20px;letter-spacing:0.1px;font-weight:700;color:#1D1B20">labelLargeEmphasized · 14/20 · 700</div><div data-type="labelMediumEmphasized" style="font-size:12px;line-height:16px;letter-spacing:0.5px;font-weight:700;color:#1D1B20">labelMediumEmphasized · 12/16 · 700</div><div data-type="labelSmallEmphasized" style="font-size:11px;line-height:16px;letter-spacing:0.5px;font-weight:700;color:#1D1B20">labelSmallEmphasized · 11/16 · 700</div><h2>Settings scene</h2>
 <p class="note">Containment / hierarchy: surface-container, 16dp pad, 24dp groups, emphasized section titles.</p>
 <div class="hero-card settings-scene" data-settings-scene="1" style="background:#F3EDF7;border-radius:16px;padding:16px;gap:24px">
   <h3 data-type="titleLargeEmphasized" style="font-size:22px;line-height:28px;font-weight:500;color:#1D1B20">Sound & notifications</h3>
@@ -386,9 +432,20 @@ table.inv th { font-weight: 500; }
   <div class="dest" style="color:#1D1B20"><div class="ind" style="background:#E8DEF8">●</div>Home</div>
   <div class="dest" style="color:#49454F">○<span>Search</span></div>
   <div class="dest" style="color:#49454F">○<span>Profile</span></div>
-</div><h2>Progress</h2>
+</div>
+<h2>Navigation rail</h2>
+<p class="note">80dp vertical destinations, 56×32 active indicator. Catalog stub — no collapsed/expanded modal. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<div class="nav-rail" data-nav-rail="1" data-hero="nav-rail" style="background:#FEF7FF"><div class="dest" style="color:#1D1B20"><div class="ind" style="background:#E8DEF8">⌂</div>Home</div><div class="dest" style="color:#49454F">⌕<span>Search</span></div><div class="dest" style="color:#49454F">☺<span>Profile</span></div></div><h2>Progress</h2>
+<p class="note">Determinate plus indeterminate / pull-to-refresh. HTML animates with spatial/effects springs; GPUI paints a static busy frame. <a href="https://m3.material.io/components/progress-indicators/specs">spec</a></p>
 <div class="linear" data-progress="linear" style="background:#E8DEF8"><i style="width:60.000004%;background:#6750A4"></i></div>
-<div class="circ" data-progress="circular" style="background:conic-gradient(#6750A4 216.00002deg, #E8DEF8 0deg)"></div><h2>Dialog</h2>
+<div class="circ" data-progress="circular" style="background:conic-gradient(#6750A4 216.00002deg, #E8DEF8 0deg)"></div>
+<h3>indeterminate</h3>
+<div class="linear indet" data-progress="indeterminate" data-hero="progress-indet" style="background:#E8DEF8;margin:12px 0"><i style="width:35%;background:#6750A4"></i></div>
+<div class="circ indet" data-progress="circular-indet" style="background:conic-gradient(#6750A4 90deg, #E8DEF8 0deg)"></div>
+<div class="ptr" data-progress="ptr" data-hero="progress-ptr">
+  <div class="circ indet" style="width:40px;height:40px;border-radius:20px;background:conic-gradient(#6750A4 90deg, #E8DEF8 0deg)"></div>
+  <div class="note">Pull to refresh</div>
+</div><h2>Dialog</h2>
 <p class="note">Guidelines Reset settings (icon, headline, supporting, text Cancel/Accept) plus overview Phone ringtone list dialog. 28dp · elev 3 · 32% scrim. Actions use the Text button resolve (transparent container). <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
 <div class="scrim" data-dialog="scrim" style="background:#ACA8AD">
   <div class="dialog" data-dialog="basic" data-hero="dialog" style="background:#ECE6F0;color:#1D1B20;border-radius:28px;box-shadow:0 3.0px 9.0px rgba(0, 0, 0, 0.20);min-width:280px;text-align:center;align-items:center">
@@ -442,7 +499,7 @@ table.inv th { font-weight: 500; }
   <div class="xhandle" style="width:4px;height:28px;background:#6750A4;margin:0 6px"></div>
   <div class="xseg inactive" style="flex:1;height:16px;background:#E6E0E9;border-radius:2px 8px 8px 2px"></div>
   
-</div></div></div><p class="note">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops().</p></div><h3>range</h3><div class="slider-row" data-slider-range="1" data-start="0.2" data-end="0.75">
+</div></div></div><p class="note">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops(). Range: pointer-drag thumbs, keyboard arrows, 5% click-step.</p></div><h3>range</h3><div class="slider-row" data-slider-range="1" data-start="0.2" data-end="0.75" data-range-interactive="1">
   <div class="slider-meta"><div class="slider-label">Price range</div>
   <div class="xslider" data-slider="Price range" data-handle-visual="28">
     <div class="xseg inactive" style="width:8.400001%;height:16px;background:#E6E0E9;border-radius:8px 2px 2px 8px"></div>
@@ -498,7 +555,7 @@ table.inv th { font-weight: 500; }
   <div class="badge-wrap" data-badge="large" style="background:#E6E0E9;border-radius:20px">★<div class="badge" style="background:#B3261E;color:#FFFFFF">8</div></div>
   <div class="badge-wrap" data-badge="overflow" style="background:#E6E0E9;border-radius:20px">★<div class="badge" style="background:#B3261E;color:#FFFFFF">999+</div></div>
 </div><h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow; HTML keeps it open for QA (desktop dismisses on select). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:#ECE6F0;border-radius:28px;box-shadow:0 3.0px 9.0px rgba(0, 0, 0, 0.20);margin-bottom:16px">
   <div class="head">
     <div style="color:#49454F;font-size:14px">Depart – Return dates</div>
@@ -521,35 +578,56 @@ table.inv th { font-weight: 500; }
     <button class="btn" style="background:transparent;color:#6750A4">OK</button>
   </div>
 </div>
-<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open">
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1">
   <fieldset class="ol" data-notched="1" data-notch="cutout" data-field-hero="docked-date" style="border:1px solid #49454F;border-radius:4px;color:#1D1B20">
   <legend style="color:#49454F;padding:0 4px">Date of birth</legend>
   <div class="val">Sep 15, 2026</div>
 </fieldset>
   <div class="cal dialog" data-datepicker-popup="open" style="background:#ECE6F0;border-radius:8px 28px 28px 28px;box-shadow:0 3.0px 9.0px rgba(0, 0, 0, 0.20);margin-top:4px;width:100%">
-    <div style="text-align:center;padding:8px;font-weight:500">September 2026 ▾</div>
+    <div class="month-nav">
+      <button type="button" data-docked-month="-1" aria-label="Previous month">&lt;</button>
+      <div data-docked-month-label="1">September 2026 ▾</div>
+      <button type="button" data-docked-month="1" aria-label="Next month">&gt;</button>
+    </div>
     <div class="week"><div class="day" style="color:#49454F">S</div><div class="day" style="color:#49454F">M</div><div class="day" style="color:#49454F">T</div><div class="day" style="color:#49454F">W</div><div class="day" style="color:#49454F">T</div><div class="day" style="color:#49454F">F</div><div class="day" style="color:#49454F">S</div></div>
     <div class="grid"><div class="day" data-day="30" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">30</div><div class="day" data-day="31" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">31</div><div class="day" data-day="1" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">1</div><div class="day" data-day="2" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">2</div><div class="day" data-day="3" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">3</div><div class="day" data-day="4" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">4</div><div class="day" data-day="5" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">5</div><div class="day" data-day="6" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">6</div><div class="day" data-day="7" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">7</div><div class="day" data-day="8" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">8</div><div class="day" data-day="9" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">9</div><div class="day" data-day="10" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">10</div><div class="day" data-day="11" data-kind="Today" style="background:transparent;color:#1D1B20;border:1px solid #6750A4;border-radius:20px">11</div><div class="day" data-day="12" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">12</div><div class="day" data-day="13" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">13</div><div class="day" data-day="14" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">14</div><div class="day" data-day="15" data-kind="Selected" style="background:#6750A4;color:#FFFFFF;border:none;border-radius:20px">15</div><div class="day" data-day="16" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">16</div><div class="day" data-day="17" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">17</div><div class="day" data-day="18" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">18</div><div class="day" data-day="19" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">19</div><div class="day" data-day="20" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">20</div><div class="day" data-day="21" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">21</div><div class="day" data-day="22" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">22</div><div class="day" data-day="23" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">23</div><div class="day" data-day="24" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">24</div><div class="day" data-day="25" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">25</div><div class="day" data-day="26" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">26</div><div class="day" data-day="27" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">27</div><div class="day" data-day="28" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">28</div><div class="day" data-day="29" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">29</div><div class="day" data-day="30" data-kind="InMonth" style="background:transparent;color:#1D1B20;border:none;border-radius:20px">30</div><div class="day" data-day="1" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">1</div><div class="day" data-day="2" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">2</div><div class="day" data-day="3" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">3</div><div class="day" data-day="4" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">4</div><div class="day" data-day="5" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">5</div><div class="day" data-day="6" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">6</div><div class="day" data-day="7" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">7</div><div class="day" data-day="8" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">8</div><div class="day" data-day="9" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">9</div><div class="day" data-day="10" data-kind="OutOfMonth" style="background:transparent;color:#9D99A1;border:none;border-radius:20px">10</div></div>
   </div>
 </div><h2>Search</h2>
-<p class="note">Docked 56dp full-round bar on surface-container-high. Expanded search view is not in this catalog. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<p class="note">Docked 56dp full-round bar plus expanded search view/sheet (back, input, suggestions). Tap the bar to toggle. <a href="https://m3.material.io/components/search/specs">spec</a></p>
 <div class="search-bar" data-search="1" data-hero="search" style="background:#ECE6F0;color:#49454F;height:56px;border-radius:28px">
   <div class="ico" aria-hidden="true" style="color:#1D1B20">⌕</div>
   <div class="hint">Hinted search text</div>
   <div class="ico" aria-hidden="true">🎤</div>
   <div class="avatar" style="background:#EADDFF;color:#21005D">A</div>
+</div>
+<div class="search-view" data-search-view="1" data-open="1" data-hero="search-view" style="background:#ECE6F0;border-radius:28px;box-shadow:0 1.5px 4.5px rgba(0, 0, 0, 0.20);margin-top:12px">
+  <div class="sv-head" style="height:72px;color:#1D1B20">
+    <div class="ico" aria-hidden="true">←</div>
+    <div class="hint" style="flex:1;color:#49454F">Hinted search text</div>
+    <div class="ico">🎤</div>
+  </div>
+  <div style="height:1px;background:#CAC4D0"></div>
+  <div class="sv-list"><div class="sv-row" data-search-suggestion="App" style="color:#1D1B20;height:56px"><span style="color:#49454F">⌕</span><span>App</span></div><div class="sv-row" data-search-suggestion="Shortcut" style="color:#1D1B20;height:56px"><span style="color:#49454F">◌</span><span>Shortcut</span></div><div class="sv-row" data-search-suggestion="Recent search" style="color:#1D1B20;height:56px"><span style="color:#49454F">◌</span><span>Recent search</span></div><div class="sv-row" data-search-suggestion="Setting" style="color:#1D1B20;height:56px"><span style="color:#49454F">◌</span><span>Setting</span></div></div>
 </div><h2>Time picker</h2>
-<p class="note">12-hour dial, displaySmallEmphasized header, AM/PM. Selector hand is static. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-hour="6" data-minute="30" data-period="PM" style="background:#ECE6F0;border-radius:28px;box-shadow:0 3.0px 9.0px rgba(0, 0, 0, 0.20)">
+<p class="note">12-hour + minute dial, analog selector hand, displaySmallEmphasized header, AM/PM. Header fields toggle the face. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-dial="minute" data-hour="6" data-minute="30" data-period="PM" style="background:#ECE6F0;border-radius:28px;box-shadow:0 3.0px 9.0px rgba(0, 0, 0, 0.20)">
   <div style="color:#1D1B20;font-size:14px">Select time</div>
   <div class="time-row">
-    <div data-time-header="1" style="color:#1D1B20;font-size:36px;font-weight:500;letter-spacing:0px">6:30 PM</div>
+    <div class="time-fields">
+      <div class="time-field" data-time-field="hour" data-active="0" style="font-size:36px;font-weight:500;color:#1D1B20;background:#E6E0E9">06</div>
+      <div style="font-size:36px;font-weight:500;color:#1D1B20">:</div>
+      <div class="time-field" data-time-field="minute" data-active="1" style="font-size:36px;font-weight:500;color:#1D1B20;background:#E6E0E9">30</div>
+    </div>
     <div class="period">
       <button data-period="AM" style="background:#E6E0E9;color:#1D1B20">AM</button>
       <button data-period="PM" style="background:#FFD8E4;color:#31111D">PM</button>
     </div>
   </div>
-  <div class="clock" style="width:256px;height:256px;background:#E6E0E9"><div class="hour" data-hour="1" data-selected="0" style="left:154px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">1</div><div class="hour" data-hour="2" data-selected="0" style="left:190.60254px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">2</div><div class="hour" data-hour="3" data-selected="0" style="left:204px;top:104px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">3</div><div class="hour" data-hour="4" data-selected="0" style="left:190.60254px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">4</div><div class="hour" data-hour="5" data-selected="0" style="left:154px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">5</div><div class="hour" data-hour="6" data-selected="1" style="left:103.99999px;top:204px;width:48px;height:48px;background:#6750A4;color:#FFFFFF;font-weight:500">6</div><div class="hour" data-hour="7" data-selected="0" style="left:53.999992px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">7</div><div class="hour" data-hour="8" data-selected="0" style="left:17.39746px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">8</div><div class="hour" data-hour="9" data-selected="0" style="left:4px;top:103.99999px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">9</div><div class="hour" data-hour="10" data-selected="0" style="left:17.39746px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">10</div><div class="hour" data-hour="11" data-selected="0" style="left:54.000008px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">11</div><div class="hour" data-hour="12" data-selected="0" style="left:104px;top:4px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">12</div></div>
+  <div class="clock" style="width:256px;height:256px;background:#E6E0E9">
+    <div class="hand" style="background:#6750A4;transform:rotate(180deg)"></div>
+    <div class="hub" style="background:#6750A4"></div>
+    <div class="hour" data-hour="1" data-selected="0" style="display:none;left:154px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">1</div><div class="hour" data-hour="2" data-selected="0" style="display:none;left:190.60254px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">2</div><div class="hour" data-hour="3" data-selected="0" style="display:none;left:204px;top:104px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">3</div><div class="hour" data-hour="4" data-selected="0" style="display:none;left:190.60254px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">4</div><div class="hour" data-hour="5" data-selected="0" style="display:none;left:154px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">5</div><div class="hour" data-hour="6" data-selected="1" style="display:none;left:103.99999px;top:204px;width:48px;height:48px;background:#6750A4;color:#FFFFFF;font-weight:500">6</div><div class="hour" data-hour="7" data-selected="0" style="display:none;left:53.999992px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">7</div><div class="hour" data-hour="8" data-selected="0" style="display:none;left:17.39746px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">8</div><div class="hour" data-hour="9" data-selected="0" style="display:none;left:4px;top:103.99999px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">9</div><div class="hour" data-hour="10" data-selected="0" style="display:none;left:17.39746px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">10</div><div class="hour" data-hour="11" data-selected="0" style="display:none;left:54.000008px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">11</div><div class="hour" data-hour="12" data-selected="0" style="display:none;left:104px;top:4px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">12</div><div class="minute" data-minute="0" data-selected="0" style="left:103.99999px;top:4px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">00</div><div class="minute" data-minute="5" data-selected="0" style="left:154px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">05</div><div class="minute" data-minute="10" data-selected="0" style="left:190.60254px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">10</div><div class="minute" data-minute="15" data-selected="0" style="left:204px;top:104px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">15</div><div class="minute" data-minute="20" data-selected="0" style="left:190.60254px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">20</div><div class="minute" data-minute="25" data-selected="0" style="left:154px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">25</div><div class="minute" data-minute="30" data-selected="1" style="left:103.99999px;top:204px;width:48px;height:48px;background:#6750A4;color:#FFFFFF;font-weight:500">30</div><div class="minute" data-minute="35" data-selected="0" style="left:53.999992px;top:190.60254px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">35</div><div class="minute" data-minute="40" data-selected="0" style="left:17.39746px;top:154px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">40</div><div class="minute" data-minute="45" data-selected="0" style="left:4px;top:103.99999px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">45</div><div class="minute" data-minute="50" data-selected="0" style="left:17.39746px;top:54px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">50</div><div class="minute" data-minute="55" data-selected="0" style="left:54.000008px;top:17.397453px;width:48px;height:48px;background:transparent;color:#1D1B20;font-weight:400">55</div>
+  </div>
 </div><h2>Motion</h2>
 <p class="note">Expressive spatial <code>cubic-bezier(0.42, 1.67, 0.21, 0.90)</code> (350ms) + effects springs. Button / connected-group press morph uses the same CSS transition. GPUI has no shared animation clock.</p>
 <div class="motion-box" data-motion="emphasized" style="background:#6750A4"></div>
@@ -603,19 +681,96 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {
   });
 });
 document.querySelectorAll("[data-slider-range]").forEach(function (row) {
-  var handles = row.querySelectorAll(".xhandle");
-  if (handles[0]) handles[0].style.cursor = "pointer";
-  if (handles[1]) handles[1].style.cursor = "pointer";
-  if (handles[0]) handles[0].addEventListener("click", function () {
-    var start = Math.max(0, parseFloat(row.getAttribute("data-start") || "0.2") - 0.05);
+  var slider = row.querySelector(".xslider");
+  if (!slider) return;
+  row.tabIndex = 0;
+  row.setAttribute("data-range-focus", "start");
+  var dragging = null;
+  function clampRange(start, end) {
+    start = Math.max(0, Math.min(1 - 0.05, start));
+    end = Math.max(start + 0.05, Math.min(1, end));
+    return [start, end];
+  }
+  function fracFromEvent(ev) {
+    var r = slider.getBoundingClientRect();
+    if (!r.width) return 0;
+    return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+  }
+  function paint(start, end) {
     row.setAttribute("data-start", start.toFixed(2));
-  });
-  if (handles[1]) handles[1].addEventListener("click", function () {
-    var end = Math.min(1, parseFloat(row.getAttribute("data-end") || "0.75") + 0.05);
     row.setAttribute("data-end", end.toFixed(2));
+    var segs = slider.querySelectorAll(".xseg");
+    if (segs[0]) segs[0].style.width = (Math.max(6, start * 42)).toFixed(1) + "%";
+    if (segs[1]) segs[1].style.width = (Math.max(8, (end - start) * 42)).toFixed(1) + "%";
+    var lab = row.querySelector(".slider-label");
+    if (lab) lab.textContent = "Price range · " + Math.round(start * 100) + "–" + Math.round(end * 100) + "%";
+  }
+  function clickStep(start, end, fraction) {
+    var pad = 0.04;
+    if (Math.abs(fraction - start) <= pad) return clampRange(start + 0.05, end);
+    if (Math.abs(fraction - end) <= pad) return clampRange(start, end + 0.05);
+    if (fraction < start) return clampRange(start - 0.05, end);
+    if (fraction > end) return clampRange(start, end - 0.05);
+    var mid = (start + end) / 2;
+    if (Math.abs(fraction - start) <= Math.abs(fraction - end)) return clampRange(mid, end);
+    return clampRange(start, mid);
+  }
+  slider.addEventListener("pointerdown", function (ev) {
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var f = fracFromEvent(ev);
+    dragging = Math.abs(f - start) <= Math.abs(f - end) ? "start" : "end";
+    row.setAttribute("data-range-focus", dragging);
+    try { slider.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  });
+  slider.addEventListener("pointermove", function (ev) {
+    if (!dragging) return;
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var f = fracFromEvent(ev);
+    var next = dragging === "start" ? clampRange(f, end) : clampRange(start, f);
+    paint(next[0], next[1]);
+  });
+  slider.addEventListener("pointerup", function () { dragging = null; });
+  slider.addEventListener("click", function (ev) {
+    if (dragging) return;
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var next = clickStep(start, end, fracFromEvent(ev));
+    paint(next[0], next[1]);
+  });
+  row.addEventListener("keydown", function (ev) {
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var focus = row.getAttribute("data-range-focus") || "start";
+    var delta = 0;
+    if (ev.key === "ArrowLeft" || ev.key === "h") delta = -0.05;
+    if (ev.key === "ArrowRight" || ev.key === "l") delta = 0.05;
+    if (!delta) return;
+    var next = focus === "end" ? clampRange(start, end + delta) : clampRange(start + delta, end);
+    paint(next[0], next[1]);
+    ev.preventDefault();
   });
 });
 document.querySelectorAll("[data-timepicker]").forEach(function (picker) {
+  function setDial(face) {
+    picker.setAttribute("data-dial", face);
+    picker.querySelectorAll("[data-hour]").forEach(function (el) {
+      el.style.display = face === "hour" ? "flex" : "none";
+    });
+    picker.querySelectorAll("[data-minute]").forEach(function (el) {
+      el.style.display = face === "minute" ? "flex" : "none";
+    });
+    var hour = parseInt(picker.getAttribute("data-hour") || "6", 10);
+    var minute = parseInt(picker.getAttribute("data-minute") || "30", 10);
+    var deg = face === "minute" ? minute * 6 : hour * 30 + minute * 0.5;
+    var hand = picker.querySelector(".hand");
+    if (hand) hand.style.transform = "rotate(" + deg + "deg)";
+    picker.querySelectorAll("[data-time-field]").forEach(function (el) {
+      el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
+    });
+  }
   picker.querySelectorAll("[data-hour]").forEach(function (el) {
     el.style.cursor = "pointer";
     el.addEventListener("click", function () {
@@ -623,12 +778,72 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {
       picker.querySelectorAll("[data-hour]").forEach(function (other) {
         other.setAttribute("data-selected", other === el ? "1" : "0");
       });
+      setDial("minute");
+    });
+  });
+  picker.querySelectorAll("[data-minute]").forEach(function (el) {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", function () {
+      picker.setAttribute("data-minute", el.getAttribute("data-minute"));
+      picker.querySelectorAll("[data-minute]").forEach(function (other) {
+        other.setAttribute("data-selected", other === el ? "1" : "0");
+      });
+      setDial("minute");
+    });
+  });
+  picker.querySelectorAll("[data-time-field]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      setDial(el.getAttribute("data-time-field"));
     });
   });
   picker.querySelectorAll("[data-period]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       picker.setAttribute("data-period", btn.getAttribute("data-period"));
     });
+  });
+  setDial(picker.getAttribute("data-dial") || "minute");
+});
+document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {
+  var cal = dock.querySelector("[data-datepicker-popup]");
+  var field = dock.querySelector("[data-field-hero='docked-date']");
+  function setOpen(open) {
+    dock.setAttribute("data-popup", open ? "open" : "closed");
+    if (cal) cal.style.display = open ? "" : "none";
+  }
+  if (field) field.addEventListener("click", function (ev) {
+    ev.stopPropagation();
+    setOpen(dock.getAttribute("data-popup") !== "open");
+  });
+  if (cal) cal.addEventListener("click", function (ev) { ev.stopPropagation(); });
+  dock.querySelectorAll("[data-docked-month]").forEach(function (btn) {
+    btn.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      var label = dock.querySelector("[data-docked-month-label]");
+      if (!label) return;
+      var delta = parseInt(btn.getAttribute("data-docked-month") || "0", 10);
+      var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var parts = (label.textContent || "September 2026").replace(" ▾","").split(" ");
+      var mi = months.indexOf(parts[0]);
+      var year = parseInt(parts[1] || "2026", 10);
+      if (mi < 0) mi = 8;
+      mi += delta;
+      while (mi < 0) { mi += 12; year -= 1; }
+      while (mi > 11) { mi -= 12; year += 1; }
+      label.textContent = months[mi] + " " + year + " ▾";
+    });
+  });
+  document.addEventListener("click", function () {
+    if (dock.getAttribute("data-dismiss-outside") === "1") setOpen(false);
+  });
+});
+document.querySelectorAll("[data-search='1']").forEach(function (bar) {
+  bar.style.cursor = "pointer";
+  bar.addEventListener("click", function () {
+    var view = document.querySelector("[data-search-view]");
+    if (!view) return;
+    var open = view.getAttribute("data-open") !== "1";
+    view.setAttribute("data-open", open ? "1" : "0");
+    view.style.display = open ? "flex" : "none";
   });
 });
 </script>

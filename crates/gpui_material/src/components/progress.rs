@@ -1,4 +1,8 @@
 //! Progress indicators. Specs: https://m3.material.io/components/progress-indicators/specs
+//!
+//! Determinate linear/circular plus indeterminate / pull-to-refresh tokens.
+//! HTML catalog animates with motion springs; GPUI paints a static busy frame
+//! (no shared animation clock).
 
 use crate::argb::Argb;
 use crate::theme::Theme;
@@ -6,6 +10,11 @@ use crate::theme::Theme;
 pub const LINEAR_HEIGHT_DP: f32 = 4.0;
 pub const CIRCULAR_SIZE_DP: f32 = 48.0;
 pub const CIRCULAR_STROKE_DP: f32 = 4.0;
+/// Sliding head width for the indeterminate linear indicator (fraction of track).
+pub const INDETERMINATE_SPAN: f32 = 0.35;
+pub const PTR_SIZE_DP: f32 = 40.0;
+pub const PTR_STROKE_DP: f32 = 4.0;
+pub const PTR_LABEL: &str = "Pull to refresh";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LinearProgress {
@@ -22,6 +31,27 @@ pub struct CircularProgress {
     pub track: Argb,
     pub indicator: Argb,
     pub progress: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IndeterminateLinear {
+    pub height_dp: f32,
+    pub track: Argb,
+    pub indicator: Argb,
+    pub head_span: f32,
+    pub duration_ms: u16,
+    pub easing: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IndeterminateCircular {
+    pub size_dp: f32,
+    pub stroke_dp: f32,
+    pub track: Argb,
+    pub indicator: Argb,
+    pub arc_deg: f32,
+    pub duration_ms: u16,
+    pub easing: &'static str,
 }
 
 pub fn linear(theme: &Theme, progress: f32) -> LinearProgress {
@@ -41,4 +71,35 @@ pub fn circular(theme: &Theme, progress: f32) -> CircularProgress {
         indicator: theme.color.primary,
         progress: progress.clamp(0.0, 1.0),
     }
+}
+
+pub fn linear_indeterminate(theme: &Theme) -> IndeterminateLinear {
+    IndeterminateLinear {
+        height_dp: LINEAR_HEIGHT_DP,
+        track: theme.color.secondary_container,
+        indicator: theme.color.primary,
+        head_span: INDETERMINATE_SPAN,
+        duration_ms: theme.motion.spatial_fast_ms.saturating_mul(4),
+        easing: theme.motion.effects_default,
+    }
+}
+
+pub fn circular_indeterminate(theme: &Theme) -> IndeterminateCircular {
+    IndeterminateCircular {
+        size_dp: CIRCULAR_SIZE_DP,
+        stroke_dp: CIRCULAR_STROKE_DP,
+        track: theme.color.secondary_container,
+        indicator: theme.color.primary,
+        arc_deg: 90.0,
+        duration_ms: theme.motion.effects_default_ms.saturating_mul(6),
+        easing: theme.motion.effects_default,
+    }
+}
+
+/// Pull-to-refresh style circular at the top of a scroll surface.
+pub fn pull_to_refresh(theme: &Theme) -> IndeterminateCircular {
+    let mut a = circular_indeterminate(theme);
+    a.size_dp = PTR_SIZE_DP;
+    a.stroke_dp = PTR_STROKE_DP;
+    a
 }

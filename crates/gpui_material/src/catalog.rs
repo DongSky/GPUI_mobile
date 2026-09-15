@@ -2,7 +2,7 @@
 
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, progress, radio, search, slider, snackbar, switch,
+    fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
     tabs, text_field, time_picker, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
@@ -159,16 +159,41 @@ a {{ color: var(--primary); }}
 .search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
 .search-bar .hint {{ flex: 1; font-size: 16px; line-height: 24px; }}
 .search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
+.search-view {{
+  display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
+}}
+.search-view .sv-head {{
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+}}
+.search-view .sv-list {{ display: flex; flex-direction: column; }}
+.search-view .sv-row {{
+  display: flex; align-items: center; gap: 16px; padding: 0 16px;
+  min-height: 56px; font-size: 16px;
+}}
 .timepicker {{
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
 }}
 .timepicker .time-row {{ display: flex; align-items: center; gap: 12px; }}
+.timepicker .time-fields {{ display: flex; align-items: center; gap: 4px; }}
+.timepicker .time-field {{
+  min-width: 64px; padding: 8px 12px; border-radius: 8px; text-align: center;
+  cursor: pointer; border: 2px solid transparent;
+}}
 .timepicker .clock {{
   position: relative; border-radius: 50%; flex: 0 0 auto;
 }}
-.timepicker .hour {{
+.timepicker .hour, .timepicker .minute {{
   position: absolute; display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
+}}
+.timepicker .hand {{
+  position: absolute; left: 50%; top: 50%; width: 2px; height: 38%;
+  margin-left: -1px; margin-top: -38%;
+  transform-origin: 50% 100%; border-radius: 1px; pointer-events: none;
+}}
+.timepicker .hub {{
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+  margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none;
 }}
 .period {{ display: flex; flex-direction: column; gap: 8px; }}
 .period button {{
@@ -251,10 +276,23 @@ a {{ color: var(--primary); }}
   position: absolute; top: 50%; transform: translateY(-50%);
   border-radius: 50%;
 }}
-.linear {{ width: 240px; height: 4px; border-radius: 2px; overflow: hidden; }}
+.linear {{ width: 240px; height: 4px; border-radius: 2px; overflow: hidden; position: relative; }}
 .linear i {{ display: block; height: 100%; }}
+.linear.indet i {{
+  position: absolute; left: 0; top: 0;
+  animation: m3indet 1400ms {ease} infinite;
+}}
 .circ {{
   width: 48px; height: 48px; border-radius: 24px;
+}}
+.circ.indet {{ animation: m3spin 1200ms linear infinite; }}
+.ptr {{ display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }}
+@keyframes m3indet {{
+  0% {{ transform: translateX(-120%); }}
+  100% {{ transform: translateX(340%); }}
+}}
+@keyframes m3spin {{
+  to {{ transform: rotate(360deg); }}
 }}
 .snack {{
   min-height: 48px; padding: 0 16px; border-radius: 4px; gap: 16px;
@@ -266,6 +304,14 @@ a {{ color: var(--primary); }}
 }}
 .nav .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; }}
 .nav .ind {{ width: 64px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.nav-rail {{
+  width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 16px 0; border-radius: 0;
+}}
+.nav-rail .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; width: 80px; }}
+.nav-rail .ind {{ width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.month-nav {{ display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; font-weight: 500; }}
+.month-nav button {{ border: none; background: transparent; cursor: pointer; font-size: 18px; padding: 4px 8px; color: inherit; }}
 table.inv {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
 table.inv th, table.inv td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid {outline_var}; vertical-align: top; }}
 table.inv th {{ font-weight: 500; }}
@@ -405,19 +451,96 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
   }});
 }});
 document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
-  var handles = row.querySelectorAll(".xhandle");
-  if (handles[0]) handles[0].style.cursor = "pointer";
-  if (handles[1]) handles[1].style.cursor = "pointer";
-  if (handles[0]) handles[0].addEventListener("click", function () {{
-    var start = Math.max(0, parseFloat(row.getAttribute("data-start") || "0.2") - 0.05);
+  var slider = row.querySelector(".xslider");
+  if (!slider) return;
+  row.tabIndex = 0;
+  row.setAttribute("data-range-focus", "start");
+  var dragging = null;
+  function clampRange(start, end) {{
+    start = Math.max(0, Math.min(1 - 0.05, start));
+    end = Math.max(start + 0.05, Math.min(1, end));
+    return [start, end];
+  }}
+  function fracFromEvent(ev) {{
+    var r = slider.getBoundingClientRect();
+    if (!r.width) return 0;
+    return Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+  }}
+  function paint(start, end) {{
     row.setAttribute("data-start", start.toFixed(2));
-  }});
-  if (handles[1]) handles[1].addEventListener("click", function () {{
-    var end = Math.min(1, parseFloat(row.getAttribute("data-end") || "0.75") + 0.05);
     row.setAttribute("data-end", end.toFixed(2));
+    var segs = slider.querySelectorAll(".xseg");
+    if (segs[0]) segs[0].style.width = (Math.max(6, start * 42)).toFixed(1) + "%";
+    if (segs[1]) segs[1].style.width = (Math.max(8, (end - start) * 42)).toFixed(1) + "%";
+    var lab = row.querySelector(".slider-label");
+    if (lab) lab.textContent = "Price range · " + Math.round(start * 100) + "–" + Math.round(end * 100) + "%";
+  }}
+  function clickStep(start, end, fraction) {{
+    var pad = 0.04;
+    if (Math.abs(fraction - start) <= pad) return clampRange(start + 0.05, end);
+    if (Math.abs(fraction - end) <= pad) return clampRange(start, end + 0.05);
+    if (fraction < start) return clampRange(start - 0.05, end);
+    if (fraction > end) return clampRange(start, end - 0.05);
+    var mid = (start + end) / 2;
+    if (Math.abs(fraction - start) <= Math.abs(fraction - end)) return clampRange(mid, end);
+    return clampRange(start, mid);
+  }}
+  slider.addEventListener("pointerdown", function (ev) {{
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var f = fracFromEvent(ev);
+    dragging = Math.abs(f - start) <= Math.abs(f - end) ? "start" : "end";
+    row.setAttribute("data-range-focus", dragging);
+    try {{ slider.setPointerCapture(ev.pointerId); }} catch (e) {{}}
+    ev.preventDefault();
+  }});
+  slider.addEventListener("pointermove", function (ev) {{
+    if (!dragging) return;
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var f = fracFromEvent(ev);
+    var next = dragging === "start" ? clampRange(f, end) : clampRange(start, f);
+    paint(next[0], next[1]);
+  }});
+  slider.addEventListener("pointerup", function () {{ dragging = null; }});
+  slider.addEventListener("click", function (ev) {{
+    if (dragging) return;
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var next = clickStep(start, end, fracFromEvent(ev));
+    paint(next[0], next[1]);
+  }});
+  row.addEventListener("keydown", function (ev) {{
+    var start = parseFloat(row.getAttribute("data-start") || "0.2");
+    var end = parseFloat(row.getAttribute("data-end") || "0.75");
+    var focus = row.getAttribute("data-range-focus") || "start";
+    var delta = 0;
+    if (ev.key === "ArrowLeft" || ev.key === "h") delta = -0.05;
+    if (ev.key === "ArrowRight" || ev.key === "l") delta = 0.05;
+    if (!delta) return;
+    var next = focus === "end" ? clampRange(start, end + delta) : clampRange(start + delta, end);
+    paint(next[0], next[1]);
+    ev.preventDefault();
   }});
 }});
 document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
+  function setDial(face) {{
+    picker.setAttribute("data-dial", face);
+    picker.querySelectorAll("[data-hour]").forEach(function (el) {{
+      el.style.display = face === "hour" ? "flex" : "none";
+    }});
+    picker.querySelectorAll("[data-minute]").forEach(function (el) {{
+      el.style.display = face === "minute" ? "flex" : "none";
+    }});
+    var hour = parseInt(picker.getAttribute("data-hour") || "6", 10);
+    var minute = parseInt(picker.getAttribute("data-minute") || "30", 10);
+    var deg = face === "minute" ? minute * 6 : hour * 30 + minute * 0.5;
+    var hand = picker.querySelector(".hand");
+    if (hand) hand.style.transform = "rotate(" + deg + "deg)";
+    picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
+      el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
+    }});
+  }}
   picker.querySelectorAll("[data-hour]").forEach(function (el) {{
     el.style.cursor = "pointer";
     el.addEventListener("click", function () {{
@@ -425,12 +548,72 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
       picker.querySelectorAll("[data-hour]").forEach(function (other) {{
         other.setAttribute("data-selected", other === el ? "1" : "0");
       }});
+      setDial("minute");
+    }});
+  }});
+  picker.querySelectorAll("[data-minute]").forEach(function (el) {{
+    el.style.cursor = "pointer";
+    el.addEventListener("click", function () {{
+      picker.setAttribute("data-minute", el.getAttribute("data-minute"));
+      picker.querySelectorAll("[data-minute]").forEach(function (other) {{
+        other.setAttribute("data-selected", other === el ? "1" : "0");
+      }});
+      setDial("minute");
+    }});
+  }});
+  picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
+    el.addEventListener("click", function () {{
+      setDial(el.getAttribute("data-time-field"));
     }});
   }});
   picker.querySelectorAll("[data-period]").forEach(function (btn) {{
     btn.addEventListener("click", function () {{
       picker.setAttribute("data-period", btn.getAttribute("data-period"));
     }});
+  }});
+  setDial(picker.getAttribute("data-dial") || "minute");
+}});
+document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
+  var cal = dock.querySelector("[data-datepicker-popup]");
+  var field = dock.querySelector("[data-field-hero='docked-date']");
+  function setOpen(open) {{
+    dock.setAttribute("data-popup", open ? "open" : "closed");
+    if (cal) cal.style.display = open ? "" : "none";
+  }}
+  if (field) field.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    setOpen(dock.getAttribute("data-popup") !== "open");
+  }});
+  if (cal) cal.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
+  dock.querySelectorAll("[data-docked-month]").forEach(function (btn) {{
+    btn.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      var label = dock.querySelector("[data-docked-month-label]");
+      if (!label) return;
+      var delta = parseInt(btn.getAttribute("data-docked-month") || "0", 10);
+      var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      var parts = (label.textContent || "September 2026").replace(" ▾","").split(" ");
+      var mi = months.indexOf(parts[0]);
+      var year = parseInt(parts[1] || "2026", 10);
+      if (mi < 0) mi = 8;
+      mi += delta;
+      while (mi < 0) {{ mi += 12; year -= 1; }}
+      while (mi > 11) {{ mi -= 12; year += 1; }}
+      label.textContent = months[mi] + " " + year + " ▾";
+    }});
+  }});
+  document.addEventListener("click", function () {{
+    if (dock.getAttribute("data-dismiss-outside") === "1") setOpen(false);
+  }});
+}});
+document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
+  bar.style.cursor = "pointer";
+  bar.addEventListener("click", function () {{
+    var view = document.querySelector("[data-search-view]");
+    if (!view) return;
+    var open = view.getAttribute("data-open") !== "1";
+    view.setAttribute("data-open", open ? "1" : "0");
+    view.style.display = open ? "flex" : "none";
   }});
 }});
 </script>
@@ -1300,6 +1483,26 @@ fn cards(theme: &Theme) -> String {
 fn chrome(theme: &Theme) -> String {
     let snack = snackbar::resolve(theme);
     let nav = navigation_bar::resolve(theme);
+    let rail = navigation_rail::resolve(theme);
+    let mut rail_dests = String::new();
+    for (i, (label, icon)) in navigation_rail::DESTINATIONS
+        .iter()
+        .zip(navigation_rail::DESTINATION_ICONS.iter())
+        .enumerate()
+    {
+        if i == 0 {
+            rail_dests.push_str(&format!(
+                r#"<div class="dest" style="color:{fg}"><div class="ind" style="background:{ind}">{icon}</div>{label}</div>"#,
+                fg = rail.active_label.css_hex(),
+                ind = rail.active_indicator.css_hex(),
+            ));
+        } else {
+            rail_dests.push_str(&format!(
+                r#"<div class="dest" style="color:{fg}">{icon}<span>{label}</span></div>"#,
+                fg = rail.inactive_label.css_hex(),
+            ));
+        }
+    }
     format!(
         r#"<h2>Snackbar</h2>
 <div class="snack" data-snackbar="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
@@ -1311,7 +1514,10 @@ fn chrome(theme: &Theme) -> String {
   <div class="dest" style="color:{nact}"><div class="ind" style="background:{ind}">●</div>Home</div>
   <div class="dest" style="color:{nin}">○<span>Search</span></div>
   <div class="dest" style="color:{nin}">○<span>Profile</span></div>
-</div>"#,
+</div>
+<h2>Navigation rail</h2>
+<p class="note">80dp vertical destinations, 56×32 active indicator. Catalog stub — no collapsed/expanded modal. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<div class="nav-rail" data-nav-rail="1" data-hero="nav-rail" style="background:{rbg}">{rail_dests}</div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
         sr = snack.corners.top_left,
@@ -1320,22 +1526,47 @@ fn chrome(theme: &Theme) -> String {
         nact = nav.active_label.css_hex(),
         ind = nav.active_indicator.css_hex(),
         nin = nav.inactive_label.css_hex(),
+        rbg = rail.container.css_hex(),
+        rail_dests = rail_dests,
     )
 }
 
 fn progress_section(theme: &Theme) -> String {
     let lin = progress::linear(theme, 0.6);
     let circ = progress::circular(theme, 0.6);
+    let indet = progress::linear_indeterminate(theme);
+    let circ_i = progress::circular_indeterminate(theme);
+    let ptr = progress::pull_to_refresh(theme);
     format!(
         r#"<h2>Progress</h2>
+<p class="note">Determinate plus indeterminate / pull-to-refresh. HTML animates with spatial/effects springs; GPUI paints a static busy frame. <a href="https://m3.material.io/components/progress-indicators/specs">spec</a></p>
 <div class="linear" data-progress="linear" style="background:{track}"><i style="width:{p}%;background:{ind}"></i></div>
-<div class="circ" data-progress="circular" style="background:conic-gradient({cind} {ang}deg, {ctrack} 0deg)"></div>"#,
+<div class="circ" data-progress="circular" style="background:conic-gradient({cind} {ang}deg, {ctrack} 0deg)"></div>
+<h3>indeterminate</h3>
+<div class="linear indet" data-progress="indeterminate" data-hero="progress-indet" style="background:{itrack};margin:12px 0"><i style="width:{span}%;background:{iind}"></i></div>
+<div class="circ indet" data-progress="circular-indet" style="background:conic-gradient({ciind} {arc}deg, {citrack} 0deg)"></div>
+<div class="ptr" data-progress="ptr" data-hero="progress-ptr">
+  <div class="circ indet" style="width:{psz}px;height:{psz}px;border-radius:{pr}px;background:conic-gradient({pind} {parc}deg, {ptrack} 0deg)"></div>
+  <div class="note">{plabel}</div>
+</div>"#,
         track = lin.track.css_hex(),
         ind = lin.indicator.css_hex(),
         p = lin.progress * 100.0,
         cind = circ.indicator.css_hex(),
         ctrack = circ.track.css_hex(),
         ang = circ.progress * 360.0,
+        itrack = indet.track.css_hex(),
+        iind = indet.indicator.css_hex(),
+        span = indet.head_span * 100.0,
+        ciind = circ_i.indicator.css_hex(),
+        citrack = circ_i.track.css_hex(),
+        arc = circ_i.arc_deg,
+        psz = ptr.size_dp,
+        pr = ptr.size_dp / 2.0,
+        pind = ptr.indicator.css_hex(),
+        parc = ptr.arc_deg,
+        ptrack = ptr.track.css_hex(),
+        plabel = progress::PTR_LABEL,
     )
 }
 
@@ -1528,7 +1759,7 @@ fn paint_range_slider(a: &slider::RangeSliderAppearance, label: &str) -> String 
     let left = (a.start * 42.0).max(6.0);
     let mid = ((a.end - a.start) * 42.0).max(8.0);
     format!(
-        r#"<div class="slider-row" data-slider-range="1" data-start="{start}" data-end="{end}">
+        r#"<div class="slider-row" data-slider-range="1" data-start="{start}" data-end="{end}" data-range-interactive="1">
   <div class="slider-meta"><div class="slider-label">{label}</div>
   <div class="xslider" data-slider="{label}" data-handle-visual="{hv}">
     <div class="xseg inactive" style="width:{lw}%;height:{th}px;background:{inactive};border-radius:{oc}px {ic}px {ic}px {oc}px"></div>
@@ -1573,7 +1804,7 @@ fn sliders(theme: &Theme) -> String {
             icon = row.icon,
         ));
     }
-    out.push_str("<p class=\"note\">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops().</p></div>");
+    out.push_str("<p class=\"note\">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops(). Range: pointer-drag thumbs, keyboard arrows, 5% click-step.</p></div>");
     let range = slider::resolve_range(
         theme,
         slider::RANGE_DEMO_START,
@@ -1737,7 +1968,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow; HTML keeps it open for QA (desktop dismisses on select). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -1760,10 +1991,14 @@ fn date_pickers(theme: &Theme) -> String {
     <button class="btn" style="background:transparent;color:{act}">OK</button>
   </div>
 </div>
-<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open">
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1">
   {docked_field}
   <div class="cal dialog" data-datepicker-popup="open" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
-    <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
+    <div class="month-nav">
+      <button type="button" data-docked-month="-1" aria-label="Previous month">&lt;</button>
+      <div data-docked-month-label="1">{month}</div>
+      <button type="button" data-docked-month="1" aria-label="Next month">&gt;</button>
+    </div>
     <div class="week">{week}</div>
     <div class="grid">{grid}</div>
   </div>
@@ -1807,14 +2042,34 @@ fn date_pickers(theme: &Theme) -> String {
 
 fn search_section(theme: &Theme) -> String {
     let a = search::resolve(theme);
+    let view = search::resolve_view(theme);
+    let mut rows = String::new();
+    for (i, label) in search::SUGGESTIONS.iter().enumerate() {
+        rows.push_str(&format!(
+            r#"<div class="sv-row" data-search-suggestion="{label}" style="color:{fg};height:{h}px"><span style="color:{ico}">{icon}</span><span>{label}</span></div>"#,
+            fg = view.suggestion.css_hex(),
+            h = view.suggestion_h_dp,
+            ico = view.suggestion_icon.css_hex(),
+            icon = if i == 0 { "⌕" } else { "◌" },
+        ));
+    }
     format!(
         r#"<h2>Search</h2>
-<p class="note">Docked 56dp full-round bar on surface-container-high. Expanded search view is not in this catalog. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<p class="note">Docked 56dp full-round bar plus expanded search view/sheet (back, input, suggestions). Tap the bar to toggle. <a href="https://m3.material.io/components/search/specs">spec</a></p>
 <div class="search-bar" data-search="1" data-hero="search" style="background:{bg};color:{hint};height:{h}px;border-radius:{r}px">
   <div class="ico" aria-hidden="true" style="color:{lead}">{lead_ico}</div>
   <div class="hint">{placeholder}</div>
   <div class="ico" aria-hidden="true">{mic}</div>
   <div class="avatar" style="background:{abg};color:{afg}">A</div>
+</div>
+<div class="search-view" data-search-view="1" data-open="1" data-hero="search-view" style="background:{vbg};border-radius:{vr}px;box-shadow:{vsh};margin-top:12px">
+  <div class="sv-head" style="height:{vh}px;color:{vfg}">
+    <div class="ico" aria-hidden="true">{back}</div>
+    <div class="hint" style="flex:1;color:{vph}">{placeholder}</div>
+    <div class="ico">{mic}</div>
+  </div>
+  <div style="height:1px;background:{vdiv}"></div>
+  <div class="sv-list">{rows}</div>
 </div>"#,
         bg = a.bar.container.css_hex(),
         hint = a.placeholder.css_hex(),
@@ -1826,6 +2081,15 @@ fn search_section(theme: &Theme) -> String {
         mic = search::TRAILING_MIC,
         abg = a.avatar.css_hex(),
         afg = a.avatar_label.css_hex(),
+        vbg = view.container.css_hex(),
+        vr = view.corners.top_left,
+        vsh = ElevationLevels::css_shadow(view.elevation_dp),
+        vh = view.header_h_dp,
+        vfg = view.header.css_hex(),
+        vph = view.placeholder.css_hex(),
+        back = search::VIEW_BACK,
+        vdiv = view.divider.css_hex(),
+        rows = rows,
     )
 }
 
@@ -1845,7 +2109,7 @@ fn time_picker_section(theme: &Theme) -> String {
             ("transparent".into(), a.number.css_hex(), a.number_style.weight)
         };
         hours.push_str(&format!(
-            r#"<div class="hour" data-hour="{h}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{h}</div>"#,
+            r#"<div class="hour" data-hour="{h}" data-selected="{sel}" style="display:none;left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{h}</div>"#,
             h = h,
             sel = selected as u8,
             x = x,
@@ -1854,6 +2118,32 @@ fn time_picker_section(theme: &Theme) -> String {
             bg = bg,
             fg = fg,
             fw = fw,
+        ));
+    }
+    let mut minutes = String::new();
+    for m in time_picker::minute_labels() {
+        let (x, y) = time_picker::minute_offset(m, a.clock_dp, a.number_dp);
+        let selected = m == time_picker::DEMO_MINUTE;
+        let (bg, fg, fw) = if selected {
+            (
+                a.number_selected_container.css_hex(),
+                a.number_selected.css_hex(),
+                a.time_style.weight,
+            )
+        } else {
+            ("transparent".into(), a.number.css_hex(), a.number_style.weight)
+        };
+        minutes.push_str(&format!(
+            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+            m = m,
+            sel = selected as u8,
+            x = x,
+            y = y,
+            n = a.number_dp,
+            bg = bg,
+            fg = fg,
+            fw = fw,
+            label = format!("{:02}", m),
         ));
     }
     let am = time_picker::DayPeriod::Am;
@@ -1868,19 +2158,33 @@ fn time_picker_section(theme: &Theme) -> String {
     } else {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
+    let hand_deg = time_picker::hand_angle_deg(
+        time_picker::DEMO_DIAL,
+        time_picker::DEMO_HOUR,
+        time_picker::DEMO_MINUTE,
+    );
+    let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
     format!(
         r#"<h2>Time picker</h2>
-<p class="note">12-hour dial, displaySmallEmphasized header, AM/PM. Selector hand is static. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">12-hour + minute dial, analog selector hand, displaySmallEmphasized header, AM/PM. Header fields toggle the face. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-dial="minute" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div style="color:{hy};font-size:{ys}px">{title}</div>
   <div class="time-row">
-    <div data-time-header="1" style="color:{hd};font-size:{ds}px;font-weight:{dw};letter-spacing:{dt}px">{headline}</div>
+    <div class="time-fields">
+      <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
+      <div style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
+      <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{mm}</div>
+    </div>
     <div class="period">
       <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
       <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
     </div>
   </div>
-  <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">{hours}</div>
+  <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
+    <div class="hand" style="background:{hand};transform:rotate({deg}deg)"></div>
+    <div class="hub" style="background:{hand}"></div>
+    {hours}{minutes}
+  </div>
 </div>"#,
         hour = time_picker::DEMO_HOUR,
         minute = time_picker::DEMO_MINUTE,
@@ -1894,12 +2198,10 @@ fn time_picker_section(theme: &Theme) -> String {
         hd = a.header.css_hex(),
         ds = a.time_style.size_sp,
         dw = a.time_style.weight,
-        dt = a.time_style.tracking_sp,
-        headline = time_picker::header_label(
-            time_picker::DEMO_HOUR,
-            time_picker::DEMO_MINUTE,
-            time_picker::DEMO_PERIOD
-        ),
+        hh = time_picker::format_hour_field(time_picker::DEMO_HOUR),
+        mm = time_picker::format_minute_field(time_picker::DEMO_MINUTE),
+        ha = hour_active as u8,
+        ma = (!hour_active) as u8,
         amb = am_bg,
         amf = am_fg,
         pmb = pm_bg,
@@ -1909,6 +2211,9 @@ fn time_picker_section(theme: &Theme) -> String {
         clock = a.clock_dp,
         clk = a.clock.css_hex(),
         hours = hours,
+        minutes = minutes,
+        hand = a.hand.css_hex(),
+        deg = hand_deg,
     )
 }
 

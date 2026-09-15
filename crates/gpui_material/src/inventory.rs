@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined true cutout with 4dp corner tiles meeting 1–2dp stroke; fieldset legend on HTML; focus outline 2dp; IME still NativeActivity stub",
+        notes: "Floating label; outlined notch matches fieldset (8dp start, stroke-height cutout, legend on top stroke); 4dp corner tiles; focus outline 2dp; IME still NativeActivity stub",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate only in catalog; no wavy/indeterminate motion",
+        notes: "Determinate linear/circular + indeterminate sliding head / spinning arc (HTML motion tokens; GPUI static busy frame) + 40dp pull-to-refresh hero",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -180,6 +180,13 @@ pub const INVENTORY: &[ComponentEntry] = &[
         docs: "https://m3.material.io/components/navigation-bar/specs",
         parity: Parity::Done,
         notes: "80dp; active indicator 64×32; 3 destinations in catalog",
+    },
+    ComponentEntry {
+        name: "Navigation rail",
+        material: "Navigation rail",
+        docs: "https://m3.material.io/components/navigation-rail/specs",
+        parity: Parity::Done,
+        notes: "80dp vertical stub; 56×32 active indicator; Home/Search/Profile heroes; no collapsed/expanded modal or FAB slot",
     },
     ComponentEntry {
         name: "Dialog",
@@ -207,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with 5% step / nearest-thumb track tap; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with pointer-drag, keyboard arrows, and 5% click-step; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -228,21 +235,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, dismiss, write-back); month ▾ chrome; emphasized large date",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, select dismiss, outside-click dismiss, month nav); month ▾ chrome; emphasized large date",
     },
     ComponentEntry {
         name: "Search",
-        material: "Search bar (docked)",
+        material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round surface-container-high bar; leading search + hinted text + trailing; no expanded search-view sheet",
+        notes: "56dp full-round docked bar + expanded search view/sheet (back, input, suggestion list); no full-screen search activity",
     },
     ComponentEntry {
         name: "Time picker",
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour dial tokens; 256dp clock; displaySmallEmphasized header; AM/PM; selected hour morph; no analog hand animation",
+        notes: "12-hour + minute dial; analog selector hand (HTML rotate / GPUI dots); displaySmallEmphasized header; AM/PM; hand motion not animated",
     },
 ];
 

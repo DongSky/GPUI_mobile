@@ -245,6 +245,8 @@ pub const DOCKED_FIELD_LABEL: &str = "Date of birth";
 pub const DOCKED_OPEN_BY_DEFAULT: bool = true;
 /// Selecting a day writes the field and dismisses (desktop/Android popup).
 pub const DOCKED_DISMISS_ON_SELECT: bool = true;
+/// Clicking outside the field+popup dismisses (desktop/HTML/Android).
+pub const DOCKED_DISMISS_ON_OUTSIDE: bool = true;
 
 pub fn docked_field_value(date: CivilDate) -> String {
     format!("{}, {}", header_date_short(date), date.year)

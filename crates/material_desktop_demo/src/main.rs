@@ -15,15 +15,16 @@
 
 use gpui::prelude::*;
 use gpui::{
-    div, px, size, App, Bounds, Context, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
+    div, px, size, App, Bounds, Context, FontWeight, IntoElement, KeyDownEvent, MouseButton,
+    MouseMoveEvent, ParentElement, Render, SharedString, Styled, TitlebarOptions, Window,
+    WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
-use gpui_material::components::time_picker::{self, DayPeriod};
+use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    button, button_group, checkbox, dialog, icon_button, radio, search, slider, switch, tabs,
-    text_field, top_app_bar,
+    button, button_group, checkbox, dialog, icon_button, navigation_rail, progress, radio, search,
+    slider, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -76,10 +77,15 @@ struct CatalogView {
     group_selected: usize,
     range_start: f32,
     range_end: f32,
+    range_drag: Option<slider::RangeThumb>,
+    range_focus: slider::RangeThumb,
+    range_moved: bool,
     docked_open: bool,
+    search_open: bool,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
+    time_dial: DialFace,
 }
 
 impl CatalogView {
@@ -346,6 +352,8 @@ fn catalog_body(
         .child(section_title(theme, "Slider"))
         .child(volume_slider_scene(theme, this.slider, cx))
         .child(range_slider_hero(this, theme, cx))
+        .child(section_title(theme, "Progress"))
+        .child(progress_heroes(theme))
         .child(
             div()
                 .text_size(px(12.))
@@ -422,6 +430,8 @@ fn catalog_body(
                 ),
         )
         .child(tab_row(&tabs_p, this.tab, cx))
+        .child(section_title(theme, "Navigation rail"))
+        .child(nav_rail_hero(theme))
         .child(section_title(theme, "Dialog"))
         .child(
             div()
@@ -451,7 +461,7 @@ fn catalog_body(
                 )),
         )
         .child(section_title(theme, "Search"))
-        .child(search_bar_hero(theme))
+        .child(search_bar_hero(this, theme, cx))
         .child(section_title(theme, "Time picker"))
         .child(time_picker_hero(this, theme, cx))
         .child(section_title(theme, "Date picker"))
@@ -519,11 +529,75 @@ fn range_slider_hero(
     let total = 280.0;
     let left = (total * range.start).max(12.0);
     let mid = (total * (range.end - range.start)).max(16.0);
+    let cells = (0..slider::RANGE_DRAG_CELLS).map(|i| {
+        let frac = slider::drag_cell_fraction(i);
+        div()
+            .id(SharedString::from(format!("range-cell-{i}")))
+            .flex_1()
+            .h_full()
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    this.range_focus =
+                        slider::nearest_thumb(this.range_start, this.range_end, frac);
+                    this.range_drag = Some(this.range_focus);
+                    this.range_moved = false;
+                    cx.notify();
+                }),
+            )
+            .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
+                if ev.dragging() {
+                    if let Some(thumb) = this.range_drag {
+                        let (s, e) =
+                            slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
+                        this.range_start = s;
+                        this.range_end = e;
+                        this.range_moved = true;
+                        cx.notify();
+                    }
+                }
+            }))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if this.range_moved {
+                    this.range_drag = None;
+                    this.range_moved = false;
+                    cx.notify();
+                    return;
+                }
+                let (s, e) = slider::click_step(this.range_start, this.range_end, frac);
+                this.range_start = s;
+                this.range_end = e;
+                this.range_drag = None;
+                cx.notify();
+            }))
+    });
     div()
+        .id("range-slider")
+        .tab_index(0)
         .w_full()
         .flex()
         .flex_col()
         .gap(px(4.))
+        .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            if let Some((s, e, thumb)) = slider::apply_arrow(
+                this.range_start,
+                this.range_end,
+                this.range_focus,
+                &ev.keystroke.key,
+            ) {
+                this.range_start = s;
+                this.range_end = e;
+                this.range_focus = thumb;
+                cx.notify();
+            }
+        }))
+        .on_mouse_up(
+            MouseButton::Left,
+            cx.listener(|this, _, _, cx| {
+                this.range_drag = None;
+                cx.notify();
+            }),
+        )
         .child(spaced_line(
             slider::range_value_label(range.start, range.end),
             12.0,
@@ -531,102 +605,62 @@ fn range_slider_hero(
         ))
         .child(
             div()
+                .relative()
                 .w(px(total))
                 .h(px(t.target_dp))
-                .flex()
-                .items_center()
                 .child(
                     div()
-                        .id("range-left")
-                        .h(px(t.track_h))
-                        .w(px(left))
-                        .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_start(
-                                this.range_start,
-                                this.range_end,
-                                -slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
+                        .w(px(total))
+                        .h(px(t.target_dp))
+                        .flex()
+                        .items_center()
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(left))
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(mid))
+                                .rounded(px(t.inner_corner))
+                                .bg(paint(t.active)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .flex_1()
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        ),
                 )
                 .child(
                     div()
-                        .id("range-start")
-                        .mx(px(t.gap_dp))
-                        .w(px(t.handle_w.max(12.0)))
-                        .h(px(t.handle_h_visual))
-                        .rounded(px(2.))
-                        .bg(paint(t.handle))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_start(
-                                this.range_start,
-                                this.range_end,
-                                slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
-                )
-                .child(
-                    div()
-                        .id("range-mid")
-                        .h(px(t.track_h))
-                        .w(px(mid))
-                        .rounded(px(t.inner_corner))
-                        .bg(paint(t.active))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let mid = (this.range_start + this.range_end) * 0.5;
-                            let (s, e) = slider::move_nearest(
-                                this.range_start,
-                                this.range_end,
-                                mid,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
-                )
-                .child(
-                    div()
-                        .id("range-end")
-                        .mx(px(t.gap_dp))
-                        .w(px(t.handle_w.max(12.0)))
-                        .h(px(t.handle_h_visual))
-                        .rounded(px(2.))
-                        .bg(paint(t.handle))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_end(
-                                this.range_start,
-                                this.range_end,
-                                slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
-                )
-                .child(
-                    div()
-                        .id("range-right")
-                        .h(px(t.track_h))
-                        .flex_1()
-                        .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_end(
-                                this.range_start,
-                                this.range_end,
-                                -slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(total))
+                        .h(px(t.target_dp))
+                        .flex()
+                        .children(cells),
                 ),
         )
 }
@@ -749,11 +783,49 @@ fn docked_date_picker(
             .flex()
             .flex_col()
             .gap(px(4.))
-            .child(spaced_line(
-                date_picker::month_nav_label(this.picker_year, this.picker_month),
-                pick.year_style.size_sp,
-                paint(pick.header_year),
-            ))
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        div()
+                            .id("docked-month-prev")
+                            .p(px(8.))
+                            .child("<")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let (y, m) = date_picker::add_months(
+                                    this.picker_year,
+                                    this.picker_month,
+                                    -1,
+                                );
+                                this.picker_year = y;
+                                this.picker_month = m;
+                                cx.notify();
+                            })),
+                    )
+                    .child(spaced_line(
+                        date_picker::month_nav_label(this.picker_year, this.picker_month),
+                        pick.year_style.size_sp,
+                        paint(pick.header_year),
+                    ))
+                    .child(
+                        div()
+                            .id("docked-month-next")
+                            .p(px(8.))
+                            .child(">")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                let (y, m) = date_picker::add_months(
+                                    this.picker_year,
+                                    this.picker_month,
+                                    1,
+                                );
+                                this.picker_year = y;
+                                this.picker_month = m;
+                                cx.notify();
+                            })),
+                    ),
+            )
             .child(weekday_row(pick, cal_w))
             .child(div().w(px(cal_w)).flex().flex_wrap().children(
                 cells.iter().copied().enumerate().map(|(i, (day, kind))| {
@@ -789,10 +861,17 @@ fn docked_date_picker(
             .into_any_element()
     });
     div()
+        .id("docked-date")
         .flex()
         .flex_col()
         .gap(px(4.))
         .w(px(cal_w + 32.0))
+        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+            if date_picker::DOCKED_DISMISS_ON_OUTSIDE && this.docked_open {
+                this.docked_open = false;
+                cx.notify();
+            }
+        }))
         .child(field_block(
             "docked-date-field",
             &field,
@@ -1474,9 +1553,15 @@ fn m_button(
         .when(!disabled, |el| el.on_click(on_click))
 }
 
-fn search_bar_hero(theme: &Theme) -> impl IntoElement {
+fn search_bar_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let a = search::resolve(theme);
-    div()
+    let view = search::resolve_view(theme);
+    let bar = div()
+        .id("search-bar")
         .w_full()
         .h(px(a.bar.height_dp))
         .px(px(a.bar.pad_start_dp))
@@ -1520,6 +1605,69 @@ fn search_bar_hero(theme: &Theme) -> impl IntoElement {
                 .justify_center()
                 .child("A"),
         )
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.search_open = !this.search_open;
+            cx.notify();
+        }));
+    let sheet = this.search_open.then(|| {
+        div()
+            .w_full()
+            .mt(px(8.))
+            .rounded(px(view.corners.top_left))
+            .bg(paint(view.container))
+            .shadow_md()
+            .flex()
+            .flex_col()
+            .child(
+                div()
+                    .h(px(view.header_h_dp))
+                    .px(px(16.))
+                    .flex()
+                    .items_center()
+                    .gap(px(16.))
+                    .child(
+                        div()
+                            .id("search-back")
+                            .text_color(paint(view.header))
+                            .child(search::VIEW_BACK)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.search_open = false;
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_color(paint(view.placeholder))
+                            .child(search::PLACEHOLDER),
+                    )
+                    .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC)),
+            )
+            .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
+            .children(search::SUGGESTIONS.iter().enumerate().map(|(i, label)| {
+                div()
+                    .id(SharedString::from(format!("search-sug-{i}")))
+                    .h(px(view.suggestion_h_dp))
+                    .px(px(16.))
+                    .flex()
+                    .items_center()
+                    .gap(px(16.))
+                    .text_color(paint(view.suggestion))
+                    .child(
+                        div()
+                            .text_color(paint(view.suggestion_icon))
+                            .child(if i == 0 { "⌕" } else { "◌" }),
+                    )
+                    .child(*label)
+            }))
+            .into_any_element()
+    });
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .child(bar)
+        .children(sheet)
 }
 
 fn time_picker_hero(
@@ -1530,7 +1678,22 @@ fn time_picker_hero(
     let a = time_picker::resolve(theme);
     let clock = a.clock_dp * 0.75;
     let number = 32.0;
-    let header = time_picker::header_label(this.time_hour, this.time_minute, this.time_period);
+    let hour_on = this.time_dial == DialFace::Hour;
+    let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
+        DialFace::Hour => (1u8..=12)
+            .map(|hour| {
+                let (x, y) = time_picker::hour_offset(hour, clock, number);
+                (hour, hour.to_string(), x, y, hour == this.time_hour)
+            })
+            .collect(),
+        DialFace::Minute => time_picker::minute_labels()
+            .map(|m| {
+                let (x, y) = time_picker::minute_offset(m, clock, number);
+                (m, format!("{m:02}"), x, y, m == this.time_minute)
+            })
+            .collect(),
+    };
+    let dots = time_picker::hand_dots(clock, this.time_dial, this.time_hour, this.time_minute, number);
     div()
         .w_full()
         .p(px(time_picker::CONTAINER_PAD_DP))
@@ -1552,12 +1715,61 @@ fn time_picker_hero(
                 .gap(px(12.))
                 .child(
                     div()
-                        .font_weight(type_weight(a.time_style))
-                        .child(spaced_line(
-                            header,
-                            a.time_style.size_sp,
-                            paint(a.header),
-                        )),
+                        .flex()
+                        .items_center()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .id("time-hour-field")
+                                .px(px(8.))
+                                .p(px(4.))
+                                .rounded(px(8.))
+                                .bg(paint(if hour_on {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if hour_on {
+                                    a.number_selected
+                                } else {
+                                    a.header
+                                }))
+                                .font_weight(type_weight(a.time_style))
+                                .child(time_picker::format_hour_field(this.time_hour))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.time_dial = DialFace::Hour;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .font_weight(type_weight(a.time_style))
+                                .text_color(paint(a.header))
+                                .child(":"),
+                        )
+                        .child(
+                            div()
+                                .id("time-minute-field")
+                                .px(px(8.))
+                                .p(px(4.))
+                                .rounded(px(8.))
+                                .bg(paint(if !hour_on {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if !hour_on {
+                                    a.number_selected
+                                } else {
+                                    a.header
+                                }))
+                                .font_weight(type_weight(a.time_style))
+                                .child(time_picker::format_minute_field(this.time_minute))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.time_dial = DialFace::Minute;
+                                    cx.notify();
+                                })),
+                        ),
                 )
                 .child(
                     div()
@@ -1600,11 +1812,31 @@ fn time_picker_hero(
                 .h(px(clock))
                 .rounded(px(clock / 2.0))
                 .bg(paint(a.clock))
-                .children((1u8..=12).map(|hour| {
-                    let (x, y) = time_picker::hour_offset(hour, clock, number);
-                    let selected = hour == this.time_hour;
+                .child(
                     div()
-                        .id(SharedString::from(format!("hour-{hour}")))
+                        .absolute()
+                        .left(px(clock / 2.0 - time_picker::HAND_HUB_DP / 2.0))
+                        .top(px(clock / 2.0 - time_picker::HAND_HUB_DP / 2.0))
+                        .w(px(time_picker::HAND_HUB_DP))
+                        .h(px(time_picker::HAND_HUB_DP))
+                        .rounded(px(time_picker::HAND_HUB_DP / 2.0))
+                        .bg(paint(a.hand)),
+                )
+                .children(dots.into_iter().enumerate().map(|(i, (x, y))| {
+                    div()
+                        .id(SharedString::from(format!("hand-dot-{i}")))
+                        .absolute()
+                        .left(px(x))
+                        .top(px(y))
+                        .w(px(time_picker::HAND_THICKNESS_DP * 2.0))
+                        .h(px(time_picker::HAND_THICKNESS_DP * 2.0))
+                        .rounded(px(time_picker::HAND_THICKNESS_DP))
+                        .bg(paint(a.hand))
+                }))
+                .children(labels.into_iter().map(|(value, label, x, y, selected)| {
+                    let face = this.time_dial;
+                    div()
+                        .id(SharedString::from(format!("dial-{value}")))
                         .absolute()
                         .left(px(x))
                         .top(px(y))
@@ -1624,12 +1856,148 @@ fn time_picker_hero(
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(hour.to_string())
+                        .child(label)
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.time_hour = time_picker::select_hour(this.time_hour, hour);
+                            match face {
+                                DialFace::Hour => {
+                                    this.time_hour = time_picker::select_hour(this.time_hour, value);
+                                    this.time_dial = DialFace::Minute;
+                                }
+                                DialFace::Minute => {
+                                    this.time_minute =
+                                        time_picker::select_minute(this.time_minute, value);
+                                }
+                            }
                             cx.notify();
                         }))
                 })),
+        )
+}
+
+fn nav_rail_hero(theme: &Theme) -> impl IntoElement {
+    let rail = navigation_rail::resolve(theme);
+    div()
+        .w(px(rail.width_dp))
+        .pt(px(navigation_rail::PAD_TOP_DP))
+        .bg(paint(rail.container))
+        .flex()
+        .flex_col()
+        .items_center()
+        .gap(px(navigation_rail::DEST_GAP_DP))
+        .children(
+            navigation_rail::DESTINATIONS
+                .iter()
+                .zip(navigation_rail::DESTINATION_ICONS.iter())
+                .enumerate()
+                .map(|(i, (label, icon))| {
+                    let active = i == 0;
+                    div()
+                        .w(px(rail.width_dp))
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .w(px(navigation_rail::INDICATOR_W_DP))
+                                .h(px(navigation_rail::INDICATOR_H_DP))
+                                .rounded(px(navigation_rail::INDICATOR_H_DP / 2.0))
+                                .bg(paint(if active {
+                                    rail.active_indicator
+                                } else {
+                                    rail.container
+                                }))
+                                .text_color(paint(if active {
+                                    rail.active_icon
+                                } else {
+                                    rail.inactive_icon
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(*icon),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(rail.label_style.size_sp))
+                                .text_color(paint(if active {
+                                    rail.active_label
+                                } else {
+                                    rail.inactive_label
+                                }))
+                                .child(*label),
+                        )
+                }),
+        )
+}
+
+fn progress_heroes(theme: &Theme) -> impl IntoElement {
+    let lin = progress::linear(theme, 0.6);
+    let indet = progress::linear_indeterminate(theme);
+    let ptr = progress::pull_to_refresh(theme);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .w(px(240.))
+                .h(px(lin.height_dp))
+                .rounded(px(2.))
+                .bg(paint(lin.track))
+                .child(
+                    div()
+                        .h_full()
+                        .w(px(240. * lin.progress))
+                        .bg(paint(lin.indicator)),
+                ),
+        )
+        .child(
+            div()
+                .relative()
+                .w(px(240.))
+                .h(px(indet.height_dp))
+                .rounded(px(2.))
+                .bg(paint(indet.track))
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(240. * 0.3))
+                        .h_full()
+                        .w(px(240. * indet.head_span))
+                        .bg(paint(indet.indicator)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .w(px(ptr.size_dp))
+                        .h(px(ptr.size_dp))
+                        .rounded(px(ptr.size_dp / 2.0))
+                        .border_2()
+                        .border_color(paint(ptr.track))
+                        .flex()
+                        .items_start()
+                        .justify_center()
+                        .child(
+                            div()
+                                .w(px(ptr.stroke_dp))
+                                .h(px(ptr.size_dp * 0.28))
+                                .rounded(px(2.))
+                                .bg(paint(ptr.indicator)),
+                        ),
+                )
+                .child(spaced_line(
+                    progress::PTR_LABEL,
+                    12.0,
+                    paint(theme.color.on_surface_variant),
+                )),
         )
 }
 
@@ -1722,8 +2090,11 @@ fn outlined_notched_field(
     let radius = frame.radius_dp;
     let fill = field.field.container;
     let middle_h = frame.middle_h_dp();
+    let gap_h = frame.notch_gap_h_dp();
+    let (lx, ly) = frame.label_origin_dp();
     div()
         .id(id)
+        .relative()
         .flex()
         .flex_col()
         .w_full()
@@ -1732,8 +2103,8 @@ fn outlined_notched_field(
             div()
                 .flex()
                 .flex_row()
-                .items_end()
-                .h(px(frame.label_h_dp.max(radius)))
+                .items_start()
+                .h(px(radius))
                 .child(notch_corner(true, false, false, false, frame, outline.0, fill))
                 .child(
                     div()
@@ -1746,17 +2117,8 @@ fn outlined_notched_field(
                 .child(
                     div()
                         .w(px(frame.width_dp))
-                        .h(px(frame.label_h_dp))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(
-                            div()
-                                .text_size(px(field.label_style.size_sp))
-                                .text_color(paint(field.label))
-                                .line_height(px(field.label_style.line_height_sp))
-                                .child(label),
-                        ),
+                        .h(px(gap_h))
+                        .bg(paint(fill)),
                 )
                 .child(
                     div()
@@ -1805,6 +2167,25 @@ fn outlined_notched_field(
                         .bg(paint(outline.0)),
                 )
                 .child(notch_corner(false, false, true, false, frame, outline.0, fill)),
+        )
+        .child(
+            div()
+                .absolute()
+                .left(px(lx))
+                .top(px(ly))
+                .w(px(frame.width_dp))
+                .h(px(frame.label_h_dp))
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(paint(fill))
+                .child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .line_height(px(field.label_style.line_height_sp))
+                        .child(label),
+                ),
         )
 }
 
@@ -1959,10 +2340,15 @@ fn main() {
                     group_selected: button_group::DEMO_SELECTED,
                     range_start: slider::RANGE_DEMO_START,
                     range_end: slider::RANGE_DEMO_END,
+                    range_drag: None,
+                    range_focus: slider::RangeThumb::Start,
+                    range_moved: false,
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
+                    search_open: search::VIEW_OPEN_BY_DEFAULT,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
                     time_period: time_picker::DEMO_PERIOD,
+                    time_dial: time_picker::DEMO_DIAL,
                 })
             },
         )
@@ -2035,13 +2421,22 @@ mod tests {
             "headlineSmallEmphasized"
         );
         assert_eq!(search::resolve(&theme).bar.height_dp, 56.0);
+        assert_eq!(search::resolve_view(&theme).header_h_dp, 72.0);
+        assert_eq!(search::SUGGESTIONS.len(), 4);
         assert_eq!(
             time_picker::resolve(&theme).time_style.name,
             "displaySmallEmphasized"
         );
+        assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
+        let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::Start, "right")
+            .expect("arrow");
+        assert!((s - 0.25).abs() < 1e-5);
+        assert_eq!(e, 0.75);
+        assert_eq!(thumb, slider::RangeThumb::Start);
         let frame = text_field::notch_frame("Email", &field);
         assert_eq!(frame.radius_dp, 4.0);
         assert_eq!(frame.stroke_dp, 2.0);
-        assert_eq!(frame.top_lead_dp(), 8.0);
+        assert_eq!(frame.top_lead_dp(), 4.0);
+        assert_eq!(frame.notch_gap_h_dp(), 2.0);
     }
 }

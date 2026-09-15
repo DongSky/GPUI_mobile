@@ -38,6 +38,8 @@ sudo apt-get install -y libfontconfig1-dev libfreetype6-dev \
 
 Hosts without `/dev/dri` (typical cloud agent) should keep `WGPU_BACKEND=gl`
 so wgpu uses Mesa llvmpipe. `scripts/desktop.sh` sets that automatically.
+`scripts/desktop-screenshot.sh` additionally tries lavapipe Vulkan and captures
+the window with ffmpeg x11grab.
 
 ## Skeleton scope
 

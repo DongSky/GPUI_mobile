@@ -24,4 +24,7 @@ if [ ! -e /dev/dri ]; then
   export GALLIUM_DRIVER="${GALLIUM_DRIVER:-llvmpipe}"
 fi
 
+# Prefer lavapipe Vulkan when an extracted noble mesa-vulkan-drivers tree exists.
+# Capture a window with scripts/desktop-screenshot.sh (do not pkill -f this binary).
+
 exec cargo run -p material_desktop_demo "$@"

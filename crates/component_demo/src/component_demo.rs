@@ -5,17 +5,17 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    div, px, App, Application, Context, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, Window,
+    div, px, App, Application, Context, FontWeight, IntoElement, KeyDownEvent, MouseButton,
+    MouseMoveEvent, ParentElement, Render, SharedString, Styled, Window,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
-use gpui_material::components::time_picker::{self, DayPeriod};
+use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, checkbox, chip, dialog, divider, fab,
-    icon_button, list, menu, navigation_bar, progress, radio, search, slider, snackbar, switch, tabs,
-    text_field, top_app_bar, Appearance,
+    icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider,
+    snackbar, switch, tabs, text_field, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::{Argb, InteractionState};
@@ -73,10 +73,15 @@ struct CatalogView {
     group_selected: usize,
     range_start: f32,
     range_end: f32,
+    range_drag: Option<slider::RangeThumb>,
+    range_focus: slider::RangeThumb,
+    range_moved: bool,
     docked_open: bool,
+    search_open: bool,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
+    time_dial: DialFace,
 }
 
 impl CatalogView {
@@ -624,6 +629,8 @@ fn catalog_body(
         .child(section_title(theme, "Tabs"))
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
         .child(tab_row(theme, &tabs_s, this.tab_secondary, "s", cx))
+        .child(section_title(theme, "Navigation rail"))
+        .child(android_nav_rail(theme))
         .child(section_title(theme, "Badge"))
         .child(
             div()
@@ -654,7 +661,7 @@ fn catalog_body(
                 ),
         )
         .child(section_title(theme, "Search"))
-        .child(android_search_bar(theme))
+        .child(android_search_bar(this, theme, cx))
         .child(section_title(theme, "Time picker"))
         .child(android_time_picker(this, theme, cx))
         .child(section_title(theme, "Date picker"))
@@ -856,6 +863,7 @@ fn catalog_body(
                         .bg(paint(lin.indicator)),
                 ),
         )
+        .child(android_progress_indet(theme))
         .child(
             div()
                 .w_full()
@@ -1537,41 +1545,194 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
         .child(title)
 }
 
-fn android_search_bar(theme: &Theme) -> impl IntoElement {
-    let a = search::resolve(theme);
+fn android_progress_indet(theme: &Theme) -> impl IntoElement {
+    let indet = progress::linear_indeterminate(theme);
+    let ptr = progress::pull_to_refresh(theme);
     div()
         .w_full()
-        .h(px(a.bar.height_dp))
-        .px(px(a.bar.pad_start_dp))
-        .rounded(px(a.bar.corners.top_left))
-        .bg(paint(a.bar.container))
         .flex()
-        .items_center()
-        .gap(px(search::GAP_DP))
+        .flex_col()
+        .gap(px(8.))
         .child(
             div()
-                .text_color(paint(a.leading_icon))
-                .child(search::LEADING_ICON),
+                .relative()
+                .w(px(200.))
+                .h(px(indet.height_dp))
+                .rounded(px(2.))
+                .bg(paint(indet.track))
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(50.))
+                        .h_full()
+                        .w(px(200. * indet.head_span))
+                        .bg(paint(indet.indicator)),
+                ),
         )
         .child(
             div()
-                .flex_1()
-                .text_size(px(a.placeholder_style.size_sp))
-                .text_color(paint(a.placeholder))
-                .child(search::PLACEHOLDER),
-        )
-        .child(
-            div()
-                .w(px(search::AVATAR_DP))
-                .h(px(search::AVATAR_DP))
-                .rounded(px(search::AVATAR_DP / 2.0))
-                .bg(paint(a.avatar))
-                .text_color(paint(a.avatar_label))
                 .flex()
                 .items_center()
-                .justify_center()
-                .child("A"),
+                .gap(px(8.))
+                .child(
+                    div()
+                        .w(px(ptr.size_dp))
+                        .h(px(ptr.size_dp))
+                        .rounded(px(ptr.size_dp / 2.0))
+                        .border_2()
+                        .border_color(paint(ptr.track))
+                        .flex()
+                        .items_start()
+                        .justify_center()
+                        .child(
+                            div()
+                                .w(px(ptr.stroke_dp))
+                                .h(px(12.))
+                                .bg(paint(ptr.indicator)),
+                        ),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(paint(theme.color.on_surface_variant))
+                        .child(progress::PTR_LABEL),
+                ),
         )
+}
+
+fn android_nav_rail(theme: &Theme) -> impl IntoElement {
+    let rail = navigation_rail::resolve(theme);
+    div()
+        .w(px(rail.width_dp))
+        .flex()
+        .flex_col()
+        .items_center()
+        .gap(px(navigation_rail::DEST_GAP_DP))
+        .bg(paint(rail.container))
+        .children(
+            navigation_rail::DESTINATIONS
+                .iter()
+                .zip(navigation_rail::DESTINATION_ICONS.iter())
+                .enumerate()
+                .map(|(i, (label, icon))| {
+                    let active = i == 0;
+                    div()
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .child(
+                            div()
+                                .w(px(navigation_rail::INDICATOR_W_DP))
+                                .h(px(navigation_rail::INDICATOR_H_DP))
+                                .rounded(px(16.))
+                                .bg(paint(if active {
+                                    rail.active_indicator
+                                } else {
+                                    rail.container
+                                }))
+                                .text_color(paint(if active {
+                                    rail.active_icon
+                                } else {
+                                    rail.inactive_icon
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(*icon),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(paint(if active {
+                                    rail.active_label
+                                } else {
+                                    rail.inactive_label
+                                }))
+                                .child(*label),
+                        )
+                }),
+        )
+}
+
+fn android_search_bar(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = search::resolve(theme);
+    let view = search::resolve_view(theme);
+    let mut root = div().flex().flex_col().gap(px(8.)).child(
+        div()
+            .id("search-bar")
+            .w_full()
+            .h(px(a.bar.height_dp))
+            .px(px(a.bar.pad_start_dp))
+            .rounded(px(a.bar.corners.top_left))
+            .bg(paint(a.bar.container))
+            .flex()
+            .items_center()
+            .gap(px(search::GAP_DP))
+            .child(div().text_color(paint(a.leading_icon)).child(search::LEADING_ICON))
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(a.placeholder_style.size_sp))
+                    .text_color(paint(a.placeholder))
+                    .child(search::PLACEHOLDER),
+            )
+            .child(
+                div()
+                    .w(px(search::AVATAR_DP))
+                    .h(px(search::AVATAR_DP))
+                    .rounded(px(search::AVATAR_DP / 2.0))
+                    .bg(paint(a.avatar))
+                    .text_color(paint(a.avatar_label))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child("A"),
+            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.search_open = !this.search_open;
+                cx.notify();
+            })),
+    );
+    if this.search_open {
+        root = root.child(
+            div()
+                .w_full()
+                .rounded(px(view.corners.top_left))
+                .bg(paint(view.container))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .h(px(view.header_h_dp))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .gap(px(12.))
+                        .child(div().child(search::VIEW_BACK))
+                        .child(
+                            div()
+                                .flex_1()
+                                .text_color(paint(view.placeholder))
+                                .child(search::PLACEHOLDER),
+                        ),
+                )
+                .children(search::SUGGESTIONS.iter().enumerate().map(|(i, label)| {
+                    div()
+                        .id(SharedString::from(format!("search-sug-{i}")))
+                        .h(px(view.suggestion_h_dp))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(view.suggestion))
+                        .child(*label)
+                })),
+        );
+    }
+    root
 }
 
 fn android_time_picker(
@@ -1580,6 +1741,15 @@ fn android_time_picker(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = time_picker::resolve(theme);
+    let hour_on = this.time_dial == DialFace::Hour;
+    let cells: Vec<(u8, String, bool)> = match this.time_dial {
+        DialFace::Hour => (1u8..=12)
+            .map(|h| (h, h.to_string(), h == this.time_hour))
+            .collect(),
+        DialFace::Minute => time_picker::minute_labels()
+            .map(|m| (m, format!("{m:02}"), m == this.time_minute))
+            .collect(),
+    };
     div()
         .w_full()
         .p(px(16.))
@@ -1590,14 +1760,49 @@ fn android_time_picker(
         .gap(px(8.))
         .child(
             div()
-                .font_weight(type_weight(a.time_style))
-                .text_size(px(a.time_style.size_sp))
-                .text_color(paint(a.header))
-                .child(time_picker::header_label(
-                    this.time_hour,
-                    this.time_minute,
-                    this.time_period,
-                )),
+                .flex()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .id("time-hour-field")
+                        .px(px(8.))
+                        .bg(paint(if hour_on {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if hour_on {
+                            a.number_selected
+                        } else {
+                            a.header
+                        }))
+                        .child(time_picker::format_hour_field(this.time_hour))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.time_dial = DialFace::Hour;
+                            cx.notify();
+                        })),
+                )
+                .child(div().child(":"))
+                .child(
+                    div()
+                        .id("time-minute-field")
+                        .px(px(8.))
+                        .bg(paint(if !hour_on {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if !hour_on {
+                            a.number_selected
+                        } else {
+                            a.header
+                        }))
+                        .child(time_picker::format_minute_field(this.time_minute))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.time_dial = DialFace::Minute;
+                            cx.notify();
+                        })),
+                ),
         )
         .child(
             div()
@@ -1634,10 +1839,10 @@ fn android_time_picker(
                 .flex()
                 .flex_wrap()
                 .gap(px(4.))
-                .children((1u8..=12).map(|hour| {
-                    let selected = hour == this.time_hour;
+                .children(cells.into_iter().map(|(value, label, selected)| {
+                    let face = this.time_dial;
                     div()
-                        .id(SharedString::from(format!("hour-{hour}")))
+                        .id(SharedString::from(format!("dial-{value}")))
                         .w(px(36.))
                         .h(px(36.))
                         .rounded(px(18.))
@@ -1654,9 +1859,18 @@ fn android_time_picker(
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(hour.to_string())
+                        .child(label)
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.time_hour = time_picker::select_hour(this.time_hour, hour);
+                            match face {
+                                DialFace::Hour => {
+                                    this.time_hour = time_picker::select_hour(this.time_hour, value);
+                                    this.time_dial = DialFace::Minute;
+                                }
+                                DialFace::Minute => {
+                                    this.time_minute =
+                                        time_picker::select_minute(this.time_minute, value);
+                                }
+                            }
                             cx.notify();
                         }))
                 })),
@@ -1722,11 +1936,68 @@ fn android_range_slider(
     let total = 240.0;
     let left = (total * range.start).max(12.0);
     let mid = (total * (range.end - range.start)).max(16.0);
+    let cells = (0..slider::RANGE_DRAG_CELLS).map(|i| {
+        let frac = slider::drag_cell_fraction(i);
+        div()
+            .id(SharedString::from(format!("range-cell-{i}")))
+            .flex_1()
+            .h_full()
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, _, cx| {
+                    this.range_focus =
+                        slider::nearest_thumb(this.range_start, this.range_end, frac);
+                    this.range_drag = Some(this.range_focus);
+                    this.range_moved = false;
+                    cx.notify();
+                }),
+            )
+            .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
+                if ev.dragging() {
+                    if let Some(thumb) = this.range_drag {
+                        let (s, e) =
+                            slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
+                        this.range_start = s;
+                        this.range_end = e;
+                        this.range_moved = true;
+                        cx.notify();
+                    }
+                }
+            }))
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if this.range_moved {
+                    this.range_drag = None;
+                    this.range_moved = false;
+                    cx.notify();
+                    return;
+                }
+                let (s, e) = slider::click_step(this.range_start, this.range_end, frac);
+                this.range_start = s;
+                this.range_end = e;
+                this.range_drag = None;
+                cx.notify();
+            }))
+    });
     div()
+        .id("range-slider")
+        .tab_index(0)
         .w_full()
         .flex()
         .flex_col()
         .gap(px(4.))
+        .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            if let Some((s, e, thumb)) = slider::apply_arrow(
+                this.range_start,
+                this.range_end,
+                this.range_focus,
+                &ev.keystroke.key,
+            ) {
+                this.range_start = s;
+                this.range_end = e;
+                this.range_focus = thumb;
+                cx.notify();
+            }
+        }))
         .child(
             div()
                 .text_size(px(12.))
@@ -1735,90 +2006,62 @@ fn android_range_slider(
         )
         .child(
             div()
+                .relative()
                 .w(px(total))
                 .h(px(t.target_dp))
-                .flex()
-                .items_center()
                 .child(
                     div()
-                        .id("range-left")
-                        .h(px(t.track_h))
-                        .w(px(left))
-                        .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_start(
-                                this.range_start,
-                                this.range_end,
-                                -slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
+                        .w(px(total))
+                        .h(px(t.target_dp))
+                        .flex()
+                        .items_center()
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(left))
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(mid))
+                                .rounded(px(t.inner_corner))
+                                .bg(paint(t.active)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .flex_1()
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        ),
                 )
                 .child(
                     div()
-                        .id("range-start")
-                        .mx(px(t.gap_dp))
-                        .w(px(t.handle_w.max(12.0)))
-                        .h(px(t.handle_h_visual))
-                        .rounded(px(2.))
-                        .bg(paint(t.handle))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_start(
-                                this.range_start,
-                                this.range_end,
-                                slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
-                )
-                .child(
-                    div()
-                        .h(px(t.track_h))
-                        .w(px(mid))
-                        .rounded(px(t.inner_corner))
-                        .bg(paint(t.active)),
-                )
-                .child(
-                    div()
-                        .id("range-end")
-                        .mx(px(t.gap_dp))
-                        .w(px(t.handle_w.max(12.0)))
-                        .h(px(t.handle_h_visual))
-                        .rounded(px(2.))
-                        .bg(paint(t.handle))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_end(
-                                this.range_start,
-                                this.range_end,
-                                slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
-                )
-                .child(
-                    div()
-                        .id("range-right")
-                        .h(px(t.track_h))
-                        .flex_1()
-                        .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (s, e) = slider::nudge_end(
-                                this.range_start,
-                                this.range_end,
-                                -slider::RANGE_STEP,
-                            );
-                            this.range_start = s;
-                            this.range_end = e;
-                            cx.notify();
-                        })),
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(total))
+                        .h(px(t.target_dp))
+                        .flex()
+                        .children(cells),
                 ),
         )
 }
@@ -1922,17 +2165,28 @@ fn android_docked_date(
         true,
     );
     let value = date_picker::docked_field_value(this.selected);
-    let mut root = div().flex().flex_col().gap(px(4.)).child(field_block(
-        "docked-date-field",
-        &field,
-        date_picker::DOCKED_FIELD_LABEL,
-        value,
-        "",
-        cx.listener(|this, _, _, cx| {
-            this.docked_open = !this.docked_open;
-            cx.notify();
-        }),
-    ));
+    let mut root = div()
+        .id("docked-date")
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+            if date_picker::DOCKED_DISMISS_ON_OUTSIDE && this.docked_open {
+                this.docked_open = false;
+                cx.notify();
+            }
+        }))
+        .child(field_block(
+            "docked-date-field",
+            &field,
+            date_picker::DOCKED_FIELD_LABEL,
+            value,
+            "",
+            cx.listener(|this, _, _, cx| {
+                this.docked_open = !this.docked_open;
+                cx.notify();
+            }),
+        ));
     if this.docked_open {
         let year = this.picker_year;
         let month = this.picker_month;
@@ -1944,8 +2198,51 @@ fn android_docked_date(
                 .bg(paint(pick.container))
                 .shadow_md()
                 .flex()
-                .flex_wrap()
-                .children(cells.iter().copied().enumerate().take(14).map(|(i, (day, kind))| {
+                .flex_col()
+                .child(
+                    div()
+                        .flex()
+                        .justify_between()
+                        .child(
+                            div()
+                                .id("docked-month-prev")
+                                .child("<")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        -1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(div().child(date_picker::month_nav_label(
+                            this.picker_year,
+                            this.picker_month,
+                        )))
+                        .child(
+                            div()
+                                .id("docked-month-next")
+                                .child(">")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .children(cells.iter().copied().enumerate().take(14).map(|(i, (day, kind))| {
                     let (bg, fg, radius) = match kind {
                         DayKind::Selected => (
                             paint(pick.day_selected_container),
@@ -1977,6 +2274,7 @@ fn android_docked_date(
                             }))
                         })
                 })),
+                ),
         );
     }
     root
@@ -2060,6 +2358,7 @@ fn field_block(
             );
         div()
             .id(id)
+            .relative()
             .flex()
             .flex_col()
             .w_full()
@@ -2068,8 +2367,8 @@ fn field_block(
                 div()
                     .flex()
                     .flex_row()
-                    .items_end()
-                    .h(px(frame.label_h_dp.max(radius)))
+                    .items_start()
+                    .h(px(radius))
                     .child(tl)
                     .child(
                         div()
@@ -2082,16 +2381,8 @@ fn field_block(
                     .child(
                         div()
                             .w(px(frame.width_dp))
-                            .h(px(frame.label_h_dp))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(
-                                div()
-                                    .text_size(px(field.label_style.size_sp))
-                                    .text_color(paint(field.label))
-                                    .child(label),
-                            ),
+                            .h(px(frame.notch_gap_h_dp()))
+                            .bg(paint(fill)),
                     )
                     .child(
                         div()
@@ -2136,6 +2427,25 @@ fn field_block(
                     .child(div().flex_1().h(px(stroke)).bg(paint(outline.0)))
                     .child(br),
             )
+            .child({
+                let (lx, ly) = frame.label_origin_dp();
+                div()
+                    .absolute()
+                    .left(px(lx))
+                    .top(px(ly))
+                    .w(px(frame.width_dp))
+                    .h(px(frame.label_h_dp))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(paint(fill))
+                    .child(
+                        div()
+                            .text_size(px(field.label_style.size_sp))
+                            .text_color(paint(field.label))
+                            .child(label),
+                    )
+            })
             .into_any_element()
     } else if outlined {
         div()
@@ -2354,10 +2664,15 @@ fn android_main(app: AndroidApp) {
                 group_selected: button_group::DEMO_SELECTED,
                 range_start: slider::RANGE_DEMO_START,
                 range_end: slider::RANGE_DEMO_END,
+                range_drag: None,
+                range_focus: slider::RangeThumb::Start,
+                range_moved: false,
                 docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
+                search_open: search::VIEW_OPEN_BY_DEFAULT,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,
                 time_period: time_picker::DEMO_PERIOD,
+                time_dial: time_picker::DEMO_DIAL,
             })
         })
         .expect("failed to open window");

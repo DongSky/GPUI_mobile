@@ -24,7 +24,8 @@ pub const SUPPORTING_GAP_DP: f32 = 4.0;
 pub const ICON_DP: f32 = 24.0;
 pub const NOTCH_PAD_DP: f32 = 4.0;
 /// Distance from the left outline to the start of the notched label.
-pub const NOTCH_START_DP: f32 = 12.0;
+/// Matches HTML `<legend>` `margin-left: 8px` so GPUI and fieldset line up.
+pub const NOTCH_START_DP: f32 = 8.0;
 
 /// Width of the top-outline *cutout* for `label` (bodySmall-ish glyph width).
 /// Mapping paints left-stroke | gap+label | right-stroke so the border is
@@ -252,6 +253,20 @@ impl NotchFrame {
 
     pub fn inner_radius_dp(self) -> f32 {
         (self.radius_dp - self.stroke_dp).max(0.0)
+    }
+
+    /// Height of the top-outline cutout. Fieldset only interrupts the stroke,
+    /// not a full label-tall hole.
+    pub fn notch_gap_h_dp(self) -> f32 {
+        self.stroke_dp.max(1.0)
+    }
+
+    /// Label origin relative to the field's top-left (legend sitting on the
+    /// top stroke, like HTML fieldset).
+    pub fn label_origin_dp(self) -> (f32, f32) {
+        let x = self.radius_dp + self.top_lead_dp();
+        let y = self.stroke_dp / 2.0 - self.label_h_dp / 2.0;
+        (x, y)
     }
 }
 

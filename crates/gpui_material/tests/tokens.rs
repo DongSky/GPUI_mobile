@@ -2,7 +2,7 @@
 
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, progress, radio, search, slider, snackbar, switch,
+    fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
     tabs, text_field, time_picker, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
@@ -275,13 +275,14 @@ fn text_field_metrics_and_error_focus() {
     assert_eq!(focused.label, theme.color.primary);
     assert_eq!(focused.label_style.name, "bodySmall");
     let cut = text_field::notch_cutout("Email", &focused);
-    assert_eq!(cut.start_dp, 12.0);
+    assert_eq!(cut.start_dp, 8.0);
     assert_eq!(cut.stroke_dp, 2.0);
     assert!(cut.width_dp >= 28.0);
     let frame = text_field::notch_frame("Email", &focused);
     assert_eq!(frame.radius_dp, 4.0);
     assert_eq!(frame.stroke_dp, 2.0);
-    assert_eq!(frame.top_lead_dp(), 8.0);
+    assert_eq!(frame.top_lead_dp(), 4.0);
+    assert_eq!(frame.notch_gap_h_dp(), 2.0);
     assert_eq!(frame.inner_radius_dp(), 2.0);
     assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
@@ -402,6 +403,10 @@ fn card_chip_fab_chrome_tokens() {
     let lin = progress::linear(&theme, 0.5);
     assert_eq!(lin.height_dp, 4.0);
     assert_eq!(lin.indicator, theme.color.primary);
+    let indet = progress::linear_indeterminate(&theme);
+    assert_eq!(indet.head_span, progress::INDETERMINATE_SPAN);
+    assert_eq!(indet.indicator, theme.color.primary);
+    assert_eq!(progress::pull_to_refresh(&theme).size_dp, 40.0);
 }
 
 #[test]
@@ -442,7 +447,15 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-settings-block=\"volume\""));
     assert!(html.contains("data-search=\"1\""));
     assert!(html.contains("Hinted search text"));
+    assert!(html.contains("data-search-view=\"1\""));
     assert!(html.contains("data-timepicker=\"1\""));
+    assert!(html.contains("data-dial=\"minute\""));
+    assert!(html.contains("data-progress=\"indeterminate\""));
+    assert!(html.contains("data-progress=\"ptr\""));
+    assert!(html.contains("data-nav-rail=\"1\""));
+    assert!(html.contains("data-range-interactive=\"1\""));
+    assert!(html.contains("data-dismiss-outside=\"1\""));
+    assert!(html.contains("data-docked-month"));
     assert!(html.contains("displaySmallEmphasized"));
     assert!(html.contains("data-datepicker-popup=\"open\""));
     assert!(html.contains("titleMediumEmphasized"));
@@ -505,6 +518,7 @@ fn inventory_covers_claimed_and_followups() {
         "Typography",
         "Search",
         "Time picker",
+        "Navigation rail",
     ] {
         assert!(
             INVENTORY
@@ -654,6 +668,7 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::DOCKED_FIELD_LABEL, "Date of birth");
     assert!(date_picker::DOCKED_OPEN_BY_DEFAULT);
     assert!(date_picker::DOCKED_DISMISS_ON_SELECT);
+    assert!(date_picker::DOCKED_DISMISS_ON_OUTSIDE);
     assert_eq!(
         date_picker::docked_field_value(date_picker::RANGE_DEMO_START),
         "Sep 15, 2026"
@@ -782,6 +797,10 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search.bar.corners.top_left, 28.0);
     assert_eq!(search.bar.container, theme.color.surface_container_high);
     assert_eq!(search::PLACEHOLDER, "Hinted search text");
+    let view = search::resolve_view(&theme);
+    assert_eq!(view.header_h_dp, 72.0);
+    assert_eq!(search::SUGGESTIONS.len(), 4);
+    assert!(search::VIEW_OPEN_BY_DEFAULT);
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
     assert_eq!(time.number_dp, 48.0);
@@ -793,8 +812,25 @@ fn search_bar_and_time_picker_tokens() {
         "6:30 PM"
     );
     assert_eq!(time_picker::select_hour(6, 9), 9);
+    assert_eq!(time_picker::select_minute(30, 17), 15);
     assert_eq!(time_picker::DEMO_PERIOD.toggle(), time_picker::DayPeriod::Am);
+    assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
     let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
     assert!(x > 80.0 && x < 130.0, "12 should sit near top center, x={x}");
     assert!(y < 20.0, "12 should sit near top, y={y}");
+    let (mx, my) = time_picker::minute_offset(30, 256.0, 48.0);
+    assert!(mx > 80.0 && mx < 130.0, "30 sits bottom-center-ish x={mx}");
+    assert!(my > 180.0, "30 sits near bottom, y={my}");
+    assert!((time_picker::hand_angle_deg(time_picker::DialFace::Minute, 6, 30) - 180.0).abs() < 0.01);
+    let (s, e) = slider::drag_thumb(0.2, 0.75, slider::RangeThumb::Start, 0.4);
+    assert!((s - 0.4).abs() < 1e-5);
+    assert_eq!(e, 0.75);
+    let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::End, "left").unwrap();
+    assert!((e - 0.70).abs() < 1e-5);
+    assert_eq!(s, 0.2);
+    assert_eq!(thumb, slider::RangeThumb::End);
+    let rail = navigation_rail::resolve(&theme);
+    assert_eq!(rail.width_dp, 80.0);
+    assert_eq!(navigation_rail::INDICATOR_W_DP, 56.0);
+    assert_eq!(navigation_rail::DESTINATIONS.len(), 3);
 }

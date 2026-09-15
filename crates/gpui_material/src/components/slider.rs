@@ -280,6 +280,94 @@ pub fn range_value_label(start: f32, end: f32) -> String {
     )
 }
 
+/// Which handle is being dragged or keyboard-focused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangeThumb {
+    Start,
+    End,
+}
+
+impl RangeThumb {
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Start => Self::End,
+            Self::End => Self::Start,
+        }
+    }
+}
+
+pub const RANGE_DRAG_CELLS: u32 = 21;
+
+pub fn nearest_thumb(start: f32, end: f32, fraction: f32) -> RangeThumb {
+    if (fraction - start).abs() <= (fraction - end).abs() {
+        RangeThumb::Start
+    } else {
+        RangeThumb::End
+    }
+}
+
+/// Pointer-drag: move `thumb` to `fraction` (0..=1) without crossing.
+pub fn drag_thumb(start: f32, end: f32, thumb: RangeThumb, fraction: f32) -> (f32, f32) {
+    match thumb {
+        RangeThumb::Start => clamp_range(fraction, end),
+        RangeThumb::End => clamp_range(start, fraction),
+    }
+}
+
+pub fn nudge_thumb(start: f32, end: f32, thumb: RangeThumb, delta: f32) -> (f32, f32) {
+    match thumb {
+        RangeThumb::Start => nudge_start(start, end, delta),
+        RangeThumb::End => nudge_end(start, end, delta),
+    }
+}
+
+/// Keep the v6 5% click-step: inactive rails nudge the adjacent thumb,
+/// handles step that thumb forward, active span moves the nearest thumb.
+pub fn click_step(start: f32, end: f32, fraction: f32) -> (f32, f32) {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let pad = RANGE_STEP * 0.8;
+    if (fraction - start).abs() <= pad {
+        nudge_start(start, end, RANGE_STEP)
+    } else if (fraction - end).abs() <= pad {
+        nudge_end(start, end, RANGE_STEP)
+    } else if fraction < start {
+        nudge_start(start, end, -RANGE_STEP)
+    } else if fraction > end {
+        nudge_end(start, end, -RANGE_STEP)
+    } else {
+        move_nearest(start, end, (start + end) * 0.5)
+    }
+}
+
+pub fn drag_cell_fraction(index: u32) -> f32 {
+    let n = RANGE_DRAG_CELLS.saturating_sub(1).max(1);
+    (index as f32 / n as f32).clamp(0.0, 1.0)
+}
+
+/// Arrow / vim keys nudge the focused thumb. `left`/`right`/`h`/`l`.
+pub fn apply_arrow(
+    start: f32,
+    end: f32,
+    focus: RangeThumb,
+    key: &str,
+) -> Option<(f32, f32, RangeThumb)> {
+    let delta = match key {
+        "left" | "h" | "-" => -RANGE_STEP,
+        "right" | "l" | "=" | "+" => RANGE_STEP,
+        "up" | "k" => {
+            let (s, e) = nudge_thumb(start, end, RangeThumb::Start, RANGE_STEP);
+            return Some((s, e, RangeThumb::Start));
+        }
+        "down" | "j" => {
+            let (s, e) = nudge_thumb(start, end, RangeThumb::End, -RANGE_STEP);
+            return Some((s, e, RangeThumb::End));
+        }
+        _ => return None,
+    };
+    let (s, e) = nudge_thumb(start, end, focus, delta);
+    Some((s, e, focus))
+}
+
 pub fn resolve_range(
     theme: &Theme,
     start: f32,
