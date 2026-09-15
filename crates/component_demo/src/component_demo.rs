@@ -5,20 +5,20 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    Animation, AnimationExt, App, Application, Context, FillOptions, FillRule, FocusHandle,
-    FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    Stateful, StrokeOptions, Styled, TextRun, Window, black, canvas, div, point, px,
+    black, canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
+    FillRule, FocusHandle, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
+    MouseMoveEvent, ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent,
+    SharedString, Stateful, StrokeOptions, Styled, TextRun, Window,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog,
-    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
-    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
-    toolbar, tooltip, top_app_bar,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider,
+    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress,
+    radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar,
+    tooltip, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -164,6 +164,7 @@ fn measure_label_width_dp(window: &mut Window, label: &str, size_sp: f32) -> f32
     f32::from(layout.width)
 }
 
+#[allow(dead_code)]
 fn paint_search_scaled_fill(
     window: &mut Window,
     bounds: gpui::Bounds<gpui::Pixels>,
@@ -378,6 +379,8 @@ struct CatalogView {
     time_hand_gen: u32,
     time_scroll: time_picker::TimeScrollState,
     time_scroll_at: Option<Instant>,
+    time_display: time_picker::TimePickerDisplayMode,
+    time_input: time_picker::TimeInputState,
 }
 
 impl CatalogView {
@@ -510,6 +513,16 @@ impl CatalogView {
         if self.time_scroll.needs_frame() {
             cx.notify();
         }
+    }
+
+    fn toggle_time_display(&mut self) {
+        self.time_display = time_picker::apply_display_toggle(
+            self.time_display,
+            &mut self.time_scroll,
+            &mut self.time_input,
+            &mut self.time_hour,
+            &mut self.time_minute,
+        );
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -5237,12 +5250,9 @@ fn android_search_bar(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = search::resolve(theme);
-    let view = if this.search_open {
-        search::resolve_activity(theme)
-    } else {
-        search::resolve_view(theme)
-    };
+    let view = search::resolve_view(theme);
     let suggestions = search::filter_suggestions(this.search.value());
+    let suggestion_count = search::contained_suggestion_count();
     let query_label = if this.search.focused {
         this.search.display_with_caret()
     } else {
@@ -5250,8 +5260,7 @@ fn android_search_bar(
     };
     let morph_ms = search::morph_ms(theme) as u64;
     let open = this.search_open;
-    let docked_bg = a.bar.container;
-    let activity_bg = view.container;
+    let contained_bg = search::contained_container(theme);
     let query_color = paint(if open && !this.search.value().is_empty() {
         view.input
     } else if open {
@@ -5290,7 +5299,7 @@ fn android_search_bar(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::morph_frame_eased(linear);
+                let frame = search::contained_frame_eased(linear, suggestion_count);
                 this.h(px(frame.header_h_dp))
             },
         )
@@ -5406,11 +5415,6 @@ fn android_search_bar(
                 }))
         }))
         .into_any_element();
-    let anim_frame = Rc::new(Cell::new(search::morph_frame_eased(if open {
-        0.0
-    } else {
-        1.0
-    })));
     div()
         .id("search-morph")
         .relative()
@@ -5418,6 +5422,7 @@ fn android_search_bar(
         .flex()
         .flex_col()
         .overflow_hidden()
+        .bg(paint(contained_bg))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.search_open {
@@ -5428,37 +5433,15 @@ fn android_search_bar(
         .with_animation(
             if open { "search-grow" } else { "search-shrink" },
             Animation::new(Duration::from_millis(morph_ms)),
-            {
-                let anim_frame = anim_frame.clone();
-                move |this, delta| {
-                    let linear = if open { delta } else { 1.0 - delta };
-                    let frame = search::morph_frame_eased(linear);
-                    anim_frame.set(frame);
-                    let layer = search::morph_layer_transform(frame);
-                    let box_ =
-                        search::morph_layer_box(search::MORPH_STAGE_W_DP, frame.height_dp, layer);
-                    this.min_h(px(box_.height_dp))
-                        .rounded(px(frame.corner_dp))
-                        .ml(px(box_.x_dp.max(frame.inset_h_dp)))
-                        .mr(px(box_.x_dp.max(frame.inset_h_dp)))
-                }
+            move |this, delta| {
+                let linear = if open { delta } else { 1.0 - delta };
+                let frame = search::contained_frame_eased(linear, suggestion_count);
+                this.min_h(px(frame.height_dp))
+                    .rounded(px(frame.corner_dp))
+                    .ml(px(frame.margin_dp))
+                    .mr(px(frame.margin_dp))
             },
         )
-        .child({
-            let anim_frame = anim_frame.clone();
-            canvas(
-                move |_, _, _| anim_frame.get(),
-                move |bounds, frame, window, _| {
-                    let fill = paint(docked_bg.lerp(activity_bg, frame.t));
-                    let scale = search::morph_path_scale(frame);
-                    paint_search_scaled_fill(window, bounds, scale, frame.corner_dp, fill);
-                },
-            )
-            .absolute()
-            .top(px(0.))
-            .left(px(0.))
-            .size_full()
-        })
         .child(header)
         .child(
             div()
@@ -5484,6 +5467,9 @@ fn android_time_scroll(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = time_picker::resolve_scroll(theme);
+    let input = time_picker::resolve_input(theme);
+    let mode = this.time_display;
+    let input_mode = mode == time_picker::TimePickerDisplayMode::Input;
     div()
         .w_full()
         .p(px(time_picker::CONTAINER_PAD_DP))
@@ -5492,71 +5478,219 @@ fn android_time_scroll(
         .flex()
         .flex_col()
         .gap(px(16.))
-        .child(
-            div()
-                .text_size(px(a.title_style.size_sp))
-                .text_color(paint(a.header))
-                .child(time_picker::TITLE),
-        )
+        .tab_index(0)
+        .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            if this.time_display == time_picker::TimePickerDisplayMode::Input {
+                this.time_input.apply_key(&ev.keystroke.key);
+                let (h, m) = this.time_input.commit_or(this.time_hour, this.time_minute);
+                this.time_hour = h;
+                this.time_minute = m;
+                cx.notify();
+            }
+        }))
         .child(
             div()
                 .flex()
                 .items_center()
-                .gap(px(time_picker::SCROLL_GAP_DP))
-                .child(android_scroll_field(
-                    this,
-                    cx,
-                    time_picker::ScrollKind::Hour,
-                    &a,
-                ))
+                .justify_between()
                 .child(
                     div()
-                        .mt(px(time_picker::SCROLL_COLON_OFFSET_Y_DP))
-                        .text_size(px(a.colon_style.size_sp))
-                        .font_weight(type_weight(a.colon_style))
-                        .text_color(paint(a.colon))
-                        .child(":"),
+                        .text_size(px(a.title_style.size_sp))
+                        .text_color(paint(a.header))
+                        .child(time_picker::TITLE),
                 )
-                .child(android_scroll_field(
-                    this,
-                    cx,
-                    time_picker::ScrollKind::Minute,
-                    &a,
-                ))
                 .child(
                     div()
+                        .id("scroll-display-mode-toggle")
+                        .w(px(time_picker::TOGGLE_SIZE_DP))
+                        .h(px(time_picker::TOGGLE_SIZE_DP))
+                        .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
                         .flex()
-                        .flex_col()
-                        .gap(px(time_picker::PERIOD_GAP_DP))
-                        .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                            let selected = this.time_period == period;
-                            div()
-                                .id(SharedString::from(format!("scroll-{}", period.label())))
-                                .w(px(time_picker::PERIOD_W_DP))
-                                .h(px(time_picker::PERIOD_H_DP))
-                                .rounded(px(8.))
-                                .bg(paint(if selected {
-                                    a.period_selected_container
-                                } else {
-                                    a.period_idle_container
-                                }))
-                                .text_color(paint(if selected {
-                                    a.period_selected
-                                } else {
-                                    a.period_idle
-                                }))
-                                .font_weight(type_weight(a.period_style))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(period.label())
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.time_period = period;
-                                    cx.notify();
-                                }))
+                        .items_center()
+                        .justify_center()
+                        .text_size(px(time_picker::TOGGLE_ICON_DP))
+                        .text_color(paint(input.toggle))
+                        .child(mode.toggle_icon())
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.toggle_time_display();
+                            cx.notify();
                         })),
                 ),
         )
+        .when(!input_mode, |el| {
+            el.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(time_picker::SCROLL_GAP_DP))
+                    .child(android_scroll_field(
+                        this,
+                        cx,
+                        time_picker::ScrollKind::Hour,
+                        &a,
+                    ))
+                    .child(
+                        div()
+                            .mt(px(time_picker::SCROLL_COLON_OFFSET_Y_DP))
+                            .text_size(px(a.colon_style.size_sp))
+                            .font_weight(type_weight(a.colon_style))
+                            .text_color(paint(a.colon))
+                            .child(":"),
+                    )
+                    .child(android_scroll_field(
+                        this,
+                        cx,
+                        time_picker::ScrollKind::Minute,
+                        &a,
+                    ))
+                    .child(android_period_column(this, cx, &a)),
+            )
+        })
+        .when(input_mode, |el| {
+            el.child(android_time_input(this, cx, &input))
+        })
+}
+
+fn android_period_column(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    a: &time_picker::TimeScrollAppearance,
+) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(time_picker::PERIOD_GAP_DP))
+        .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+            let selected = this.time_period == period;
+            div()
+                .id(SharedString::from(format!("scroll-{}", period.label())))
+                .w(px(time_picker::PERIOD_W_DP))
+                .h(px(time_picker::PERIOD_H_DP))
+                .rounded(px(8.))
+                .bg(paint(if selected {
+                    a.period_selected_container
+                } else {
+                    a.period_idle_container
+                }))
+                .text_color(paint(if selected {
+                    a.period_selected
+                } else {
+                    a.period_idle
+                }))
+                .font_weight(type_weight(a.period_style))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(period.label())
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.time_period = period;
+                    cx.notify();
+                }))
+        }))
+}
+
+fn android_time_input(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    a: &time_picker::TimeInputAppearance,
+) -> impl IntoElement {
+    let hour_on = this.time_input.focus == time_picker::ScrollKind::Hour;
+    div()
+        .flex()
+        .items_center()
+        .gap(px(time_picker::INPUT_COLON_GAP_DP))
+        .child(android_time_input_field(
+            this,
+            cx,
+            time_picker::ScrollKind::Hour,
+            hour_on,
+            a,
+        ))
+        .child(
+            div()
+                .text_size(px(a.colon_style.size_sp))
+                .font_weight(type_weight(a.colon_style))
+                .text_color(paint(a.colon))
+                .child(":"),
+        )
+        .child(android_time_input_field(
+            this,
+            cx,
+            time_picker::ScrollKind::Minute,
+            !hour_on,
+            a,
+        ))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(time_picker::PERIOD_GAP_DP))
+                .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                    let selected = this.time_period == period;
+                    div()
+                        .id(SharedString::from(format!("input-{}", period.label())))
+                        .w(px(a.period_w_dp))
+                        .h(px(a.period_h_dp / 2.0 - 4.0))
+                        .rounded(px(8.))
+                        .bg(paint(if selected {
+                            a.period_selected_container
+                        } else {
+                            a.period_idle_container
+                        }))
+                        .text_color(paint(if selected {
+                            a.period_selected
+                        } else {
+                            a.period_idle
+                        }))
+                        .font_weight(type_weight(a.period_style))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(period.label())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.time_period = period;
+                            cx.notify();
+                        }))
+                })),
+        )
+}
+
+fn android_time_input_field(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    kind: time_picker::ScrollKind,
+    focused: bool,
+    a: &time_picker::TimeInputAppearance,
+) -> impl IntoElement {
+    let label = match kind {
+        time_picker::ScrollKind::Hour => this.time_input.hour.display(),
+        time_picker::ScrollKind::Minute => this.time_input.minute.display(),
+    };
+    div()
+        .id(SharedString::from(format!("time-input-{}", kind.label())))
+        .w(px(a.field_w_dp))
+        .h(px(a.field_h_dp))
+        .rounded(px(a.field_corners.top_left))
+        .bg(paint(if focused {
+            a.field_focused
+        } else {
+            a.field_container
+        }))
+        .text_color(paint(if focused {
+            a.field_focused_content
+        } else {
+            a.field_content
+        }))
+        .text_size(px(a.field_style.size_sp))
+        .font_weight(type_weight(a.field_style))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(label)
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.time_input.focus = kind;
+            cx.notify();
+        }))
 }
 
 fn android_scroll_field(
@@ -7022,6 +7156,8 @@ fn android_main(app: AndroidApp) {
                 time_hand_gen: 0,
                 time_scroll: time_picker::TimeScrollState::demo(),
                 time_scroll_at: None,
+                time_display: time_picker::DEMO_DISPLAY_MODE,
+                time_input: time_picker::TimeInputState::demo(),
             })
         })
         .expect("failed to open window");

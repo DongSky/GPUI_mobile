@@ -868,9 +868,14 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search=\"1\""));
     assert!(html.contains("Hinted search text"));
     assert!(html.contains("data-search-view=\"1\""));
+    assert!(html.contains(r#"data-search-style="contained""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
+    assert!(html.contains(r#"data-time-picker-style="input""#));
+    assert!(html.contains("data-time-input=\"1\""));
+    assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
+    assert!(html.contains(r#"data-time-display="scroll""#));
     assert!(html.contains(r#"data-scroll-field="hour""#));
     assert!(html.contains(r#"data-scroll-field="minute""#));
     assert!(html.contains("data-dial=\"minute\""));
@@ -1125,6 +1130,14 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ScrollField")
             && e.notes.contains("vibrantColors")
             && e.notes.contains("200dp")
+            && e.notes.contains("TimeInput")
+            && e.notes.contains("ScrollDisplayModeToggle")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Search"
+            && e.notes.contains("contained")
+            && e.notes.contains("24→12")
+            && e.notes.contains("no divider")
     }));
     assert!(INVENTORY
         .iter()
@@ -2716,6 +2729,66 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll
     );
+    assert_eq!(search::DEMO_STYLE, search::SearchStyle::Contained);
+    assert!(search::DEMO_STYLE.recommended());
+    assert!(!search::DEMO_STYLE.shows_divider());
+    assert_eq!(search::contained_margin_dp(false), 24.0);
+    assert_eq!(search::contained_margin_dp(true), 12.0);
+    assert_eq!(search::contained_corner_dp(true), 28.0);
+    let contained = search::contained_frame_at(1.0, search::contained_suggestion_count());
+    assert!((contained.corner_dp - 28.0).abs() < 0.01);
+    assert!((contained.margin_dp - 12.0).abs() < 0.01);
+    assert!(contained.height_dp > search::HEIGHT_DP);
+    assert_eq!(
+        search::contained_container(&theme),
+        theme.color.surface_container_high
+    );
+    assert_eq!(
+        time_picker::DEMO_DISPLAY_MODE,
+        time_picker::TimePickerDisplayMode::Scroll
+    );
+    assert_eq!(
+        time_picker::DEMO_DISPLAY_MODE.toggle(),
+        time_picker::TimePickerDisplayMode::Input
+    );
+    assert_eq!(
+        time_picker::TimePickerDisplayMode::Scroll.toggle_icon(),
+        time_picker::KEYBOARD_ICON
+    );
+    assert_eq!(
+        time_picker::TimePickerDisplayMode::Input.toggle_icon(),
+        time_picker::SCHEDULE_ICON
+    );
+    let input_a = time_picker::resolve_input(&theme);
+    assert_eq!(input_a.container, theme.color.primary_container);
+    assert_eq!(input_a.field_w_dp, time_picker::INPUT_FIELD_W_DP);
+    assert_eq!(input_a.field_h_dp, time_picker::INPUT_FIELD_H_DP);
+    assert_eq!(
+        input_a.field_corners.top_left,
+        time_picker::INPUT_FIELD_CORNER_DP
+    );
+    assert_eq!(input_a.field_style.name, "displayLargeEmphasized");
+    let mut typed = time_picker::TimeInputState::demo();
+    assert_eq!(typed.hour_value(), Some(time_picker::DEMO_HOUR));
+    assert_eq!(typed.minute_value(), Some(time_picker::DEMO_MINUTE));
+    assert!(typed.is_input_valid());
+    typed.apply_key("backspace");
+    typed.apply_key("backspace");
+    typed.apply_key("9");
+    assert_eq!(typed.hour_value(), Some(9));
+    assert_eq!(typed.focus, time_picker::ScrollKind::Minute);
+    let mut scroll = time_picker::TimeScrollState::demo();
+    let mut hour = time_picker::DEMO_HOUR;
+    let mut minute = time_picker::DEMO_MINUTE;
+    let next = time_picker::apply_display_toggle(
+        time_picker::TimePickerDisplayMode::Scroll,
+        &mut scroll,
+        &mut typed,
+        &mut hour,
+        &mut minute,
+    );
+    assert_eq!(next, time_picker::TimePickerDisplayMode::Input);
+    assert_eq!(time_picker::TimePickerStyle::Input.label(), "input");
     let scroll = time_picker::resolve_scroll(&theme);
     assert_eq!(scroll.container, theme.color.primary_container);
     assert_eq!(

@@ -1,9 +1,10 @@
 //! Docked search bar + expanded search view.
 //! Specs: https://m3.material.io/components/search/specs
 //!
-//! Catalog shows the 56dp docked bar and the expanded view/sheet (back +
-//! input + suggestion list). Full-screen search activity is not a separate
-//! platform window.
+//! Expressive (recommended): contained search — persistent filled container,
+//! Corner 28 stays focused, 24→12dp margin, no divider. Divided (baseline)
+//! full-screen activity + divider remains available. Catalog / hosts do not
+//! use `cx.transform` for the shared-element scale (PathBuilder stand-in).
 
 use crate::argb::Argb;
 use crate::components::Appearance;
@@ -157,7 +158,11 @@ pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
 
 /// Docked bar (`0`) vs full-screen search activity (`1`) morph parameter.
 pub fn morph_t(open: bool) -> f32 {
-    if open { 1.0 } else { 0.0 }
+    if open {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 /// Interpolated container height for the docked→activity growing-bar.
@@ -374,6 +379,107 @@ pub fn morph_container(theme: &Theme, t: f32) -> crate::argb::Argb {
 
 pub fn pick_suggestion(query: &str, index: usize) -> Option<&'static str> {
     filter_suggestions(query).get(index).copied()
+}
+
+/// Compose / m3.material.io search style.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchStyle {
+    /// Recommended Expressive: persistent filled container, rounded, no divider.
+    Contained,
+    /// Baseline: divider + full-screen activity flatten (not recommended).
+    Divided,
+}
+
+impl SearchStyle {
+    pub const ALL: [Self; 2] = [Self::Contained, Self::Divided];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Contained => "contained",
+            Self::Divided => "divided",
+        }
+    }
+
+    pub const fn recommended(self) -> bool {
+        matches!(self, Self::Contained)
+    }
+
+    pub const fn shows_divider(self) -> bool {
+        matches!(self, Self::Divided)
+    }
+}
+
+/// Catalog / host hero uses contained (recommended). Divided stays available.
+pub const DEMO_STYLE: SearchStyle = SearchStyle::Contained;
+/// Contained container keeps the 56dp-bar full-round (28) when focused.
+pub const CONTAINED_CORNER_DP: f32 = HEIGHT_DP / 2.0;
+/// Unfocused horizontal margin (`SearchBar` rest).
+pub const CONTAINED_MARGIN_UNFOCUSED_DP: f32 = 24.0;
+/// Focused horizontal margin (Expressive: 24 → 12).
+pub const CONTAINED_MARGIN_FOCUSED_DP: f32 = 12.0;
+/// Contained header stays the 56dp search bar (not the 72dp activity header).
+pub const CONTAINED_HEADER_DP: f32 = HEIGHT_DP;
+
+pub fn contained_margin_dp(focused: bool) -> f32 {
+    if focused {
+        CONTAINED_MARGIN_FOCUSED_DP
+    } else {
+        CONTAINED_MARGIN_UNFOCUSED_DP
+    }
+}
+
+pub fn contained_height_dp(focused: bool, suggestion_count: usize) -> f32 {
+    if focused {
+        CONTAINED_HEADER_DP + SUGGESTION_H_DP * suggestion_count as f32
+    } else {
+        HEIGHT_DP
+    }
+}
+
+pub fn contained_corner_dp(_focused: bool) -> f32 {
+    CONTAINED_CORNER_DP
+}
+
+/// Shared-element stand-in for contained expand (corners stay 28; no flatten).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContainedFrame {
+    pub t: f32,
+    pub height_dp: f32,
+    pub corner_dp: f32,
+    pub header_h_dp: f32,
+    pub margin_dp: f32,
+    pub suggestion_opacity: f32,
+    pub leading_docked_opacity: f32,
+    pub leading_activity_opacity: f32,
+}
+
+pub fn contained_suggestion_count() -> usize {
+    SUGGESTIONS.len()
+}
+
+pub fn contained_frame_at(t: f32, suggestion_count: usize) -> ContainedFrame {
+    let t = t.clamp(0.0, 1.0);
+    let n = suggestion_count.max(1) as f32;
+    ContainedFrame {
+        t,
+        height_dp: HEIGHT_DP + SUGGESTION_H_DP * n * t,
+        corner_dp: CONTAINED_CORNER_DP,
+        header_h_dp: CONTAINED_HEADER_DP,
+        margin_dp: CONTAINED_MARGIN_UNFOCUSED_DP
+            + (CONTAINED_MARGIN_FOCUSED_DP - CONTAINED_MARGIN_UNFOCUSED_DP) * t,
+        suggestion_opacity: t,
+        leading_docked_opacity: morph_avatar_opacity(t),
+        leading_activity_opacity: morph_back_opacity(t),
+    }
+}
+
+pub fn contained_frame_eased(linear: f32, suggestion_count: usize) -> ContainedFrame {
+    contained_frame_at(morph_eased_t(linear), suggestion_count)
+}
+
+/// Persistent filled container (contained never lerps to activity `surface`).
+pub fn contained_container(theme: &Theme) -> crate::argb::Argb {
+    theme.color.surface_container_high
 }
 
 pub fn apply_key_to_editor(ed: &mut crate::components::text_field::TextFieldEditor, key: &str) {

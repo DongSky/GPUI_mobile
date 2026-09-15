@@ -277,14 +277,14 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, with_animation PathBuilder::scale fill + morph_layer_box layout, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "Expressive contained (recommended): persistent surface-container-high, Corner 28 stays focused, 24→12dp margin, no divider, 56dp header + suggestion list; divided full-screen activity + divider still available (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, with_animation PathBuilder::scale fill + morph_layer_box layout); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",
-        material: "Time pickers (dial + TimeScroll)",
+        material: "Time pickers (dial + TimeScroll + TimeInput)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. Dial remains: 12-hour + minute polar face, analog hand spatial-fast lerp, wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
+        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. TimeInput 96×72 extra-large fields + ScrollDisplayModeToggle (⌨/◷ Scroll↔Input). Dial remains: 12-hour + minute polar face, analog hand spatial-fast lerp, wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",

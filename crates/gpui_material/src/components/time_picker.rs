@@ -1,4 +1,4 @@
-//! Time picker (12-hour dial + Expressive TimeScroll).
+//! Time picker (12-hour dial + Expressive TimeScroll + TimeInput).
 //! Specs: https://m3.material.io/components/time-pickers/specs
 //!
 //! Dial: hour and minute faces plus an analog selector hand. GPUI/HTML
@@ -6,7 +6,8 @@
 //!
 //! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
 //! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
-//! and `ScrollFieldDefaults.ScrollFieldHeight` 200. Dial remains available.
+//! and `ScrollFieldDefaults.ScrollFieldHeight` 200. `TimeInput` (96×72
+//! fields) + `ScrollDisplayModeToggle` switch Scroll ↔ Input. Dial remains.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -337,23 +338,92 @@ pub fn hand_svg_d(clock_dp: f32, face: DialFace, hour: u8, minute: u8, number_dp
     hand_svg_d_at_angle(clock_dp, hand_angle_deg(face, hour, minute), number_dp)
 }
 
-/// Compose `TimePicker` display mode. Dial is baseline; Scroll is Expressive.
+/// Compose `TimePicker` display mode. Dial is baseline; Scroll/Input are Expressive.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimePickerStyle {
     Dial,
     Scroll,
+    Input,
 }
 
 impl TimePickerStyle {
-    pub const ALL: [Self; 2] = [Self::Dial, Self::Scroll];
+    pub const ALL: [Self; 3] = [Self::Dial, Self::Scroll, Self::Input];
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Dial => "dial",
             Self::Scroll => "scroll",
+            Self::Input => "input",
         }
     }
 }
+
+/// Compose `TimePickerDisplayMode` for `ScrollDisplayModeToggle` (Scroll ↔ Input).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimePickerDisplayMode {
+    Scroll,
+    Input,
+}
+
+impl TimePickerDisplayMode {
+    pub const ALL: [Self; 2] = [Self::Scroll, Self::Input];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Scroll => "scroll",
+            Self::Input => "input",
+        }
+    }
+
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Scroll => Self::Input,
+            Self::Input => Self::Scroll,
+        }
+    }
+
+    pub const fn style(self) -> TimePickerStyle {
+        match self {
+            Self::Scroll => TimePickerStyle::Scroll,
+            Self::Input => TimePickerStyle::Input,
+        }
+    }
+
+    /// Icon for the *other* mode (keyboard when scrolling, schedule when typing).
+    pub const fn toggle_icon(self) -> &'static str {
+        match self {
+            Self::Scroll => KEYBOARD_ICON,
+            Self::Input => SCHEDULE_ICON,
+        }
+    }
+
+    pub const fn toggle_label(self) -> &'static str {
+        match self {
+            Self::Scroll => "Switch to input mode",
+            Self::Input => "Switch to scroll mode",
+        }
+    }
+}
+
+/// Catalog / host hero starts on TimeScroll; toggle paints TimeInput.
+pub const DEMO_DISPLAY_MODE: TimePickerDisplayMode = TimePickerDisplayMode::Scroll;
+/// Compose `TimePickerDialogDefaults.ScrollDisplayModeToggle` 48dp target.
+pub const TOGGLE_SIZE_DP: f32 = 48.0;
+pub const TOGGLE_ICON_DP: f32 = 24.0;
+/// Keyboard — switch Scroll → Input.
+pub const KEYBOARD_ICON: &str = "⌨";
+/// Schedule / clock — switch Input → Scroll.
+pub const SCHEDULE_ICON: &str = "◷";
+
+/// Time-input field tokens (`TimeInputTokens.TimeFieldContainer*`).
+pub const INPUT_FIELD_W_DP: f32 = 96.0;
+pub const INPUT_FIELD_H_DP: f32 = 72.0;
+/// `TimePickerDefaults.shapes().timeFieldShape` / extra-large.
+pub const INPUT_FIELD_CORNER_DP: f32 = 28.0;
+pub const INPUT_PERIOD_W_DP: f32 = 52.0;
+pub const INPUT_PERIOD_H_DP: f32 = 72.0;
+pub const INPUT_GAP_DP: f32 = 24.0;
+pub const INPUT_COLON_GAP_DP: f32 = 8.0;
 
 /// Catalog / host hero uses Compose `TimeScroll` (recommended).
 pub const DEMO_STYLE: TimePickerStyle = TimePickerStyle::Scroll;
@@ -702,4 +772,230 @@ pub fn resolve_scroll(theme: &Theme) -> TimeScrollAppearance {
         colon_style: theme.typography.display_large,
         period_style: theme.typography.title_medium.emphasized(),
     }
+}
+
+/// Compose `TimeInput` + `TimeInputDefaults.vibrantColors()`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeInputAppearance {
+    pub corners: Corners,
+    pub container: Argb,
+    pub header: Argb,
+    pub field_container: Argb,
+    pub field_focused: Argb,
+    pub field_corners: Corners,
+    pub field_content: Argb,
+    pub field_focused_content: Argb,
+    pub colon: Argb,
+    pub period_selected_container: Argb,
+    pub period_selected: Argb,
+    pub period_idle_container: Argb,
+    pub period_idle: Argb,
+    pub toggle: Argb,
+    pub elevation_dp: f32,
+    pub field_w_dp: f32,
+    pub field_h_dp: f32,
+    pub period_w_dp: f32,
+    pub period_h_dp: f32,
+    pub title_style: TypeStyle,
+    pub field_style: TypeStyle,
+    pub colon_style: TypeStyle,
+    pub period_style: TypeStyle,
+}
+
+pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
+    let c = theme.color;
+    TimeInputAppearance {
+        corners: Corners::all(CORNER_DP),
+        container: c.primary_container,
+        header: c.on_primary_container,
+        field_container: c.surface_container_highest,
+        field_focused: c.on_primary_container,
+        field_corners: Corners::all(INPUT_FIELD_CORNER_DP),
+        field_content: c.on_surface,
+        field_focused_content: c.primary_container,
+        colon: c.on_primary_container,
+        period_selected_container: c.on_primary_container,
+        period_selected: c.primary_container,
+        period_idle_container: c.primary,
+        period_idle: c.on_primary,
+        toggle: c.on_primary_container,
+        elevation_dp: theme.elevation.level3,
+        field_w_dp: INPUT_FIELD_W_DP,
+        field_h_dp: INPUT_FIELD_H_DP,
+        period_w_dp: INPUT_PERIOD_W_DP,
+        period_h_dp: INPUT_PERIOD_H_DP,
+        title_style: theme.typography.label_large,
+        field_style: theme.typography.display_large.emphasized(),
+        colon_style: theme.typography.display_large,
+        period_style: theme.typography.title_medium.emphasized(),
+    }
+}
+
+pub fn resolve_toggle(theme: &Theme) -> (f32, Argb) {
+    (TOGGLE_SIZE_DP, theme.color.on_primary_container)
+}
+
+/// Two-digit TimeInput field (hour 1–12 / minute 00–59).
+#[derive(Clone, Debug, PartialEq)]
+pub struct TimeInputField {
+    pub kind: ScrollKind,
+    pub digits: String,
+}
+
+impl TimeInputField {
+    pub fn hour(hour: u8) -> Self {
+        Self {
+            kind: ScrollKind::Hour,
+            digits: format_hour_field(hour),
+        }
+    }
+
+    pub fn minute(minute: u8) -> Self {
+        Self {
+            kind: ScrollKind::Minute,
+            digits: format_minute_field(minute),
+        }
+    }
+
+    pub fn display(&self) -> String {
+        match self.digits.len() {
+            0 => "--".into(),
+            1 => format!("0{}", self.digits),
+            _ => self.digits.chars().take(2).collect(),
+        }
+    }
+
+    pub fn value(&self) -> Option<u8> {
+        let n: u8 = self.digits.parse().ok()?;
+        match self.kind {
+            ScrollKind::Hour => (1..=12).contains(&n).then_some(n),
+            ScrollKind::Minute => (n <= 59).then_some(n),
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.value().is_some()
+    }
+
+    pub fn backspace(&mut self) {
+        self.digits.pop();
+    }
+
+    /// Returns true when the caret should advance to the next field.
+    pub fn apply_digit(&mut self, digit: char) -> bool {
+        if !digit.is_ascii_digit() {
+            return false;
+        }
+        if self.digits.len() >= 2 {
+            self.digits.clear();
+        }
+        let next = format!("{}{digit}", self.digits);
+        let n: u8 = next.parse().unwrap_or(99);
+        let accept = match self.kind {
+            ScrollKind::Hour => n <= 12,
+            ScrollKind::Minute => n <= 59,
+        };
+        if accept {
+            self.digits = next;
+        } else if self.digits.is_empty() {
+            return false;
+        } else {
+            self.digits.clear();
+            return self.apply_digit(digit);
+        }
+        match self.kind {
+            ScrollKind::Hour => {
+                self.digits.len() == 2 || (self.digits.len() == 1 && self.digits.as_str() >= "2")
+            }
+            ScrollKind::Minute => self.digits.len() == 2,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TimeInputState {
+    pub hour: TimeInputField,
+    pub minute: TimeInputField,
+    pub focus: ScrollKind,
+}
+
+impl TimeInputState {
+    pub fn demo() -> Self {
+        Self::from_clock(DEMO_HOUR, DEMO_MINUTE)
+    }
+
+    pub fn from_clock(hour: u8, minute: u8) -> Self {
+        Self {
+            hour: TimeInputField::hour(hour),
+            minute: TimeInputField::minute(minute),
+            focus: ScrollKind::Hour,
+        }
+    }
+
+    pub fn hour_value(&self) -> Option<u8> {
+        self.hour.value()
+    }
+
+    pub fn minute_value(&self) -> Option<u8> {
+        self.minute.value()
+    }
+
+    pub fn is_input_valid(&self) -> bool {
+        self.hour.is_valid() && self.minute.is_valid()
+    }
+
+    pub fn focused_mut(&mut self) -> &mut TimeInputField {
+        match self.focus {
+            ScrollKind::Hour => &mut self.hour,
+            ScrollKind::Minute => &mut self.minute,
+        }
+    }
+
+    pub fn apply_key(&mut self, key: &str) {
+        match key {
+            "backspace" | "delete" => self.focused_mut().backspace(),
+            "left" => self.focus = ScrollKind::Hour,
+            "right" | "tab" => self.focus = ScrollKind::Minute,
+            k if k.len() == 1 => {
+                if let Some(ch) = k.chars().next() {
+                    if self.focused_mut().apply_digit(ch) && self.focus == ScrollKind::Hour {
+                        self.focus = ScrollKind::Minute;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn commit_or(&self, hour: u8, minute: u8) -> (u8, u8) {
+        (
+            self.hour_value().unwrap_or(hour.clamp(1, 12)),
+            self.minute_value().unwrap_or(minute.min(59)),
+        )
+    }
+}
+
+pub fn apply_display_toggle(
+    mode: TimePickerDisplayMode,
+    scroll: &mut TimeScrollState,
+    input: &mut TimeInputState,
+    hour: &mut u8,
+    minute: &mut u8,
+) -> TimePickerDisplayMode {
+    let next = mode.toggle();
+    match next {
+        TimePickerDisplayMode::Input => {
+            *hour = scroll.hour_value();
+            *minute = scroll.minute_value();
+            *input = TimeInputState::from_clock(*hour, *minute);
+        }
+        TimePickerDisplayMode::Scroll => {
+            let (h, m) = input.commit_or(*hour, *minute);
+            *hour = h;
+            *minute = m;
+            scroll.hour.snap_to_index(hour_index(h) as usize);
+            scroll.minute.snap_to_index(minute_index(m) as usize);
+        }
+    }
+    next
 }

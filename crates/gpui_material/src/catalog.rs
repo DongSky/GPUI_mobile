@@ -204,6 +204,15 @@ a {{ color: var(--primary); }}
 .search-morph[data-open="0"] {{
   margin: 0 16px; transform: scale(0.94);
 }}
+.search-morph[data-search-style="contained"],
+.search-morph[data-search-style="contained"][data-open="1"],
+.search-view[data-search-style="contained"][data-search-activity="1"] {{
+  border-radius: 28px; max-width: 720px; min-height: 280px; margin: 12px; transform: none;
+}}
+.search-morph[data-search-style="contained"][data-open="0"] {{
+  margin: 24px; min-height: 56px; transform: none;
+}}
+.search-morph[data-search-style="contained"] .sv-divider {{ display: none; }}
 .search-morph[data-open="0"] .sv-list {{ max-height: 0; opacity: 0; }}
 .search-morph .lead {{
   position: relative; width: 24px; height: 24px; flex: 0 0 24px;
@@ -288,6 +297,27 @@ a {{ color: var(--primary); }}
 .time-scroll .scroll-colon {{
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }}
+.time-expressive {{
+  display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
+}}
+.time-expressive .time-display-head {{
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}}
+.time-expressive .time-display-toggle {{
+  width: 48px; height: 48px; border: none; background: transparent; cursor: pointer;
+  font-size: 20px; line-height: 24px; border-radius: 24px;
+}}
+.time-expressive[data-time-display="input"] [data-time-scroll] {{ display: none; }}
+.time-expressive[data-time-display="scroll"] [data-time-input] {{ display: none; }}
+.time-input-row {{ display: flex; align-items: center; gap: 8px; }}
+.time-input-field {{
+  width: 96px; height: 72px; border: none; border-radius: 28px; text-align: center;
+  font: 500 57px/64px Roboto, sans-serif; padding: 0;
+}}
+.time-input-colon {{
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}}
+.time-input .period button {{ height: 32px; }}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -1788,6 +1818,34 @@ document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
     }});
   }});
 }});
+document.querySelectorAll("[data-scroll-display-mode-toggle]").forEach(function (btn) {{
+  btn.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var host = btn.closest("[data-time-display]");
+    if (!host) return;
+    var mode = host.getAttribute("data-time-display") === "scroll" ? "input" : "scroll";
+    host.setAttribute("data-time-display", mode);
+    btn.setAttribute("data-display-mode", mode);
+    btn.textContent = mode === "scroll" ? "⌨" : "◷";
+    btn.setAttribute("title", mode === "scroll" ? "Switch to input mode" : "Switch to scroll mode");
+    var scroll = host.querySelector("[data-time-scroll]");
+    var input = host.querySelector("[data-time-input]");
+    if (scroll) scroll.style.display = mode === "scroll" ? "" : "none";
+    if (input) input.style.display = mode === "input" ? "" : "none";
+  }});
+}});
+document.querySelectorAll("[data-time-input-field]").forEach(function (field) {{
+  field.addEventListener("input", function () {{
+    var raw = (field.value || "").replace(/\\D/g, "").slice(0, 2);
+    var kind = field.getAttribute("data-time-input-field");
+    var n = parseInt(raw || "0", 10);
+    if (kind === "hour" && n > 12) raw = raw.slice(0, 1);
+    if (kind === "minute" && n > 59) raw = raw.slice(0, 1);
+    field.value = raw;
+    var host = field.closest("[data-time-input]") || field.closest("[data-time-display]");
+    if (host && raw.length === 2) host.setAttribute("data-" + kind, String(n));
+  }});
+}});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
   var cal = dock.querySelector("[data-datepicker-popup]");
   var field = dock.querySelector("[data-field-hero='docked-date']");
@@ -1892,11 +1950,22 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     view.setAttribute("data-search-anim-scale", open ? "1" : "0.94");
     view.setAttribute("data-search-transform-origin", "top center");
     if (view.classList.contains("search-morph")) {{
-      view.style.minHeight = open ? "320px" : "56px";
-      view.style.borderRadius = open ? "0" : "28px";
-      view.style.marginLeft = open ? "0" : "16px";
-      view.style.marginRight = open ? "0" : "16px";
-      view.style.transform = open ? "scale(1)" : "scale(0.94)";
+      var contained = view.getAttribute("data-search-style") === "contained";
+      if (contained) {{
+        view.style.minHeight = open ? "280px" : "56px";
+        view.style.borderRadius = "28px";
+        view.style.marginLeft = open ? "12px" : "24px";
+        view.style.marginRight = open ? "12px" : "24px";
+        view.style.transform = "none";
+        view.setAttribute("data-search-scale", "1");
+        view.setAttribute("data-search-anim-scale", "1");
+      }} else {{
+        view.style.minHeight = open ? "320px" : "56px";
+        view.style.borderRadius = open ? "0" : "28px";
+        view.style.marginLeft = open ? "0" : "16px";
+        view.style.marginRight = open ? "0" : "16px";
+        view.style.transform = open ? "scale(1)" : "scale(0.94)";
+      }}
     }} else {{
       view.style.display = open ? "flex" : "none";
       bar.setAttribute("data-hidden", open ? "1" : "0");
@@ -5854,21 +5923,23 @@ fn date_pickers(theme: &Theme) -> String {
 
 fn search_section(theme: &Theme) -> String {
     let bar = search::resolve(theme);
-    let view = search::resolve_activity(theme);
+    let contained = search::resolve_view(theme);
+    let activity = search::resolve_activity(theme);
     let mut rows = String::new();
     for (i, label) in search::SUGGESTIONS.iter().enumerate() {
         rows.push_str(&format!(
             r#"<div class="sv-row" data-search-suggestion="{label}" style="color:{fg};height:{h}px"><span style="color:{ico}">{icon}</span><span>{label}</span></div>"#,
-            fg = view.suggestion.css_hex(),
-            h = view.suggestion_h_dp,
-            ico = view.suggestion_icon.css_hex(),
+            fg = contained.suggestion.css_hex(),
+            h = contained.suggestion_h_dp,
+            ico = contained.suggestion_icon.css_hex(),
             icon = if i == 0 { "⌕" } else { "◌" },
         ));
     }
+    let focused = search::contained_frame_at(1.0, search::contained_suggestion_count());
     format!(
         r#"<h2>Search</h2>
-<p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
+<p class="note">Expressive (recommended): contained search — persistent filled container, Corner 28 stays focused, 24→12dp margin, no divider. Divided full-screen activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -5878,23 +5949,38 @@ fn search_section(theme: &Theme) -> String {
     <div class="ico">{mic}</div>
     <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
-  <div style="height:1px;background:{vdiv}"></div>
   <div class="sv-list">{rows}</div>
+</div>
+<h3>divided (baseline)</h3>
+<p class="note">Not recommended. Divider + full-screen activity flatten (0dp corners).</p>
+<div class="search-morph" data-search-style="divided" data-search-view="1" data-search-activity="1" data-open="1" style="background:{abg2};border-radius:{ar}px;min-height:{amh}px">
+  <div class="sv-head" style="height:{ah}px;color:{afg2}">
+    <div class="lead"><span class="lead-activity">{back}</span></div>
+    <input class="hint" placeholder="{placeholder}" style="color:{aph}"/>
+  </div>
+  <div class="sv-divider" style="height:1px;background:{vdiv}"></div>
 </div>"#,
-        vbg = view.container.css_hex(),
-        vr = view.corners.top_left,
-        mh = search::ACTIVITY_MIN_H_DP,
-        vh = view.header_h_dp,
-        vfg = view.header.css_hex(),
-        vph = view.placeholder.css_hex(),
+        cbg = search::contained_container(theme).css_hex(),
+        cr = focused.corner_dp,
+        mh = focused.height_dp,
+        mg = focused.margin_dp,
+        vh = focused.header_h_dp,
+        vfg = contained.header.css_hex(),
+        vph = contained.placeholder.css_hex(),
         back = search::VIEW_BACK,
         lead = search::LEADING_ICON,
         abg = bar.avatar.css_hex(),
         afg = bar.avatar_label.css_hex(),
-        vdiv = view.divider.css_hex(),
         placeholder = search::PLACEHOLDER,
         mic = search::TRAILING_MIC,
         rows = rows,
+        abg2 = activity.container.css_hex(),
+        ar = activity.corners.top_left,
+        amh = search::ACTIVITY_MIN_H_DP,
+        ah = activity.header_h_dp,
+        afg2 = activity.header.css_hex(),
+        aph = activity.placeholder.css_hex(),
+        vdiv = activity.divider.css_hex(),
     )
 }
 
@@ -5948,9 +6034,11 @@ fn paint_scroll_field(
 
 fn time_picker_section(theme: &Theme) -> String {
     let scroll = time_picker::resolve_scroll(theme);
+    let input = time_picker::resolve_input(theme);
     let state = time_picker::TimeScrollState::demo();
     let hour_field = paint_scroll_field(state.hour, &scroll);
     let minute_field = paint_scroll_field(state.minute, &scroll);
+    let input_state = time_picker::TimeInputState::demo();
     let (sam_bg, sam_fg) = if time_picker::DEMO_PERIOD == time_picker::DayPeriod::Am {
         (
             scroll.period_selected_container.css_hex(),
@@ -5973,18 +6061,57 @@ fn time_picker_section(theme: &Theme) -> String {
             scroll.period_idle.css_hex(),
         )
     };
+    let (iam_bg, iam_fg) = if time_picker::DEMO_PERIOD == time_picker::DayPeriod::Am {
+        (
+            input.period_selected_container.css_hex(),
+            input.period_selected.css_hex(),
+        )
+    } else {
+        (
+            input.period_idle_container.css_hex(),
+            input.period_idle.css_hex(),
+        )
+    };
+    let (ipm_bg, ipm_fg) = if time_picker::DEMO_PERIOD == time_picker::DayPeriod::Pm {
+        (
+            input.period_selected_container.css_hex(),
+            input.period_selected.css_hex(),
+        )
+    } else {
+        (
+            input.period_idle_container.css_hex(),
+            input.period_idle.css_hex(),
+        )
+    };
+    let mode = time_picker::DEMO_DISPLAY_MODE;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="time-scroll dialog" data-time-scroll="1" data-hero="timepicker" data-time-picker-style="scroll" data-scroll-item-h="{ih}" data-scroll-fling-decay="{decay}" data-scroll-fling-rest="{rest}" data-scroll-snap="{snap}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
-  <div style="color:{hy};font-size:{ys}px">{title}</div>
-  <div class="scroll-row">
-    {hour_field}
-    <div class="scroll-colon" style="color:{colon};font-size:{cs}px;font-weight:{cw};margin-top:{cy}px">:</div>
-    {minute_field}
-    <div class="period">
-      <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
-      <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="time-expressive dialog" data-time-display="{mode}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div class="time-display-head">
+    <div style="color:{hy};font-size:{ys}px">{title}</div>
+    <button class="time-display-toggle" data-scroll-display-mode-toggle="1" data-display-mode="{mode}" title="{tlabel}" style="color:{tg}">{ticon}</button>
+  </div>
+  <div class="time-scroll" data-time-scroll="1" data-time-picker-style="scroll" data-scroll-item-h="{ih}" data-scroll-fling-decay="{decay}" data-scroll-fling-rest="{rest}" data-scroll-snap="{snap}" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
+    <div class="scroll-row">
+      {hour_field}
+      <div class="scroll-colon" style="color:{colon};font-size:{cs}px;font-weight:{cw};margin-top:{cy}px">:</div>
+      {minute_field}
+      <div class="period">
+        <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
+        <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
+      </div>
+    </div>
+  </div>
+  <div class="time-input" data-time-input="1" data-time-picker-style="input" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
+    <div class="time-input-row">
+      <input class="time-input-field" data-time-input-field="hour" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+      <div class="time-input-colon" style="color:{icolon};font-size:{ics}px;font-weight:{icw}">:</div>
+      <input class="time-input-field" data-time-input-field="minute" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+      <div class="period">
+        <button data-period="AM" style="background:{iamb};color:{iamf}">{am}</button>
+        <button data-period="PM" style="background:{ipmb};color:{ipmf}">{pm}</button>
+      </div>
     </div>
   </div>
 </div>
@@ -6014,6 +6141,26 @@ fn time_picker_section(theme: &Theme) -> String {
         pmf = spm_fg,
         am = time_picker::DayPeriod::Am.label(),
         pm = time_picker::DayPeriod::Pm.label(),
+        mode = mode.label(),
+        tlabel = mode.toggle_label(),
+        tg = input.toggle.css_hex(),
+        ticon = mode.toggle_icon(),
+        ihh = input_state.hour.display(),
+        imm = input_state.minute.display(),
+        ifbg = input.field_focused.css_hex(),
+        iffg = input.field_focused_content.css_hex(),
+        imbg = input.field_container.css_hex(),
+        imfg = input.field_content.css_hex(),
+        ifw = input.field_w_dp,
+        ifh = input.field_h_dp,
+        ifr = input.field_corners.top_left,
+        icolon = input.colon.css_hex(),
+        ics = input.colon_style.size_sp,
+        icw = input.colon_style.weight,
+        iamb = iam_bg,
+        iamf = iam_fg,
+        ipmb = ipm_bg,
+        ipmf = ipm_fg,
     );
 
     let a = time_picker::resolve(theme);
