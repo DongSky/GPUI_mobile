@@ -270,7 +270,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, select dismiss, outside-click dismiss, month nav that re-grids HTML+GPUI); month ▾ chrome; emphasized large date",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, select dismiss, outside-click dismiss, month nav that re-grids HTML+GPUI); modal date input (DisplayMode.Input, outlined MM/DD/YYYY, calendar/edit toggle); month ▾ chrome; emphasized large date",
     },
     ComponentEntry {
         name: "Search",

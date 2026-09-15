@@ -227,11 +227,7 @@ pub const RANGE_DEMO_END: CivilDate = CivilDate {
 
 /// Official overview range hero headline, e.g. "Aug 17 – Aug 23".
 pub fn header_range_label(start: CivilDate, end: CivilDate) -> String {
-    format!(
-        "{} – {}",
-        header_date_short(start),
-        header_date_short(end)
-    )
+    format!("{} – {}", header_date_short(start), header_date_short(end))
 }
 
 pub fn month_nav_label(year: i32, month: u32) -> String {
@@ -250,6 +246,83 @@ pub const DOCKED_DISMISS_ON_OUTSIDE: bool = true;
 
 pub fn docked_field_value(date: CivilDate) -> String {
     format!("{}, {}", header_date_short(date), date.year)
+}
+
+/// Compose `DatePickerDisplayMode` (Picker calendar ↔ Input text).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DatePickerDisplayMode {
+    Picker,
+    Input,
+}
+
+impl DatePickerDisplayMode {
+    pub const ALL: [Self; 2] = [Self::Picker, Self::Input];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Picker => "picker",
+            Self::Input => "input",
+        }
+    }
+
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Picker => Self::Input,
+            Self::Input => Self::Picker,
+        }
+    }
+
+    /// Icon for the *other* mode (edit when picking, calendar when typing).
+    pub const fn toggle_icon(self) -> &'static str {
+        match self {
+            Self::Picker => INPUT_TOGGLE_EDIT,
+            Self::Input => INPUT_TOGGLE_CALENDAR,
+        }
+    }
+
+    pub const fn toggle_label(self) -> &'static str {
+        match self {
+            Self::Picker => "Switch to input mode",
+            Self::Input => "Switch to calendar mode",
+        }
+    }
+}
+
+/// Catalog modal-input sibling starts on Input (Compose `DisplayMode.Input`).
+pub const DEMO_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Input;
+pub const INPUT_HEADLINE: &str = "Select date";
+pub const INPUT_SUPPORTING: &str = "Enter date";
+pub const INPUT_FIELD_LABEL: &str = "Date";
+pub const INPUT_PLACEHOLDER: &str = "MM/DD/YYYY";
+pub const INPUT_TOGGLE_EDIT: &str = "✎";
+pub const INPUT_TOGGLE_CALENDAR: &str = "▦";
+pub const INPUT_OK: &str = "OK";
+pub const INPUT_CANCEL: &str = "Cancel";
+
+pub fn input_field_value(date: CivilDate) -> String {
+    format!("{:02}/{:02}/{:04}", date.month, date.day, date.year)
+}
+
+pub fn parse_input_field(s: &str) -> Option<CivilDate> {
+    let parts: Vec<&str> = s.trim().split('/').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let month: u32 = parts[0].parse().ok()?;
+    let day: u32 = parts[1].parse().ok()?;
+    let year: i32 = parts[2].parse().ok()?;
+    if !(1..=12).contains(&month) {
+        return None;
+    }
+    let max = days_in_month(year, month);
+    if day < 1 || day > max {
+        return None;
+    }
+    Some(CivilDate { year, month, day })
+}
+
+pub fn is_input_valid(s: &str) -> bool {
+    parse_input_field(s).is_some()
 }
 
 fn date_ord(d: CivilDate) -> i32 {

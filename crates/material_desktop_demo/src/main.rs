@@ -1034,6 +1034,7 @@ fn catalog_body(
         .child(date_range_hero(theme, &pick))
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
+        .child(date_input_card(this, theme, &pick))
 }
 
 fn paint_icon_button(a: &Appearance) -> impl IntoElement + use<> {
@@ -3226,6 +3227,110 @@ fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> 
                         })
                         .child(day.to_string())
                 })),
+        )
+}
+
+fn date_input_card(
+    this: &CatalogView,
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    let value = date_picker::input_field_value(this.selected);
+    div()
+        .w(px(pick.day_dp * 7.0 + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .items_start()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(spaced_line(
+                            date_picker::INPUT_HEADLINE,
+                            pick.year_style.size_sp,
+                            paint(pick.header_year),
+                        ))
+                        .child(
+                            div()
+                                .font_weight(type_weight(pick.date_style))
+                                .child(spaced_line(
+                                    date_picker::header_date_label(this.selected),
+                                    pick.date_style.size_sp,
+                                    paint(pick.header_date),
+                                )),
+                        )
+                        .child(spaced_line(
+                            date_picker::INPUT_SUPPORTING,
+                            pick.year_style.size_sp,
+                            paint(pick.header_year),
+                        )),
+                )
+                .child(
+                    div()
+                        .w(px(48.))
+                        .h(px(48.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
+        )
+        .child(
+            div()
+                .w_full()
+                .px(px(field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(
+                    field
+                        .field
+                        .outline
+                        .map(|(c, _)| c)
+                        .unwrap_or(theme.color.outline),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_FIELD_LABEL,
+                    field.label_style.size_sp,
+                    paint(field.label),
+                ))
+                .child(spaced_line(
+                    value,
+                    field.input_style.size_sp,
+                    paint(field.input),
+                )),
+        )
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .justify_end()
+                .gap(px(dialog::ACTION_GAP_DP))
+                .child(spaced_line(
+                    date_picker::INPUT_CANCEL,
+                    14.0,
+                    paint(theme.color.primary),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_OK,
+                    14.0,
+                    paint(theme.color.primary),
+                )),
         )
 }
 
@@ -7424,8 +7529,8 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-        button, button_group, carousel, chip, dialog, fab_menu, icon_button, list, menu,
-        navigation_bar, navigation_rail, progress, search, side_sheet, slider, split_button,
+        button, button_group, carousel, chip, date_picker, dialog, fab_menu, icon_button, list,
+        menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider, split_button,
         text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
@@ -7568,6 +7673,18 @@ mod tests {
             search::SearchFilter::Settings
         ));
         assert_eq!(search::EMPTY_H_DP, 56.0);
+        assert_eq!(
+            date_picker::input_field_value(date_picker::CivilDate {
+                year: 2026,
+                month: 9,
+                day: 15,
+            }),
+            "09/15/2026"
+        );
+        assert_eq!(
+            date_picker::DEMO_DISPLAY_MODE,
+            date_picker::DatePickerDisplayMode::Input
+        );
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),
             search::RowLeadingKind::Avatar

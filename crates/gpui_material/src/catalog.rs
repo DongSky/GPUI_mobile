@@ -1269,6 +1269,12 @@ table.inv th {{ font-weight: 500; }}
 .cal {{ width: 360px; padding: 16px 12px 12px; }}
 .cal .head {{ padding: 8px 12px 16px; }}
 .cal .week, .cal .grid {{ display: grid; grid-template-columns: repeat(7, 40px); justify-content: center; }}
+.cal[data-date-display="input"] .week, .cal[data-date-display="input"] .grid, .cal[data-date-display="input"] .month-nav {{ display: none; }}
+.cal .dp-input {{ padding: 8px 12px 16px; }}
+.cal .dp-toggle {{
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 20px;
+}}
 .day {{
   width: 40px; height: 40px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center;
@@ -6145,7 +6151,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Modal date input (Compose <code>DisplayMode.Input</code>) is an outlined <code>MM/DD/YYYY</code> field plus calendar/edit toggle. Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -6178,6 +6184,23 @@ fn date_pickers(theme: &Theme) -> String {
     </div>
     <div class="week">{week}</div>
     <div class="grid" data-docked-grid="1">{grid}</div>
+  </div>
+</div>
+<h3>modal input</h3>
+<p class="note">Compose <code>DatePickerDisplayMode.Input</code>: headline + supporting text, outlined <code>MM/DD/YYYY</code> field, calendar/edit toggle, Cancel / OK.</p>
+<div class="cal dialog" data-datepicker-input="1" data-hero="datepicker-input" data-date-display="input" data-date-display-mode="input">
+  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <div>
+      <div style="color:{hy};font-size:{ys}px">{input_headline}</div>
+      <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
+      <div style="color:{hy};font-size:{ys}px;margin-top:8px">{input_supporting}</div>
+    </div>
+    <div class="dp-toggle" data-date-display-toggle="1" aria-label="{toggle_label}">{toggle_icon}</div>
+  </div>
+  <div class="dp-input" data-date-input-field="1">{input_field}</div>
+  <div class="actions" style="padding:8px 12px 0">
+    <button class="btn" style="background:transparent;color:{act}">{cancel}</button>
+    <button class="btn" style="background:transparent;color:{act}">{ok}</button>
   </div>
 </div>"#,
         bg = a.container.css_hex(),
@@ -6217,6 +6240,26 @@ fn date_pickers(theme: &Theme) -> String {
             &format!(
                 r#"<div class="val">{}</div>"#,
                 date_picker::docked_field_value(selected)
+            ),
+        ),
+        input_headline = date_picker::INPUT_HEADLINE,
+        input_supporting = date_picker::INPUT_SUPPORTING,
+        toggle_icon = date_picker::DEMO_DISPLAY_MODE.toggle_icon(),
+        toggle_label = date_picker::DEMO_DISPLAY_MODE.toggle_label(),
+        cancel = date_picker::INPUT_CANCEL,
+        ok = date_picker::INPUT_OK,
+        input_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Enabled,
+                true,
+            ),
+            r#"data-date-input="1""#,
+            date_picker::INPUT_FIELD_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(selected)
             ),
         ),
     )

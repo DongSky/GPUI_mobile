@@ -863,6 +863,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-button-group=\"connected\""));
     assert!(html.contains("data-slider-range=\"1\""));
     assert!(html.contains("data-datepicker-docked=\"1\""));
+    assert!(html.contains(r#"data-hero="datepicker-input""#));
+    assert!(html.contains(r#"data-datepicker-input="1""#));
+    assert!(html.contains(r#"data-date-display="input""#));
+    assert!(html.contains("MM/DD/YYYY"));
+    assert!(html.contains("09/15/2026"));
     assert!(html.contains("data-settings-scene=\"1\""));
     assert!(html.contains("data-settings-block=\"volume\""));
     assert!(html.contains("data-search=\"1\""));
@@ -2294,6 +2299,25 @@ fn date_picker_grid_and_weekday() {
         "Sep 15, 2026"
     );
     assert_eq!(
+        date_picker::DEMO_DISPLAY_MODE,
+        date_picker::DatePickerDisplayMode::Input
+    );
+    assert_eq!(date_picker::INPUT_PLACEHOLDER, "MM/DD/YYYY");
+    assert_eq!(
+        date_picker::input_field_value(date_picker::RANGE_DEMO_START),
+        "09/15/2026"
+    );
+    assert_eq!(
+        date_picker::parse_input_field("09/15/2026"),
+        Some(date_picker::RANGE_DEMO_START)
+    );
+    assert!(date_picker::is_input_valid("09/15/2026"));
+    assert!(!date_picker::is_input_valid("13/40/2026"));
+    assert_eq!(
+        date_picker::DatePickerDisplayMode::Picker.toggle(),
+        date_picker::DatePickerDisplayMode::Input
+    );
+    assert_eq!(
         date_picker::header_range_label(date_picker::RANGE_DEMO_START, date_picker::RANGE_DEMO_END),
         "Sep 15 – Sep 21"
     );
@@ -2859,7 +2883,10 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search::item_category("App"), "apps");
     assert_eq!(search::item_category("Recent search"), "all");
     assert!(search::filter_suggestions_in(search::DEMO_QUERY, search::DEMO_FILTER).is_empty());
-    assert!(search::shows_empty_in(search::DEMO_QUERY, search::DEMO_FILTER));
+    assert!(search::shows_empty_in(
+        search::DEMO_QUERY,
+        search::DEMO_FILTER
+    ));
     assert_eq!(search::supporting_for("App"), "Installed application");
     assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
     assert_eq!(search::ROW_LEADING_ICON_DP, 20.0);
