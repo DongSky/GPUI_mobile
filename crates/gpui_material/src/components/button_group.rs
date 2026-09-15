@@ -125,3 +125,9 @@ pub fn resolve_segment_size(
 
 /// Catalog settings-like scene title (emphasized hero).
 pub const SETTINGS_SCENE_TITLE: &str = "Sound & notifications";
+pub const SETTINGS_VOLUME_TITLE: &str = "Volume";
+pub const SETTINGS_QUIET_HOURS_TITLE: &str = "Quiet hours";
+pub const SETTINGS_PAD_DP: f32 = 16.0;
+pub const SETTINGS_GROUP_GAP_DP: f32 = 24.0;
+pub const SETTINGS_ROW_GAP_DP: f32 = 8.0;
+pub const SETTINGS_CORNER_DP: f32 = 16.0;

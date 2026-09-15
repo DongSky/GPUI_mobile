@@ -39,7 +39,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Type scale (15 baseline styles)",
         docs: "https://m3.material.io/styles/typography/type-scale-tokens",
         parity: Parity::Done,
-        notes: "Roboto; 15 baseline + 15 emphasized (400→500 / 500→700, same size/lh); heroes use emphasized headlines",
+        notes: "Roboto when installed else Liberation Sans + word-gap; 15 baseline + 15 emphasized (400→500 / 500→700); heroes use display/headline emphasized",
     },
     ComponentEntry {
         name: "Shape",
@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined true cutout (segmented stroke / fieldset legend) on populated/focused; focus outline 2dp; icons; IME still NativeActivity stub",
+        notes: "Floating label; outlined true cutout with 4dp corner tiles meeting 1–2dp stroke; fieldset legend on HTML; focus outline 2dp; IME still NativeActivity stub",
     },
     ComponentEntry {
         name: "List",
@@ -207,7 +207,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with 5% step / nearest-thumb track tap; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -228,7 +228,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked/inline field+calendar; month ▾ chrome; emphasized large date",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, dismiss, write-back); month ▾ chrome; emphasized large date",
+    },
+    ComponentEntry {
+        name: "Search",
+        material: "Search bar (docked)",
+        docs: "https://m3.material.io/components/search/specs",
+        parity: Parity::Done,
+        notes: "56dp full-round surface-container-high bar; leading search + hinted text + trailing; no expanded search-view sheet",
+    },
+    ComponentEntry {
+        name: "Time picker",
+        material: "Time pickers (dial)",
+        docs: "https://m3.material.io/components/time-pickers/specs",
+        parity: Parity::Done,
+        notes: "12-hour dial tokens; 256dp clock; displaySmallEmphasized header; AM/PM; selected hour morph; no analog hand animation",
     },
 ];
 

@@ -3,8 +3,8 @@
 //! Paints `gpui_material::resolve()` appearances with the same GPUI `div`
 //! mapping as Android `component_demo`. Tokens live only in `gpui_material`.
 //!
-//! Desktop type: Liberation Sans (`typography::FONT_FAMILY_DESKTOP`). Roboto is
-//! not installed here; Mesa llvmpipe / cosmic-text often collapses space
+//! Desktop type: Roboto when installed (`typography::desktop_font_family()`),
+//! else Liberation Sans. Mesa llvmpipe / cosmic-text often collapses space
 //! glyphs, so multi-word copy is mapped as separate word elements with
 //! `WORD_GAP_DP`. Hardware GL is unavailable when `/dev/dri` is missing
 //! (`scripts/desktop.sh` sets `WGPU_BACKEND=gl`).
@@ -20,8 +20,9 @@ use gpui::{
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
+use gpui_material::components::time_picker::{self, DayPeriod};
 use gpui_material::components::{
-    button, button_group, card, checkbox, dialog, icon_button, radio, slider, switch, tabs,
+    button, button_group, checkbox, dialog, icon_button, radio, search, slider, switch, tabs,
     text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
@@ -73,6 +74,12 @@ struct CatalogView {
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
     group_selected: usize,
+    range_start: f32,
+    range_end: f32,
+    docked_open: bool,
+    time_hour: u8,
+    time_minute: u8,
+    time_period: DayPeriod,
 }
 
 impl CatalogView {
@@ -104,9 +111,10 @@ impl Render for CatalogView {
                     .text_size(px(bar.title_style.size_sp))
                     .text_color(paint(bar.title))
                     .whitespace_nowrap()
+                    .font_weight(type_weight(bar.title_style.emphasized()))
                     .child(spaced_line(
                         "Material 3 desktop",
-                        bar.title_style.size_sp,
+                        bar.title_style.emphasized().size_sp,
                         paint(bar.title),
                     )),
             )
@@ -137,7 +145,7 @@ impl Render for CatalogView {
             .flex_col()
             .size_full()
             .bg(paint(c.background))
-            .font_family(typography::FONT_FAMILY_DESKTOP)
+            .font_family(typography::desktop_font_family())
             .text_color(paint(c.on_background))
             .child(chrome)
             .child(body)
@@ -337,7 +345,7 @@ fn catalog_body(
         ))
         .child(section_title(theme, "Slider"))
         .child(volume_slider_scene(theme, this.slider, cx))
-        .child(range_slider_hero(theme))
+        .child(range_slider_hero(this, theme, cx))
         .child(
             div()
                 .text_size(px(12.))
@@ -442,6 +450,10 @@ fn catalog_body(
                     }),
                 )),
         )
+        .child(section_title(theme, "Search"))
+        .child(search_bar_hero(theme))
+        .child(section_title(theme, "Time picker"))
+        .child(time_picker_hero(this, theme, cx))
         .child(section_title(theme, "Date picker"))
         .child(date_range_hero(theme, &pick))
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
@@ -492,11 +504,15 @@ fn connected_button_group(
         )
 }
 
-fn range_slider_hero(theme: &Theme) -> impl IntoElement {
+fn range_slider_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let range = slider::resolve_range(
         theme,
-        slider::RANGE_DEMO_START,
-        slider::RANGE_DEMO_END,
+        this.range_start,
+        this.range_end,
         InteractionState::Enabled,
     );
     let t = range.track;
@@ -509,7 +525,7 @@ fn range_slider_hero(theme: &Theme) -> impl IntoElement {
         .flex_col()
         .gap(px(4.))
         .child(spaced_line(
-            slider::RANGE_HERO_LABEL,
+            slider::range_value_label(range.start, range.end),
             12.0,
             paint(theme.color.on_surface),
         ))
@@ -521,40 +537,96 @@ fn range_slider_hero(theme: &Theme) -> impl IntoElement {
                 .items_center()
                 .child(
                     div()
+                        .id("range-left")
                         .h(px(t.track_h))
                         .w(px(left))
                         .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive)),
+                        .bg(paint(t.inactive))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (s, e) = slider::nudge_start(
+                                this.range_start,
+                                this.range_end,
+                                -slider::RANGE_STEP,
+                            );
+                            this.range_start = s;
+                            this.range_end = e;
+                            cx.notify();
+                        })),
                 )
                 .child(
                     div()
+                        .id("range-start")
                         .mx(px(t.gap_dp))
-                        .w(px(t.handle_w))
+                        .w(px(t.handle_w.max(12.0)))
                         .h(px(t.handle_h_visual))
                         .rounded(px(2.))
-                        .bg(paint(t.handle)),
+                        .bg(paint(t.handle))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (s, e) = slider::nudge_start(
+                                this.range_start,
+                                this.range_end,
+                                slider::RANGE_STEP,
+                            );
+                            this.range_start = s;
+                            this.range_end = e;
+                            cx.notify();
+                        })),
                 )
                 .child(
                     div()
+                        .id("range-mid")
                         .h(px(t.track_h))
                         .w(px(mid))
                         .rounded(px(t.inner_corner))
-                        .bg(paint(t.active)),
+                        .bg(paint(t.active))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let mid = (this.range_start + this.range_end) * 0.5;
+                            let (s, e) = slider::move_nearest(
+                                this.range_start,
+                                this.range_end,
+                                mid,
+                            );
+                            this.range_start = s;
+                            this.range_end = e;
+                            cx.notify();
+                        })),
                 )
                 .child(
                     div()
+                        .id("range-end")
                         .mx(px(t.gap_dp))
-                        .w(px(t.handle_w))
+                        .w(px(t.handle_w.max(12.0)))
                         .h(px(t.handle_h_visual))
                         .rounded(px(2.))
-                        .bg(paint(t.handle)),
+                        .bg(paint(t.handle))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (s, e) = slider::nudge_end(
+                                this.range_start,
+                                this.range_end,
+                                slider::RANGE_STEP,
+                            );
+                            this.range_start = s;
+                            this.range_end = e;
+                            cx.notify();
+                        })),
                 )
                 .child(
                     div()
+                        .id("range-right")
                         .h(px(t.track_h))
                         .flex_1()
                         .rounded(px(t.track_corner))
-                        .bg(paint(t.inactive)),
+                        .bg(paint(t.inactive))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            let (s, e) = slider::nudge_end(
+                                this.range_start,
+                                this.range_end,
+                                -slider::RANGE_STEP,
+                            );
+                            this.range_start = s;
+                            this.range_end = e;
+                            cx.notify();
+                        })),
                 ),
         )
 }
@@ -564,21 +636,17 @@ fn settings_scene(
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let card_a = card::resolve(
-        theme,
-        card::CardVariant::Filled,
-        InteractionState::Enabled,
-    );
     let title = theme.typography.title_large.emphasized();
+    let section = theme.typography.title_medium.emphasized();
     let outlined = this.outlined.appearance(theme);
     div()
         .w_full()
-        .p(px(16.))
-        .rounded(px(card_a.corners.top_left))
-        .bg(paint(card_a.container))
+        .p(px(button_group::SETTINGS_PAD_DP))
+        .rounded(px(button_group::SETTINGS_CORNER_DP))
+        .bg(paint(theme.color.surface_container))
         .flex()
         .flex_col()
-        .gap(px(12.))
+        .gap(px(button_group::SETTINGS_GROUP_GAP_DP))
         .child(
             div()
                 .font_weight(type_weight(title))
@@ -588,24 +656,54 @@ fn settings_scene(
                     paint(theme.color.on_surface),
                 )),
         )
-        .child(volume_slider_scene(theme, this.slider, cx))
-        .child(field_block(
-            "settings-email",
-            &outlined,
-            "Email",
-            this.outlined.display_with_caret(),
-            if this.outlined.error {
-                "Enter a valid email"
-            } else {
-                "Supporting text"
-            },
-            cx.listener(|this, _, _, cx| {
-                this.filled.set_focus(false);
-                this.outlined.set_focus(true);
-                cx.notify();
-            }),
-        ))
-        .child(connected_button_group(theme, this.group_selected, cx))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(button_group::SETTINGS_ROW_GAP_DP))
+                .child(
+                    div()
+                        .font_weight(type_weight(section))
+                        .child(spaced_line(
+                            button_group::SETTINGS_VOLUME_TITLE,
+                            section.size_sp,
+                            paint(theme.color.on_surface),
+                        )),
+                )
+                .child(volume_slider_scene(theme, this.slider, cx)),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(button_group::SETTINGS_ROW_GAP_DP))
+                .child(
+                    div()
+                        .font_weight(type_weight(section))
+                        .child(spaced_line(
+                            button_group::SETTINGS_QUIET_HOURS_TITLE,
+                            section.size_sp,
+                            paint(theme.color.on_surface),
+                        )),
+                )
+                .child(field_block(
+                    "settings-email",
+                    &outlined,
+                    "Email",
+                    this.outlined.display_with_caret(),
+                    if this.outlined.error {
+                        "Enter a valid email"
+                    } else {
+                        "Supporting text"
+                    },
+                    cx.listener(|this, _, _, cx| {
+                        this.filled.set_focus(false);
+                        this.outlined.set_focus(true);
+                        cx.notify();
+                    }),
+                ))
+                .child(connected_button_group(theme, this.group_selected, cx)),
+        )
         .child(m_button(
             "settings-reset",
             theme,
@@ -624,16 +722,72 @@ fn docked_date_picker(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
     cells: &[(u32, DayKind); 42],
-    _cx: &mut Context<CatalogView>,
+    cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let field = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Outlined,
-        InteractionState::Enabled,
+        if this.docked_open {
+            InteractionState::Focused
+        } else {
+            InteractionState::Enabled
+        },
         true,
     );
     let cal_w = pick.day_dp * 7.0;
     let value = date_picker::docked_field_value(this.selected);
+    let popup = this.docked_open.then(|| {
+        div()
+            .w_full()
+            .p(px(12.))
+            .rounded_tl(px(8.))
+            .rounded_tr(px(pick.corners.top_right))
+            .rounded_br(px(pick.corners.bottom_right))
+            .rounded_bl(px(pick.corners.bottom_left))
+            .bg(paint(pick.container))
+            .shadow_lg()
+            .flex()
+            .flex_col()
+            .gap(px(4.))
+            .child(spaced_line(
+                date_picker::month_nav_label(this.picker_year, this.picker_month),
+                pick.year_style.size_sp,
+                paint(pick.header_year),
+            ))
+            .child(weekday_row(pick, cal_w))
+            .child(div().w(px(cal_w)).flex().flex_wrap().children(
+                cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                    let (bg, fg, radius) = day_colors(pick, kind);
+                    let in_month = kind != DayKind::OutOfMonth;
+                    let year = this.picker_year;
+                    let month = this.picker_month;
+                    div()
+                        .id(SharedString::from(format!("docked-day-{i}")))
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(radius))
+                        .bg(bg)
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(kind == DayKind::Today, |el| {
+                            el.border_1().border_color(paint(pick.day_today_outline))
+                        })
+                        .child(day.to_string())
+                        .when(in_month, |el| {
+                            el.on_click(cx.listener(move |this, _, _, cx| {
+                                this.selected = CivilDate { year, month, day };
+                                if date_picker::DOCKED_DISMISS_ON_SELECT {
+                                    this.docked_open = false;
+                                }
+                                cx.notify();
+                            }))
+                        })
+                }),
+            ))
+            .into_any_element()
+    });
     div()
         .flex()
         .flex_col()
@@ -645,45 +799,12 @@ fn docked_date_picker(
             date_picker::DOCKED_FIELD_LABEL,
             value,
             "",
-            |_, _, _| {},
+            cx.listener(|this, _, _, cx| {
+                this.docked_open = !this.docked_open;
+                cx.notify();
+            }),
         ))
-        .child(
-            div()
-                .w_full()
-                .p(px(12.))
-                .rounded_tl(px(8.))
-                .rounded_tr(px(pick.corners.top_right))
-                .rounded_br(px(pick.corners.bottom_right))
-                .rounded_bl(px(pick.corners.bottom_left))
-                .bg(paint(pick.container))
-                .flex()
-                .flex_col()
-                .gap(px(4.))
-                .child(spaced_line(
-                    date_picker::month_nav_label(this.picker_year, this.picker_month),
-                    pick.year_style.size_sp,
-                    paint(pick.header_year),
-                ))
-                .child(weekday_row(pick, cal_w))
-                .child(div().w(px(cal_w)).flex().flex_wrap().children(
-                    cells.iter().copied().map(|(day, kind)| {
-                        let (bg, fg, radius) = day_colors(pick, kind);
-                        div()
-                            .w(px(pick.day_dp))
-                            .h(px(pick.day_dp))
-                            .rounded(px(radius))
-                            .bg(bg)
-                            .text_color(fg)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when(kind == DayKind::Today, |el| {
-                                el.border_1().border_color(paint(pick.day_today_outline))
-                            })
-                            .child(day.to_string())
-                    }),
-                )),
-        )
+        .children(popup)
 }
 
 fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoElement {
@@ -1353,14 +1474,174 @@ fn m_button(
         .when(!disabled, |el| el.on_click(on_click))
 }
 
+fn search_bar_hero(theme: &Theme) -> impl IntoElement {
+    let a = search::resolve(theme);
+    div()
+        .w_full()
+        .h(px(a.bar.height_dp))
+        .px(px(a.bar.pad_start_dp))
+        .rounded(px(a.bar.corners.top_left))
+        .bg(paint(a.bar.container))
+        .flex()
+        .items_center()
+        .gap(px(search::GAP_DP))
+        .child(
+            div()
+                .w(px(search::ICON_DP))
+                .h(px(search::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(paint(a.leading_icon))
+                .child(search::LEADING_ICON),
+        )
+        .child(
+            div()
+                .flex_1()
+                .text_size(px(a.placeholder_style.size_sp))
+                .text_color(paint(a.placeholder))
+                .child(search::PLACEHOLDER),
+        )
+        .child(
+            div()
+                .w(px(search::ICON_DP))
+                .text_color(paint(a.trailing_icon))
+                .child(search::TRAILING_MIC),
+        )
+        .child(
+            div()
+                .w(px(search::AVATAR_DP))
+                .h(px(search::AVATAR_DP))
+                .rounded(px(search::AVATAR_DP / 2.0))
+                .bg(paint(a.avatar))
+                .text_color(paint(a.avatar_label))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("A"),
+        )
+}
+
+fn time_picker_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = time_picker::resolve(theme);
+    let clock = a.clock_dp * 0.75;
+    let number = 32.0;
+    let header = time_picker::header_label(this.time_hour, this.time_minute, this.time_period);
+    div()
+        .w_full()
+        .p(px(time_picker::CONTAINER_PAD_DP))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .shadow_md()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(spaced_line(
+            time_picker::TITLE,
+            a.title_style.size_sp,
+            paint(a.header),
+        ))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(12.))
+                .child(
+                    div()
+                        .font_weight(type_weight(a.time_style))
+                        .child(spaced_line(
+                            header,
+                            a.time_style.size_sp,
+                            paint(a.header),
+                        )),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(time_picker::PERIOD_GAP_DP))
+                        .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                            let selected = this.time_period == period;
+                            div()
+                                .id(SharedString::from(period.label()))
+                                .w(px(time_picker::PERIOD_W_DP))
+                                .h(px(time_picker::PERIOD_H_DP))
+                                .rounded(px(8.))
+                                .bg(paint(if selected {
+                                    a.period_selected_container
+                                } else {
+                                    a.period_idle_container
+                                }))
+                                .text_color(paint(if selected {
+                                    a.period_selected
+                                } else {
+                                    a.period_idle
+                                }))
+                                .font_weight(type_weight(a.period_style))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(period.label())
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.time_period = period;
+                                    cx.notify();
+                                }))
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .relative()
+                .w(px(clock))
+                .h(px(clock))
+                .rounded(px(clock / 2.0))
+                .bg(paint(a.clock))
+                .children((1u8..=12).map(|hour| {
+                    let (x, y) = time_picker::hour_offset(hour, clock, number);
+                    let selected = hour == this.time_hour;
+                    div()
+                        .id(SharedString::from(format!("hour-{hour}")))
+                        .absolute()
+                        .left(px(x))
+                        .top(px(y))
+                        .w(px(number))
+                        .h(px(number))
+                        .rounded(px(number / 2.0))
+                        .bg(paint(if selected {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if selected {
+                            a.number_selected
+                        } else {
+                            a.number
+                        }))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(hour.to_string())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.time_hour = time_picker::select_hour(this.time_hour, hour);
+                            cx.notify();
+                        }))
+                })),
+        )
+}
+
 fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
+    let style = theme.typography.title_medium.emphasized();
     div()
         .mt(px(8.))
-        .text_size(px(theme.typography.title_medium.size_sp))
-        .font_weight(FontWeight::MEDIUM)
+        .text_size(px(style.size_sp))
+        .font_weight(type_weight(style))
         .text_color(paint(theme.color.on_surface))
         .whitespace_nowrap()
-        .child(spaced_line(title, theme.typography.title_medium.size_sp, paint(theme.color.on_surface)))
+        .child(spaced_line(title, style.size_sp, paint(theme.color.on_surface)))
 }
 
 fn spaced_line(text: impl AsRef<str>, size: f32, color: gpui::Rgba) -> gpui::AnyElement {
@@ -1392,6 +1673,42 @@ fn spaced_line(text: impl AsRef<str>, size: f32, color: gpui::Rgba) -> gpui::Any
     row.into_any_element()
 }
 
+fn notch_corner(
+    tl: bool,
+    tr: bool,
+    br: bool,
+    bl: bool,
+    frame: text_field::NotchFrame,
+    outline: gpui_material::Argb,
+    fill: gpui_material::Argb,
+) -> impl IntoElement {
+    let r = frame.radius_dp;
+    let s = frame.stroke_dp;
+    let inner = frame.inner_radius_dp();
+    let inner_sz = (r - s).max(0.0);
+    let mut tile = div().w(px(r)).h(px(r)).bg(paint(outline));
+    if tl {
+        tile = tile.rounded_tl(px(r)).pt(px(s)).pl(px(s));
+    } else if tr {
+        tile = tile.rounded_tr(px(r)).pt(px(s)).pr(px(s));
+    } else if bl {
+        tile = tile.rounded_bl(px(r)).pb(px(s)).pl(px(s));
+    } else if br {
+        tile = tile.rounded_br(px(r)).pb(px(s)).pr(px(s));
+    }
+    let mut hole = div().w(px(inner_sz)).h(px(inner_sz)).bg(paint(fill));
+    if tl {
+        hole = hole.rounded_tl(px(inner));
+    } else if tr {
+        hole = hole.rounded_tr(px(inner));
+    } else if bl {
+        hole = hole.rounded_bl(px(inner));
+    } else if br {
+        hole = hole.rounded_br(px(inner));
+    }
+    tile.child(hole)
+}
+
 fn outlined_notched_field(
     id: &'static str,
     field: &text_field::TextFieldAppearance,
@@ -1400,12 +1717,11 @@ fn outlined_notched_field(
     on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     let outline = field.field.outline.unwrap_or((field.label, 1.0));
-    let cut = text_field::notch_cutout(label.as_ref(), field);
-    let radius = field.field.corners.top_left;
-    let stroke = cut.stroke_dp;
-    let body_h = (field.field.height_dp - stroke).max(40.0);
-    // Three-row segmented outline: the label column has no top stroke, so the
-    // border is actually interrupted (Compose OutlinedTextField / fieldset).
+    let frame = text_field::notch_frame(label.as_ref(), field);
+    let stroke = frame.stroke_dp;
+    let radius = frame.radius_dp;
+    let fill = field.field.container;
+    let middle_h = frame.middle_h_dp();
     div()
         .id(id)
         .flex()
@@ -1416,19 +1732,21 @@ fn outlined_notched_field(
             div()
                 .flex()
                 .flex_row()
-                .items_center()
-                .h(px(cut.label_h_dp))
+                .items_end()
+                .h(px(frame.label_h_dp.max(radius)))
+                .child(notch_corner(true, false, false, false, frame, outline.0, fill))
                 .child(
                     div()
-                        .w(px(cut.start_dp))
-                        .h(px(stroke))
-                        .rounded_tl(px(radius))
-                        .bg(paint(outline.0)),
+                        .w(px(frame.top_lead_dp()))
+                        .h(px(radius))
+                        .flex()
+                        .flex_col()
+                        .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
                 )
                 .child(
                     div()
-                        .w(px(cut.width_dp))
-                        .h(px(cut.label_h_dp))
+                        .w(px(frame.width_dp))
+                        .h(px(frame.label_h_dp))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -1443,47 +1761,50 @@ fn outlined_notched_field(
                 .child(
                     div()
                         .flex_1()
-                        .h(px(stroke))
-                        .rounded_tr(px(radius))
-                        .bg(paint(outline.0)),
-                ),
-        )
-                .child(
-                    div()
+                        .h(px(radius))
                         .flex()
-                        .flex_row()
-                        .h(px(body_h))
-                        .child(div().w(px(stroke)).h(px(body_h)).bg(paint(outline.0)))
-                        .child(
-                            div()
-                                .flex_1()
-                                .h(px(body_h))
-                                .px(px(16.))
-                                .flex()
-                                .items_center()
-                                .bg(paint(field.field.container))
-                                .child(
-                                    div()
-                                        .text_size(px(field.input_style.size_sp))
-                                        .text_color(paint(field.input))
-                                        .child(value),
-                                ),
-                        )
-                        .child(div().w(px(stroke)).h(px(body_h)).bg(paint(outline.0))),
+                        .flex_col()
+                        .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
                 )
+                .child(notch_corner(false, true, false, false, frame, outline.0, fill)),
+        )
         .child(
             div()
                 .flex()
                 .flex_row()
-                .h(px(stroke.max(radius.min(4.0))))
+                .h(px(middle_h))
+                .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0)))
+                .child(
+                    div()
+                        .flex_1()
+                        .h(px(middle_h))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .bg(paint(fill))
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(value),
+                        ),
+                )
+                .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0))),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .items_end()
+                .h(px(radius))
+                .child(notch_corner(false, false, false, true, frame, outline.0, fill))
                 .child(
                     div()
                         .flex_1()
                         .h(px(stroke))
-                        .rounded_bl(px(radius))
-                        .rounded_br(px(radius))
                         .bg(paint(outline.0)),
-                ),
+                )
+                .child(notch_corner(false, false, true, false, frame, outline.0, fill)),
         )
 }
 
@@ -1636,6 +1957,12 @@ fn main() {
                         "you@domain.com",
                     ),
                     group_selected: button_group::DEMO_SELECTED,
+                    range_start: slider::RANGE_DEMO_START,
+                    range_end: slider::RANGE_DEMO_END,
+                    docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
+                    time_hour: time_picker::DEMO_HOUR,
+                    time_minute: time_picker::DEMO_MINUTE,
+                    time_period: time_picker::DEMO_PERIOD,
                 })
             },
         )
@@ -1646,7 +1973,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use gpui_material::components::{button, button_group, dialog, slider, text_field};
+    use gpui_material::components::{
+        button, button_group, dialog, search, slider, text_field, time_picker,
+    };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
 
@@ -1698,9 +2027,21 @@ mod tests {
         assert_eq!(button_group::CONNECTED_GAP_DP, 2.0);
         let range = slider::resolve_range(&theme, 0.2, 0.75, InteractionState::Enabled);
         assert_eq!(range.start, 0.2);
+        let (s, e) = slider::nudge_start(0.20, 0.75, slider::RANGE_STEP);
+        assert!((s - 0.25).abs() < 1e-5);
+        assert_eq!(e, 0.75);
         assert_eq!(
             dialog::resolve(&theme).headline_style.name,
             "headlineSmallEmphasized"
         );
+        assert_eq!(search::resolve(&theme).bar.height_dp, 56.0);
+        assert_eq!(
+            time_picker::resolve(&theme).time_style.name,
+            "displaySmallEmphasized"
+        );
+        let frame = text_field::notch_frame("Email", &field);
+        assert_eq!(frame.radius_dp, 4.0);
+        assert_eq!(frame.stroke_dp, 2.0);
+        assert_eq!(frame.top_lead_dp(), 8.0);
     }
 }

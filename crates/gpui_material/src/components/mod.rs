@@ -16,10 +16,12 @@ pub mod navigation_bar;
 pub mod progress;
 pub mod radio;
 pub mod slider;
+pub mod search;
 pub mod snackbar;
 pub mod switch;
 pub mod tabs;
 pub mod text_field;
+pub mod time_picker;
 pub mod top_app_bar;
 
 use crate::argb::Argb;

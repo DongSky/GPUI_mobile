@@ -164,6 +164,31 @@ pub const FONT_FAMILY_DESKTOP: &str = "Liberation Sans";
 /// visible even if the font engine reports 0-width space glyphs.
 pub const WORD_GAP_DP: f32 = 6.0;
 
+fn roboto_candidates() -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(home) = std::env::var("HOME") {
+        let local = std::path::Path::new(&home).join(".local/share/fonts");
+        out.push(local.join("Roboto-Regular.ttf"));
+        out.push(local.join("Roboto-Medium.ttf"));
+    }
+    out.push("/usr/share/fonts/truetype/roboto/Roboto-Regular.ttf".into());
+    out.push("/usr/share/fonts/truetype/roboto/static/Roboto-Regular.ttf".into());
+    out
+}
+
+pub fn roboto_installed() -> bool {
+    roboto_candidates().iter().any(|p| p.exists())
+}
+
+/// Prefer Roboto when the TTF is on disk; otherwise Liberation Sans.
+pub fn desktop_font_family() -> &'static str {
+    if roboto_installed() {
+        FONT_FAMILY
+    } else {
+        FONT_FAMILY_DESKTOP
+    }
+}
+
 pub fn words(s: &str) -> Vec<&str> {
     s.split_whitespace().filter(|w| !w.is_empty()).collect()
 }

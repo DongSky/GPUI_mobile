@@ -244,6 +244,41 @@ pub struct RangeSliderAppearance {
 pub const RANGE_DEMO_START: f32 = 0.20;
 pub const RANGE_DEMO_END: f32 = 0.75;
 pub const RANGE_HERO_LABEL: &str = "Price range";
+pub const RANGE_STEP: f32 = 0.05;
+pub const RANGE_MIN_SPAN: f32 = 0.05;
+
+pub fn clamp_range(start: f32, end: f32) -> (f32, f32) {
+    let start = start.clamp(0.0, 1.0 - RANGE_MIN_SPAN);
+    let end = end.clamp(start + RANGE_MIN_SPAN, 1.0);
+    (start, end)
+}
+
+pub fn nudge_start(start: f32, end: f32, delta: f32) -> (f32, f32) {
+    clamp_range(start + delta, end)
+}
+
+pub fn nudge_end(start: f32, end: f32, delta: f32) -> (f32, f32) {
+    clamp_range(start, end + delta)
+}
+
+/// Move the nearest thumb to `value` (0..=1). Used by track taps.
+pub fn move_nearest(start: f32, end: f32, value: f32) -> (f32, f32) {
+    let value = value.clamp(0.0, 1.0);
+    if (value - start).abs() <= (value - end).abs() {
+        clamp_range(value, end)
+    } else {
+        clamp_range(start, value)
+    }
+}
+
+pub fn range_value_label(start: f32, end: f32) -> String {
+    format!(
+        "{} · {:.0}–{:.0}%",
+        RANGE_HERO_LABEL,
+        start * 100.0,
+        end * 100.0
+    )
+}
 
 pub fn resolve_range(
     theme: &Theme,

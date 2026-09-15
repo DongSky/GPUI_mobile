@@ -2,8 +2,8 @@
 
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
-    text_field, top_app_bar,
+    fab, icon_button, list, menu, navigation_bar, progress, radio, search, slider, snackbar, switch,
+    tabs, text_field, time_picker, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
 use gpui_material::motion;
@@ -278,6 +278,11 @@ fn text_field_metrics_and_error_focus() {
     assert_eq!(cut.start_dp, 12.0);
     assert_eq!(cut.stroke_dp, 2.0);
     assert!(cut.width_dp >= 28.0);
+    let frame = text_field::notch_frame("Email", &focused);
+    assert_eq!(frame.radius_dp, 4.0);
+    assert_eq!(frame.stroke_dp, 2.0);
+    assert_eq!(frame.top_lead_dp(), 8.0);
+    assert_eq!(frame.inner_radius_dp(), 2.0);
     assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
 
@@ -434,6 +439,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-slider-range=\"1\""));
     assert!(html.contains("data-datepicker-docked=\"1\""));
     assert!(html.contains("data-settings-scene=\"1\""));
+    assert!(html.contains("data-settings-block=\"volume\""));
+    assert!(html.contains("data-search=\"1\""));
+    assert!(html.contains("Hinted search text"));
+    assert!(html.contains("data-timepicker=\"1\""));
+    assert!(html.contains("displaySmallEmphasized"));
+    assert!(html.contains("data-datepicker-popup=\"open\""));
+    assert!(html.contains("titleMediumEmphasized"));
     assert!(html.contains("Sound &amp; notifications") || html.contains("Sound & notifications"));
     assert!(html.contains("Date of birth"));
     assert!(html.contains("Price range"));
@@ -491,6 +503,8 @@ fn inventory_covers_claimed_and_followups() {
         "Motion tokens",
         "Button group",
         "Typography",
+        "Search",
+        "Time picker",
     ] {
         assert!(
             INVENTORY
@@ -564,6 +578,13 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(range.end, 0.75);
     assert_eq!(range.track.track_h, 16.0);
     assert_eq!(slider::RANGE_HERO_LABEL, "Price range");
+    let (s, e) = slider::nudge_start(0.20, 0.75, slider::RANGE_STEP);
+    assert!((s - 0.25).abs() < 1e-5 && (e - 0.75).abs() < 1e-5);
+    let (s, e) = slider::nudge_end(0.20, 0.75, -slider::RANGE_STEP);
+    assert!((s - 0.20).abs() < 1e-5 && (e - 0.70).abs() < 1e-5);
+    let (s, e) = slider::move_nearest(0.20, 0.75, 0.10);
+    assert!((s - 0.10).abs() < 1e-5 && (e - 0.75).abs() < 1e-5);
+    assert!(slider::range_value_label(0.2, 0.75).contains("20"));
     let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
     assert_eq!(pressed.handle_w, 2.0);
 
@@ -631,6 +652,8 @@ fn date_picker_grid_and_weekday() {
     assert!(cells.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
     assert_eq!(date_picker::month_nav_label(2026, 9), "September 2026 ▾");
     assert_eq!(date_picker::DOCKED_FIELD_LABEL, "Date of birth");
+    assert!(date_picker::DOCKED_OPEN_BY_DEFAULT);
+    assert!(date_picker::DOCKED_DISMISS_ON_SELECT);
     assert_eq!(
         date_picker::docked_field_value(date_picker::RANGE_DEMO_START),
         "Sep 15, 2026"
@@ -679,10 +702,13 @@ fn text_field_editor_insert_backspace_caret() {
 
 #[test]
 fn desktop_type_fallbacks_keep_word_gaps() {
+    assert_eq!(typography::FONT_FAMILY, "Roboto");
     assert_eq!(typography::FONT_FAMILY_DESKTOP, "Liberation Sans");
     assert_eq!(typography::words("Call volume"), vec!["Call", "volume"]);
     assert_eq!(typography::WORD_GAP_DP, 6.0);
     assert_eq!(typography::words("Reset settings?"), vec!["Reset", "settings?"]);
+    let family = typography::desktop_font_family();
+    assert!(family == "Roboto" || family == "Liberation Sans");
 }
 
 #[test]
@@ -742,4 +768,33 @@ fn connected_button_group_tokens() {
     let pressed = button_group::resolve_segment(&theme, 0, 3, true, true);
     assert_eq!(pressed.corners.top_left, 8.0);
     assert_eq!(button_group::SETTINGS_SCENE_TITLE, "Sound & notifications");
+    assert_eq!(button_group::SETTINGS_VOLUME_TITLE, "Volume");
+    assert_eq!(button_group::SETTINGS_QUIET_HOURS_TITLE, "Quiet hours");
+    assert_eq!(button_group::SETTINGS_GROUP_GAP_DP, 24.0);
+    assert_eq!(button_group::SETTINGS_PAD_DP, 16.0);
+}
+
+#[test]
+fn search_bar_and_time_picker_tokens() {
+    let theme = Theme::light();
+    let search = search::resolve(&theme);
+    assert_eq!(search.bar.height_dp, 56.0);
+    assert_eq!(search.bar.corners.top_left, 28.0);
+    assert_eq!(search.bar.container, theme.color.surface_container_high);
+    assert_eq!(search::PLACEHOLDER, "Hinted search text");
+    let time = time_picker::resolve(&theme);
+    assert_eq!(time.clock_dp, 256.0);
+    assert_eq!(time.number_dp, 48.0);
+    assert_eq!(time.time_style.name, "displaySmallEmphasized");
+    assert_eq!(time.time_style.weight, 500);
+    assert_eq!(time.container, theme.color.surface_container_high);
+    assert_eq!(
+        time_picker::header_label(6, 30, time_picker::DayPeriod::Pm),
+        "6:30 PM"
+    );
+    assert_eq!(time_picker::select_hour(6, 9), 9);
+    assert_eq!(time_picker::DEMO_PERIOD.toggle(), time_picker::DayPeriod::Am);
+    let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
+    assert!(x > 80.0 && x < 130.0, "12 should sit near top center, x={x}");
+    assert!(y < 20.0, "12 should sit near top, y={y}");
 }

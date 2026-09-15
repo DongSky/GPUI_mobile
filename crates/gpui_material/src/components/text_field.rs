@@ -229,6 +229,44 @@ pub fn notch_cutout(label: &str, appearance: &TextFieldAppearance) -> NotchCutou
     }
 }
 
+/// Frame geometry for painting a 4dp rounded outline that actually meets the
+/// 1–2dp stroke (corner *tiles*, not a stroke-height bar with fake rounding).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NotchFrame {
+    pub start_dp: f32,
+    pub width_dp: f32,
+    pub stroke_dp: f32,
+    pub radius_dp: f32,
+    pub label_h_dp: f32,
+    pub field_h_dp: f32,
+}
+
+impl NotchFrame {
+    pub fn top_lead_dp(self) -> f32 {
+        (self.start_dp - self.radius_dp).max(0.0)
+    }
+
+    pub fn middle_h_dp(self) -> f32 {
+        (self.field_h_dp - self.radius_dp * 2.0).max(24.0)
+    }
+
+    pub fn inner_radius_dp(self) -> f32 {
+        (self.radius_dp - self.stroke_dp).max(0.0)
+    }
+}
+
+pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {
+    let cut = notch_cutout(label, appearance);
+    NotchFrame {
+        start_dp: cut.start_dp,
+        width_dp: cut.width_dp,
+        stroke_dp: cut.stroke_dp,
+        radius_dp: appearance.field.corners.top_left.max(cut.stroke_dp),
+        label_h_dp: cut.label_h_dp,
+        field_h_dp: appearance.field.height_dp,
+    }
+}
+
 fn muted_icon(theme: &Theme) -> Argb {
     theme
         .color

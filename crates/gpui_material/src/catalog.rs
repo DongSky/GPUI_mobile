@@ -2,8 +2,8 @@
 
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
-    text_field, top_app_bar,
+    fab, icon_button, list, menu, navigation_bar, progress, radio, search, slider, snackbar, switch,
+    tabs, text_field, time_picker, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -58,6 +58,8 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&tabs_section(theme));
     body.push_str(&badges(theme));
     body.push_str(&date_pickers(theme));
+    body.push_str(&search_section(theme));
+    body.push_str(&time_picker_section(theme));
     body.push_str(&motion_section(theme));
 
     format!(
@@ -89,7 +91,7 @@ html, body {{
   font-family: Roboto, system-ui, sans-serif;
 }}
 body {{ max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }}
-h1 {{ font-size: 32px; line-height: 40px; font-weight: 400; margin: 0 0 8px; }}
+h1 {{ font-size: {h1s}px; line-height: {h1l}px; font-weight: {h1w}; margin: 0 0 8px; letter-spacing: {h1t}px; }}
 h2 {{ font-size: 24px; line-height: 32px; font-weight: 400; margin: 40px 0 8px; }}
 h3 {{ font-size: 16px; line-height: 24px; font-weight: 500; margin: 20px 0 8px; letter-spacing: 0.15px; }}
 p.lead, p.note {{ color: {on_var}; font-size: 14px; line-height: 20px; }}
@@ -142,11 +144,36 @@ a {{ color: var(--primary); }}
 .btn-connected.selected {{ font-weight: 700; }}
 .docked {{
   display: flex; flex-direction: column; align-items: stretch;
-  max-width: 360px;
+  max-width: 360px; position: relative;
 }}
-.docked .cal {{ margin-top: 0; border-top-left-radius: 8px; border-top-right-radius: 8px; }}
-.settings-scene {{ display: flex; flex-direction: column; gap: 16px; }}
+.docked .cal {{ margin-top: 4px; border-top-left-radius: 8px; }}
+.docked[data-popup="open"] .cal {{ box-shadow: 0 4px 12px rgba(0,0,0,.22); }}
+.settings-scene {{ display: flex; flex-direction: column; gap: 24px; padding: 16px; }}
 .settings-scene h3 {{ margin: 0; }}
+.settings-block {{ display: flex; flex-direction: column; gap: 8px; }}
+.settings-block h4 {{ margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; }}
+.search-bar {{
+  display: flex; align-items: center; gap: 16px;
+  height: 56px; padding: 0 16px; border-radius: 28px; max-width: 720px;
+}}
+.search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
+.search-bar .hint {{ flex: 1; font-size: 16px; line-height: 24px; }}
+.search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
+.timepicker {{
+  display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
+}}
+.timepicker .time-row {{ display: flex; align-items: center; gap: 12px; }}
+.timepicker .clock {{
+  position: relative; border-radius: 50%; flex: 0 0 auto;
+}}
+.timepicker .hour {{
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}}
+.period {{ display: flex; flex-direction: column; gap: 8px; }}
+.period button {{
+  width: 52px; height: 36px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;
+}}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -159,7 +186,7 @@ a {{ color: var(--primary); }}
   display: flex; align-items: center; gap: 12px; background: transparent;
 }}
 .ol legend {{
-  padding: 0 4px; margin-left: 4px; font-size: 12px; line-height: 16px;
+  padding: 0 4px; margin-left: 8px; font-size: 12px; line-height: 16px;
 }}
 .ol[data-notch="cutout"] {{ border-style: solid; }}
 .ol input, .filled-hero input {{
@@ -377,6 +404,35 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
     }});
   }});
 }});
+document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
+  var handles = row.querySelectorAll(".xhandle");
+  if (handles[0]) handles[0].style.cursor = "pointer";
+  if (handles[1]) handles[1].style.cursor = "pointer";
+  if (handles[0]) handles[0].addEventListener("click", function () {{
+    var start = Math.max(0, parseFloat(row.getAttribute("data-start") || "0.2") - 0.05);
+    row.setAttribute("data-start", start.toFixed(2));
+  }});
+  if (handles[1]) handles[1].addEventListener("click", function () {{
+    var end = Math.min(1, parseFloat(row.getAttribute("data-end") || "0.75") + 0.05);
+    row.setAttribute("data-end", end.toFixed(2));
+  }});
+}});
+document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
+  picker.querySelectorAll("[data-hour]").forEach(function (el) {{
+    el.style.cursor = "pointer";
+    el.addEventListener("click", function () {{
+      picker.setAttribute("data-hour", el.getAttribute("data-hour"));
+      picker.querySelectorAll("[data-hour]").forEach(function (other) {{
+        other.setAttribute("data-selected", other === el ? "1" : "0");
+      }});
+    }});
+  }});
+  picker.querySelectorAll("[data-period]").forEach(function (btn) {{
+    btn.addEventListener("click", function () {{
+      picker.setAttribute("data-period", btn.getAttribute("data-period"));
+    }});
+  }});
+}});
 </script>
 </body>
 </html>
@@ -396,6 +452,10 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
         motion = theme.motion.css_state_transition(),
         ease = theme.motion.emphasized,
         gap = button_group::CONNECTED_GAP_DP,
+        h1s = theme.typography.display_small.emphasized().size_sp,
+        h1l = theme.typography.display_small.emphasized().line_height_sp,
+        h1w = theme.typography.display_small.emphasized().weight,
+        h1t = theme.typography.display_small.emphasized().tracking_sp,
     )
 }
 
@@ -406,7 +466,7 @@ fn hero(theme: &Theme) -> String {
   <div class="title" style="font-size:{sz}px;line-height:{lh}px">{title}</div>
   <div>{mode}</div>
 </header>
-<h1>Material 3 component catalog</h1>
+<h1 data-type="displaySmallEmphasized">Material 3 component catalog</h1>
 <p class="lead">Current <a href="https://m3.material.io">Material 3 / Expressive</a> (m3.material.io). Heroes match official overview scenes; state matrices follow. Same <code>resolve()</code> drives the Android demo.</p>"#,
         bg = bar.container.css_hex(),
         fg = bar.title.css_hex(),
@@ -518,7 +578,7 @@ fn type_section(theme: &Theme) -> String {
             c = theme.color.on_surface.css_hex(),
         ));
     }
-    out.push_str("<h3>emphasized</h3><p class=\"note\">Expressive hero moments: same size/line-height, heavier weight. Wired on dialog headlines and date-picker large dates.</p>");
+    out.push_str("<h3>emphasized</h3><p class=\"note\">Expressive hero moments: same size/line-height, heavier weight. Wired on catalog display headline, dialog headlines, date-picker large dates, time-picker clock, settings section titles.</p>");
     for style in theme.typography.emphasized().all() {
         out.push_str(&format!(
             "<div data-type=\"{name}\" style=\"font-size:{sz}px;line-height:{lh}px;letter-spacing:{tr}px;font-weight:{w};color:{c}\">{name} · {sz}/{lh} · {w}</div>",
@@ -583,11 +643,7 @@ fn paint_connected_group(theme: &Theme, selected: usize) -> String {
 
 fn settings_scene(theme: &Theme) -> String {
     let title = theme.typography.title_large.emphasized();
-    let card_a = card::resolve(
-        theme,
-        card::CardVariant::Filled,
-        InteractionState::Enabled,
-    );
+    let section = theme.typography.title_medium.emphasized();
     let outlined = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Outlined,
@@ -616,21 +672,34 @@ fn settings_scene(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Settings scene</h2>
-<p class="note">Composed catalog screen (not an isolated hero): emphasized title, volume rows, notched field, connected group, dialog action.</p>
-<div class="hero-card settings-scene" data-settings-scene="1" style="background:{bg};border-radius:{r}px">
-  <h3 style="font-size:{ts}px;line-height:{tl}px;font-weight:{tw};color:{on}">{title}</h3>
-  {rows}
-  {field}
-  {group}
+<p class="note">Containment / hierarchy: surface-container, 16dp pad, 24dp groups, emphasized section titles.</p>
+<div class="hero-card settings-scene" data-settings-scene="1" style="background:{bg};border-radius:{r}px;padding:{pad}px;gap:{gap}px">
+  <h3 data-type="titleLargeEmphasized" style="font-size:{ts}px;line-height:{tl}px;font-weight:{tw};color:{on}">{title}</h3>
+  <div class="settings-block" data-settings-block="volume">
+    <h4 data-type="titleMediumEmphasized" style="font-size:{ss}px;line-height:{sl}px;font-weight:{sw};color:{on}">{volume}</h4>
+    {rows}
+  </div>
+  <div class="settings-block" data-settings-block="quiet-hours">
+    <h4 data-type="titleMediumEmphasized" style="font-size:{ss}px;line-height:{sl}px;font-weight:{sw};color:{on}">{quiet}</h4>
+    {field}
+    {group}
+  </div>
   <div class="actions"><button class="btn" data-settings-dialog="1" style="background:{abg};color:{act}">{reset}</button></div>
 </div>"#,
-        bg = card_a.container.css_hex(),
-        r = card_a.corners.top_left,
+        bg = theme.color.surface_container.css_hex(),
+        r = button_group::SETTINGS_CORNER_DP,
+        pad = button_group::SETTINGS_PAD_DP,
+        gap = button_group::SETTINGS_GROUP_GAP_DP,
         ts = title.size_sp,
         tl = title.line_height_sp,
         tw = title.weight,
+        ss = section.size_sp,
+        sl = section.line_height_sp,
+        sw = section.weight,
         on = theme.color.on_surface.css_hex(),
         title = button_group::SETTINGS_SCENE_TITLE,
+        volume = button_group::SETTINGS_VOLUME_TITLE,
+        quiet = button_group::SETTINGS_QUIET_HOURS_TITLE,
         rows = rows,
         field = paint_outlined_field(
             &outlined,
@@ -1668,7 +1737,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked/inline attaches the calendar under an outlined field (Compose DatePickerDocked). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow; HTML keeps it open for QA (desktop dismisses on select). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -1691,9 +1760,9 @@ fn date_pickers(theme: &Theme) -> String {
     <button class="btn" style="background:transparent;color:{act}">OK</button>
   </div>
 </div>
-<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked">
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open">
   {docked_field}
-  <div class="cal dialog" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
+  <div class="cal dialog" data-datepicker-popup="open" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
     <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
     <div class="week">{week}</div>
     <div class="grid">{grid}</div>
@@ -1733,6 +1802,113 @@ fn date_pickers(theme: &Theme) -> String {
                 date_picker::docked_field_value(selected)
             ),
         ),
+    )
+}
+
+fn search_section(theme: &Theme) -> String {
+    let a = search::resolve(theme);
+    format!(
+        r#"<h2>Search</h2>
+<p class="note">Docked 56dp full-round bar on surface-container-high. Expanded search view is not in this catalog. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<div class="search-bar" data-search="1" data-hero="search" style="background:{bg};color:{hint};height:{h}px;border-radius:{r}px">
+  <div class="ico" aria-hidden="true" style="color:{lead}">{lead_ico}</div>
+  <div class="hint">{placeholder}</div>
+  <div class="ico" aria-hidden="true">{mic}</div>
+  <div class="avatar" style="background:{abg};color:{afg}">A</div>
+</div>"#,
+        bg = a.bar.container.css_hex(),
+        hint = a.placeholder.css_hex(),
+        h = a.bar.height_dp,
+        r = a.bar.corners.top_left,
+        lead = a.leading_icon.css_hex(),
+        lead_ico = search::LEADING_ICON,
+        placeholder = search::PLACEHOLDER,
+        mic = search::TRAILING_MIC,
+        abg = a.avatar.css_hex(),
+        afg = a.avatar_label.css_hex(),
+    )
+}
+
+fn time_picker_section(theme: &Theme) -> String {
+    let a = time_picker::resolve(theme);
+    let mut hours = String::new();
+    for h in 1u8..=12 {
+        let (x, y) = time_picker::hour_offset(h, a.clock_dp, a.number_dp);
+        let selected = h == time_picker::DEMO_HOUR;
+        let (bg, fg, fw) = if selected {
+            (
+                a.number_selected_container.css_hex(),
+                a.number_selected.css_hex(),
+                a.time_style.weight,
+            )
+        } else {
+            ("transparent".into(), a.number.css_hex(), a.number_style.weight)
+        };
+        hours.push_str(&format!(
+            r#"<div class="hour" data-hour="{h}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{h}</div>"#,
+            h = h,
+            sel = selected as u8,
+            x = x,
+            y = y,
+            n = a.number_dp,
+            bg = bg,
+            fg = fg,
+            fw = fw,
+        ));
+    }
+    let am = time_picker::DayPeriod::Am;
+    let pm = time_picker::DayPeriod::Pm;
+    let (am_bg, am_fg) = if time_picker::DEMO_PERIOD == am {
+        (a.period_selected_container.css_hex(), a.period_selected.css_hex())
+    } else {
+        (a.period_idle_container.css_hex(), a.period_idle.css_hex())
+    };
+    let (pm_bg, pm_fg) = if time_picker::DEMO_PERIOD == pm {
+        (a.period_selected_container.css_hex(), a.period_selected.css_hex())
+    } else {
+        (a.period_idle_container.css_hex(), a.period_idle.css_hex())
+    };
+    format!(
+        r#"<h2>Time picker</h2>
+<p class="note">12-hour dial, displaySmallEmphasized header, AM/PM. Selector hand is static. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div style="color:{hy};font-size:{ys}px">{title}</div>
+  <div class="time-row">
+    <div data-time-header="1" style="color:{hd};font-size:{ds}px;font-weight:{dw};letter-spacing:{dt}px">{headline}</div>
+    <div class="period">
+      <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
+      <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
+    </div>
+  </div>
+  <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">{hours}</div>
+</div>"#,
+        hour = time_picker::DEMO_HOUR,
+        minute = time_picker::DEMO_MINUTE,
+        period = time_picker::DEMO_PERIOD.label(),
+        bg = a.container.css_hex(),
+        r = a.corners.top_left,
+        sh = ElevationLevels::css_shadow(a.elevation_dp),
+        hy = a.header.css_hex(),
+        ys = a.title_style.size_sp,
+        title = time_picker::TITLE,
+        hd = a.header.css_hex(),
+        ds = a.time_style.size_sp,
+        dw = a.time_style.weight,
+        dt = a.time_style.tracking_sp,
+        headline = time_picker::header_label(
+            time_picker::DEMO_HOUR,
+            time_picker::DEMO_MINUTE,
+            time_picker::DEMO_PERIOD
+        ),
+        amb = am_bg,
+        amf = am_fg,
+        pmb = pm_bg,
+        pmf = pm_fg,
+        am = am.label(),
+        pm = pm.label(),
+        clock = a.clock_dp,
+        clk = a.clock.css_hex(),
+        hours = hours,
     )
 }
 

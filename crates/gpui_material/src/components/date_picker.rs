@@ -241,6 +241,10 @@ pub fn month_nav_label(year: i32, month: u32) -> String {
 /// Compose docked date picker: outlined field + calendar attached below
 /// (https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary#DatePickerDocked).
 pub const DOCKED_FIELD_LABEL: &str = "Date of birth";
+/// Catalog starts with the popup open so Visual QA can see the anchored sheet.
+pub const DOCKED_OPEN_BY_DEFAULT: bool = true;
+/// Selecting a day writes the field and dismisses (desktop/Android popup).
+pub const DOCKED_DISMISS_ON_SELECT: bool = true;
 
 pub fn docked_field_value(date: CivilDate) -> String {
     format!("{}, {}", header_date_short(date), date.year)
