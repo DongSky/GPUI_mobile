@@ -793,6 +793,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"wide-rail\""));
     assert!(html.contains("data-icon-position=\"top\""));
     assert!(html.contains("data-icon-position=\"start\""));
+    assert!(html.contains("data-icon-morph=\"1\""));
+    assert!(html.contains("data-icon-morph-ms"));
+    assert!(html.contains("function applyRailIconMorph"));
+    assert!(html.contains("iconPosition"));
     assert!(html.contains("data-wide-collapsed=\"1\""));
     assert!(html.contains("data-range-interactive=\"1\""));
     assert!(html.contains("data-dismiss-outside=\"1\""));
@@ -1001,6 +1005,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ElevatedFilterChip")
             && e.notes.contains("tonal")
             && e.notes.contains("rememberAnimatedShape")
+            && e.notes.contains("with_animation")
             && e.notes.contains("avatar")
             && e.notes.contains("4dp")
     }));
@@ -1009,6 +1014,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("WideNavigationRailItem")
             && e.notes.contains("Top")
             && e.notes.contains("Start")
+            && e.notes.contains("iconPosition")
+            && e.notes.contains("lerp")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1417,6 +1424,11 @@ fn expressive_chip_tokens() {
     );
     assert_eq!(chip::press_t(InteractionState::Pressed), 1.0);
     assert_eq!(chip::press_t(InteractionState::Enabled), 0.0);
+    assert_eq!(chip::press_t_anim(true, 0.0), 0.0);
+    assert_eq!(chip::press_t_anim(true, 1.0), 1.0);
+    assert_eq!(chip::press_t_anim(false, 0.0), 1.0);
+    assert_eq!(chip::press_t_anim(false, 1.0), 0.0);
+    assert_eq!(chip::press_ms(&theme), theme.motion.spatial_fast_ms);
     assert!(menu::TYPEAHEAD_AUTOFOCUS);
     assert_eq!(
         menu::typeahead_autofocus_kind(false, true, false, false),
@@ -1430,7 +1442,10 @@ fn expressive_chip_tokens() {
         menu::typeahead_autofocus_kind(false, false, false, true),
         Some(menu::GroupedPopupKind::Split)
     );
-    assert_eq!(menu::typeahead_autofocus_kind(false, false, false, false), None);
+    assert_eq!(
+        menu::typeahead_autofocus_kind(false, false, false, false),
+        None
+    );
     assert!(chip::ChipVariant::Filter.morphs());
     assert!(chip::ChipVariant::Input.morphs());
     assert!(!chip::ChipVariant::Assist.morphs());
@@ -1618,6 +1633,40 @@ fn expressive_wide_rail_icon_position() {
     assert_eq!(rail.active_label, theme.color.secondary);
     assert_eq!(rail.active_indicator, theme.color.secondary_container);
     assert_eq!(rail.inactive_label, theme.color.on_surface_variant);
+
+    assert_eq!(navigation_rail::icon_position_t(false), 0.0);
+    assert_eq!(navigation_rail::icon_position_t(true), 1.0);
+    let top_m = navigation_rail::item_morph(&theme, 0.0, 80.0);
+    assert_eq!(top_m.icon_position, navigation_rail::IconPosition::Top);
+    assert!((top_m.icon_box_w_dp - 56.0).abs() < 0.01);
+    assert!((top_m.icon_box_h_dp - 32.0).abs() < 0.01);
+    assert!((top_m.icon_indicator_alpha - 1.0).abs() < 0.01);
+    assert!(top_m.dest_indicator_alpha.abs() < 0.01);
+    assert!(top_m.label_center);
+    let start_m = navigation_rail::item_morph(&theme, 1.0, 220.0);
+    assert_eq!(start_m.icon_position, navigation_rail::IconPosition::Start);
+    assert!((start_m.icon_box_w_dp - 24.0).abs() < 0.01);
+    assert!((start_m.icon_box_h_dp - 24.0).abs() < 0.01);
+    assert!(start_m.icon_indicator_alpha.abs() < 0.01);
+    assert!((start_m.dest_indicator_alpha - 1.0).abs() < 0.01);
+    assert!(!start_m.label_center);
+    assert!((start_m.dest_width_dp - 188.0).abs() < 0.01);
+    let samples: [navigation_rail::RailItemMorph; 7] =
+        core::array::from_fn(|i| navigation_rail::item_morph(&theme, (i + 1) as f32 / 10.0, 150.0));
+    assert!(
+        samples
+            .iter()
+            .any(|m| m.icon_box_w_dp > 24.0 && m.icon_box_w_dp < 56.0),
+        "Top→Start lerp should pass through interior icon widths, got {:?}",
+        samples.map(|m| m.icon_box_w_dp)
+    );
+    assert!(
+        samples
+            .iter()
+            .any(|m| m.dest_indicator_alpha > 0.0 && m.dest_indicator_alpha < 1.0)
+    );
+    assert!((navigation_rail::morph_width_eased(&theme, 0.0) - 80.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_eased(&theme, 1.0) - 220.0).abs() < 0.01);
 }
 
 #[test]

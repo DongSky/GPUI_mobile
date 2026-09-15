@@ -525,6 +525,33 @@ a {{ color: var(--primary); }}
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
 .nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
+.nav-rail[data-icon-morphing="1"] {{ transition: none; align-items: stretch; }}
+.nav-rail[data-icon-morphing="1"] .dest,
+.nav-rail[data-icon-morphing="1"].expanded .dest,
+.nav-rail[data-icon-morphing="1"][data-icon-position="start"] .dest {{
+  position: relative; display: block; flex-direction: unset; justify-content: unset;
+  align-items: unset; box-sizing: border-box;
+  width: var(--dest-w); height: var(--dest-h); margin: 0 0 0 var(--dest-ml);
+  padding: 0; gap: 0; border-radius: var(--dest-r); background: var(--dest-bg, transparent);
+  font-size: var(--lbl-size);
+}}
+.nav-rail[data-icon-morphing="1"] .ind,
+.nav-rail[data-icon-morphing="1"].expanded .ind,
+.nav-rail[data-icon-morphing="1"][data-icon-position="start"] .ind {{
+  position: absolute; left: var(--icon-left); top: var(--icon-top);
+  width: var(--icon-w); height: var(--icon-h); border-radius: calc(var(--icon-h) / 2);
+  background: var(--icon-bg, transparent);
+}}
+.nav-rail[data-icon-morphing="1"] .dest[data-active="1"] .ind,
+.nav-rail[data-icon-morphing="1"].expanded .dest[data-active="1"] .ind,
+.nav-rail[data-icon-morphing="1"][data-icon-position="start"] .dest[data-active="1"] .ind {{
+  background: var(--icon-bg, transparent);
+}}
+.nav-rail[data-icon-morphing="1"] .lbl {{
+  position: absolute; left: var(--lbl-left); top: var(--lbl-top);
+  width: var(--lbl-w); text-align: var(--lbl-align); font-size: var(--lbl-size);
+  line-height: var(--lbl-line);
+}}
 .nav-rail.expanded, .nav-rail[data-icon-position="start"] {{ width: 220px; align-items: stretch; }}
 .nav-rail[data-wide-collapsed="1"] {{ width: 96px; }}
 .nav-rail[data-wide-collapsed="1"] .dest {{ width: 96px; }}
@@ -1642,6 +1669,84 @@ document.querySelectorAll("[data-wait-morph]").forEach(function (path) {{
   }}
   requestAnimationFrame(tickWait);
 }});
+function spatialFastAt(t) {{
+  t = Math.max(0, Math.min(1, t));
+  if (t === 0 || t === 1) return t;
+  var x1 = 0.42, y1 = 1.67, x2 = 0.21, y2 = 0.90;
+  var s = t;
+  function coord(p, a, b) {{
+    var u = 1 - p;
+    return 3 * u * u * p * a + 3 * u * p * p * b + p * p * p;
+  }}
+  function deriv(p, a, b) {{
+    var u = 1 - p;
+    return 3 * u * u * a + 6 * u * p * (b - a) + 3 * p * p * (1 - b);
+  }}
+  for (var i = 0; i < 10; i++) {{
+    var x = coord(s, x1, x2);
+    var dx = deriv(s, x1, x2);
+    if (Math.abs(dx) < 1e-6) break;
+    s = Math.max(0, Math.min(1, s - (x - t) / dx));
+  }}
+  return Math.max(0, Math.min(1, coord(s, y1, y2)));
+}}
+function hexRgba(hex, a) {{
+  if (!hex) return "transparent";
+  hex = hex.replace("#", "");
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var n = parseInt(hex, 16);
+  if (isNaN(n)) return "transparent";
+  return "rgba(" + ((n >> 16) & 255) + ", " + ((n >> 8) & 255) + ", " + (n & 255) + ", " + a + ")";
+}}
+function applyRailIconMorph(rail, t) {{
+  var e = spatialFastAt(t);
+  var collapsed = {rail_collapsed};
+  var expanded = {rail_expanded};
+  var railW = collapsed + (expanded - collapsed) * e;
+  rail.style.width = railW + "px";
+  var destMl = 16 * e;
+  var destW = Math.max(0, railW - destMl * 2);
+  var destH = 52 + (56 - 52) * e;
+  var destPad = 16 * e;
+  var iconW = 56 + (24 - 56) * e;
+  var iconH = 32 + (24 - 32) * e;
+  var iconLeft = ((destW - 56) / 2) * (1 - e) + destPad * e;
+  var iconTop = (destH - 24) / 2 * e;
+  var lblSize = 12 + (14 - 12) * e;
+  var lblLine = 16 + (20 - 16) * e;
+  var lblLeft = (destPad + 24 + 8) * e;
+  var lblTop = (32 + 4) * (1 - e) + ((destH - lblLine) / 2) * e;
+  var lblW = Math.max(0, destW - lblLeft - destPad);
+  rail.querySelectorAll(".dest").forEach(function (dest) {{
+    var active = dest.getAttribute("data-active") === "1";
+    var ind = dest.style.getPropertyValue("--ind") || "#E8DEF8";
+    dest.style.setProperty("--dest-w", destW + "px");
+    dest.style.setProperty("--dest-h", destH + "px");
+    dest.style.setProperty("--dest-ml", destMl + "px");
+    dest.style.setProperty("--dest-r", (destH / 2) + "px");
+    dest.style.setProperty("--dest-bg", active ? hexRgba(ind, e) : "transparent");
+    dest.style.setProperty("--icon-left", iconLeft + "px");
+    dest.style.setProperty("--icon-top", iconTop + "px");
+    dest.style.setProperty("--icon-w", iconW + "px");
+    dest.style.setProperty("--icon-h", iconH + "px");
+    dest.style.setProperty("--icon-bg", active ? hexRgba(ind, 1 - e) : "transparent");
+    dest.style.setProperty("--lbl-left", lblLeft + "px");
+    dest.style.setProperty("--lbl-top", lblTop + "px");
+    dest.style.setProperty("--lbl-w", lblW + "px");
+    dest.style.setProperty("--lbl-size", lblSize + "px");
+    dest.style.setProperty("--lbl-line", lblLine + "px");
+    dest.style.setProperty("--lbl-align", e < 0.5 ? "center" : "start");
+    dest.setAttribute("data-icon-position", e >= 0.5 ? "start" : "top");
+  }});
+}}
+function clearRailIconMorph(rail) {{
+  rail.style.width = "";
+  rail.querySelectorAll(".dest").forEach(function (dest) {{
+    ["--dest-w","--dest-h","--dest-ml","--dest-r","--dest-bg","--icon-left","--icon-top","--icon-w","--icon-h","--icon-bg","--lbl-left","--lbl-top","--lbl-w","--lbl-size","--lbl-line","--lbl-align"].forEach(function (k) {{
+      dest.style.removeProperty(k);
+    }});
+  }});
+}}
 document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
   rail.querySelectorAll(".dest").forEach(function (dest, i) {{
     dest.style.cursor = "pointer";
@@ -1656,18 +1761,38 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
   if (fab) {{
     fab.style.cursor = "pointer";
     fab.addEventListener("click", function () {{
-      var exp = rail.classList.toggle("expanded");
-      rail.setAttribute("data-nav-rail-expanded", exp ? "1" : "0");
-      rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
-      rail.setAttribute("data-icon-position", exp ? "start" : "top");
-      var stage = rail.closest(".rail-stage");
-      if (stage) {{
-        stage.classList.toggle("is-modal", exp);
-        var scrim = stage.querySelector("[data-rail-scrim]");
-        if (scrim) scrim.setAttribute("data-visible", exp ? "1" : "0");
-        var win = stage.querySelector("[data-rail-window]");
-        if (win) win.setAttribute("data-rail-window", exp ? "1" : "0");
+      if (rail._iconMorphRaf) cancelAnimationFrame(rail._iconMorphRaf);
+      var exp = rail.getAttribute("data-nav-rail-expanded") !== "1";
+      var ms = Number(rail.getAttribute("data-icon-morph-ms") || "{morph_ms}");
+      var from = exp ? 0 : 1;
+      var to = exp ? 1 : 0;
+      rail.setAttribute("data-icon-morphing", "1");
+      rail.setAttribute("data-icon-morph", "1");
+      var t0 = performance.now();
+      function tick(now) {{
+        var p = Math.min(1, (now - t0) / ms);
+        applyRailIconMorph(rail, from + (to - from) * p);
+        if (p < 1) {{
+          rail._iconMorphRaf = requestAnimationFrame(tick);
+          return;
+        }}
+        rail._iconMorphRaf = 0;
+        rail.classList.toggle("expanded", exp);
+        rail.setAttribute("data-nav-rail-expanded", exp ? "1" : "0");
+        rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
+        rail.setAttribute("data-icon-position", exp ? "start" : "top");
+        rail.removeAttribute("data-icon-morphing");
+        clearRailIconMorph(rail);
+        var stage = rail.closest(".rail-stage");
+        if (stage) {{
+          stage.classList.toggle("is-modal", exp);
+          var scrim = stage.querySelector("[data-rail-scrim]");
+          if (scrim) scrim.setAttribute("data-visible", exp ? "1" : "0");
+          var win = stage.querySelector("[data-rail-window]");
+          if (win) win.setAttribute("data-rail-window", exp ? "1" : "0");
+        }}
       }}
+      rail._iconMorphRaf = requestAnimationFrame(tick);
     }});
   }}
 }});
@@ -1836,6 +1961,9 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
         fling_decay = carousel::FLING_DECAY,
         fling_snap = carousel::FLING_SNAP_FRACTION,
         wait_ms = progress::determinate_wait_ms(theme),
+        rail_collapsed = navigation_rail::WIDTH_DP,
+        rail_expanded = navigation_rail::EXPANDED_WIDTH_DP,
+        morph_ms = navigation_rail::morph_ms(theme),
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
         h1l = theme.typography.display_small.emphasized().line_height_sp,
@@ -3675,7 +3803,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive modal rail still toggles 80↔220 over a 32% scrim. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive modal rail interpolates Top→Start (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast) while width 80↔220 over a 32% scrim. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -3683,7 +3811,7 @@ fn chrome(theme: &Theme) -> String {
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-icon-position="start" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
   </div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -3721,6 +3849,7 @@ fn chrome(theme: &Theme) -> String {
         fab = fab,
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,
+        morph_ms = navigation_rail::morph_ms(theme),
     )
 }
 

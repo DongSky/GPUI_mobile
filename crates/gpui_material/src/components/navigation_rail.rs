@@ -4,7 +4,9 @@
 //! (`NavigationRailCollapsedTokens.NarrowContainerWidth` 80 /
 //! `ContainerWidth` 96) with a 56×32 indicator. Expanded Start-icon
 //! destinations use a 56dp full-width pill (`NavigationRailHorizontalItemTokens`).
-//! Modal expanded is a 220–360dp overlay over a 32% scrim.
+//! Modal expanded is a 220–360dp overlay over a 32% scrim. Compose
+//! `iconPosition` follows `railExpanded` with a spatial-fast layout
+//! animation ([`item_morph`]).
 
 use super::dialog;
 use crate::argb::Argb;
@@ -342,6 +344,127 @@ pub fn morph_t(expanded: bool) -> f32 {
 pub fn morph_width_dp(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     WIDTH_DP + (EXPANDED_WIDTH_DP - WIDTH_DP) * t
+}
+
+/// [`morph_width_dp`] after spatial-fast (catalog / GPUI width clock).
+pub fn morph_width_eased(theme: &Theme, t: f32) -> f32 {
+    morph_width_dp(icon_position_eased(theme, t))
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
+/// Linear 0 = Top / collapsed, 1 = Start / expanded.
+pub fn icon_position_t(expanded: bool) -> f32 {
+    if expanded { 1.0 } else { 0.0 }
+}
+
+/// Spatial-fast Top→Start layout progress. Clamped to `[0, 1]`.
+pub fn icon_position_eased(theme: &Theme, t: f32) -> f32 {
+    theme
+        .motion
+        .spatial_fast_at(t.clamp(0.0, 1.0))
+        .clamp(0.0, 1.0)
+}
+
+/// Compose `iconPosition` layout animation (Top 56×32 → Start 56dp pill).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailItemMorph {
+    pub t: f32,
+    pub icon_position: IconPosition,
+    pub dest_ml_dp: f32,
+    pub dest_width_dp: f32,
+    pub dest_height_dp: f32,
+    pub dest_pad_start_dp: f32,
+    pub dest_pad_end_dp: f32,
+    pub dest_radius_dp: f32,
+    pub dest_indicator_alpha: f32,
+    pub icon_box_w_dp: f32,
+    pub icon_box_h_dp: f32,
+    pub icon_left_dp: f32,
+    pub icon_top_dp: f32,
+    pub icon_indicator_alpha: f32,
+    pub icon_label_gap_dp: f32,
+    pub label_size_sp: f32,
+    pub label_line_sp: f32,
+    pub label_left_dp: f32,
+    pub label_top_dp: f32,
+    pub label_width_dp: f32,
+    pub label_center: bool,
+    pub badge_right_dp: f32,
+}
+
+/// Interpolate Top→Start metrics. `t` is linear time in `[0, 1]`; easing is
+/// spatial-fast (same clock as [`morph_width_eased`]).
+pub fn item_morph(theme: &Theme, t: f32, rail_width_dp: f32) -> RailItemMorph {
+    let t = t.clamp(0.0, 1.0);
+    let e = icon_position_eased(theme, t);
+    let top = item_metrics(theme, IconPosition::Top);
+    let start = item_metrics(theme, IconPosition::Start);
+    let dest_ml = lerp(0.0, START_LEADING_DP, e);
+    let dest_pad_start = lerp(0.0, START_LEADING_DP, e);
+    let dest_pad_end = lerp(0.0, START_TRAILING_DP, e);
+    let dest_width = (rail_width_dp - dest_ml * 2.0).max(0.0);
+    let top_h = INDICATOR_H_DP + TOP_ICON_LABEL_GAP_DP + top.label_style.line_height_sp;
+    let dest_height = lerp(top_h, START_INDICATOR_H_DP, e);
+    let icon_box_w = lerp(INDICATOR_W_DP, ICON_DP, e);
+    let icon_box_h = lerp(INDICATOR_H_DP, ICON_DP, e);
+    let icon_left = lerp(
+        (dest_width - INDICATOR_W_DP).max(0.0) / 2.0,
+        dest_pad_start,
+        e,
+    );
+    let icon_top = lerp(0.0, (dest_height - ICON_DP).max(0.0) / 2.0, e);
+    let label_size = lerp(top.label_style.size_sp, start.label_style.size_sp, e);
+    let label_line = lerp(
+        top.label_style.line_height_sp,
+        start.label_style.line_height_sp,
+        e,
+    );
+    let label_left = lerp(0.0, dest_pad_start + ICON_DP + START_ICON_LABEL_GAP_DP, e);
+    let label_top = lerp(
+        INDICATOR_H_DP + TOP_ICON_LABEL_GAP_DP,
+        (dest_height - label_line).max(0.0) / 2.0,
+        e,
+    );
+    let label_width = (dest_width - label_left - dest_pad_end).max(0.0);
+    RailItemMorph {
+        t: e,
+        icon_position: if e >= 0.5 {
+            IconPosition::Start
+        } else {
+            IconPosition::Top
+        },
+        dest_ml_dp: dest_ml,
+        dest_width_dp: dest_width,
+        dest_height_dp: dest_height,
+        dest_pad_start_dp: dest_pad_start,
+        dest_pad_end_dp: dest_pad_end,
+        dest_radius_dp: dest_height / 2.0,
+        dest_indicator_alpha: e,
+        icon_box_w_dp: icon_box_w,
+        icon_box_h_dp: icon_box_h,
+        icon_left_dp: icon_left,
+        icon_top_dp: icon_top,
+        icon_indicator_alpha: 1.0 - e,
+        icon_label_gap_dp: lerp(top.icon_label_gap_dp, start.icon_label_gap_dp, e),
+        label_size_sp: label_size,
+        label_line_sp: label_line,
+        label_left_dp: label_left,
+        label_top_dp: label_top,
+        label_width_dp: label_width,
+        label_center: e < 0.5,
+        badge_right_dp: lerp(18.0, 8.0, e),
+    }
+}
+
+pub fn item_morph_for_mode(theme: &Theme, mode: RailMode, rail_width_dp: f32) -> RailItemMorph {
+    item_morph(
+        theme,
+        icon_position_t(matches!(mode, RailMode::Expanded)),
+        rail_width_dp,
+    )
 }
 
 pub fn scrim_opacity_at(t: f32) -> f32 {

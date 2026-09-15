@@ -381,6 +381,8 @@ struct CatalogView {
     typeahead_focus: FocusHandle,
     typeahead_host: Option<LiveMenuHost>,
     chip_pressed: Option<u32>,
+    chip_press_seq: u32,
+    chip_press_anim: Option<u32>,
     snack_state: snackbar::SnackbarState,
     snack_at: Instant,
     fab_menu_open: bool,
@@ -430,12 +432,7 @@ impl CatalogView {
         }
     }
 
-    fn focus_typeahead(
-        &mut self,
-        host: LiveMenuHost,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    fn focus_typeahead(&mut self, host: LiveMenuHost, window: &mut Window, cx: &mut Context<Self>) {
         if !menu::TYPEAHEAD_AUTOFOCUS {
             return;
         }
@@ -1092,6 +1089,39 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo, id: u32, pressed: bool) -> St
         }))
 }
 
+fn live_chip(
+    theme: &Theme,
+    demo: chip::ChipDemo,
+    id: u32,
+    pressed: bool,
+    animate: bool,
+    press_seq: u32,
+    cx: &mut Context<CatalogView>,
+) -> gpui::AnyElement {
+    let el = bind_chip_press(paint_chip(theme, demo, id, pressed), id, cx);
+    if animate && demo.variant.morphs() {
+        let theme = *theme;
+        let variant = demo.variant;
+        let selected = demo.selected;
+        el.with_animation(
+            SharedString::from(format!(
+                "chip-press-{}-{}-{}",
+                id,
+                press_seq,
+                if pressed { "in" } else { "out" }
+            )),
+            Animation::new(Duration::from_millis(chip::press_ms(&theme) as u64)),
+            move |this, delta| {
+                let t = chip::press_t_anim(pressed, delta);
+                this.rounded(px(chip::animated_corner_dp(&theme, variant, selected, t)))
+            },
+        )
+        .into_any_element()
+    } else {
+        el.into_any_element()
+    }
+}
+
 fn bind_chip_press(
     el: Stateful<gpui::Div>,
     id: u32,
@@ -1100,6 +1130,8 @@ fn bind_chip_press(
     el.on_mouse_down(
         MouseButton::Left,
         cx.listener(move |this, _, _, cx| {
+            this.chip_press_seq = this.chip_press_seq.wrapping_add(1);
+            this.chip_press_anim = Some(id);
             this.chip_pressed = Some(id);
             cx.notify();
         }),
@@ -1107,6 +1139,8 @@ fn bind_chip_press(
     .on_mouse_up(
         MouseButton::Left,
         cx.listener(move |this, _, _, cx| {
+            this.chip_press_seq = this.chip_press_seq.wrapping_add(1);
+            this.chip_press_anim = Some(id);
             this.chip_pressed = None;
             cx.notify();
         }),
@@ -1119,12 +1153,22 @@ fn desktop_chips(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let pressed = this.chip_pressed;
+    let press_seq = this.chip_press_seq;
+    let anim = this.chip_press_anim;
     let filter: Vec<_> = chip::FILTER_HERO
         .iter()
         .enumerate()
         .map(|(i, demo)| {
             let id = 10 + i as u32;
-            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+            live_chip(
+                theme,
+                *demo,
+                id,
+                pressed == Some(id),
+                anim == Some(id),
+                press_seq,
+                cx,
+            )
         })
         .collect();
     let tonal: Vec<_> = chip::TONAL_FILTER_HERO
@@ -1132,7 +1176,15 @@ fn desktop_chips(
         .enumerate()
         .map(|(i, demo)| {
             let id = 20 + i as u32;
-            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+            live_chip(
+                theme,
+                *demo,
+                id,
+                pressed == Some(id),
+                anim == Some(id),
+                press_seq,
+                cx,
+            )
         })
         .collect();
     let elevated: Vec<_> = chip::ELEVATED_FILTER_HERO
@@ -1140,7 +1192,15 @@ fn desktop_chips(
         .enumerate()
         .map(|(i, demo)| {
             let id = 30 + i as u32;
-            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+            live_chip(
+                theme,
+                *demo,
+                id,
+                pressed == Some(id),
+                anim == Some(id),
+                press_seq,
+                cx,
+            )
         })
         .collect();
     let input: Vec<_> = chip::INPUT_HERO
@@ -1148,7 +1208,15 @@ fn desktop_chips(
         .enumerate()
         .map(|(i, demo)| {
             let id = 40 + i as u32;
-            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+            live_chip(
+                theme,
+                *demo,
+                id,
+                pressed == Some(id),
+                anim == Some(id),
+                press_seq,
+                cx,
+            )
         })
         .collect();
     let avatars: Vec<_> = chip::INPUT_AVATAR_HERO
@@ -1156,7 +1224,15 @@ fn desktop_chips(
         .enumerate()
         .map(|(i, demo)| {
             let id = 50 + i as u32;
-            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+            live_chip(
+                theme,
+                *demo,
+                id,
+                pressed == Some(id),
+                anim == Some(id),
+                press_seq,
+                cx,
+            )
         })
         .collect();
     div()
@@ -1829,8 +1905,13 @@ fn connected_icon_group(
                                 if this.overflow_open {
                                     this.connected_overflow_menu =
                                         menu::OverlayMenuSession::connected_overflow();
-                                    this.focus_typeahead(LiveMenuHost::ConnectedOverflow, window, cx);
-                                } else if this.typeahead_host == Some(LiveMenuHost::ConnectedOverflow)
+                                    this.focus_typeahead(
+                                        LiveMenuHost::ConnectedOverflow,
+                                        window,
+                                        cx,
+                                    );
+                                } else if this.typeahead_host
+                                    == Some(LiveMenuHost::ConnectedOverflow)
                                 {
                                     this.typeahead_host = None;
                                 }
@@ -4947,7 +5028,7 @@ fn nav_rail_static_column(
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .children(nav_rail_dest_views(
-            theme, &rail, width_dp, position, selected, cx,
+            theme, &rail, width_dp, position, selected, false, false, cx,
         ))
 }
 
@@ -5015,6 +5096,7 @@ fn nav_rail_column(
     let selected = this.rail_selected;
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
     let position = navigation_rail::icon_position_for_mode(mode);
+    let theme = *theme;
     div()
         .id("nav-rail")
         .overflow_hidden()
@@ -5034,7 +5116,7 @@ fn nav_rail_column(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
-                this.w(px(navigation_rail::morph_width_dp(t)))
+                this.w(px(navigation_rail::morph_width_eased(&theme, t)))
             },
         )
         .child(
@@ -5055,13 +5137,111 @@ fn nav_rail_column(
                 })),
         )
         .children(nav_rail_dest_views(
-            theme,
+            &theme,
             &rail,
             rail.width_dp,
             position,
             selected,
+            true,
+            expanded,
             cx,
         ))
+}
+
+fn rail_dest_indicator_bg(
+    rail: &navigation_rail::NavRailAppearance,
+    active: bool,
+    alpha: f32,
+) -> gpui_material::Argb {
+    if active {
+        rail.active_indicator
+            .with_alpha(alpha)
+            .composite_over(rail.container)
+    } else {
+        rail.container
+    }
+}
+
+fn rail_dest_layers(
+    m: navigation_rail::RailItemMorph,
+    rail: &navigation_rail::NavRailAppearance,
+    active: bool,
+    icon: &'static str,
+    label: &'static str,
+    badge: Option<u32>,
+) -> Vec<gpui::AnyElement> {
+    let mut kids = vec![
+        div()
+            .absolute()
+            .left(px(m.icon_left_dp))
+            .top(px(m.icon_top_dp))
+            .w(px(m.icon_box_w_dp))
+            .h(px(m.icon_box_h_dp))
+            .rounded(px(m.icon_box_h_dp / 2.0))
+            .bg(paint(rail_dest_indicator_bg(
+                rail,
+                active,
+                m.icon_indicator_alpha,
+            )))
+            .text_color(paint(if active {
+                rail.active_icon
+            } else {
+                rail.inactive_icon
+            }))
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(icon)
+            .into_any_element(),
+        div()
+            .absolute()
+            .left(px(m.label_left_dp))
+            .top(px(m.label_top_dp))
+            .w(px(m.label_width_dp))
+            .h(px(m.label_line_sp))
+            .text_size(px(m.label_size_sp))
+            .text_color(paint(if active {
+                rail.active_label
+            } else {
+                rail.inactive_label
+            }))
+            .when(m.label_center, |el| el.flex().justify_center())
+            .child(label)
+            .into_any_element(),
+    ];
+    match badge {
+        Some(0) => kids.push(
+            div()
+                .absolute()
+                .top(px(2.))
+                .right(px(m.badge_right_dp))
+                .w(px(6.))
+                .h(px(6.))
+                .rounded(px(3.))
+                .bg(paint(rail.badge))
+                .into_any_element(),
+        ),
+        Some(n) => kids.push(
+            div()
+                .absolute()
+                .top(px(2.))
+                .right(px(m.badge_right_dp))
+                .min_w(px(16.))
+                .h(px(16.))
+                .px(px(4.))
+                .rounded(px(8.))
+                .bg(paint(rail.badge))
+                .text_color(paint(rail.badge_label))
+                .text_size(px(10.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(badge::label_for_count(n))
+                .into_any_element(),
+        ),
+        None => {}
+    }
+    kids
 }
 
 fn nav_rail_dest_views(
@@ -5070,9 +5250,14 @@ fn nav_rail_dest_views(
     width_dp: f32,
     position: navigation_rail::IconPosition,
     selected: usize,
+    animate: bool,
+    expanded: bool,
     cx: &mut Context<CatalogView>,
 ) -> Vec<gpui::AnyElement> {
-    let metrics = navigation_rail::item_metrics(theme, position);
+    let theme = *theme;
+    let rail = *rail;
+    let morph_ms = navigation_rail::morph_ms(&theme) as u64;
+    let settled_t = navigation_rail::icon_position_t(position.is_start());
     navigation_rail::DESTINATIONS
         .iter()
         .zip(navigation_rail::DESTINATION_ICONS.iter())
@@ -5080,125 +5265,54 @@ fn nav_rail_dest_views(
         .enumerate()
         .map(|(i, ((label, icon), badge))| {
             let active = navigation_rail::is_active(selected, i);
-            let mut dest = div()
+            let dest = div()
                 .id(SharedString::from(format!(
-                    "rail-dest-{}-{i}",
-                    position.label()
+                    "{}-dest-{i}",
+                    if animate { "rail" } else { "wide-rail" }
                 )))
                 .relative()
-                .flex()
-                .items_center()
-                .gap(px(metrics.icon_label_gap_dp))
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.rail_selected = navigation_rail::select_destination(this.rail_selected, i);
                     cx.notify();
                 }));
-            dest = if position.is_start() {
-                dest.flex_row()
-                    .justify_start()
-                    .w(px(navigation_rail::start_indicator_width_dp(width_dp)))
-                    .h(px(metrics.indicator_h_dp))
-                    .px(px(metrics.pad_start_dp))
-                    .ml(px(navigation_rail::START_LEADING_DP))
-                    .rounded(px(metrics.indicator_h_dp / 2.0))
-                    .bg(paint(if active {
-                        rail.active_indicator
-                    } else {
-                        rail.container
-                    }))
+            if animate {
+                dest.with_animation(
+                    SharedString::from(format!(
+                        "rail-icon-{}-{i}",
+                        if expanded { "in" } else { "out" }
+                    )),
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        let rail_w = navigation_rail::morph_width_eased(&theme, t);
+                        let m = navigation_rail::item_morph(&theme, t, rail_w);
+                        this.w(px(m.dest_width_dp))
+                            .h(px(m.dest_height_dp))
+                            .ml(px(m.dest_ml_dp))
+                            .rounded(px(m.dest_radius_dp))
+                            .bg(paint(rail_dest_indicator_bg(
+                                &rail,
+                                active,
+                                m.dest_indicator_alpha,
+                            )))
+                            .children(rail_dest_layers(m, &rail, active, *icon, *label, *badge))
+                    },
+                )
+                .into_any_element()
             } else {
-                dest.flex_col().justify_center().w(px(width_dp))
-            };
-            if position.is_start() {
-                dest = dest
-                    .child(
-                        div()
-                            .w(px(navigation_rail::ICON_DP))
-                            .h(px(navigation_rail::ICON_DP))
-                            .text_color(paint(if active {
-                                rail.active_icon
-                            } else {
-                                rail.inactive_icon
-                            }))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(*icon),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(metrics.label_style.size_sp))
-                            .text_color(paint(if active {
-                                rail.active_label
-                            } else {
-                                rail.inactive_label
-                            }))
-                            .child(*label),
-                    );
-            } else {
-                dest = dest
-                    .child(
-                        div()
-                            .w(px(metrics.indicator_w_dp))
-                            .h(px(metrics.indicator_h_dp))
-                            .rounded(px(metrics.indicator_h_dp / 2.0))
-                            .bg(paint(if active {
-                                rail.active_indicator
-                            } else {
-                                rail.container
-                            }))
-                            .text_color(paint(if active {
-                                rail.active_icon
-                            } else {
-                                rail.inactive_icon
-                            }))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(*icon),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(metrics.label_style.size_sp))
-                            .text_color(paint(if active {
-                                rail.active_label
-                            } else {
-                                rail.inactive_label
-                            }))
-                            .child(*label),
-                    );
+                let m = navigation_rail::item_morph(&theme, settled_t, width_dp);
+                dest.w(px(m.dest_width_dp))
+                    .h(px(m.dest_height_dp))
+                    .ml(px(m.dest_ml_dp))
+                    .rounded(px(m.dest_radius_dp))
+                    .bg(paint(rail_dest_indicator_bg(
+                        &rail,
+                        active,
+                        m.dest_indicator_alpha,
+                    )))
+                    .children(rail_dest_layers(m, &rail, active, *icon, *label, *badge))
+                    .into_any_element()
             }
-            dest = match badge {
-                Some(0) => dest.child(
-                    div()
-                        .absolute()
-                        .top(px(2.))
-                        .right(px(if position.is_start() { 8. } else { 18. }))
-                        .w(px(6.))
-                        .h(px(6.))
-                        .rounded(px(3.))
-                        .bg(paint(rail.badge)),
-                ),
-                Some(n) => dest.child(
-                    div()
-                        .absolute()
-                        .top(px(2.))
-                        .right(px(if position.is_start() { 8. } else { 12. }))
-                        .min_w(px(16.))
-                        .h(px(16.))
-                        .px(px(4.))
-                        .rounded(px(8.))
-                        .bg(paint(rail.badge))
-                        .text_color(paint(rail.badge_label))
-                        .text_size(px(10.))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(badge::label_for_count(*n)),
-                ),
-                None => dest,
-            };
-            dest.into_any_element()
         })
         .collect()
 }
@@ -5923,6 +6037,8 @@ fn main() {
                     typeahead_focus: cx.focus_handle(),
                     typeahead_host: None,
                     chip_pressed: None,
+                    chip_press_seq: 0,
+                    chip_press_anim: None,
                     snack_state: snackbar::SnackbarState::short(),
                     snack_at: Instant::now(),
                     fab_menu_open: fab_menu::DEMO_EXPANDED,
@@ -6224,6 +6340,8 @@ mod tests {
             chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, false, 1.0),
             8.0
         );
+        assert_eq!(chip::press_t_anim(true, 0.5), 0.5);
+        assert_eq!(chip::press_ms(&theme), 350);
         assert!(menu::TYPEAHEAD_AUTOFOCUS);
         assert_eq!(
             menu::typeahead_autofocus_kind(false, true, false, false),
@@ -6273,6 +6391,9 @@ mod tests {
         assert_eq!(start.indicator_h_dp, 56.0);
         assert_eq!(start.label_style.name, "labelLarge");
         assert_eq!(navigation_rail::WIDE_COLLAPSED_WIDTH_DP, 96.0);
+        let morph = navigation_rail::item_morph(&theme, 0.2, 150.0);
+        assert!(morph.icon_box_w_dp > 24.0 && morph.icon_box_w_dp < 56.0);
+        assert!(morph.dest_indicator_alpha > 0.0 && morph.dest_indicator_alpha < 1.0);
         assert_eq!(
             navigation_rail::resolve(&theme).active_label,
             theme.color.secondary

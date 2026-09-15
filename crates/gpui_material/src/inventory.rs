@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Assist / filter / input / suggestion chips",
         docs: "https://m3.material.io/components/chips/specs",
         parity: Parity::Done,
-        notes: "32dp; Filter/Input Expressive ChipShapes morph 12/16/8 + selected check + live rememberAnimatedShape press interpolation; tonal leading icon on-surface-variant; ElevatedFilterChip surface-container-low elev 1; InputChip 24dp avatar + compact 4dp arrangement; Assist/Suggestion stay full-round",
+        notes: "32dp; Filter/Input Expressive ChipShapes morph 12/16/8 + selected check + live rememberAnimatedShape press interpolation + GPUI with_animation press clock; tonal leading icon on-surface-variant; ElevatedFilterChip surface-container-low elev 1; InputChip 24dp avatar + compact 4dp arrangement; Assist/Suggestion stay full-round",
     },
     ComponentEntry {
         name: "Card",
@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; wide collapsed 96 / narrow 80; expanded 220–360 modal overlay + 32% scrim; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
+        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; live Top→Start iconPosition lerp (spatial-fast); wide collapsed 96 / narrow 80; expanded 220–360 modal overlay + 32% scrim; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
     },
     ComponentEntry {
         name: "Dialog",

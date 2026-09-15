@@ -12,9 +12,9 @@
 //! elevation 1 and no outline. InputChip may paint a 24dp avatar (takes
 //! precedence over a leading icon) with compact 4dp arrangement.
 
+use super::photo_stub::PhotoKind;
 use crate::argb::Argb;
 use crate::components::Appearance;
-use super::photo_stub::PhotoKind;
 use crate::shape::Corners;
 use crate::state::{
     DISABLED_CONTAINER_OPACITY, InteractionState, apply_state_layer, resolve_content,
@@ -283,6 +283,17 @@ pub fn press_t(state: InteractionState) -> f32 {
     }
 }
 
+/// Linear press clock for a host `with_animation` delta (`1` = pressed).
+pub fn press_t_anim(pressed: bool, delta: f32) -> f32 {
+    let delta = delta.clamp(0.0, 1.0);
+    if pressed { delta } else { 1.0 - delta }
+}
+
+/// Compose `rememberAnimatedShape` duration (spatial-fast).
+pub fn press_ms(theme: &Theme) -> u16 {
+    theme.motion.spatial_fast_ms
+}
+
 /// Rest or selected `ChipShapes` corner (pressed is applied by [`animated_corner_dp`]).
 pub fn rest_corner_dp(theme: &Theme, variant: ChipVariant, selected: bool) -> f32 {
     if !variant.morphs() {
@@ -339,11 +350,7 @@ pub fn demo_leading_icon(demo: ChipDemo) -> Option<&'static str> {
 }
 
 pub fn demo_avatar(demo: ChipDemo) -> Option<PhotoKind> {
-    if demo.has_avatar() {
-        demo.avatar
-    } else {
-        None
-    }
+    if demo.has_avatar() { demo.avatar } else { None }
 }
 
 /// `HorizontalSpacing` (8) or `CompactHorizontalSpacing` (4) when an avatar is shown.
