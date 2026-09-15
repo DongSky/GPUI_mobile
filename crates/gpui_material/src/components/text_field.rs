@@ -30,9 +30,19 @@ pub const NOTCH_START_DP: f32 = 8.0;
 /// Width of the top-outline *cutout* for `label` (bodySmall-ish glyph width).
 /// Mapping paints left-stroke | gap+label | right-stroke so the border is
 /// actually interrupted, not just a label drawn on top of a full stroke.
+/// Wide letters (`m`, `w`, `@`) use a larger advance so the stroke does not
+/// sliver under the floating legend.
 pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
-    let em = label_size_sp * 0.52;
-    (label.chars().count() as f32 * em + NOTCH_PAD_DP * 2.0).max(28.0)
+    let mut units = 0.0_f32;
+    for ch in label.chars() {
+        units += match ch {
+            'm' | 'M' | 'w' | 'W' | '@' => 0.88,
+            'i' | 'l' | 'j' | 'I' | '.' | ',' | '\'' | '|' => 0.32,
+            'f' | 't' | 'r' | 's' => 0.42,
+            _ => 0.58,
+        };
+    }
+    (units * label_size_sp + NOTCH_PAD_DP * 2.0).max(28.0)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -321,8 +331,8 @@ impl NotchFrame {
     }
 
     /// Single C-shaped even-odd path: outer clockwise, inner counterclockwise,
-    /// joined at the legend gap. Compose `OutlinedTextField` / MDC cutout is a
-    /// filled ring with a gap — not a padded-rect hole plus a third gap chip.
+    /// joined at the legend gap. Corners are androidx `RoundedPolygon` cubics
+    /// (`CIRCULAR_KAPPA`) so GPUI flatten and HTML SVG share one contour.
     pub fn evenodd_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
         let s = self.stroke_dp.max(1.0);
         let r = self.radius_dp.max(s);
@@ -337,17 +347,18 @@ impl NotchFrame {
         let ih = (h - s * 2.0).max(1.0);
         let notch_l_i = notch_l.clamp(ix, ix + iw);
         let notch_r_i = notch_r.clamp(ix, ix + iw);
+        let k = crate::shape::CIRCULAR_KAPPA;
 
         let mut v = Vec::with_capacity(24);
         v.push(OutlineVerb::Move(notch_r, 0.0));
         v.push(OutlineVerb::Line(w - r, 0.0));
-        v.push(OutlineVerb::arc_cw(w, r, r));
+        v.push(OutlineVerb::cubic_quarter((w - r, 0.0), (w, 0.0), (w, r), k));
         v.push(OutlineVerb::Line(w, h - r));
-        v.push(OutlineVerb::arc_cw(w - r, h, r));
+        v.push(OutlineVerb::cubic_quarter((w, h - r), (w, h), (w - r, h), k));
         v.push(OutlineVerb::Line(r, h));
-        v.push(OutlineVerb::arc_cw(0.0, h - r, r));
+        v.push(OutlineVerb::cubic_quarter((r, h), (0.0, h), (0.0, h - r), k));
         v.push(OutlineVerb::Line(0.0, r));
-        v.push(OutlineVerb::arc_cw(r, 0.0, r));
+        v.push(OutlineVerb::cubic_quarter((0.0, r), (0.0, 0.0), (r, 0.0), k));
         v.push(OutlineVerb::Line(notch_l, 0.0));
         v.push(OutlineVerb::Line(notch_l_i, iy));
         if ir < 0.5 {
@@ -358,13 +369,33 @@ impl NotchFrame {
             v.push(OutlineVerb::Line(notch_r_i, iy));
         } else {
             v.push(OutlineVerb::Line(ix + ir, iy));
-            v.push(OutlineVerb::arc_ccw(ix, iy + ir, ir));
+            v.push(OutlineVerb::cubic_quarter(
+                (ix + ir, iy),
+                (ix, iy),
+                (ix, iy + ir),
+                k,
+            ));
             v.push(OutlineVerb::Line(ix, iy + ih - ir));
-            v.push(OutlineVerb::arc_ccw(ix + ir, iy + ih, ir));
+            v.push(OutlineVerb::cubic_quarter(
+                (ix, iy + ih - ir),
+                (ix, iy + ih),
+                (ix + ir, iy + ih),
+                k,
+            ));
             v.push(OutlineVerb::Line(ix + iw - ir, iy + ih));
-            v.push(OutlineVerb::arc_ccw(ix + iw, iy + ih - ir, ir));
+            v.push(OutlineVerb::cubic_quarter(
+                (ix + iw - ir, iy + ih),
+                (ix + iw, iy + ih),
+                (ix + iw, iy + ih - ir),
+                k,
+            ));
             v.push(OutlineVerb::Line(ix + iw, iy + ir));
-            v.push(OutlineVerb::arc_ccw(ix + iw - ir, iy, ir));
+            v.push(OutlineVerb::cubic_quarter(
+                (ix + iw, iy + ir),
+                (ix + iw, iy),
+                (ix + iw - ir, iy),
+                k,
+            ));
             v.push(OutlineVerb::Line(notch_r_i, iy));
         }
         v.push(OutlineVerb::Line(notch_r, 0.0));
@@ -384,112 +415,14 @@ impl NotchFrame {
         outline_verbs_svg_d(&self.evenodd_verbs(width_dp))
     }
 
-    /// Flattened C-path for GPUI even-odd fill. Corners are explicit quarter
-    /// circles (not inferred from SVG arcs — that picked the wrong center
-    /// when both diamond candidates were equally far).
+    /// Flattened C-path for GPUI even-odd fill. Corners are RoundedPolygon
+    /// cubics (`CIRCULAR_KAPPA`), tessellated from `evenodd_verbs`.
     pub fn evenodd_polygon(self, width_dp: f32) -> Vec<(f32, f32)> {
-        let s = self.stroke_dp.max(1.0);
-        let r = self.radius_dp.max(s);
-        let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
-        let h = self.field_h_dp.max(r * 2.0);
-        let notch_l = self.start_dp.max(0.0);
-        let notch_r = (self.start_dp + self.width_dp).min(w);
-        let ir = (r - s).max(0.0);
-        let mut pts = Vec::with_capacity(80);
-        // Outer clockwise (y-down: 0=east, +angle = clockwise on screen).
-        pts.push((notch_r, 0.0));
-        pts.push((w - r, 0.0));
-        append_arc(
-            &mut pts,
-            w - r,
-            r,
-            r,
-            -std::f32::consts::FRAC_PI_2,
-            0.0,
-        );
-        pts.push((w, h - r));
-        append_arc(&mut pts, w - r, h - r, r, 0.0, std::f32::consts::FRAC_PI_2);
-        pts.push((r, h));
-        append_arc(
-            &mut pts,
-            r,
-            h - r,
-            r,
-            std::f32::consts::FRAC_PI_2,
-            std::f32::consts::PI,
-        );
-        pts.push((0.0, r));
-        append_arc(
-            &mut pts,
-            r,
-            r,
-            r,
-            std::f32::consts::PI,
-            3.0 * std::f32::consts::FRAC_PI_2,
-        );
-        pts.push((notch_l, 0.0));
-        // Join into the inner ring at the legend gap, then counterclockwise.
-        let notch_l_i = notch_l.clamp(s, w - s);
-        let notch_r_i = notch_r.clamp(s, w - s);
-        pts.push((notch_l_i, s));
-        if ir < 0.5 {
-            pts.push((s, s));
-            pts.push((s, h - s));
-            pts.push((w - s, h - s));
-            pts.push((w - s, s));
-        } else {
-            pts.push((s + ir, s));
-            append_arc(
-                &mut pts,
-                s + ir,
-                s + ir,
-                ir,
-                -std::f32::consts::FRAC_PI_2,
-                -std::f32::consts::PI,
-            );
-            pts.push((s, h - s - ir));
-            append_arc(
-                &mut pts,
-                s + ir,
-                h - s - ir,
-                ir,
-                std::f32::consts::PI,
-                std::f32::consts::FRAC_PI_2,
-            );
-            pts.push((w - s - ir, h - s));
-            append_arc(
-                &mut pts,
-                w - s - ir,
-                h - s - ir,
-                ir,
-                std::f32::consts::FRAC_PI_2,
-                0.0,
-            );
-            pts.push((w - s, s + ir));
-            append_arc(
-                &mut pts,
-                w - s - ir,
-                s + ir,
-                ir,
-                0.0,
-                -std::f32::consts::FRAC_PI_2,
-            );
-        }
-        pts.push((notch_r_i, s));
-        pts.push((notch_r, 0.0));
-        pts
+        flatten_outline_verbs(&self.evenodd_verbs(width_dp))
     }
 }
 
-fn append_arc(pts: &mut Vec<(f32, f32)>, cx: f32, cy: f32, radius: f32, a0: f32, a1: f32) {
-    let n = 8usize;
-    for i in 1..=n {
-        let a = a0 + (a1 - a0) * (i as f32 / n as f32);
-        pts.push((cx + radius * a.cos(), cy + radius * a.sin()));
-    }
-}
-
-/// Tessellate verbs to a polyline (arcs become line samples).
+/// Tessellate verbs to a polyline (arcs/cubics become line samples).
 pub fn flatten_outline_verbs(verbs: &[OutlineVerb]) -> Vec<(f32, f32)> {
     let mut pts = Vec::with_capacity(verbs.len() * 6);
     let mut cx = 0.0_f32;
@@ -508,6 +441,26 @@ pub fn flatten_outline_verbs(verbs: &[OutlineVerb]) -> Vec<(f32, f32)> {
                 clockwise,
             } => {
                 for (x, y) in tessellate_arc(cx, cy, to_x, to_y, radius.max(0.5), clockwise) {
+                    pts.push((x, y));
+                }
+                cx = to_x;
+                cy = to_y;
+            }
+            OutlineVerb::Cubic {
+                c1_x,
+                c1_y,
+                c2_x,
+                c2_y,
+                to_x,
+                to_y,
+            } => {
+                for (x, y) in crate::shape::sample_cubic(
+                    (cx, cy),
+                    (c1_x, c1_y),
+                    (c2_x, c2_y),
+                    (to_x, to_y),
+                    8,
+                ) {
                     pts.push((x, y));
                 }
                 cx = to_x;
@@ -628,6 +581,16 @@ fn outline_verbs_svg_d(verbs: &[OutlineVerb]) -> String {
                 " A{radius:.2},{radius:.2} 0 0 {sweep} {to_x:.2},{to_y:.2}",
                 sweep = if *clockwise { 1 } else { 0 },
             )),
+            OutlineVerb::Cubic {
+                c1_x,
+                c1_y,
+                c2_x,
+                c2_y,
+                to_x,
+                to_y,
+            } => d.push_str(&format!(
+                " C{c1_x:.2},{c1_y:.2} {c2_x:.2},{c2_y:.2} {to_x:.2},{to_y:.2}"
+            )),
             OutlineVerb::Close => d.push_str(" Z"),
         }
     }
@@ -644,6 +607,14 @@ pub enum OutlineVerb {
         to_y: f32,
         radius: f32,
         clockwise: bool,
+    },
+    Cubic {
+        c1_x: f32,
+        c1_y: f32,
+        c2_x: f32,
+        c2_y: f32,
+        to_x: f32,
+        to_y: f32,
     },
     Close,
 }
@@ -664,6 +635,23 @@ impl OutlineVerb {
             to_y,
             radius,
             clockwise: false,
+        }
+    }
+
+    pub fn cubic_quarter(
+        from: (f32, f32),
+        corner: (f32, f32),
+        to: (f32, f32),
+        kappa: f32,
+    ) -> Self {
+        let [c1, c2, end] = crate::shape::rounded_polygon_quarter(from, corner, to, kappa);
+        Self::Cubic {
+            c1_x: c1.0,
+            c1_y: c1.1,
+            c2_x: c2.0,
+            c2_y: c2.1,
+            to_x: end.0,
+            to_y: end.1,
         }
     }
 }

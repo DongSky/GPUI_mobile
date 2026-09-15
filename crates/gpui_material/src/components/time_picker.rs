@@ -25,10 +25,26 @@ pub const HAND_LENGTH_RATIO: f32 = 0.38;
 pub const HAND_DOTS: usize = 8;
 pub const SECOND_HAND_THICKNESS_DP: f32 = 1.25;
 pub const SECOND_HAND_LENGTH_SCALE: f32 = 0.92;
-/// Catalog demo second (no wall clock in the host).
+/// Catalog demo second (reproducible snapshot). Live hosts use `wall_second`.
 pub const DEMO_SECOND: u8 = 12;
 /// One revolution of the ticking second hand.
 pub const SECOND_PERIOD_MS: u16 = 60_000;
+
+/// Seconds + in-second fraction from the host wall clock (UTC ≡ local seconds).
+pub fn wall_second() -> (u8, f32) {
+    let dur = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = (dur.as_secs() % 60) as u8;
+    let tick = dur.subsec_millis() as f32 / 1000.0;
+    (secs, tick)
+}
+
+/// Degrees from 12 o'clock for the live wall-clock second hand.
+pub fn second_hand_angle_wall_clock() -> f32 {
+    let (second, tick) = wall_second();
+    second_hand_angle_deg(second, tick)
+}
 
 /// Spatial-fast duration for hour/minute hand motion.
 pub fn hand_motion_ms(theme: &Theme) -> u16 {

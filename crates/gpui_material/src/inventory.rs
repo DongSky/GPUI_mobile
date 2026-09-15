@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, explicit quarter-circle corners); HTML SVG even-odd fill (fieldset border none); GPUI even-odd fill of the same polygon so the label cuts the stroke on any background; 8dp start; focus outline 2dp; IME caret rect + InputConnection session wired to NativeActivity update_ime_position (no JNI yet)",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, RoundedPolygon cubics at CIRCULAR_KAPPA); HTML SVG even-odd fill; GPUI flatten of the same verbs; glyph-advance notch width; IME caret + InputConnection session + JNI InputMethodManager toggleSoftInput plan (no View-backed IC yet)",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph-by-progress (no spin); round-capped filled circular arc (not a stroked polyline); shared clock_ms animation helper",
+        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph driven by WaitProgress (download bytes / elapsed wait); round-capped filled circular arc (LineCap round stand-in); shared clock_ms animation helper",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp modal column that morphs over a 32% scrim (spatial-fast width + opacity, level-2 elevation, focus trap / scrim dismiss); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp overlay-window layer over a 32% scrim (spatial-fast width + opacity, level-2 elevation, focus trap / scrim dismiss); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -249,14 +249,14 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a 60s ticking second hand; displaySmallEmphasized header; AM/PM",
+        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a wall-clock ticking second hand; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) + FlingState 60 Hz step_until_rest / apply_wheel (can skip more than one item)",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay) + apply_wheel 60 Hz integrator (can skip more than one item)",
     },
 ];
 

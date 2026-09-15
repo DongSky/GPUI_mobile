@@ -216,7 +216,57 @@ fn polyline_svg_d(pts: &[(f32, f32)], close: bool) -> String {
 }
 
 /// Filled sausage for a round-capped circular stroke (outer arc + caps + inner arc).
-/// Used for determinate/indeterminate circular progress — not a stroked polyline.
+/// Used for determinate/indeterminate circular progress — gpui does not re-export
+/// lyon `LineCap::Round`, so this polygon *is* the round-cap geometry.
+pub const LINE_CAP: &str = "round";
+
+/// Host-owned determinate wait (download bytes, job ticks, elapsed/duration).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WaitProgress {
+    pub completed: u64,
+    pub total: u64,
+}
+
+impl WaitProgress {
+    pub const fn bytes(completed: u64, total: u64) -> Self {
+        Self { completed, total }
+    }
+
+    pub fn fraction(self) -> f32 {
+        if self.total == 0 {
+            1.0
+        } else {
+            (self.completed as f32 / self.total as f32).clamp(0.0, 1.0)
+        }
+    }
+
+    pub fn from_elapsed_ms(elapsed_ms: u64, duration_ms: u64) -> Self {
+        let total = duration_ms.max(1);
+        Self {
+            completed: elapsed_ms.min(total),
+            total,
+        }
+    }
+
+    pub fn from_fraction(progress: f32) -> Self {
+        let p = progress.clamp(0.0, 1.0);
+        Self {
+            completed: (p * 1_000.0).round() as u64,
+            total: 1_000,
+        }
+    }
+}
+
+/// Catalog snapshot (650 KB of 1 MB) matching `LOADING_PROGRESS`.
+pub const DEMO_WAIT: WaitProgress = WaitProgress {
+    completed: 650_000,
+    total: 1_000_000,
+};
+
+pub fn determinate_wait_ms(theme: &Theme) -> u16 {
+    clock_ms(theme).saturating_mul(2)
+}
+
 pub fn round_capped_arc_polygon(
     size: f32,
     stroke: f32,
@@ -394,6 +444,11 @@ pub fn loading_polygon_for_progress(size: f32, progress: f32) -> Vec<(f32, f32)>
     loading_polygon_ex(size, loading_phase_for_progress(progress), false)
 }
 
+/// Determinate morph driven by a wait/download source.
+pub fn loading_polygon_for_wait(size: f32, wait: WaitProgress) -> Vec<(f32, f32)> {
+    loading_polygon_for_progress(size, wait.fraction())
+}
+
 pub fn loading_svg_d(size: f32, phase: f32) -> String {
     polyline_svg_d(&loading_polygon(size, phase), true)
 }
@@ -402,11 +457,27 @@ pub fn loading_svg_d_for_progress(size: f32, progress: f32) -> String {
     polyline_svg_d(&loading_polygon_for_progress(size, progress), true)
 }
 
+pub fn loading_svg_d_for_wait(size: f32, wait: WaitProgress) -> String {
+    loading_svg_d_for_progress(size, wait.fraction())
+}
+
 /// Semicolon-separated path `d` values for SVG `<animate>`.
 pub fn loading_svg_values(size: f32, frames: usize) -> String {
     let n = frames.max(2);
     (0..n)
         .map(|i| loading_svg_d(size, i as f32 / n as f32))
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+/// Determinate wait frames (no wrap): progress 0..=1 across `frames`.
+pub fn loading_svg_values_for_wait(size: f32, frames: usize) -> String {
+    let n = frames.max(2);
+    (0..n)
+        .map(|i| {
+            let p = i as f32 / (n - 1) as f32;
+            loading_svg_d_for_progress(size, p)
+        })
         .collect::<Vec<_>>()
         .join(";")
 }

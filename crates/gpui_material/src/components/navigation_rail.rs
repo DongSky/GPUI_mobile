@@ -129,9 +129,19 @@ pub fn dismiss_on_scrim() -> bool {
     true
 }
 
-/// Modal rail elevation (level 2) — in-catalog overlay, not a separate Window.
+/// Modal rail elevation (level 2). Desktop/HTML host the expanded rail in an
+/// overlay window layer (`data-rail-window`); NativeActivity stays single-window.
 pub fn modal_elevation_dp(theme: &Theme) -> f32 {
     theme.elevation.level2
+}
+
+/// Whether the expanded rail is painted as its own overlay window (not in-flow).
+pub fn overlay_window(mode: RailMode) -> bool {
+    is_modal(mode)
+}
+
+pub fn overlay_window_attr(mode: RailMode) -> &'static str {
+    if overlay_window(mode) { "1" } else { "0" }
 }
 
 pub fn is_active(selected: usize, index: usize) -> bool {

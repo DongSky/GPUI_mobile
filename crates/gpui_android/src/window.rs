@@ -374,9 +374,9 @@ impl PlatformWindow for AndroidWindow {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
-        // NativeActivity has no JNI InputConnection yet. Record the caret rect
-        // and the InputConnection session so a later JNI layer can consume
-        // `gpui_material::text_field::ime_caret_rect_dp`.
+        // Record caret + ImeSession. `jni_imm_calls()` is the InputMethodManager
+        // plan (`toggleSoftInput` / `updateCursorAnchorInfo`); NativeActivity
+        // still has no View-backed InputConnection.
         crate::ime::apply_update_ime_position(
             &self.inner.last_ime_bounds,
             &self.inner.ime,

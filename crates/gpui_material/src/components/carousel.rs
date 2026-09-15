@@ -122,7 +122,10 @@ pub fn decay_velocity(v: f32, dt_s: f32) -> f32 {
     v * (-FLING_DECAY * dt_s.max(0.0)).exp()
 }
 
-/// Per-frame inertial fling (velocity → item steps). One-shot wheel still uses `fling_steps`.
+/// Per-frame inertial fling (velocity → item steps). Live hosts step this
+/// from a vsync / rAF clock; one-shot wheel still uses `apply_wheel`.
+pub const FLING_FRAME_DT: f32 = 1.0 / 60.0;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlingState {
     pub selected: usize,
@@ -181,6 +184,11 @@ impl FlingState {
             self.step(dt_s);
         }
         self.selected
+    }
+
+    /// Live-clock step using a wall `dt_s` (clamped). Returns the selected index.
+    pub fn step_live(&mut self, dt_s: f32) -> usize {
+        self.step(dt_s.clamp(0.0, 0.05).max(0.0))
     }
 }
 

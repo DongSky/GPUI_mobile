@@ -504,18 +504,24 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-rail-scrim"));
     assert!(html.contains("data-notch-evenodd"));
     assert!(html.contains("data-notch-cpath"));
+    assert!(html.contains("data-notch-rounded-polygon"));
     assert!(html.contains("data-loading-morph"));
     assert!(html.contains("data-progress=\"loading-determinate\""));
+    assert!(html.contains("data-wait-progress"));
     assert!(html.contains("data-second-hand"));
+    assert!(html.contains("data-second-wall"));
     assert!(html.contains("data-range-ticks"));
     assert!(html.contains("fill-rule=\"evenodd\""));
     assert!(html.contains("data-carousel-fling"));
+    assert!(html.contains("data-carousel-live"));
     assert!(html.contains("Loading"));
     assert!(html.contains("min span 5%") || html.contains("Price range"));
     assert!(html.contains("stroke-linecap=\"round\""));
+    assert!(html.contains("data-linecap=\"round\""));
     assert!(html.contains("data-nav-rail-expanded=\"1\""));
     assert!(html.contains("data-rail-focus-trap"));
     assert!(html.contains("data-rail-fab=\"1\""));
+    assert!(html.contains("data-rail-window"));
     assert!(html.contains("data-docked-grid=\"1\""));
 }
 
@@ -1013,7 +1019,7 @@ fn search_bar_and_time_picker_tokens() {
     assert!(hole.2 > 200.0);
     assert!(frame.evenodd_svg_d(280.0).contains('Z'));
     assert_eq!(frame.evenodd_subpath_count(280.0), 1);
-    assert!(frame.evenodd_svg_d(280.0).contains(" 0 0 0 "));
+    assert!(frame.evenodd_svg_d(280.0).contains('C'));
     let poly = frame.evenodd_polygon(280.0);
     assert!(poly.len() > 16);
     assert!(poly.iter().any(|(x, _)| *x < 10.0));
@@ -1023,6 +1029,31 @@ fn search_bar_and_time_picker_tokens() {
         !poly.iter().any(|(x, y)| (*x - gap_mid).abs() < 6.0 && *y < 0.4),
         "C-path must leave the legend gap open on the top edge"
     );
+    let [c1, _, to] = gpui_material::shape::rounded_polygon_quarter(
+        (0.0, 0.0),
+        (4.0, 0.0),
+        (4.0, 4.0),
+        gpui_material::shape::CIRCULAR_KAPPA,
+    );
+    assert!(c1.0 > 0.0);
+    assert!((to.0 - 4.0).abs() < 1e-5);
+    let wait = progress::WaitProgress::bytes(650_000, 1_000_000);
+    assert!((wait.fraction() - 0.65).abs() < 1e-5);
+    assert_eq!(progress::DEMO_WAIT.fraction(), wait.fraction());
+    assert_eq!(progress::LINE_CAP, "round");
+    assert!(navigation_rail::overlay_window(navigation_rail::RailMode::Expanded));
+    assert_eq!(
+        navigation_rail::overlay_window_attr(navigation_rail::RailMode::Collapsed),
+        "0"
+    );
+    let (sec, tick) = time_picker::wall_second();
+    assert!(sec <= 59);
+    assert!(tick >= 0.0 && tick < 1.0);
+    let _ = time_picker::second_hand_angle_wall_clock();
+    let mut live = carousel::FlingState::new(0);
+    live.impulse(80.0, 0.0);
+    let _ = live.step_live(1.0 / 60.0);
+    assert!(progress::loading_svg_values_for_wait(38.0, 4).contains(';'));
     let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
     assert!(lerped.abs() > 80.0);
 }

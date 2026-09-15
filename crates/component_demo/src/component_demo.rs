@@ -23,7 +23,7 @@ use gpui_material::theme::Theme;
 use gpui_material::{Argb, InteractionState};
 use std::cell::Cell;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn paint(c: Argb) -> gpui::Rgba {
     gpui::Rgba {
@@ -73,6 +73,16 @@ fn feed_outline_verbs(
                     clockwise,
                     point(origin.x + px(to_x), origin.y + px(to_y)),
                 );
+            }
+            text_field::OutlineVerb::Cubic {
+                c1_x: _,
+                c1_y: _,
+                c2_x: _,
+                c2_y: _,
+                to_x,
+                to_y,
+            } => {
+                builder.line_to(point(origin.x + px(to_x), origin.y + px(to_y)));
             }
             text_field::OutlineVerb::Close => builder.close(),
         }
@@ -183,6 +193,8 @@ struct CatalogView {
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
+    carousel_fling: carousel::FlingState,
+    carousel_fling_at: Option<Instant>,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -212,6 +224,21 @@ impl CatalogView {
             self.time_minute,
         );
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
+    }
+
+    fn tick_carousel_fling(&mut self) {
+        if self.carousel_fling.resting() {
+            self.carousel_fling.selected = self.carousel_index;
+            self.carousel_fling_at = None;
+            return;
+        }
+        let now = Instant::now();
+        let dt = self
+            .carousel_fling_at
+            .map(|t| now.duration_since(t).as_secs_f32())
+            .unwrap_or(carousel::FLING_FRAME_DT);
+        self.carousel_fling_at = Some(now);
+        self.carousel_index = self.carousel_fling.step_live(dt);
     }
 
     fn apply_key(&mut self, key: &str) {
@@ -246,6 +273,7 @@ impl CatalogView {
 
 impl Render for CatalogView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.tick_carousel_fling();
         let theme = self.theme();
         let c = theme.color;
         let bar = top_app_bar::resolve(&theme);
@@ -1714,6 +1742,15 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                                     if let Ok(path) = builder.build() {
                                         window.paint_path(path, wave_color);
                                     }
+                                    if pts.len() >= 2 {
+                                        paint_round_capped_polyline(
+                                            window,
+                                            bounds.origin,
+                                            &[pts[0], *pts.last().unwrap()],
+                                            progress::WAVE_STROKE_DP,
+                                            wave_color,
+                                        );
+                                    }
                                 },
                             )
                             .w(px(wave_w))
@@ -1801,8 +1838,8 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                 .child({
                     let det_size = progress::LOADING_SIZE_DP;
                     let det_color = paint(progress::loading_indicator(theme).indicator);
-                    let det_pts =
-                        progress::loading_polygon_for_progress(det_size, progress::LOADING_PROGRESS);
+                    let wait_ms = progress::determinate_wait_ms(theme) as u64;
+                    let wait_label = paint(theme.color.on_surface_variant);
                     div()
                         .flex()
                         .items_center()
@@ -1811,27 +1848,41 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                             div()
                                 .w(px(det_size))
                                 .h(px(det_size))
-                                .child(
-                                    canvas(
-                                        move |_, _, _| {},
-                                        move |bounds, _, window, _| {
-                                            paint_filled_polygon(
-                                                window,
-                                                bounds.origin,
-                                                &det_pts,
-                                                det_color,
-                                            );
-                                        },
-                                    )
-                                    .w(px(det_size))
-                                    .h(px(det_size)),
+                                .with_animation(
+                                    "android-det-wait",
+                                    Animation::new(Duration::from_millis(wait_ms)).repeat(),
+                                    move |this, delta| {
+                                        let wait = progress::WaitProgress::from_fraction(delta);
+                                        let pts = progress::loading_polygon_for_wait(det_size, wait);
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    paint_filled_polygon(
+                                                        window,
+                                                        bounds.origin,
+                                                        &pts,
+                                                        det_color,
+                                                    );
+                                                },
+                                            )
+                                            .w(px(det_size))
+                                            .h(px(det_size)),
+                                        )
+                                    },
                                 ),
                         )
                         .child(
                             div()
                                 .text_size(px(12.))
-                                .text_color(paint(theme.color.on_surface_variant))
-                                .child(format!("{:.0}%", progress::LOADING_PROGRESS * 100.0)),
+                                .text_color(wait_label)
+                                .with_animation(
+                                    "android-det-label",
+                                    Animation::new(Duration::from_millis(wait_ms)).repeat(),
+                                    move |this, delta| {
+                                        this.child(format!("{:.0}%", delta * 100.0))
+                                    },
+                                ),
                         )
                 }),
         )
@@ -1855,7 +1906,6 @@ fn android_nav_rail(
         .items_center()
         .gap(px(navigation_rail::DEST_GAP_DP))
         .bg(paint(rail.container))
-        .when(expanded, |el| el.shadow_lg())
         .with_animation(
             if expanded { "android-rail-expand" } else { "android-rail-collapse" },
             Animation::new(Duration::from_millis(navigation_rail::morph_ms(theme) as u64)),
@@ -1999,7 +2049,16 @@ fn android_nav_rail(
                     },
                 ),
         )
-        .child(column)
+        .child(
+            div()
+                .id("nav-rail-window")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .h_full()
+                .when(expanded, |el| el.shadow_lg())
+                .child(column),
+        )
 }
 
 fn android_carousel(
@@ -2011,19 +2070,30 @@ fn android_carousel(
     let selected = this.carousel_index;
     div()
         .id("carousel")
+        .relative()
         .w_full()
         .flex()
         .gap(px(a.gap_dp))
+        .child(
+            div()
+                .absolute()
+                .w(px(1.))
+                .h(px(1.))
+                .with_animation(
+                    "android-carousel-live",
+                    Animation::new(Duration::from_millis(16)).repeat(),
+                    |el, _| el,
+                ),
+        )
         .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
             let (dx, dy) = match ev.delta {
                 ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
                 ScrollDelta::Lines(p) => (p.x, p.y),
             };
-            let next = carousel::apply_wheel(this.carousel_index, dx, dy);
-            if next != this.carousel_index {
-                this.carousel_index = next;
-                cx.notify();
-            }
+            this.carousel_fling.selected = this.carousel_index;
+            this.carousel_fling.impulse(dx, dy);
+            this.carousel_fling_at = None;
+            cx.notify();
         }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
             let w = carousel::item_width_dp(i, selected).min(160.0);
@@ -2045,6 +2115,8 @@ fn android_carousel(
                 .child(*label)
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.carousel_index = carousel::snap_to(i);
+                    this.carousel_fling = carousel::FlingState::new(i);
+                    this.carousel_fling_at = None;
                     cx.notify();
                 }))
         }))
@@ -2474,8 +2546,7 @@ fn android_time_picker(
                 )
                 .child({
                     let second_color = hand_color;
-                    let second0 = time_picker::DEMO_SECOND;
-                    let period = time_picker::SECOND_PERIOD_MS as u64;
+                    let period = 1_000u64;
                     div()
                         .absolute()
                         .top(px(0.))
@@ -2485,8 +2556,8 @@ fn android_time_picker(
                         .with_animation(
                             "android-second-hand",
                             Animation::new(Duration::from_millis(period)).repeat(),
-                            move |this, delta| {
-                                let angle = time_picker::second_hand_angle_deg(second0, delta);
+                            move |this, _delta| {
+                                let angle = time_picker::second_hand_angle_wall_clock();
                                 let quad = time_picker::second_hand_quad(clock, angle, number);
                                 this.child(
                                     canvas(
@@ -3342,6 +3413,8 @@ fn android_main(app: AndroidApp) {
                 rail_selected: navigation_rail::DEMO_SELECTED,
                 rail_mode: navigation_rail::DEMO_MODE,
                 carousel_index: carousel::DEMO_INDEX,
+                carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
+                carousel_fling_at: None,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,
                 time_period: time_picker::DEMO_PERIOD,

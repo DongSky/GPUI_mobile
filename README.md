@@ -28,7 +28,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Button | Common buttons (filled, tonal, elevated, outlined, text) | done | Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant | [spec](https://m3.material.io/components/buttons/specs) |
 | Icon button | Icon buttons | done | Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24 | [spec](https://m3.material.io/components/icon-buttons/specs) |
 | FAB | Floating action button | done | Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated | [spec](https://m3.material.io/components/floating-action-button/specs) |
-| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd notch; IME caret + InputConnection session wired to update_ime_position (no JNI yet) | [spec](https://m3.material.io/components/text-fields/specs) |
+| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd notch (RoundedPolygon cubics); IME caret + InputConnection session + JNI IMM plan (no View-backed IC yet) | [spec](https://m3.material.io/components/text-fields/specs) |
 | List | Lists | done | One / two / three line; 56 / 72 / 88dp | [spec](https://m3.material.io/components/lists/specs) |
 | Checkbox | Checkbox | done | 18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate | [spec](https://m3.material.io/components/checkbox/specs) |
 | Radio | Radio button | done | 20dp / 48dp target | [spec](https://m3.material.io/components/radio-button/specs) |
@@ -36,11 +36,11 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Chip | Assist / filter / input / suggestion chips | done | 32dp height; selected filter/input use secondary container | [spec](https://m3.material.io/components/chips/specs) |
 | Card | Elevated / filled / outlined cards | done | 12dp corners, 16dp padding | [spec](https://m3.material.io/components/cards/specs) |
 | Divider | Divider | done | 1dp outline-variant; full-bleed and inset | [spec](https://m3.material.io/components/divider/specs) |
-| Progress | Linear and circular progress indicators | done | Determinate + wavy + Expressive 7-shape morph loading + contained PTR + determinate morph-by-progress | [spec](https://m3.material.io/components/progress-indicators/specs) |
+| Progress | Linear and circular progress indicators | done | Determinate + wavy + Expressive 7-shape morph loading + contained PTR + WaitProgress determinate morph + round-capped circular arc | [spec](https://m3.material.io/components/progress-indicators/specs) |
 | Top app bar | Small top app bar | done | 64dp surface bar; no medium/large collapsing | [spec](https://m3.material.io/components/top-app-bar/specs) |
 | Snackbar | Snackbar | done | Visual only; no timeout / swipe-to-dismiss runtime | [spec](https://m3.material.io/components/snackbar/specs) |
 | Navigation bar | Navigation bar | done | 80dp; active indicator 64×32; 3 destinations in catalog | [spec](https://m3.material.io/components/navigation-bar/specs) |
-| Navigation rail | Navigation rail | done | Collapsed 80dp; expanded 220dp modal + 32% scrim, level-2 elevation, focus trap | [spec](https://m3.material.io/components/navigation-rail/specs) |
+| Navigation rail | Navigation rail | done | Collapsed 80dp; expanded 220dp overlay-window + 32% scrim, level-2 elevation, focus trap | [spec](https://m3.material.io/components/navigation-rail/specs) |
 | Dialog | Basic dialogs | done | surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim | [spec](https://m3.material.io/components/dialogs/specs) |
 | Bottom sheet | Bottom sheets | done | surface-container-low, extra-large top 28dp, 32×4 handle, elev 1 | [spec](https://m3.material.io/components/bottom-sheets/specs) |
 | Menu | Menus | done | surface-container, 4dp, elev 2, 48dp items; selected secondary-container | [spec](https://m3.material.io/components/menus/specs) |
@@ -49,7 +49,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
 | Date picker | Date pickers | done | Modal calendar; docked popup with month nav + outside-click dismiss | [spec](https://m3.material.io/components/date-pickers/specs) |
 | Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade) | [spec](https://m3.material.io/components/search/specs) |
-| Time picker | Time pickers (dial) | done | Hour + minute dial, analog selector hand + 60s ticking second hand | [spec](https://m3.material.io/components/time-pickers/specs) |
+| Time picker | Time pickers (dial) | done | Hour + minute dial, analog selector hand + wall-clock second hand | [spec](https://m3.material.io/components/time-pickers/specs) |
 
 `done` means tokens, metrics, and catalog **heroes** match the current
 [m3.material.io](https://m3.material.io) Expressive language (not the older
@@ -92,7 +92,7 @@ scripts/desktop-screenshot.sh docs/qa/desktop_gpui_live.png
 Hosts without `/dev/dri` set `WGPU_BACKEND=gl` (and lavapipe Vulkan when an
 extracted Mesa ICD is present). If wgpu cannot create a surface, the script
 exits non-zero — use the HTML catalog for Visual QA and label those PNGs as
-HTML, not GPUI pixels. Latest live frames: `docs/qa/desktop_capture_v11.md`.
+HTML, not GPUI pixels. Latest live frames: `docs/qa/desktop_capture_v12.md`.
 
 Linux first compile of the desktop crate needs Zed/GPUI native headers
 (`libfontconfig1-dev`, `libfreetype6-dev`, `libxkbcommon-dev`,

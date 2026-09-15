@@ -234,9 +234,7 @@ a {{ color: var(--primary); }}
 .timepicker .second-hand-svg {{
   position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
   transform-origin: 50% 50%;
-  animation: tick-second 60s linear infinite;
 }}
-@keyframes tick-second {{ to {{ transform: rotate(360deg); }} }}
 .timepicker .hub {{
   position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
   margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none;
@@ -390,12 +388,19 @@ a {{ color: var(--primary); }}
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
 .nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
-.nav-rail.expanded {{ width: 220px; align-items: stretch; position: relative; z-index: 1; box-shadow: 0 8px 24px rgba(0,0,0,.28); }}
+.nav-rail.expanded {{ width: 220px; align-items: stretch; }}
 .nav-rail.expanded .dest {{
   width: auto; flex-direction: row; justify-content: flex-start;
   padding: 0 12px; gap: 8px;
 }}
 .rail-stage {{ position: relative; min-height: 280px; max-width: 720px; }}
+.rail-window {{
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 2;
+  pointer-events: auto;
+}}
+.rail-window[data-rail-window="1"] {{
+  box-shadow: 0 8px 24px rgba(0,0,0,.28);
+}}
 .rail-scrim {{
   position: absolute; inset: 0; border-radius: 12px; z-index: 0;
   opacity: 0; pointer-events: none;
@@ -700,6 +705,17 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
     }});
   }});
   setDial(picker.getAttribute("data-dial") || "minute");
+  var secondEl = picker.querySelector("[data-second-hand]");
+  if (secondEl) {{
+    secondEl.setAttribute("data-second-wall", "1");
+    function tickSecond() {{
+      var now = new Date();
+      var deg = (now.getSeconds() + now.getMilliseconds() / 1000) * 6;
+      secondEl.style.transform = "rotate(" + deg + "deg)";
+      requestAnimationFrame(tickSecond);
+    }}
+    tickSecond();
+  }}
 }});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
   var cal = dock.querySelector("[data-datepicker-popup]");
@@ -837,31 +853,73 @@ document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
 }});
 document.querySelectorAll("[data-carousel]").forEach(function (car) {{
   car.setAttribute("data-carousel-fling", "1");
+  car.setAttribute("data-carousel-live", "1");
+  var fling = {{ selected: 0, velocity: 0, leftover: 0, raf: 0, last: 0 }};
   function applySel(sel) {{
     var n = car.querySelectorAll("[data-carousel-item]").length;
     sel = ((sel % n) + n) % n;
+    fling.selected = sel;
     car.setAttribute("data-carousel-selected", String(sel));
     car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
       var i = Number(t.getAttribute("data-carousel-item"));
       t.style.width = (i === sel ? 256 : 120) + "px";
     }});
   }}
+  function stepLive(dt) {{
+    fling.leftover += fling.velocity * dt;
+    fling.velocity *= Math.exp(-{fling_decay} * dt);
+    if (Math.abs(fling.velocity) < 0.5) fling.velocity = 0;
+    while (Math.abs(fling.leftover) >= {fling_unit}) {{
+      var dir = fling.leftover > 0 ? 1 : -1;
+      applySel(fling.selected + dir);
+      fling.leftover -= dir * {fling_unit};
+    }}
+  }}
+  function loop(now) {{
+    if (fling.last) {{
+      var dt = Math.min(0.05, (now - fling.last) / 1000);
+      stepLive(dt);
+    }}
+    fling.last = now;
+    if (Math.abs(fling.velocity) >= 0.5 || Math.abs(fling.leftover) >= {fling_unit}) {{
+      fling.raf = requestAnimationFrame(loop);
+    }} else {{
+      fling.raf = 0;
+      fling.last = 0;
+    }}
+  }}
   car.addEventListener("click", function (ev) {{
     var tile = ev.target.closest("[data-carousel-item]");
     if (!tile) return;
+    fling.velocity = 0;
+    fling.leftover = 0;
     applySel(Number(tile.getAttribute("data-carousel-item")));
   }});
   car.addEventListener("wheel", function (ev) {{
     var dx = ev.deltaX, dy = ev.deltaY;
     var dominant = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
     if (Math.abs(dominant) < 0.5) return;
-    var mag = Math.round(Math.abs(dominant) / {fling_unit} / {fling_decay});
-    mag = Math.max(1, Math.min(3, mag));
-    var step = dominant > 0 ? mag : -mag;
-    var sel = Number(car.getAttribute("data-carousel-selected") || "0");
-    applySel(sel + step);
+    fling.velocity += dominant;
+    if (!fling.raf) fling.raf = requestAnimationFrame(loop);
     ev.preventDefault();
   }}, {{ passive: false }});
+}});
+document.querySelectorAll("[data-wait-morph]").forEach(function (path) {{
+  var frames = (path.getAttribute("data-wait-frames") || "").split(";").filter(Boolean);
+  var row = path.closest("[data-wait-progress]");
+  var ms = Number((row && row.getAttribute("data-wait-ms")) || "{wait_ms}");
+  var label = row && row.querySelector("[data-wait-label]");
+  var t0 = performance.now();
+  function tickWait(now) {{
+    var p = ((now - t0) % ms) / ms;
+    if (frames.length) {{
+      var i = Math.min(frames.length - 1, Math.floor(p * frames.length));
+      path.setAttribute("d", frames[i]);
+    }}
+    if (label) label.textContent = Math.round(p * 100) + "%";
+    requestAnimationFrame(tickWait);
+  }}
+  requestAnimationFrame(tickWait);
 }});
 document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
   rail.querySelectorAll(".dest").forEach(function (dest, i) {{
@@ -885,6 +943,8 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         stage.classList.toggle("is-modal", exp);
         var scrim = stage.querySelector("[data-rail-scrim]");
         if (scrim) scrim.setAttribute("data-visible", exp ? "1" : "0");
+        var win = stage.querySelector("[data-rail-window]");
+        if (win) win.setAttribute("data-rail-window", exp ? "1" : "0");
       }}
     }});
   }}
@@ -909,6 +969,7 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         ease = theme.motion.emphasized,
         fling_unit = carousel::FLING_UNIT,
         fling_decay = carousel::FLING_DECAY,
+        wait_ms = progress::determinate_wait_ms(theme),
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
         h1l = theme.typography.display_small.emphasized().line_height_sp,
@@ -1428,7 +1489,7 @@ fn paint_outlined_field(
         let d = frame.outline_svg_d(280.0);
         let even = frame.evenodd_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-rounded-polygon="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
   <svg class="ol-evenodd" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" fill="{oc}" d="{even}"/></svg>
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
   {inner_html}
@@ -1821,7 +1882,9 @@ fn chrome(theme: &Theme) -> String {
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
+  <div class="rail-window" data-rail-window="1">
   <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  </div>
 </div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
@@ -1851,7 +1914,9 @@ fn progress_section(theme: &Theme) -> String {
     let lsz = progress::LOADING_SIZE_DP;
     let loadd0 = progress::loading_svg_d(lsz, 0.0);
     let lvals = progress::loading_svg_values(lsz, 8);
-    let detd = progress::loading_svg_d_for_progress(lsz, progress::LOADING_PROGRESS);
+    let detd = progress::loading_svg_d_for_wait(lsz, progress::DEMO_WAIT);
+    let wait_frames = progress::loading_svg_values_for_wait(lsz, 8);
+    let wait_ms = progress::determinate_wait_ms(theme);
     let capd = progress::round_capped_arc_svg_d(
         circ_i.size_dp,
         circ_i.stroke_dp,
@@ -1889,15 +1954,15 @@ fn progress_section(theme: &Theme) -> String {
     </path>
   </svg>
   <svg width="{csz}" height="{csz}" viewBox="0 0 {csz} {csz}" aria-hidden="true">
-    <path d="{capd}" fill="{cind_fill}"/>
+    <path d="{capd}" fill="{cind_fill}" data-linecap="{lcap}"/>
   </svg>
   <div class="note">{llabel}</div>
 </div>
-<div class="loading-row" data-progress="loading-determinate" data-hero="progress-loading-det">
+<div class="loading-row" data-progress="loading-determinate" data-hero="progress-loading-det" data-wait-progress="1" data-wait-ms="{wms}">
   <svg class="loading-shape" width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
-    <path fill="{mind}" d="{detd}"/>
+    <path data-wait-morph="1" data-wait-frames="{wframes}" fill="{mind}" d="{detd}"/>
   </svg>
-  <div class="note">{detlabel}</div>
+  <div class="note" data-wait-label="1">{detlabel}</div>
 </div>"#,
         track = lin.track.css_hex(),
         ind = lin.indicator.css_hex(),
@@ -1924,7 +1989,10 @@ fn progress_section(theme: &Theme) -> String {
         capd = capd,
         llabel = progress::LOADING_LABEL,
         detd = detd,
-        detlabel = format!("{:.0}%", progress::LOADING_PROGRESS * 100.0),
+        detlabel = format!("{:.0}%", progress::DEMO_WAIT.fraction() * 100.0),
+        wms = wait_ms,
+        wframes = wait_frames,
+        lcap = progress::LINE_CAP,
         ww = wave.width_dp,
         wh = wave.height_dp,
         mid = wave.height_dp / 2.0,
@@ -2542,7 +2610,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
     let second_d = time_picker::second_hand_svg_d(
         a.clock_dp,
-        time_picker::second_hand_angle_deg(time_picker::DEMO_SECOND, 0.0),
+        0.0,
         a.number_dp,
     );
     let hand_deg = time_picker::hand_angle_deg(
@@ -2571,7 +2639,7 @@ fn time_picker_section(theme: &Theme) -> String {
     <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg)">
       <path d="{handd}" fill="{hand}"/>
     </svg>
-    <svg class="second-hand-svg" data-second-hand="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
+    <svg class="second-hand-svg" data-second-hand="1" data-second-wall="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
       <path d="{secondd}" fill="{hand}"/>
     </svg>
     <div class="hub" style="background:{hand}"></div>
@@ -2644,8 +2712,8 @@ fn carousel_section(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Carousel</h2>
-<p class="note">Hero large item (256dp) plus smaller neighbors (120dp). Click a tile to snap; wheel fling can skip more than one item. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
-<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
+<p class="note">Hero large item (256dp) plus smaller neighbors (120dp). Click a tile to snap; wheel fling uses a live rAF clock with per-frame decay. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
+<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-live="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
         tiles = tiles,
     )
 }

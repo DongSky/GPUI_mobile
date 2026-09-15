@@ -42,4 +42,4 @@ Host tests: `gpui_material` **26**, `gpui_android` **14** (IME InputConnection s
 
 ## v12 leftovers
 
-See `docs/qa/v11_leftovers.md`.
+v12 landed on `main`. See `docs/qa/v12_leftovers.md`.

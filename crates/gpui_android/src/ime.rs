@@ -1,11 +1,10 @@
 //! NativeActivity IME groundwork.
 //!
-//! There is still no JNI `InputConnection` on this NativeActivity host. This
-//! module is the host-testable protocol a later JNI layer should call:
-//! caret bounds from `gpui_material::text_field::ime_caret_rect_dp` are stored
-//! by `PlatformWindow::update_ime_position`, and `ImeSession` mirrors the
-//! Android `InputConnection` methods (`commitText`, `deleteSurroundingText`,
-//! `setComposingText`, `setSelection`, `getTextBeforeCursor`).
+//! `ImeSession` mirrors Android `InputConnection` (`commitText`, compose,
+//! delete, cursor-anchor). `update_ime_position` fills the session and emits a
+//! host-testable JNI call plan for `InputMethodManager` (`toggleSoftInput` is
+//! the NativeActivity-safe show/hide; there is still no `View`-backed
+//! `InputConnection` registered with the system IME).
 
 use std::cell::Cell;
 
@@ -189,6 +188,211 @@ impl ImeSession {
     }
 }
 
+/// JNI class / method / signature a NativeActivity can `FindClass` / `GetMethodID`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JniMethod {
+    pub class: &'static str,
+    pub name: &'static str,
+    pub sig: &'static str,
+}
+
+/// `InputMethodManager.SHOW_FORCED` — show without a focused `View`.
+pub const IMM_SHOW_FORCED: i32 = 2;
+/// `InputMethodManager.HIDE_IMPLICIT_ONLY`.
+pub const IMM_HIDE_IMPLICIT_ONLY: i32 = 1;
+
+pub const JNI_CONTEXT_GET_SYSTEM_SERVICE: JniMethod = JniMethod {
+    class: "android/content/Context",
+    name: "getSystemService",
+    sig: "(Ljava/lang/String;)Ljava/lang/Object;",
+};
+
+pub const JNI_IMM_TOGGLE_SOFT_INPUT: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputMethodManager",
+    name: "toggleSoftInput",
+    sig: "(II)V",
+};
+
+pub const JNI_IMM_SHOW_SOFT_INPUT: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputMethodManager",
+    name: "showSoftInput",
+    sig: "(Landroid/view/View;I)Z",
+};
+
+pub const JNI_IMM_HIDE_SOFT_INPUT: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputMethodManager",
+    name: "hideSoftInputFromWindow",
+    sig: "(Landroid/os/IBinder;I)Z",
+};
+
+pub const JNI_IMM_UPDATE_CURSOR_ANCHOR: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputMethodManager",
+    name: "updateCursorAnchorInfo",
+    sig: "(Landroid/view/View;Landroid/view/inputmethod/CursorAnchorInfo;)V",
+};
+
+pub const JNI_IC_COMMIT_TEXT: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "commitText",
+    sig: "(Ljava/lang/CharSequence;I)Z",
+};
+
+pub const JNI_IC_SET_COMPOSING_TEXT: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "setComposingText",
+    sig: "(Ljava/lang/CharSequence;I)Z",
+};
+
+pub const JNI_IC_FINISH_COMPOSING: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "finishComposingText",
+    sig: "()Z",
+};
+
+pub const JNI_IC_DELETE_SURROUNDING: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "deleteSurroundingText",
+    sig: "(II)Z",
+};
+
+pub const JNI_IC_SET_SELECTION: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "setSelection",
+    sig: "(II)Z",
+};
+
+pub const JNI_IC_GET_TEXT_BEFORE: JniMethod = JniMethod {
+    class: "android/view/inputmethod/InputConnection",
+    name: "getTextBeforeCursor",
+    sig: "(II)Ljava/lang/CharSequence;",
+};
+
+pub fn jni_input_method_manager_table() -> &'static [JniMethod] {
+    &[
+        JNI_CONTEXT_GET_SYSTEM_SERVICE,
+        JNI_IMM_TOGGLE_SOFT_INPUT,
+        JNI_IMM_SHOW_SOFT_INPUT,
+        JNI_IMM_HIDE_SOFT_INPUT,
+        JNI_IMM_UPDATE_CURSOR_ANCHOR,
+    ]
+}
+
+pub fn jni_input_connection_table() -> &'static [JniMethod] {
+    &[
+        JNI_IC_COMMIT_TEXT,
+        JNI_IC_SET_COMPOSING_TEXT,
+        JNI_IC_FINISH_COMPOSING,
+        JNI_IC_DELETE_SURROUNDING,
+        JNI_IC_SET_SELECTION,
+        JNI_IC_GET_TEXT_BEFORE,
+    ]
+}
+
+/// Packed `CursorAnchorInfo` insertion-marker + selection (no JNI yet).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CursorAnchorInfoPayload {
+    pub composing_start: i32,
+    pub composing_end: i32,
+    pub selection_start: i32,
+    pub selection_end: i32,
+    /// left, top, right, bottom in window px.
+    pub insertion_marker: [f32; 4],
+}
+
+/// JNI calls a NativeActivity `JNIEnv` should issue for the last IME request.
+#[derive(Clone, Debug, PartialEq)]
+pub enum JniImmCall {
+    GetSystemService {
+        name: &'static str,
+    },
+    ToggleSoftInput {
+        show_flags: i32,
+        hide_flags: i32,
+    },
+    UpdateCursorAnchorInfo {
+        payload: CursorAnchorInfoPayload,
+    },
+}
+
+impl ImeSession {
+    pub fn cursor_anchor_payload(&self) -> CursorAnchorInfoPayload {
+        let (sel_start, sel_end) = self.selection();
+        let (comp_start, comp_end) = self.composing.unwrap_or((sel_start, sel_start));
+        let [x, y, w, h] = self.bounds.unwrap_or([0.0, 0.0, 0.0, 0.0]);
+        CursorAnchorInfoPayload {
+            composing_start: comp_start as i32,
+            composing_end: comp_end as i32,
+            selection_start: sel_start as i32,
+            selection_end: sel_end as i32,
+            insertion_marker: [x, y, x + w, y + h],
+        }
+    }
+
+    /// NativeActivity-safe IMM plan: `getSystemService` + `toggleSoftInput`,
+    /// plus `updateCursorAnchorInfo` when caret bounds exist.
+    pub fn jni_imm_calls(&self) -> Vec<JniImmCall> {
+        let mut calls = vec![JniImmCall::GetSystemService {
+            name: "input_method",
+        }];
+        match self.last_request {
+            Some(ImeRequest::HideSoftInput) => {
+                calls.push(JniImmCall::ToggleSoftInput {
+                    show_flags: 0,
+                    hide_flags: IMM_HIDE_IMPLICIT_ONLY,
+                });
+            }
+            Some(ImeRequest::ShowSoftInput) | Some(ImeRequest::UpdateCursorAnchor) => {
+                calls.push(JniImmCall::ToggleSoftInput {
+                    show_flags: IMM_SHOW_FORCED,
+                    hide_flags: 0,
+                });
+                if self.bounds.is_some() {
+                    calls.push(JniImmCall::UpdateCursorAnchorInfo {
+                        payload: self.cursor_anchor_payload(),
+                    });
+                }
+            }
+            None => {}
+        }
+        calls
+    }
+}
+
+/// Dispatch a JNI `InputConnection` native method onto the session.
+pub fn dispatch_native_input_connection(
+    session: &mut ImeSession,
+    method: &str,
+    text: Option<&str>,
+    a: i32,
+    b: i32,
+) -> Option<String> {
+    match method {
+        "commitText" => {
+            session.commit_text(text.unwrap_or(""), a);
+            None
+        }
+        "setComposingText" => {
+            session.set_composing_text(text.unwrap_or(""), a);
+            None
+        }
+        "finishComposingText" => {
+            session.finish_composing_text();
+            None
+        }
+        "deleteSurroundingText" => {
+            session.delete_surrounding_text(a.max(0) as usize, b.max(0) as usize);
+            None
+        }
+        "setSelection" => {
+            session.set_selection(a.max(0) as usize, b.max(0) as usize);
+            None
+        }
+        "getTextBeforeCursor" => Some(session.get_text_before_cursor(a.max(0) as usize)),
+        "getTextAfterCursor" => Some(session.get_text_after_cursor(a.max(0) as usize)),
+        _ => None,
+    }
+}
+
 /// Apply a GPUI `update_ime_position` rect to both the legacy slot and the session.
 pub fn apply_update_ime_position(
     slot: &Cell<Option<ImeBoundsDp>>,
@@ -263,5 +467,50 @@ mod tests {
         assert_eq!(last_ime_position(&slot), Some([10.0, 20.0, 2.0, 24.0]));
         assert_eq!(session.borrow().bounds, Some([10.0, 20.0, 2.0, 24.0]));
         assert!(session.borrow().shown);
+    }
+
+    #[test]
+    fn jni_imm_plan_and_input_connection_native_dispatch() {
+        assert_eq!(JNI_IMM_TOGGLE_SOFT_INPUT.sig, "(II)V");
+        assert_eq!(JNI_IC_COMMIT_TEXT.sig, "(Ljava/lang/CharSequence;I)Z");
+        assert!(
+            jni_input_method_manager_table()
+                .iter()
+                .any(|m| m.name == "toggleSoftInput")
+        );
+        assert!(
+            jni_input_connection_table()
+                .iter()
+                .any(|m| m.name == "commitText")
+        );
+
+        let mut ime = ImeSession::new();
+        dispatch_native_input_connection(&mut ime, "commitText", Some("hi"), 1, 0);
+        assert_eq!(ime.text(), "hi");
+        assert_eq!(
+            dispatch_native_input_connection(&mut ime, "getTextBeforeCursor", None, 1, 0)
+                .as_deref(),
+            Some("i")
+        );
+        ime.update_cursor_anchor(8.0, 16.0, 2.0, 24.0);
+        let calls = ime.jni_imm_calls();
+        assert!(matches!(
+            calls[0],
+            JniImmCall::GetSystemService { name: "input_method" }
+        ));
+        assert!(matches!(
+            calls[1],
+            JniImmCall::ToggleSoftInput {
+                show_flags: IMM_SHOW_FORCED,
+                hide_flags: 0
+            }
+        ));
+        match &calls[2] {
+            JniImmCall::UpdateCursorAnchorInfo { payload } => {
+                assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
+                assert_eq!(payload.selection_end, 2);
+            }
+            other => panic!("expected cursor-anchor, got {other:?}"),
+        }
     }
 }

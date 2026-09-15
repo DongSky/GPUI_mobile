@@ -88,6 +88,7 @@ pub fn smooth_kappa(smoothing: f32) -> f32 {
 
 /// Clockwise quarter-cubic from `from` → `to` around a corner at `corner`.
 /// Matches androidx `RoundedPolygon` + `CornerRounding(radius, smoothing)`.
+/// Returns `[c1, c2, to]` control points (start is `from`).
 pub fn rounded_polygon_quarter(
     from: (f32, f32),
     corner: (f32, f32),
@@ -103,4 +104,43 @@ pub fn rounded_polygon_quarter(
         to.1 + (corner.1 - to.1) * kappa,
     );
     [c1, c2, to]
+}
+
+/// Sample a cubic Bézier `p0..p3` (excludes `p0`, includes `p3`).
+pub fn sample_cubic(
+    p0: (f32, f32),
+    p1: (f32, f32),
+    p2: (f32, f32),
+    p3: (f32, f32),
+    n: usize,
+) -> Vec<(f32, f32)> {
+    let n = n.max(1);
+    (1..=n)
+        .map(|i| {
+            let t = i as f32 / n as f32;
+            let u = 1.0 - t;
+            let uu = u * u;
+            let tt = t * t;
+            let a = uu * u;
+            let b = 3.0 * uu * t;
+            let c = 3.0 * u * tt;
+            let d = tt * t;
+            (
+                a * p0.0 + b * p1.0 + c * p2.0 + d * p3.0,
+                a * p0.1 + b * p1.1 + c * p2.1 + d * p3.1,
+            )
+        })
+        .collect()
+}
+
+/// Flatten a RoundedPolygon quarter (excludes `from`, includes `to`).
+pub fn flatten_rounded_quarter(
+    from: (f32, f32),
+    corner: (f32, f32),
+    to: (f32, f32),
+    kappa: f32,
+    n: usize,
+) -> Vec<(f32, f32)> {
+    let [c1, c2, end] = rounded_polygon_quarter(from, corner, to, kappa);
+    sample_cubic(from, c1, c2, end, n)
 }
