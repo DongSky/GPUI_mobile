@@ -855,6 +855,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("leevilanuevanotes@google.com"));
     assert!(html.contains("data-dialog-accounts=\"1\""));
     assert!(html.contains("data-datepicker-range=\"1\""));
+    assert!(html.contains(r#"data-date-range-live="1""#));
+    assert!(html.contains(r#"data-range-grid="1""#));
+    assert!(html.contains(r#"data-range-headline="1""#));
     assert!(html.contains("Depart – Return dates"));
     assert!(html.contains("data-handle-visual=\"28\""));
     assert!(html.contains("September 2026 ▾"));
@@ -1218,6 +1221,11 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("20dp")
             && e.notes.contains("clear-X")
             && e.notes.contains("no-results")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Date picker"
+            && e.notes.contains("live start→end")
+            && e.notes.contains("DateRangePicker")
     }));
     assert!(INVENTORY
         .iter()
@@ -2401,6 +2409,63 @@ fn date_picker_grid_and_weekday() {
     assert!(range
         .iter()
         .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected));
+    assert!(date_picker::RANGE_LIVE);
+    let demo = date_picker::DateRangeSelection::demo();
+    assert_eq!(
+        date_picker::header_range_selection(demo),
+        "Sep 15 – Sep 21"
+    );
+    let mid = date_picker::apply_range_tap(
+        demo,
+        date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 10,
+        },
+    );
+    assert_eq!(mid.end, None);
+    assert_eq!(
+        date_picker::header_range_selection(mid),
+        "Sep 10 – End date"
+    );
+    let complete = date_picker::apply_range_tap(
+        mid,
+        date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 18,
+        },
+    );
+    assert_eq!(
+        complete,
+        date_picker::DateRangeSelection {
+            start: Some(date_picker::CivilDate {
+                year: 2026,
+                month: 9,
+                day: 10,
+            }),
+            end: Some(date_picker::CivilDate {
+                year: 2026,
+                month: 9,
+                day: 18,
+            }),
+        }
+    );
+    let restart = date_picker::apply_range_tap(complete, date_picker::RANGE_DEMO_START);
+    assert_eq!(restart.start, Some(date_picker::RANGE_DEMO_START));
+    assert_eq!(restart.end, None);
+    let empty = date_picker::month_grid_range_selection(
+        2026,
+        9,
+        date_picker::DateRangeSelection::empty(),
+        today,
+    );
+    assert!(empty
+        .iter()
+        .any(|(_, k)| *k == date_picker::DayKind::Today));
+    assert!(!empty
+        .iter()
+        .any(|(_, k)| *k == date_picker::DayKind::InRange));
 }
 
 #[test]

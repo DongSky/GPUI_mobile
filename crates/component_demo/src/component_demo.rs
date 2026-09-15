@@ -349,6 +349,7 @@ struct CatalogView {
     docked_open: bool,
     date_display: date_picker::DatePickerDisplayMode,
     date_pane: date_picker::DatePickerPane,
+    date_range: date_picker::DateRangeSelection,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -569,6 +570,10 @@ impl CatalogView {
     fn select_picker_year(&mut self, year: i32) {
         self.picker_year = date_picker::clamp_year(year);
         self.date_pane = date_picker::DatePickerPane::Calendar;
+    }
+
+    fn tap_date_range(&mut self, day: CivilDate) {
+        self.date_range = date_picker::apply_range_tap(self.date_range, day);
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -1204,21 +1209,7 @@ fn catalog_body(
         .child(android_time_picker(this, theme, cx))
         .child(section_title(theme, "Date picker"))
         .child(android_docked_date(this, theme, &pick, &cells, cx))
-        .child(
-            div()
-                .text_size(px(pick.year_style.size_sp))
-                .text_color(paint(pick.header_year))
-                .child(date_picker::RANGE_HERO_TITLE),
-        )
-        .child(
-            div()
-                .text_size(px(22.))
-                .text_color(paint(pick.header_date))
-                .child(date_picker::header_range_label(
-                    date_picker::RANGE_DEMO_START,
-                    date_picker::RANGE_DEMO_END,
-                )),
-        )
+        .child(android_date_range(this, theme, &pick, cx))
         .child(
             div()
                 .w(px(pick.day_dp * 7.0))
@@ -7153,6 +7144,110 @@ fn android_date_input(
         )
 }
 
+fn android_date_range(
+    this: &CatalogView,
+    _theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let year = date_picker::RANGE_DEMO_START.year;
+    let month = date_picker::RANGE_DEMO_START.month;
+    let cells =
+        date_picker::month_grid_range_selection(year, month, this.date_range, this.today);
+    let cal_w = pick.day_dp * 7.0;
+    div()
+        .id("date-range")
+        .w(px(cal_w))
+        .p(px(12.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child(date_picker::RANGE_HERO_TITLE),
+        )
+        .child(
+            div()
+                .text_size(px(22.))
+                .text_color(paint(pick.header_date))
+                .child(date_picker::header_range_selection(this.date_range)),
+        )
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child(date_picker::month_nav_label(year, month)),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .flex_wrap()
+                .children(date_picker::WEEKDAYS.iter().map(|d| {
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(32.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(pick.weekday))
+                        .child(*d)
+                })),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .flex_wrap()
+                .children(cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                    let (bg, fg, radius) = match kind {
+                        DayKind::Selected => (
+                            paint(pick.day_selected_container),
+                            paint(pick.day_selected),
+                            pick.day_dp / 2.0,
+                        ),
+                        DayKind::InRange => (
+                            paint(pick.day_range_container),
+                            paint(pick.day_range),
+                            0.0,
+                        ),
+                        DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                        DayKind::InMonth => {
+                            (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
+                        }
+                        DayKind::OutOfMonth => {
+                            (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
+                        }
+                    };
+                    let in_month = kind != DayKind::OutOfMonth;
+                    div()
+                        .id(SharedString::from(format!("range-day-{i}")))
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(radius))
+                        .bg(bg)
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(kind == DayKind::Today, |el| {
+                            el.border_1().border_color(paint(pick.day_today_outline))
+                        })
+                        .child(day.to_string())
+                        .when(in_month, |el| {
+                            el.on_click(cx.listener(move |this, _, _, cx| {
+                                this.tap_date_range(CivilDate { year, month, day });
+                                cx.notify();
+                            }))
+                        })
+                })),
+        )
+}
+
 fn android_date_range_input(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -7790,6 +7885,7 @@ fn android_main(app: AndroidApp) {
                 docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                 date_display: date_picker::LIVE_DISPLAY_MODE,
                 date_pane: date_picker::LIVE_PANE,
+                date_range: date_picker::DateRangeSelection::demo(),
                 search_open: search::VIEW_OPEN_BY_DEFAULT,
                 search_filter: search::SearchFilter::All,
                 search: {

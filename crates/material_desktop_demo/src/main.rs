@@ -374,6 +374,7 @@ struct CatalogView {
     docked_open: bool,
     date_display: date_picker::DatePickerDisplayMode,
     date_pane: date_picker::DatePickerPane,
+    date_range: date_picker::DateRangeSelection,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -589,6 +590,10 @@ impl CatalogView {
     fn select_picker_year(&mut self, year: i32) {
         self.picker_year = date_picker::clamp_year(year);
         self.date_pane = date_picker::DatePickerPane::Calendar;
+    }
+
+    fn tap_date_range(&mut self, day: CivilDate) {
+        self.date_range = date_picker::apply_range_tap(self.date_range, day);
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -1051,7 +1056,7 @@ fn catalog_body(
         .child(time_scroll_hero(this, theme, cx))
         .child(time_picker_hero(this, theme, cx))
         .child(section_title(theme, "Date picker"))
-        .child(date_range_hero(theme, &pick))
+        .child(date_range_hero(this, theme, &pick, cx))
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
         .child(date_input_card(this, theme, &pick))
@@ -3189,15 +3194,16 @@ fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl Int
         }))
 }
 
-fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> impl IntoElement {
-    let start = date_picker::RANGE_DEMO_START;
-    let end = date_picker::RANGE_DEMO_END;
-    let today = CivilDate {
-        year: 2026,
-        month: 9,
-        day: 11,
-    };
-    let cells = date_picker::month_grid_range(start.year, start.month, start, end, today);
+fn date_range_hero(
+    this: &CatalogView,
+    _theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let today = this.today;
+    let year = date_picker::RANGE_DEMO_START.year;
+    let month = date_picker::RANGE_DEMO_START.month;
+    let cells = date_picker::month_grid_range_selection(year, month, this.date_range, today);
     let cal_w = pick.day_dp * 7.0;
     div()
         .w(px(cal_w + 32.0))
@@ -3216,13 +3222,13 @@ fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> 
             div()
                 .font_weight(type_weight(pick.date_style))
                 .child(spaced_line(
-                    date_picker::header_range_label(start, end),
+                    date_picker::header_range_selection(this.date_range),
                     pick.date_style.size_sp.min(28.0),
                     paint(pick.header_date),
                 )),
         )
         .child(spaced_line(
-            date_picker::month_nav_label(start.year, start.month),
+            date_picker::month_nav_label(year, month),
             pick.year_style.size_sp,
             paint(pick.header_year),
         ))
@@ -3232,9 +3238,11 @@ fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> 
                 .w(px(cal_w))
                 .flex()
                 .flex_wrap()
-                .children(cells.iter().copied().map(|(day, kind)| {
+                .children(cells.iter().copied().enumerate().map(|(i, (day, kind))| {
                     let (bg, fg, radius) = day_colors(pick, kind);
+                    let in_month = kind != DayKind::OutOfMonth;
                     div()
+                        .id(SharedString::from(format!("range-day-{i}")))
                         .w(px(pick.day_dp))
                         .h(px(pick.day_dp))
                         .rounded(px(radius))
@@ -3247,6 +3255,12 @@ fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> 
                             el.border_1().border_color(paint(pick.day_today_outline))
                         })
                         .child(day.to_string())
+                        .when(in_month, |el| {
+                            el.on_click(cx.listener(move |this, _, _, cx| {
+                                this.tap_date_range(CivilDate { year, month, day });
+                                cx.notify();
+                            }))
+                        })
                 })),
         )
 }
@@ -7744,6 +7758,7 @@ fn main() {
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     date_display: date_picker::LIVE_DISPLAY_MODE,
                     date_pane: date_picker::LIVE_PANE,
+                    date_range: date_picker::DateRangeSelection::demo(),
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
                     search_filter: search::SearchFilter::All,
                     search: {
@@ -7985,6 +8000,16 @@ mod tests {
             "09/15/2026",
             "09/21/2026"
         ));
+        assert!(date_picker::RANGE_LIVE);
+        let restarted = date_picker::apply_range_tap(
+            date_picker::DateRangeSelection::demo(),
+            date_picker::RANGE_DEMO_START,
+        );
+        assert_eq!(restarted.end, None);
+        assert_eq!(
+            date_picker::header_range_selection(restarted),
+            "Sep 15 – End date"
+        );
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),
             search::RowLeadingKind::Avatar

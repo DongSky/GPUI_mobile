@@ -212,8 +212,10 @@ pub fn header_date_short(date: CivilDate) -> String {
     format!("{} {}", mon, date.day)
 }
 
-/// Official overview range-hero sample (interactive modal stays single-date).
+/// Official overview range-hero sample. Live taps follow Compose `DateRangePicker`.
 pub const RANGE_HERO_TITLE: &str = "Depart – Return dates";
+/// Catalog / host range hero starts with a complete depart–return pair.
+pub const RANGE_LIVE: bool = true;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -228,6 +230,65 @@ pub const RANGE_DEMO_END: CivilDate = CivilDate {
 /// Official overview range hero headline, e.g. "Aug 17 – Aug 23".
 pub fn header_range_label(start: CivilDate, end: CivilDate) -> String {
     format!("{} – {}", header_date_short(start), header_date_short(end))
+}
+
+/// Compose `DateRangePicker` selection (start, then end ≥ start; a third tap restarts).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DateRangeSelection {
+    pub start: Option<CivilDate>,
+    pub end: Option<CivilDate>,
+}
+
+impl DateRangeSelection {
+    pub const fn empty() -> Self {
+        Self {
+            start: None,
+            end: None,
+        }
+    }
+
+    pub const fn demo() -> Self {
+        Self {
+            start: Some(RANGE_DEMO_START),
+            end: Some(RANGE_DEMO_END),
+        }
+    }
+}
+
+/// First tap sets start; second tap ≥ start sets end, else replaces start; both set restarts.
+pub fn apply_range_tap(sel: DateRangeSelection, day: CivilDate) -> DateRangeSelection {
+    match (sel.start, sel.end) {
+        (None, _) => DateRangeSelection {
+            start: Some(day),
+            end: None,
+        },
+        (Some(start), None) => {
+            if date_ord(day) >= date_ord(start) {
+                DateRangeSelection {
+                    start: Some(start),
+                    end: Some(day),
+                }
+            } else {
+                DateRangeSelection {
+                    start: Some(day),
+                    end: None,
+                }
+            }
+        }
+        (Some(_), Some(_)) => DateRangeSelection {
+            start: Some(day),
+            end: None,
+        },
+    }
+}
+
+/// Headline placeholders use Compose `Start date` / `End date` until both ends exist.
+pub fn header_range_selection(sel: DateRangeSelection) -> String {
+    match (sel.start, sel.end) {
+        (Some(start), Some(end)) => header_range_label(start, end),
+        (Some(start), None) => format!("{} – {}", header_date_short(start), RANGE_END_LABEL),
+        (None, _) => format!("{} – {}", RANGE_START_LABEL, RANGE_END_LABEL),
+    }
 }
 
 pub fn month_nav_label(year: i32, month: u32) -> String {
@@ -483,6 +544,41 @@ pub fn month_grid_range(
         );
     }
     out
+}
+
+pub fn month_grid_range_selection(
+    year: i32,
+    month: u32,
+    sel: DateRangeSelection,
+    today: CivilDate,
+) -> [(u32, DayKind); 42] {
+    match (sel.start, sel.end) {
+        (Some(start), Some(end)) => month_grid_range(year, month, start, end, today),
+        (Some(start), None) => month_grid_classified(year, month, start, today),
+        (None, _) => {
+            let raw = month_grid(year, month);
+            let mut out = raw;
+            for (i, (day, kind)) in raw.iter().enumerate() {
+                if *kind != DayKind::InMonth {
+                    continue;
+                }
+                let date = CivilDate {
+                    year,
+                    month,
+                    day: *day,
+                };
+                out[i] = (
+                    *day,
+                    if date == today {
+                        DayKind::Today
+                    } else {
+                        DayKind::InMonth
+                    },
+                );
+            }
+            out
+        }
+    }
 }
 
 pub fn month_grid_classified(
