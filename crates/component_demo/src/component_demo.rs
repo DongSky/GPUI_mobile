@@ -7199,6 +7199,7 @@ fn android_date_range(
     let year = this.range_year;
     let month = this.range_month;
     let cells = date_picker::month_grid_range_selection(year, month, this.date_range, this.today);
+    let fills = date_picker::range_fills(year, month, cells, this.date_range);
     let cal_w = pick.day_dp * 7.0;
     let picker = this.range_display == date_picker::DatePickerDisplayMode::Picker;
     let field = text_field::resolve(
@@ -7318,6 +7319,7 @@ fn android_date_range(
                 ))
                 .child(div().w(px(cal_w)).flex().flex_wrap().children(
                     cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                        let fill = fills[i];
                         let (bg, fg, radius) = match kind {
                             DayKind::Selected => (
                                 paint(pick.day_selected_container),
@@ -7340,20 +7342,53 @@ fn android_date_range(
                             ),
                         };
                         let in_month = kind != DayKind::OutOfMonth;
+                        let selected = kind == DayKind::Selected;
+                        let cell_bg = if fill.is_some() || selected {
+                            paint(pick.container)
+                        } else {
+                            bg
+                        };
+                        let cell_radius = if fill.is_some() { 0.0 } else { radius };
                         div()
                             .id(SharedString::from(format!("range-day-{i}")))
+                            .relative()
                             .w(px(pick.day_dp))
                             .h(px(pick.day_dp))
-                            .rounded(px(radius))
-                            .bg(bg)
+                            .rounded(px(cell_radius))
+                            .bg(cell_bg)
                             .text_color(fg)
                             .flex()
                             .items_center()
                             .justify_center()
+                            .when(fill.is_some(), |el| {
+                                el.child(
+                                    div()
+                                        .absolute()
+                                        .top(px(0.))
+                                        .left(px(fill.connector_left_dp(pick.day_dp)))
+                                        .w(px(fill.connector_width_dp(pick.day_dp)))
+                                        .h(px(pick.day_dp))
+                                        .bg(paint(pick.day_range_container)),
+                                )
+                            })
+                            .when(selected, |el| {
+                                el.child(
+                                    div()
+                                        .w(px(pick.day_dp))
+                                        .h(px(pick.day_dp))
+                                        .rounded(px(pick.day_dp / 2.0))
+                                        .bg(paint(pick.day_selected_container))
+                                        .text_color(paint(pick.day_selected))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(day.to_string()),
+                                )
+                            })
+                            .when(!selected, |el| el.child(day.to_string()))
                             .when(kind == DayKind::Today, |el| {
                                 el.border_1().border_color(paint(pick.day_today_outline))
                             })
-                            .child(day.to_string())
                             .when(in_month, |el| {
                                 el.on_click(cx.listener(move |this, _, _, cx| {
                                     this.tap_date_range(CivilDate { year, month, day });

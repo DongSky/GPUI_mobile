@@ -871,6 +871,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-range-actions="1""#));
     assert!(html.contains(r#"data-range-cancel="1""#));
     assert!(html.contains(r#"data-range-ok="1""#));
+    assert!(html.contains(r#"data-range-connector="1""#));
+    assert!(html.contains(r#"data-range-fill="start-half""#));
+    assert!(html.contains(r#"data-range-fill="end-half""#));
+    assert!(html.contains(r#"data-range-fill="full""#));
     assert!(html.contains(r#"data-hero="datepicker-range""#));
     assert!(html.contains(r#"data-date-pane="calendar""#));
     assert!(html.contains("Depart – Return dates"));
@@ -1241,6 +1245,7 @@ fn inventory_covers_claimed_and_followups() {
         e.name == "Date picker"
             && e.notes.contains("live start→end")
             && e.notes.contains("DateRangePicker")
+            && e.notes.contains("drawRangeBackground")
     }));
     assert!(INVENTORY
         .iter()
@@ -2480,7 +2485,35 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::RANGE_YEAR_PANE);
     assert!(date_picker::RANGE_SHOW_MODE_TOGGLE);
     assert!(date_picker::RANGE_ACTIONS);
+    assert!(date_picker::RANGE_CONNECTOR);
     assert_eq!(date_picker::RANGE_DIVIDER_H_DP, 1.0);
+    assert_eq!(
+        date_picker::range_fill(date_picker::DayKind::Selected, true, false),
+        date_picker::RangeFill::StartHalf
+    );
+    assert_eq!(
+        date_picker::range_fill(date_picker::DayKind::Selected, false, true),
+        date_picker::RangeFill::EndHalf
+    );
+    assert_eq!(
+        date_picker::range_fill(date_picker::DayKind::InRange, false, false),
+        date_picker::RangeFill::Full
+    );
+    let demo_fills =
+        date_picker::range_fills(2026, 9, range, date_picker::DateRangeSelection::demo());
+    let fill_of = |day: u32| {
+        range
+            .iter()
+            .zip(demo_fills.iter())
+            .find_map(|((d, _), f)| (*d == day).then_some(*f))
+    };
+    assert_eq!(fill_of(15), Some(date_picker::RangeFill::StartHalf));
+    assert_eq!(fill_of(18), Some(date_picker::RangeFill::Full));
+    assert_eq!(fill_of(21), Some(date_picker::RangeFill::EndHalf));
+    assert_eq!(
+        date_picker::RangeFill::StartHalf.connector_left_dp(date_picker::DAY_DP),
+        date_picker::DAY_DP / 2.0
+    );
     assert_eq!(
         date_picker::apply_range_dismiss(date_picker::DateRangeSelection::demo()),
         date_picker::DateRangeSelection::demo()

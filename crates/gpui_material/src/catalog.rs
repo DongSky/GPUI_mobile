@@ -1298,7 +1298,20 @@ table.inv th {{ font-weight: 500; }}
 .day {{
   width: 40px; height: 40px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center;
+  position: relative;
 }}
+.day .range-fill {{
+  position: absolute; top: 0; bottom: 0; z-index: 0; pointer-events: none;
+}}
+.day .range-fill[data-range-fill="full"] {{ left: 0; right: 0; }}
+.day .range-fill[data-range-fill="start-half"] {{ left: 50%; right: 0; }}
+.day .range-fill[data-range-fill="end-half"] {{ left: 0; right: 50%; }}
+.day .day-dot {{
+  position: relative; z-index: 1;
+  width: 40px; height: 40px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+}}
+.day .day-label {{ position: relative; z-index: 1; }}
 .motion-box {{
   width: 48px; height: 48px; border-radius: 12px;
   animation: m3slide 1200ms {ease} infinite alternate;
@@ -2179,6 +2192,19 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
     if (y === ty && m === tm && day === td) return "Today";
     return "InMonth";
   }}
+  function rangeFillKind(kind, y, m, day) {{
+    var start = readStart();
+    var end = readEnd();
+    if (!start || !end) return "none";
+    if (start.y === end.y && start.m === end.m && start.d === end.d) return "none";
+    var o = dateOrd(y, m, day);
+    var isStart = o === dateOrd(start.y, start.m, start.d);
+    var isEnd = o === dateOrd(end.y, end.m, end.d);
+    if (kind === "Selected" && isStart && !isEnd) return "start-half";
+    if (kind === "Selected" && isEnd && !isStart) return "end-half";
+    if (kind === "InRange") return "full";
+    return "none";
+  }}
   function paintRangeGrid() {{
     var grid = host.querySelector("[data-range-grid]");
     if (!grid) return;
@@ -2200,7 +2226,19 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
       else if (kind === "InRange") {{ bg = rngBg; fg = rngFg; radius = "0"; }}
       else if (kind === "Today") {{ outline = "1px solid " + todayBd; }}
       else if (kind === "OutOfMonth") {{ fg = outFg; }}
-      html += '<div class="day" data-day="'+day+'" data-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+outline+';border-radius:'+radius+'">'+day+'</div>';
+      var fill = rangeFillKind(kind, y, m, day);
+      var inner = String(day);
+      var cellBg = bg;
+      if (fill !== "none") {{
+        cellBg = "transparent";
+        var bar = '<div class="range-fill" data-range-fill="'+fill+'" style="background:'+rngBg+'"></div>';
+        if (kind === "Selected") {{
+          inner = bar + '<div class="day-dot" style="background:'+selBg+';color:'+selFg+'">'+day+'</div>';
+        }} else {{
+          inner = bar + '<span class="day-label">'+day+'</span>';
+        }}
+      }}
+      html += '<div class="day" data-day="'+day+'" data-kind="'+kind+'" data-range-fill="'+fill+'" style="background:'+cellBg+';color:'+fg+';border:'+outline+';border-radius:'+radius+'">'+inner+'</div>';
     }});
     grid.innerHTML = html;
   }}
@@ -6429,8 +6467,16 @@ fn paint_date_grid(
     a: &date_picker::DatePickerAppearance,
     cells: [(u32, date_picker::DayKind); 42],
 ) -> String {
+    paint_date_grid_fills(a, cells, [date_picker::RangeFill::None; 42])
+}
+
+fn paint_date_grid_fills(
+    a: &date_picker::DatePickerAppearance,
+    cells: [(u32, date_picker::DayKind); 42],
+    fills: [date_picker::RangeFill; 42],
+) -> String {
     let mut grid = String::new();
-    for (day, kind) in cells {
+    for ((day, kind), fill) in cells.into_iter().zip(fills) {
         let radius = if kind == date_picker::DayKind::InRange {
             "0"
         } else {
@@ -6457,8 +6503,32 @@ fn paint_date_grid(
                 ("transparent".into(), a.day_out.css_hex(), "none".into())
             }
         };
+        let fill_html = if fill.is_some() {
+            format!(
+                r#"<div class="range-fill" data-range-fill="{}" style="background:{}"></div>"#,
+                fill.label(),
+                a.day_range_container.css_hex()
+            )
+        } else {
+            String::new()
+        };
+        let inner = if kind == date_picker::DayKind::Selected && fill.is_some() {
+            format!(
+                r#"{fill_html}<div class="day-dot" style="background:{bg};color:{fg}">{day}</div>"#
+            )
+        } else if fill == date_picker::RangeFill::Full {
+            format!(r#"{fill_html}<span class="day-label">{day}</span>"#)
+        } else {
+            format!("{day}")
+        };
+        let cell_bg = if fill.is_some() {
+            "transparent"
+        } else {
+            bg.as_str()
+        };
         grid.push_str(&format!(
-            "<div class=\"day\" data-day=\"{day}\" data-kind=\"{kind:?}\" style=\"background:{bg};color:{fg};border:{outline};border-radius:{radius}\">{day}</div>"
+            "<div class=\"day\" data-day=\"{day}\" data-kind=\"{kind:?}\" data-range-fill=\"{fill}\" style=\"background:{cell_bg};color:{fg};border:{outline};border-radius:{radius}\">{inner}</div>",
+            fill = fill.label()
         ));
     }
     grid
@@ -6524,11 +6594,17 @@ fn date_pickers(theme: &Theme) -> String {
         ));
     }
     let grid = paint_date_grid(&a, cells);
-    let range_grid = paint_date_grid(&a, range_cells);
+    let range_fills = date_picker::range_fills(
+        date_picker::RANGE_DEMO_START.year,
+        date_picker::RANGE_DEMO_START.month,
+        range_cells,
+        date_picker::DateRangeSelection::demo(),
+    );
+    let range_grid = paint_date_grid_fills(&a, range_cells, range_fills);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
-<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
       <div data-range-title="1" style="color:{hy};font-size:{ys}px">{range_title}</div>

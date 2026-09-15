@@ -227,6 +227,9 @@ pub const RANGE_SHOW_MODE_TOGGLE: bool = true;
 /// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
 pub const RANGE_ACTIONS: bool = true;
 pub const RANGE_DIVIDER_H_DP: f32 = 1.0;
+/// Compose `drawRangeBackground` half-cell start/end connectors
+/// (`DateRangePicker.kt` firstIsSelectionStart / lastIsSelectionEnd).
+pub const RANGE_CONNECTOR: bool = true;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -651,6 +654,90 @@ pub fn month_grid_classified(
         if *kind == DayKind::InMonth {
             out[i] = (*day, classify_day(year, month, *day, selected, today));
         }
+    }
+    out
+}
+
+/// Compose `drawRangeBackground` fill behind a day cell.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangeFill {
+    None,
+    /// Interior day (full cell, `dayInSelectionRangeContainer`).
+    Full,
+    /// Start endpoint: right half only (`itemContainerWidth / 2` offset).
+    StartHalf,
+    /// End endpoint: left half only.
+    EndHalf,
+}
+
+impl RangeFill {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Full => "full",
+            Self::StartHalf => "start-half",
+            Self::EndHalf => "end-half",
+        }
+    }
+
+    pub const fn is_some(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    /// Compose `itemContainerWidth / 2` start offset (`firstIsSelectionStart`).
+    pub const fn connector_left_dp(self, day_dp: f32) -> f32 {
+        match self {
+            Self::StartHalf => day_dp * 0.5,
+            _ => 0.0,
+        }
+    }
+
+    /// Full interior, or half-cell at a range endpoint.
+    pub const fn connector_width_dp(self, day_dp: f32) -> f32 {
+        match self {
+            Self::None => 0.0,
+            Self::Full => day_dp,
+            Self::StartHalf | Self::EndHalf => day_dp * 0.5,
+        }
+    }
+}
+
+pub fn range_fill(kind: DayKind, is_range_start: bool, is_range_end: bool) -> RangeFill {
+    match kind {
+        DayKind::Selected if is_range_start && is_range_end => RangeFill::None,
+        DayKind::Selected if is_range_start => RangeFill::StartHalf,
+        DayKind::Selected if is_range_end => RangeFill::EndHalf,
+        DayKind::InRange => RangeFill::Full,
+        _ => RangeFill::None,
+    }
+}
+
+pub fn range_fills(
+    year: i32,
+    month: u32,
+    cells: [(u32, DayKind); 42],
+    sel: DateRangeSelection,
+) -> [RangeFill; 42] {
+    let mut out = [RangeFill::None; 42];
+    if !RANGE_CONNECTOR {
+        return out;
+    }
+    let (Some(start), Some(end)) = (sel.start, sel.end) else {
+        return out;
+    };
+    if start == end {
+        return out;
+    }
+    for (i, (day, kind)) in cells.iter().enumerate() {
+        if *kind == DayKind::OutOfMonth {
+            continue;
+        }
+        let date = CivilDate {
+            year,
+            month,
+            day: *day,
+        };
+        out[i] = range_fill(*kind, date == start, date == end);
     }
     out
 }
