@@ -290,6 +290,12 @@ impl DatePickerDisplayMode {
 
 /// Catalog modal-input sibling starts on Input (Compose `DisplayMode.Input`).
 pub const DEMO_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Input;
+/// Live modal starts on Picker (Compose `initialDisplayMode` default).
+pub const LIVE_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Picker;
+/// Compose `DatePickerDefaults.showModeToggle`.
+pub const SHOW_MODE_TOGGLE: bool = true;
+/// Compose mode-toggle 48dp target.
+pub const TOGGLE_SIZE_DP: f32 = 48.0;
 pub const INPUT_HEADLINE: &str = "Select date";
 pub const INPUT_SUPPORTING: &str = "Enter date";
 pub const INPUT_FIELD_LABEL: &str = "Date";
@@ -298,6 +304,17 @@ pub const INPUT_TOGGLE_EDIT: &str = "✎";
 pub const INPUT_TOGGLE_CALENDAR: &str = "▦";
 pub const INPUT_OK: &str = "OK";
 pub const INPUT_CANCEL: &str = "Cancel";
+
+pub fn apply_display_toggle(mode: DatePickerDisplayMode) -> DatePickerDisplayMode {
+    mode.toggle()
+}
+
+pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {
+    match mode {
+        DatePickerDisplayMode::Picker => None,
+        DatePickerDisplayMode::Input => Some(INPUT_SUPPORTING),
+    }
+}
 
 pub fn input_field_value(date: CivilDate) -> String {
     format!("{:02}/{:02}/{:04}", date.month, date.day, date.year)

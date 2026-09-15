@@ -347,6 +347,7 @@ struct CatalogView {
     range_moved: bool,
     range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
+    date_display: date_picker::DatePickerDisplayMode,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -549,6 +550,10 @@ impl CatalogView {
             &mut self.time_hour,
             &mut self.time_minute,
         );
+    }
+
+    fn toggle_date_display(&mut self) {
+        self.date_display = date_picker::apply_display_toggle(self.date_display);
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -1201,117 +1206,212 @@ fn catalog_body(
         )
         .child(
             div()
-                .text_size(px(pick.year_style.size_sp))
-                .text_color(paint(pick.header_year))
-                .child("Select date"),
-        )
-        .child(
-            div()
+                .w(px(pick.day_dp * 7.0))
                 .flex()
-                .items_center()
+                .items_start()
                 .justify_between()
                 .child(
                     div()
-                        .id("month-prev")
-                        .p(px(8.))
-                        .child("<")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (y, m) = date_picker::add_months(this.picker_year, this.picker_month, -1);
-                            this.picker_year = y;
-                            this.picker_month = m;
-                            cx.notify();
-                        })),
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(pick.year_style.size_sp))
+                                .text_color(paint(pick.header_year))
+                                .child("Select date"),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(22.))
+                                .text_color(paint(pick.header_date))
+                                .child(date_picker::header_date_label(this.selected)),
+                        )
+                        .children(date_picker::supporting_for(this.date_display).map(
+                            |supporting| {
+                                div()
+                                    .text_size(px(pick.year_style.size_sp))
+                                    .text_color(paint(pick.header_year))
+                                    .child(supporting)
+                            },
+                        )),
                 )
-                .child(
-                    div()
-                        .text_size(px(pick.date_style.size_sp.min(22.0)))
-                        .child(date_picker::month_nav_label(this.picker_year, this.picker_month)),
-                )
-                .child(
-                    div()
-                        .id("month-next")
-                        .p(px(8.))
-                        .child(">")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            let (y, m) = date_picker::add_months(this.picker_year, this.picker_month, 1);
-                            this.picker_year = y;
-                            this.picker_month = m;
-                            cx.notify();
-                        })),
-                ),
+                .when(date_picker::SHOW_MODE_TOGGLE, |el| {
+                    el.child(
+                        div()
+                            .id("date-display-toggle")
+                            .w(px(date_picker::TOGGLE_SIZE_DP))
+                            .h(px(date_picker::TOGGLE_SIZE_DP))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(this.date_display.toggle_icon())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toggle_date_display();
+                                cx.notify();
+                            })),
+                    )
+                }),
         )
-        .child(
-            div()
-                .text_size(px(pick.year_style.size_sp))
-                .text_color(paint(pick.header_year))
-                .child(date_picker::header_year_label(this.picker_year)),
-        )
-        .child(
-            div()
-                .text_size(px(22.))
-                .text_color(paint(pick.header_date))
-                .child(date_picker::header_date_label(this.selected)),
-        )
-        .child(
-            div()
-                .w(px(pick.day_dp * 7.0))
-                .flex()
-                .flex_wrap()
-                .children(date_picker::WEEKDAYS.iter().map(|d| {
+        .when(
+            this.date_display == date_picker::DatePickerDisplayMode::Picker,
+            |el| {
+                el.child(
                     div()
-                        .w(px(pick.day_dp))
-                        .h(px(32.))
                         .flex()
                         .items_center()
-                        .justify_center()
-                        .text_color(paint(pick.weekday))
-                        .child(*d)
-                })),
+                        .justify_between()
+                        .child(
+                            div()
+                                .id("month-prev")
+                                .p(px(8.))
+                                .child("<")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        -1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(pick.date_style.size_sp.min(22.0)))
+                                .child(date_picker::month_nav_label(
+                                    this.picker_year,
+                                    this.picker_month,
+                                )),
+                        )
+                        .child(
+                            div()
+                                .id("month-next")
+                                .p(px(8.))
+                                .child(">")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(
+                    div()
+                        .text_size(px(pick.year_style.size_sp))
+                        .text_color(paint(pick.header_year))
+                        .child(date_picker::header_year_label(this.picker_year)),
+                )
+                .child(
+                    div()
+                        .w(px(pick.day_dp * 7.0))
+                        .flex()
+                        .flex_wrap()
+                        .children(date_picker::WEEKDAYS.iter().map(|d| {
+                            div()
+                                .w(px(pick.day_dp))
+                                .h(px(32.))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_color(paint(pick.weekday))
+                                .child(*d)
+                        })),
+                )
+                .child(div().w(px(pick.day_dp * 7.0)).flex().flex_wrap().children(
+                    cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                        let (bg, fg, radius) = match kind {
+                            DayKind::Selected => (
+                                paint(pick.day_selected_container),
+                                paint(pick.day_selected),
+                                pick.day_dp / 2.0,
+                            ),
+                            DayKind::InRange => (
+                                paint(pick.day_range_container),
+                                paint(pick.day_range),
+                                0.0,
+                            ),
+                            DayKind::Today => {
+                                (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
+                            }
+                            DayKind::InMonth => {
+                                (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
+                            }
+                            DayKind::OutOfMonth => {
+                                (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
+                            }
+                        };
+                        let in_month = kind != DayKind::OutOfMonth;
+                        let year = this.picker_year;
+                        let month = this.picker_month;
+                        div()
+                            .id(SharedString::from(format!("day-{i}")))
+                            .w(px(pick.day_dp))
+                            .h(px(pick.day_dp))
+                            .rounded(px(radius))
+                            .bg(bg)
+                            .text_color(fg)
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .when(kind == DayKind::Today, |el| {
+                                el.border_1().border_color(paint(pick.day_today_outline))
+                            })
+                            .child(day.to_string())
+                            .when(in_month, |el| {
+                                el.on_click(cx.listener(move |this, _, _, cx| {
+                                    this.selected = CivilDate { year, month, day };
+                                    cx.notify();
+                                }))
+                            })
+                    }),
+                ))
+            },
         )
-        .child(div().w(px(pick.day_dp * 7.0)).flex().flex_wrap().children(
-            cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                let (bg, fg, radius) = match kind {
-                    DayKind::Selected => (
-                        paint(pick.day_selected_container),
-                        paint(pick.day_selected),
-                        pick.day_dp / 2.0,
-                    ),
-                    DayKind::InRange => (
-                        paint(pick.day_range_container),
-                        paint(pick.day_range),
-                        0.0,
-                    ),
-                    DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                    DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                    DayKind::OutOfMonth => {
-                        (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
-                    }
-                };
-                let in_month = kind != DayKind::OutOfMonth;
-                let year = this.picker_year;
-                let month = this.picker_month;
-                div()
-                    .id(SharedString::from(format!("day-{i}")))
-                    .w(px(pick.day_dp))
-                    .h(px(pick.day_dp))
-                    .rounded(px(radius))
-                    .bg(bg)
-                    .text_color(fg)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .when(kind == DayKind::Today, |el| {
-                        el.border_1().border_color(paint(pick.day_today_outline))
-                    })
-                    .child(day.to_string())
-                    .when(in_month, |el| {
-                        el.on_click(cx.listener(move |this, _, _, cx| {
-                            this.selected = CivilDate { year, month, day };
-                            cx.notify();
-                        }))
-                    })
-            }),
-        ))
+        .when(
+            this.date_display == date_picker::DatePickerDisplayMode::Input,
+            |el| {
+                let field = text_field::resolve(
+                    theme,
+                    text_field::TextFieldVariant::Outlined,
+                    InteractionState::Focused,
+                    true,
+                );
+                el.child(
+                    div()
+                        .w(px(pick.day_dp * 7.0))
+                        .px(px(12.))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(
+                            field
+                                .field
+                                .outline
+                                .map(|(c, _)| c)
+                                .unwrap_or(theme.color.outline),
+                        ))
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .child(date_picker::INPUT_FIELD_LABEL),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(date_picker::input_field_value(this.selected)),
+                        ),
+                )
+            },
+        )
         .child(android_date_input(this, theme, pick))
         .child(section_title(theme, "Overlays"))
         .child(
@@ -7496,6 +7596,7 @@ fn android_main(app: AndroidApp) {
                 range_moved: false,
                 range_hit: Rc::new(Cell::new((0.0, 240.0))),
                 docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
+                date_display: date_picker::LIVE_DISPLAY_MODE,
                 search_open: search::VIEW_OPEN_BY_DEFAULT,
                 search_filter: search::SearchFilter::All,
                 search: {

@@ -866,6 +866,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
     assert!(html.contains(r#"data-date-display="input""#));
+    assert!(html.contains(r#"data-date-display="picker""#));
+    assert!(html.contains(r#"data-date-display-live="1""#));
+    assert!(html.contains(r#"data-date-display-toggle="1""#));
     assert!(html.contains("MM/DD/YYYY"));
     assert!(html.contains("09/15/2026"));
     assert!(html.contains("data-settings-scene=\"1\""));
@@ -2301,6 +2304,20 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::DEMO_DISPLAY_MODE,
         date_picker::DatePickerDisplayMode::Input
+    );
+    assert_eq!(
+        date_picker::LIVE_DISPLAY_MODE,
+        date_picker::DatePickerDisplayMode::Picker
+    );
+    assert!(date_picker::SHOW_MODE_TOGGLE);
+    assert_eq!(date_picker::TOGGLE_SIZE_DP, 48.0);
+    assert_eq!(
+        date_picker::apply_display_toggle(date_picker::DatePickerDisplayMode::Picker),
+        date_picker::DatePickerDisplayMode::Input
+    );
+    assert_eq!(
+        date_picker::supporting_for(date_picker::DatePickerDisplayMode::Picker),
+        None
     );
     assert_eq!(date_picker::INPUT_PLACEHOLDER, "MM/DD/YYYY");
     assert_eq!(

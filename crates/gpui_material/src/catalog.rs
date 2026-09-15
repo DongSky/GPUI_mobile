@@ -1269,7 +1269,9 @@ table.inv th {{ font-weight: 500; }}
 .cal {{ width: 360px; padding: 16px 12px 12px; }}
 .cal .head {{ padding: 8px 12px 16px; }}
 .cal .week, .cal .grid {{ display: grid; grid-template-columns: repeat(7, 40px); justify-content: center; }}
-.cal[data-date-display="input"] .week, .cal[data-date-display="input"] .grid, .cal[data-date-display="input"] .month-nav {{ display: none; }}
+.cal[data-date-display="input"] .week, .cal[data-date-display="input"] .grid, .cal[data-date-display="input"] .month-nav, .cal[data-date-display="input"] .dp-month {{ display: none; }}
+.cal[data-date-display="picker"] .dp-input {{ display: none; }}
+.cal[data-date-display="picker"] .dp-supporting {{ display: none; }}
 .cal .dp-input {{ padding: 8px 12px 16px; }}
 .cal .dp-toggle {{
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
@@ -2035,6 +2037,19 @@ document.querySelectorAll("[data-time-input-field]").forEach(function (field) {{
     if (host && raw.length === 2) host.setAttribute("data-" + kind, String(n));
     var box = field.closest("[data-time-input]");
     if (box && raw.length === 2) box.setAttribute("data-" + kind, String(parseInt(raw || "0", 10)));
+  }});
+}});
+document.querySelectorAll("[data-date-display-live] [data-date-display-toggle]").forEach(function (btn) {{
+  btn.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var host = btn.closest("[data-date-display]");
+    if (!host) return;
+    var mode = host.getAttribute("data-date-display") === "picker" ? "input" : "picker";
+    host.setAttribute("data-date-display", mode);
+    host.setAttribute("data-date-display-mode", mode);
+    btn.textContent = mode === "picker" ? "✎" : "▦";
+    btn.setAttribute("aria-label", mode === "picker"
+      ? "Switch to input mode" : "Switch to calendar mode");
   }});
 }});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
@@ -6151,7 +6166,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Modal date input (Compose <code>DisplayMode.Input</code>) is an outlined <code>MM/DD/YYYY</code> field plus calendar/edit toggle. Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -6161,14 +6176,19 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="week">{week}</div>
   <div class="grid">{range_grid}</div>
 </div>
-<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
-  <div class="head">
-    <div style="color:{hy};font-size:{ys}px">Select date</div>
-    <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <div>
+      <div style="color:{hy};font-size:{ys}px">Select date</div>
+      <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
+      <div class="dp-supporting" data-date-supporting="1" style="color:{hy};font-size:{ys}px;margin-top:8px">{input_supporting}</div>
+    </div>
+    <div class="dp-toggle" data-date-display-toggle="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
-  <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
+  <div class="dp-month" data-date-month="1" style="text-align:center;padding:8px;font-weight:500">{month}</div>
   <div class="week">{week}</div>
   <div class="grid">{grid}</div>
+  <div class="dp-input" data-date-input-field="1">{input_field}</div>
   <div class="actions" style="padding:8px 12px 0">
     <button class="btn" style="background:transparent;color:{act}">Cancel</button>
     <button class="btn" style="background:transparent;color:{act}">OK</button>
@@ -6244,6 +6264,8 @@ fn date_pickers(theme: &Theme) -> String {
         ),
         input_headline = date_picker::INPUT_HEADLINE,
         input_supporting = date_picker::INPUT_SUPPORTING,
+        live_toggle_icon = date_picker::LIVE_DISPLAY_MODE.toggle_icon(),
+        live_toggle_label = date_picker::LIVE_DISPLAY_MODE.toggle_label(),
         toggle_icon = date_picker::DEMO_DISPLAY_MODE.toggle_icon(),
         toggle_label = date_picker::DEMO_DISPLAY_MODE.toggle_label(),
         cancel = date_picker::INPUT_CANCEL,
