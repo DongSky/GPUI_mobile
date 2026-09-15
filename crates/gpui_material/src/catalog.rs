@@ -673,6 +673,17 @@ table.inv th {{ font-weight: 500; }}
 .menu-icons .menu-item {{
   width: 52px; height: 52px; padding: 0; justify-content: center;
 }}
+.menu-cascade {{
+  display: flex; flex-direction: row; align-items: flex-end; gap: 4px;
+  position: relative; min-width: 360px;
+}}
+.menu-cascade[data-open="0"] .menu-flyout {{ display: none; }}
+.menu-flyout {{
+  min-width: 160px; max-width: 280px;
+}}
+.menu-item[data-menu-hi="1"] {{
+  outline: 2px solid var(--primary); outline-offset: -2px;
+}}
 .slider {{
   position: relative; width: 240px; height: 48px; display: flex; align-items: center;
 }}
@@ -1647,6 +1658,77 @@ document.addEventListener("click", function () {{
     split.setAttribute("data-open", "0");
     var trail = split.querySelector("[data-split-trail]");
     if (trail) trail.textContent = "▾";
+  }});
+}});
+document.querySelectorAll("[data-menu-cascade]").forEach(function (cascade) {{
+  var flyout = cascade.querySelector("[data-menu-submenu]");
+  var trigger = cascade.querySelector("[data-submenu-trigger]");
+  function itemList(root) {{
+    return root ? Array.prototype.slice.call(root.querySelectorAll("[data-menu-item]")) : [];
+  }}
+  function setHi(items, idx) {{
+    items.forEach(function (el, i) {{
+      el.setAttribute("data-menu-hi", i === idx ? "1" : "0");
+    }});
+  }}
+  function applyOpen(open) {{
+    cascade.setAttribute("data-open", open ? "1" : "0");
+    cascade.setAttribute("data-menu-focus-parent", open ? "inactive" : "rest");
+    if (flyout) flyout.style.display = open ? "flex" : "none";
+    if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    cascade.querySelectorAll("[data-r-rest]").forEach(function (g) {{
+      var r = open ? g.getAttribute("data-r-inactive") : g.getAttribute("data-r-rest");
+      if (r) g.style.borderRadius = r;
+    }});
+  }}
+  function typeahead(items, from, ch) {{
+    if (!items.length) return from;
+    var needle = ch.toLowerCase();
+    var start = ((from < 0 ? -1 : from) + 1) % items.length;
+    for (var step = 0; step < items.length; step++) {{
+      var i = (start + step) % items.length;
+      var label = (items[i].getAttribute("data-menu-item") || "").charAt(0).toLowerCase();
+      if (label === needle) return i;
+    }}
+    return from;
+  }}
+  cascade.addEventListener("mouseenter", function () {{ applyOpen(true); }});
+  cascade.addEventListener("mouseleave", function () {{ applyOpen(false); }});
+  if (trigger) {{
+    trigger.style.cursor = "pointer";
+    trigger.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      applyOpen(cascade.getAttribute("data-open") !== "1");
+    }});
+  }}
+  cascade.setAttribute("tabindex", "0");
+  cascade.addEventListener("keydown", function (ev) {{
+    var open = cascade.getAttribute("data-open") === "1";
+    var parentItems = itemList(cascade.querySelector("[data-menu-parent]"));
+    var subItems = itemList(flyout);
+    var items = open ? subItems : parentItems;
+    var cur = items.findIndex(function (el) {{ return el.getAttribute("data-menu-hi") === "1"; }});
+    if (ev.key === "ArrowRight") {{
+      applyOpen(true);
+      setHi(subItems, 0);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowLeft" || ev.key === "Escape") {{
+      applyOpen(false);
+      setHi(parentItems, parentItems.length - 1);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowDown") {{
+      var next = cur < 0 ? 0 : (cur + 1) % items.length;
+      setHi(items, next);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowUp") {{
+      var prev = cur < 0 ? items.length - 1 : (cur - 1 + items.length) % items.length;
+      setHi(items, prev);
+      ev.preventDefault();
+    }} else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {{
+      var hit = typeahead(items, cur < 0 ? items.length - 1 : cur, ev.key);
+      if (hit >= 0) setHi(items, hit);
+      ev.preventDefault();
+    }}
   }});
 }});
 </script>
@@ -4134,6 +4216,7 @@ fn paint_menu_item_row(
     item: &menu::MenuDemoItem,
     a: &menu::MenuItemAppearance,
     selected: bool,
+    extra: &str,
 ) -> String {
     let trail = menu::trailing_text(item);
     let trail_html = if trail.is_empty() {
@@ -4146,13 +4229,14 @@ fn paint_menu_item_row(
         )
     };
     format!(
-        r#"<div class="menu-item" data-menu-item="{label}" data-selected="{sel}" style="background:{bg};color:{fg};height:{h}px;border-radius:{r};padding:0 {pad}px">
+        r#"<div class="menu-item" role="menuitem" data-menu-item="{label}" data-selected="{sel}"{extra} style="background:{bg};color:{fg};height:{h}px;border-radius:{r};padding:0 {pad}px">
   <span class="lead" style="color:{ic}">{icon}</span>
   <span class="lbl">{label}</span>
   {trail}
 </div>"#,
         label = esc(item.label),
         sel = selected,
+        extra = extra,
         bg = a.container.css_hex(),
         fg = a.label.css_hex(),
         h = a.height_dp,
@@ -4165,17 +4249,38 @@ fn paint_menu_item_row(
 }
 
 fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
+    paint_vertical_menu_focus(
+        theme,
+        scheme,
+        menu::MenuFocus::Rest,
+        false,
+        r#" data-menu="1" data-hero="menu""#,
+    )
+}
+
+fn paint_vertical_menu_focus(
+    theme: &Theme,
+    scheme: menu::MenuScheme,
+    focus: menu::MenuFocus,
+    submenu_open: bool,
+    stack_attrs: &str,
+) -> String {
     let groups = menu::VERTICAL_GROUPS;
     let mut stack = format!(
-        r#"<div class="menu-stack" data-menu="1" data-hero="menu" data-menu-scheme="{scheme}" data-menu-axis="vertical" data-menu-gap="{gap}">"#,
+        r#"<div class="menu-stack" role="menu"{attrs} data-menu-scheme="{scheme}" data-menu-axis="vertical" data-menu-gap="{gap}" data-menu-focus="{focus}" data-menu-parent="1">"#,
+        attrs = stack_attrs,
         scheme = scheme.label(),
         gap = menu::GROUP_GAP_DP,
+        focus = focus.label(),
     );
     for (gi, group) in groups.iter().enumerate() {
-        let shell = menu::resolve_group(theme, scheme, gi, groups.len());
+        let rest = menu::resolve_group(theme, scheme, gi, groups.len());
+        let shell = menu::resolve_group_focus(theme, scheme, gi, groups.len(), focus);
         stack.push_str(&format!(
-            r#"<div class="menu-group menu" data-menu-group="{gi}" data-menu-scheme="{scheme}" style="background:{bg};border-radius:{r};box-shadow:{sh};padding:{pad}px">"#,
+            r#"<div class="menu-group menu" data-menu-group="{gi}" data-menu-scheme="{scheme}" data-r-rest="{rest_r}" data-r-inactive="{inact}" style="background:{bg};border-radius:{r};box-shadow:{sh};padding:{pad}px">"#,
             scheme = scheme.label(),
+            rest_r = rest.corners.css(),
+            inact = crate::shape::Corners::all(menu::INACTIVE_CONTAINER_CORNER_DP).css(),
             bg = shell.container.css_hex(),
             r = shell.corners.css(),
             sh = ElevationLevels::css_shadow(shell.elevation_dp),
@@ -4183,6 +4288,11 @@ fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
         ));
         for (i, item) in group.iter().enumerate() {
             let selected = gi == 0 && i == menu::STYLE_SELECTED;
+            let state = if item.submenu && submenu_open {
+                InteractionState::Hovered
+            } else {
+                InteractionState::Enabled
+            };
             let a = menu::resolve_item_at(
                 theme,
                 scheme,
@@ -4190,14 +4300,64 @@ fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
                 i,
                 group.len(),
                 selected,
-                InteractionState::Enabled,
+                state,
             );
-            stack.push_str(&paint_menu_item_row(item, &a, selected));
+            let extra = if item.submenu {
+                format!(
+                    r#" data-submenu-trigger="1" aria-haspopup="menu" aria-expanded="{exp}""#,
+                    exp = if submenu_open { "true" } else { "false" },
+                )
+            } else {
+                String::new()
+            };
+            stack.push_str(&paint_menu_item_row(item, &a, selected, &extra));
         }
         stack.push_str("</div>");
     }
     stack.push_str("</div>");
     stack
+}
+
+fn paint_submenu_flyout(theme: &Theme, scheme: menu::MenuScheme) -> String {
+    let shell = menu::resolve_submenu(theme, scheme);
+    let count = menu::SUBMENU_ITEMS.len();
+    let mut out = format!(
+        r#"<div class="menu menu-flyout" role="menu" data-menu-submenu="1" data-menu-focus="active" data-menu-scheme="{scheme}" style="background:{bg};border-radius:{r};box-shadow:{sh};padding:{pad}px">"#,
+        scheme = scheme.label(),
+        bg = shell.container.css_hex(),
+        r = shell.corners.css(),
+        sh = ElevationLevels::css_shadow(shell.elevation_dp),
+        pad = shell.pad_dp,
+    );
+    for (i, item) in menu::SUBMENU_ITEMS.iter().enumerate() {
+        let selected = i == menu::SUBMENU_SELECTED;
+        let a = menu::resolve_item_at(
+            theme,
+            scheme,
+            menu::MenuAxis::Vertical,
+            i,
+            count,
+            selected,
+            InteractionState::Enabled,
+        );
+        out.push_str(&paint_menu_item_row(item, &a, selected, ""));
+    }
+    out.push_str("</div>");
+    out
+}
+
+fn paint_submenu_cascade(theme: &Theme) -> String {
+    let scheme = menu::MenuScheme::Standard;
+    format!(
+        r#"<div class="menu-cascade" data-hero="menu-submenu" data-menu-cascade="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" style="gap:{gap}px">
+  {parent}
+  {flyout}
+</div>"#,
+        open = if menu::CASCADE_OPEN { "1" } else { "0" },
+        gap = menu::SUBMENU_GAP_DP,
+        parent = paint_vertical_menu_focus(theme, scheme, menu::MenuFocus::Inactive, true, "",),
+        flyout = paint_submenu_flyout(theme, scheme),
+    )
 }
 
 fn paint_horizontal_menu(theme: &Theme) -> String {
@@ -4212,14 +4372,8 @@ fn paint_horizontal_menu(theme: &Theme) -> String {
     );
     for (i, label) in menu::HORIZONTAL_LABELS.iter().enumerate() {
         let selected = i == menu::HORIZONTAL_SELECTED;
-        let a = menu::resolve_horizontal(
-            theme,
-            scheme,
-            i,
-            count,
-            selected,
-            InteractionState::Enabled,
-        );
+        let a =
+            menu::resolve_horizontal(theme, scheme, i, count, selected, InteractionState::Enabled);
         out.push_str(&format!(
             r#"<div class="menu-item" data-menu-h="{label}" data-selected="{sel}" style="background:{bg};color:{fg};height:{h}px;border-radius:{r};padding:0 {pad}px">{label}</div>"#,
             sel = selected,
@@ -4264,7 +4418,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}
@@ -4274,11 +4428,15 @@ fn menus(theme: &Theme) -> String {
     {horizontal}
     {icons}
   </div>
+</div>
+<div class="hero-card" data-hero="menu-submenu">
+  {cascade}
 </div>"#,
         standard = paint_vertical_menu(theme, menu::MenuScheme::Standard),
         vibrant = paint_vertical_menu(theme, menu::MenuScheme::Vibrant),
         horizontal = paint_horizontal_menu(theme),
         icons = paint_horizontal_icons(theme),
+        cascade = paint_submenu_cascade(theme),
     )
 }
 

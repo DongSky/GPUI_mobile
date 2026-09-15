@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Menus",
         docs: "https://m3.material.io/components/menus/specs",
         parity: Parity::Done,
-        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; horizontal 2dp pills (selected full-round) + icon-only 52dp",
+        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + hover-open + WAI-ARIA typeahead; horizontal 2dp pills (selected full-round) + icon-only 52dp",
     },
     ComponentEntry {
         name: "Slider",

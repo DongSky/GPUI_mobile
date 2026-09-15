@@ -1762,6 +1762,15 @@ fn paint_menu_item(item: menu::MenuDemoItem, a: menu::MenuItemAppearance) -> imp
 }
 
 fn android_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoElement {
+    android_vertical_menu_focus(theme, scheme, menu::MenuFocus::Rest, false)
+}
+
+fn android_vertical_menu_focus(
+    theme: &Theme,
+    scheme: menu::MenuScheme,
+    focus: menu::MenuFocus,
+    submenu_open: bool,
+) -> impl IntoElement {
     let groups = menu::VERTICAL_GROUPS;
     let group_count = groups.len();
     div()
@@ -1770,12 +1779,17 @@ fn android_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoEl
         .gap(px(menu::GROUP_GAP_DP))
         .w(px(220.))
         .children(groups.iter().enumerate().map(move |(gi, group)| {
-            let shell = menu::resolve_group(theme, scheme, gi, group_count);
+            let shell = menu::resolve_group_focus(theme, scheme, gi, group_count, focus);
             let items: Vec<(menu::MenuDemoItem, menu::MenuItemAppearance)> = group
                 .iter()
                 .enumerate()
                 .map(|(i, item)| {
                     let selected = gi == 0 && i == menu::STYLE_SELECTED;
+                    let state = if item.submenu && submenu_open {
+                        InteractionState::Hovered
+                    } else {
+                        InteractionState::Enabled
+                    };
                     (
                         *item,
                         menu::resolve_item_at(
@@ -1785,7 +1799,7 @@ fn android_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoEl
                             i,
                             group.len(),
                             selected,
-                            InteractionState::Enabled,
+                            state,
                         ),
                     )
                 })
@@ -1801,6 +1815,48 @@ fn android_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoEl
                 .flex_col()
                 .children(items.into_iter().map(|(item, a)| paint_menu_item(item, a)))
         }))
+}
+
+fn android_submenu_flyout(theme: &Theme) -> impl IntoElement {
+    let scheme = menu::MenuScheme::Standard;
+    let shell = menu::resolve_submenu(theme, scheme);
+    let count = menu::SUBMENU_ITEMS.len();
+    div()
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .flex()
+        .flex_col()
+        .children(menu::SUBMENU_ITEMS.iter().enumerate().map(move |(i, item)| {
+            let selected = i == menu::SUBMENU_SELECTED;
+            paint_menu_item(
+                *item,
+                menu::resolve_item_at(
+                    theme,
+                    scheme,
+                    menu::MenuAxis::Vertical,
+                    i,
+                    count,
+                    selected,
+                    InteractionState::Enabled,
+                ),
+            )
+        }))
+}
+
+fn android_submenu_cascade(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_row()
+        .items_end()
+        .gap(px(menu::SUBMENU_GAP_DP))
+        .child(android_vertical_menu_focus(
+            theme,
+            menu::MenuScheme::Standard,
+            menu::MenuFocus::Inactive,
+            true,
+        ))
+        .child(android_submenu_flyout(theme))
 }
 
 fn android_horizontal_menu(theme: &Theme) -> impl IntoElement {
@@ -1961,6 +2017,7 @@ fn android_menus(theme: &Theme) -> impl IntoElement {
                 .child(android_horizontal_menu(theme))
                 .child(android_horizontal_icons(theme)),
         )
+        .child(android_submenu_cascade(theme))
 }
 
 fn menu_overlay(

@@ -3,8 +3,11 @@
 //! Tokens: androidx `SegmentedMenuTokens`, `StandardMenuTokens`, `VibrantMenuTokens`.
 //!
 //! Expressive vertical menus add standard (surface) + vibrant (tertiary)
-//! schemes, grouped surfaces with a 2dp gap, and 44dp items. Horizontal
-//! segmented menus use a 2dp row; the selected item goes full-round.
+//! schemes, grouped surfaces with a 2dp gap, and 44dp items. Nested submenus
+//! fly out at `MenuAnchorPosition.End`; the focused surface uses
+//! `ActiveContainerShape` 24dp and the parent morphs to
+//! `InactiveContainerShape` 8dp. Horizontal segmented menus use a 2dp row;
+//! the selected item goes full-round.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -28,8 +31,12 @@ pub const GROUP_CORNER_DP: f32 = 8.0;
 pub const ITEM_OUTER_CORNER_DP: f32 = 12.0;
 /// `ItemShape` / first-last inner = corner-extra-small.
 pub const ITEM_INNER_CORNER_DP: f32 = 4.0;
-/// `ActiveContainerShape`.
+/// `ActiveContainerShape` (hardcoded 24dp in Compose 24.1.2, not extra-large 28).
 pub const ACTIVE_CONTAINER_CORNER_DP: f32 = 24.0;
+/// `InactiveContainerShape` = corner-small. Parent morphs here while a submenu is open.
+pub const INACTIVE_CONTAINER_CORNER_DP: f32 = 8.0;
+/// Catalog gap between parent trailing edge and flyout (`MenuAnchorPosition.End`).
+pub const SUBMENU_GAP_DP: f32 = 4.0;
 /// `ItemLeadingIconSize` / `ItemTrailingIconSize`.
 pub const ICON_DP: f32 = 20.0;
 /// `ItemBetweenSpace`.
@@ -80,6 +87,27 @@ impl MenuAxis {
         match self {
             Self::Vertical => "vertical",
             Self::Horizontal => "horizontal",
+        }
+    }
+}
+
+/// Compose `MenuGroupShapes`: rest container vs focused submenu vs unfocused parent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuFocus {
+    /// `ContainerShape` / grouped first-last (16 / 8).
+    Rest,
+    /// Focused surface in a submenu chain (`ActiveContainerShape` 24).
+    Active,
+    /// Unfocused parent while a submenu is open (`InactiveContainerShape` 8).
+    Inactive,
+}
+
+impl MenuFocus {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Rest => "rest",
+            Self::Active => "active",
+            Self::Inactive => "inactive",
         }
     }
 }
@@ -172,17 +200,38 @@ pub const MORE_ITEMS: [MenuDemoItem; 1] = [MenuDemoItem {
 
 pub const VERTICAL_GROUPS: [&[MenuDemoItem]; 3] = [&STYLE_ITEMS, &EDIT_ITEMS, &MORE_ITEMS];
 
+/// Nested flyout from More › (first letters cycle on typeahead `s`).
+pub const SUBMENU_ITEMS: [MenuDemoItem; 3] = [
+    MenuDemoItem {
+        icon: "↗",
+        label: "Share",
+        shortcut: "",
+        submenu: false,
+    },
+    MenuDemoItem {
+        icon: "⬇",
+        label: "Save",
+        shortcut: "",
+        submenu: false,
+    },
+    MenuDemoItem {
+        icon: "⇅",
+        label: "Sort",
+        shortcut: "",
+        submenu: false,
+    },
+];
+pub const SUBMENU_SELECTED: usize = 0;
+/// Catalog hero paints the cascade open (screenshot + dump-dom).
+pub const CASCADE_OPEN: bool = true;
+
 pub const HORIZONTAL_LABELS: [&str; 4] = ["Day", "Week", "Month", "Year"];
 pub const HORIZONTAL_SELECTED: usize = 1;
 
 pub const HORIZONTAL_ICONS: [&str; 3] = ["B", "I", "U"];
 pub const HORIZONTAL_ICON_SELECTED: usize = 1;
 
-fn scheme_colors(
-    theme: &Theme,
-    scheme: MenuScheme,
-    selected: bool,
-) -> (Argb, Argb, Argb, Argb) {
+fn scheme_colors(theme: &Theme, scheme: MenuScheme, selected: bool) -> (Argb, Argb, Argb, Argb) {
     let c = theme.color;
     match (scheme, selected) {
         (MenuScheme::Standard, true) => (
@@ -234,9 +283,24 @@ pub fn resolve_group(
     index: usize,
     count: usize,
 ) -> MenuAppearance {
+    resolve_group_focus(theme, scheme, index, count, MenuFocus::Rest)
+}
+
+pub fn resolve_group_focus(
+    theme: &Theme,
+    scheme: MenuScheme,
+    index: usize,
+    count: usize,
+    focus: MenuFocus,
+) -> MenuAppearance {
     let mut a = resolve_container(theme, scheme);
-    a.corners = group_corners(index, count);
+    a.corners = group_corners_focus(index, count, focus);
     a
+}
+
+/// Standalone focused submenu (`ActiveContainerShape` 24).
+pub fn resolve_submenu(theme: &Theme, scheme: MenuScheme) -> MenuAppearance {
+    resolve_group_focus(theme, scheme, 0, 1, MenuFocus::Active)
 }
 
 /// Default standard item (overflow / split). Standalone selected uses medium corners.
@@ -336,7 +400,14 @@ pub fn resolve_horizontal_icon(
     count: usize,
     selected: bool,
 ) -> MenuItemAppearance {
-    let mut a = resolve_horizontal(theme, scheme, index, count, selected, InteractionState::Enabled);
+    let mut a = resolve_horizontal(
+        theme,
+        scheme,
+        index,
+        count,
+        selected,
+        InteractionState::Enabled,
+    );
     a.height_dp = HORIZONTAL_ICON_SIZE_DP;
     a.pad_h_dp = HORIZONTAL_ICON_PAD_DP;
     a
@@ -344,6 +415,15 @@ pub fn resolve_horizontal_icon(
 
 /// First/last groups: large outer / small inner. Standalone: large.
 pub fn group_corners(index: usize, count: usize) -> Corners {
+    group_corners_focus(index, count, MenuFocus::Rest)
+}
+
+pub fn group_corners_focus(index: usize, count: usize, focus: MenuFocus) -> Corners {
+    match focus {
+        MenuFocus::Active => return Corners::all(ACTIVE_CONTAINER_CORNER_DP),
+        MenuFocus::Inactive => return Corners::all(INACTIVE_CONTAINER_CORNER_DP),
+        MenuFocus::Rest => {}
+    }
     if count <= 1 {
         return Corners::all(CONTAINER_CORNER_DP);
     }
@@ -416,4 +496,34 @@ pub fn trailing_text(item: &MenuDemoItem) -> &'static str {
     } else {
         item.shortcut
     }
+}
+
+pub fn parent_labels() -> Vec<&'static str> {
+    VERTICAL_GROUPS
+        .iter()
+        .flat_map(|group| group.iter().map(|item| item.label))
+        .collect()
+}
+
+pub fn submenu_labels() -> Vec<&'static str> {
+    SUBMENU_ITEMS.iter().map(|item| item.label).collect()
+}
+
+/// WAI-ARIA menu typeahead: next label whose first character matches `ch`
+/// (case-insensitive), wrapping from `from + 1`.
+pub fn typeahead_index(labels: &[&str], from: usize, ch: char) -> Option<usize> {
+    let needle = ch.to_lowercase().next()?;
+    if needle.is_control() {
+        return None;
+    }
+    let n = labels.len();
+    if n == 0 {
+        return None;
+    }
+    let start = (from + 1) % n;
+    (0..n).find_map(|step| {
+        let i = (start + step) % n;
+        let first = labels[i].chars().next()?.to_lowercase().next()?;
+        (first == needle).then_some(i)
+    })
 }

@@ -808,6 +808,17 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-menu-group=\"0\""));
     assert!(html.contains("data-menu-h=\"Week\""));
     assert!(html.contains("data-menu-icon=\"I\""));
+    assert!(html.contains("data-hero=\"menu-submenu\""));
+    assert!(html.contains("data-menu-cascade=\"1\""));
+    assert!(html.contains("data-menu-submenu=\"1\""));
+    assert!(html.contains("data-submenu-trigger=\"1\""));
+    assert!(html.contains("data-typeahead=\"1\""));
+    assert!(html.contains("data-menu-keyboard=\"1\""));
+    assert!(html.contains("data-menu-focus=\"active\""));
+    assert!(html.contains("data-menu-focus=\"inactive\""));
+    assert!(html.contains("data-menu-item=\"Share\""));
+    assert!(html.contains("data-menu-item=\"Save\""));
+    assert!(html.contains("data-menu-item=\"Sort\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
     assert!(html.contains("data-hero=\"slider\""));
     assert!(html.contains("data-hero=\"buttons\""));
@@ -953,6 +964,12 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Top")
             && e.notes.contains("Start")
             && e.notes.contains("secondary")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Menu"
+            && e.notes.contains("submenu")
+            && e.notes.contains("ActiveContainerShape")
+            && e.notes.contains("typeahead")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1139,6 +1156,42 @@ fn expressive_menu_tokens() {
     );
     assert_eq!(icon_on.height_dp, 52.0);
     assert_eq!(icon_on.corners.top_left, 999.0);
+}
+
+#[test]
+fn expressive_menu_submenu_tokens() {
+    let theme = Theme::light();
+    assert_eq!(menu::ACTIVE_CONTAINER_CORNER_DP, 24.0);
+    assert_eq!(menu::INACTIVE_CONTAINER_CORNER_DP, 8.0);
+    assert_eq!(menu::SUBMENU_GAP_DP, 4.0);
+    assert_eq!(menu::SUBMENU_ITEMS[menu::SUBMENU_SELECTED].label, "Share");
+    assert_eq!(menu::SUBMENU_ITEMS[1].label, "Save");
+    assert_eq!(menu::SUBMENU_ITEMS[2].label, "Sort");
+    assert!(menu::CASCADE_OPEN);
+
+    let rest = menu::group_corners(0, 3);
+    assert_eq!(rest.top_left, 16.0);
+    assert_eq!(rest.bottom_left, 8.0);
+    let inactive = menu::group_corners_focus(0, 3, menu::MenuFocus::Inactive);
+    assert_eq!(inactive.top_left, 8.0);
+    assert_eq!(inactive.bottom_left, 8.0);
+    let active = menu::resolve_submenu(&theme, menu::MenuScheme::Standard);
+    assert_eq!(active.corners.top_left, 24.0);
+    assert_eq!(active.container, theme.color.surface_container_low);
+    assert_eq!(active.elevation_dp, 3.0);
+
+    let labels = menu::submenu_labels();
+    assert_eq!(
+        menu::typeahead_index(&labels, 0, 's'),
+        Some(1),
+        "s from Share → Save"
+    );
+    assert_eq!(menu::typeahead_index(&labels, 1, 's'), Some(2));
+    assert_eq!(menu::typeahead_index(&labels, 2, 's'), Some(0));
+    assert_eq!(menu::typeahead_index(&labels, 0, 'x'), None);
+    let parent = menu::parent_labels();
+    assert_eq!(parent.last().copied(), Some("More"));
+    assert_eq!(menu::typeahead_index(&parent, 0, 'm'), Some(6));
 }
 
 #[test]
