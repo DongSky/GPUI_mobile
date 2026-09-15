@@ -1556,6 +1556,8 @@ mod tests {
 
     #[test]
     fn jni_queue_and_register_natives_after_caret() {
+        let _attach = ATTACH_TEST_LOCK.lock().unwrap();
+        unsafe { detach_native_activity() };
         assert!(
             jni_register_natives_input_connection()
                 .iter()
@@ -1673,6 +1675,8 @@ mod tests {
 
     #[test]
     fn native_activity_attach_dry_runs_imm_flush() {
+        let _attach = ATTACH_TEST_LOCK.lock().unwrap();
+        unsafe { detach_native_activity() };
         assert_eq!(
             flush_native_activity_imm(&ImeJniQueue::new()),
             Err("no NativeActivity")
@@ -1691,6 +1695,8 @@ mod tests {
         apply_catalog_editor_caret(&slot2, &session2, &queue2, (24.0, 32.0, 2.0, 24.0));
         assert_eq!(last_ime_position(&slot2), Some([24.0, 32.0, 2.0, 24.0]));
     }
+
+    static ATTACH_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn scopeguard_clear_native() -> impl Drop {
         struct Clear;

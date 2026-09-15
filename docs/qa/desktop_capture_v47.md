@@ -15,7 +15,7 @@ v47 started from v46 leftovers (`docs/qa/v46_leftovers.md` as written on that la
 | Catalog | `data-hide-fab-extend`; hide overlay FAB always-extended (16dp inset, label visible); `applyRailHideSlide` keeps FAB at expanded morph |
 | Hosts | Desktop + Android hide-on-collapse Create (~188); Menu ☰ / scrim / FAB click still show/hide |
 | Inventory | Rail notes hideOnCollapse always-extended Create (~188) |
-| Tests | Hide extend attr; demo flag; `fab_morph_hide` 188 / Create; desktop Create 188 |
+| Tests | Hide extend attr; demo flag; `fab_morph_hide` 188 / Create; desktop Create 188. IME attach tests serialize on `ATTACH_TEST_LOCK` so parallel `cargo test -p gpui_android` stays green |
 
 Host tests (this VM): **35** `gpui_material`, **17** `gpui_android`, **1** `material_desktop_demo`. `scripts/test.sh` OK. Android crate is `cfg(target_os = "android")`.
 
