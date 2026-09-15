@@ -816,6 +816,7 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     view.setAttribute("data-search-morph", open ? "1" : "0");
     view.setAttribute("data-search-shared", "1");
     view.setAttribute("data-search-scale", open ? "1" : "0.94");
+    view.setAttribute("data-search-transform-origin", "top center");
     if (view.classList.contains("search-morph")) {{
       view.style.minHeight = open ? "320px" : "56px";
       view.style.borderRadius = open ? "0" : "28px";
@@ -1883,7 +1884,7 @@ fn chrome(theme: &Theme) -> String {
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
-  <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup">
+  <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0">
   <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
   </div>
 </div>"#,
@@ -1918,11 +1919,11 @@ fn progress_section(theme: &Theme) -> String {
     let detd = progress::loading_svg_d_for_wait(lsz, progress::DEMO_WAIT);
     let wait_frames = progress::loading_svg_values_for_wait(lsz, 8);
     let wait_ms = progress::determinate_wait_ms(theme);
-    let capd = progress::round_capped_arc_svg_d(
+    let capd = progress::ptr_arc_svg_d(
         circ_i.size_dp,
         circ_i.stroke_dp,
-        -90.0,
         circ_i.arc_deg,
+        0.0,
     );
     format!(
         r#"<h2>Progress</h2>
@@ -1955,7 +1956,7 @@ fn progress_section(theme: &Theme) -> String {
     </path>
   </svg>
   <svg width="{csz}" height="{csz}" viewBox="0 0 {csz} {csz}" aria-hidden="true">
-    <path d="{capd}" fill="{cind_fill}" data-linecap="{lcap}"/>
+    <path d="{capd}" fill="none" stroke="{cind_fill}" stroke-width="{csw}" stroke-linecap="round" data-linecap="{lcap}" data-progress-stroke="round"/>
   </svg>
   <div class="note">{llabel}</div>
 </div>
@@ -1988,6 +1989,7 @@ fn progress_section(theme: &Theme) -> String {
         plabel = progress::PTR_LABEL,
         csz = circ_i.size_dp,
         capd = capd,
+        csw = circ_i.stroke_dp,
         llabel = progress::LOADING_LABEL,
         detd = detd,
         detlabel = format!("{:.0}%", progress::DEMO_WAIT.fraction() * 100.0),
@@ -2513,7 +2515,7 @@ fn search_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Search</h2>
 <p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
+<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>

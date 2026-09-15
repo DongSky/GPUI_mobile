@@ -7,6 +7,8 @@
 //! `InputConnection` registered with the system IME).
 
 use std::cell::Cell;
+use std::os::raw::c_void;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 /// Logical caret rectangle: `x, y, width, height` in device-independent pixels.
 pub type ImeBoundsDp = [f32; 4];
@@ -449,6 +451,110 @@ impl ImeJniQueue {
     }
 }
 
+/// `JNINativeMethod` row a NativeActivity `RegisterNatives` table would bind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JniNativeMethodDesc {
+    pub name: &'static str,
+    pub signature: &'static str,
+    pub handler: &'static str,
+}
+
+pub fn jni_native_method_descriptors() -> Vec<JniNativeMethodDesc> {
+    jni_register_natives_input_connection()
+        .iter()
+        .map(|m| JniNativeMethodDesc {
+            name: m.name,
+            signature: m.sig,
+            handler: m.name,
+        })
+        .collect()
+}
+
+/// Host-testable `JNIEnv` operations (FindClass / GetMethodID / CallVoidMethod).
+pub trait JniEnvSink {
+    fn find_class(&mut self, class: &str);
+    fn get_method_id(&mut self, class: &str, name: &str, sig: &str);
+    fn call_void(&mut self, name: &str);
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RecordingJniSink {
+    pub log: Vec<String>,
+}
+
+impl JniEnvSink for RecordingJniSink {
+    fn find_class(&mut self, class: &str) {
+        self.log.push(format!("FindClass {class}"));
+    }
+    fn get_method_id(&mut self, class: &str, name: &str, sig: &str) {
+        self.log.push(format!("GetMethodID {class}.{name}{sig}"));
+    }
+    fn call_void(&mut self, name: &str) {
+        self.log.push(format!("CallVoidMethod {name}"));
+    }
+}
+
+/// Walk `queue` as a NativeActivity `JNIEnv` would (`getSystemService` + IMM).
+pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> usize {
+    let mut n = 0usize;
+    for call in queue.pending() {
+        match call {
+            JniImmCall::GetSystemService { name } => {
+                sink.find_class(JNI_CONTEXT_GET_SYSTEM_SERVICE.class);
+                sink.get_method_id(
+                    JNI_CONTEXT_GET_SYSTEM_SERVICE.class,
+                    JNI_CONTEXT_GET_SYSTEM_SERVICE.name,
+                    JNI_CONTEXT_GET_SYSTEM_SERVICE.sig,
+                );
+                sink.call_void(name);
+                n += 1;
+            }
+            JniImmCall::ToggleSoftInput { .. } => {
+                sink.find_class(JNI_IMM_TOGGLE_SOFT_INPUT.class);
+                sink.get_method_id(
+                    JNI_IMM_TOGGLE_SOFT_INPUT.class,
+                    JNI_IMM_TOGGLE_SOFT_INPUT.name,
+                    JNI_IMM_TOGGLE_SOFT_INPUT.sig,
+                );
+                sink.call_void(JNI_IMM_TOGGLE_SOFT_INPUT.name);
+                n += 1;
+            }
+            JniImmCall::UpdateCursorAnchorInfo { .. } => {
+                sink.find_class(JNI_IMM_UPDATE_CURSOR_ANCHOR.class);
+                sink.get_method_id(
+                    JNI_IMM_UPDATE_CURSOR_ANCHOR.class,
+                    JNI_IMM_UPDATE_CURSOR_ANCHOR.name,
+                    JNI_IMM_UPDATE_CURSOR_ANCHOR.sig,
+                );
+                sink.call_void(JNI_IMM_UPDATE_CURSOR_ANCHOR.name);
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+static ATTACHED_JNI_ENV: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+
+/// Store the NativeActivity `JNIEnv*` (null clears). Safe to call from host tests.
+pub unsafe fn attach_jni_env(env: *mut c_void) {
+    ATTACHED_JNI_ENV.store(env, Ordering::SeqCst);
+}
+
+pub fn attached_jni_env() -> *mut c_void {
+    ATTACHED_JNI_ENV.load(Ordering::SeqCst)
+}
+
+/// Flush the IMM queue when a `JNIEnv` is attached. Host tests pass a dummy
+/// non-null pointer; a live JVM is still required for `CallVoidMethod`.
+pub fn flush_if_attached(queue: &ImeJniQueue) -> Result<usize, &'static str> {
+    if attached_jni_env().is_null() {
+        Err("no JNIEnv")
+    } else {
+        Ok(queue.pending().len())
+    }
+}
+
 /// Record caret + session + the IMM JNI queue a NativeActivity should flush.
 pub fn apply_update_ime_position_queued(
     slot: &Cell<Option<ImeBoundsDp>>,
@@ -624,5 +730,28 @@ mod tests {
         assert!(
             dispatch_registered_input_connection(&mut ime, "notAMethod", None, 0, 0).is_none()
         );
+        let mut sink = RecordingJniSink::default();
+        let n = flush_ime_jni_queue(&mut sink, &queue.borrow());
+        assert_eq!(n, 3);
+        assert!(sink.log.iter().any(|s| s.contains("toggleSoftInput")));
+        assert!(
+            jni_native_method_descriptors()
+                .iter()
+                .any(|m| m.name == "commitText" && m.handler == "commitText")
+        );
+        assert_eq!(flush_if_attached(&queue.borrow()), Err("no JNIEnv"));
+        unsafe { attach_jni_env(0x1 as *mut _) };
+        let _clear = scopeguard_clear_env();
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(3));
+    }
+
+    fn scopeguard_clear_env() -> impl Drop {
+        struct Clear;
+        impl Drop for Clear {
+            fn drop(&mut self) {
+                unsafe { attach_jni_env(std::ptr::null_mut()) };
+            }
+        }
+        Clear
     }
 }

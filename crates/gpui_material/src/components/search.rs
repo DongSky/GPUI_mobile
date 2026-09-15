@@ -258,6 +258,30 @@ pub fn morph_scale_attr(frame: MorphFrame) -> String {
     format!("{:.2}", frame.scale)
 }
 
+/// CSS / GPUI layer transform for the shared-element search container.
+/// GPUI `div` still has no element transform; hosts use `morph_scaled_margin_dp`
+/// plus this scale. HTML applies `transform` with `top center` origin.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MorphLayerTransform {
+    pub scale: f32,
+    pub origin_x_frac: f32,
+    pub origin_y_frac: f32,
+}
+
+pub const TRANSFORM_ORIGIN: &str = "top center";
+
+pub fn morph_layer_transform(frame: MorphFrame) -> MorphLayerTransform {
+    MorphLayerTransform {
+        scale: frame.scale,
+        origin_x_frac: 0.5,
+        origin_y_frac: 0.0,
+    }
+}
+
+pub fn morph_layer_css(frame: MorphFrame) -> String {
+    format!("scale({:.2})", frame.scale)
+}
+
 /// Container fill lerp: docked `surface-container-high` → activity `surface`.
 pub fn morph_container(theme: &Theme, t: f32) -> crate::argb::Argb {
     theme

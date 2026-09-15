@@ -53,4 +53,4 @@ Host tests: `gpui_material` **26**, `gpui_android` **16** (JNI IMM queue + Regis
 
 ## v13 leftovers
 
-See `docs/qa/v12_leftovers.md`.
+v13 landed on `main`. See `docs/qa/v13_leftovers.md`.

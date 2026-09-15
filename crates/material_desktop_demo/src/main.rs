@@ -112,6 +112,30 @@ fn stroke_round(width: f32) -> PathBuilder {
     ))
 }
 
+fn paint_round_polyline(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    pts: &[(f32, f32)],
+    stroke: f32,
+    color: gpui::Rgba,
+) {
+    if pts.len() < 2 {
+        return;
+    }
+    let mut builder = stroke_round(stroke);
+    for (i, (x, y)) in pts.iter().enumerate() {
+        let p = point(origin.x + px(*x), origin.y + px(*y));
+        if i == 0 {
+            builder.move_to(p);
+        } else {
+            builder.line_to(p);
+        }
+    }
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
+}
+
 fn paint_filled_polygon(
     window: &mut Window,
     origin: gpui::Point<gpui::Pixels>,
@@ -2733,13 +2757,14 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                                     canvas(
                                         move |_, _, _| {},
                                         move |bounds, _, window, _| {
-                                            let sausage = progress::ptr_arc_fill(
+                                            let pts = progress::ptr_arc_polyline(
                                                 cap_size, cap_stroke, cap_arc, delta,
                                             );
-                                            paint_filled_polygon(
+                                            paint_round_polyline(
                                                 window,
                                                 bounds.origin,
-                                                &sausage,
+                                                &pts,
+                                                cap_stroke,
                                                 cap_color,
                                             );
                                         },

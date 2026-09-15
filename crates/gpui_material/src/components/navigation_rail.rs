@@ -170,6 +170,30 @@ pub fn rail_chrome_attr(mode: RailMode) -> &'static str {
     }
 }
 
+/// Desktop `WindowKind::PopUp` spec. NativeActivity cannot open a second OS window.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OsPopupSpec {
+    pub kind: &'static str,
+    pub width_dp: f32,
+    pub supported_on_android: bool,
+}
+
+pub fn os_popup_spec(mode: RailMode) -> OsPopupSpec {
+    OsPopupSpec {
+        kind: POPUP_WINDOW_KIND,
+        width_dp: if is_modal(mode) {
+            EXPANDED_WIDTH_DP
+        } else {
+            WIDTH_DP
+        },
+        supported_on_android: false,
+    }
+}
+
+pub fn os_popup_attr() -> &'static str {
+    "0"
+}
+
 pub fn is_active(selected: usize, index: usize) -> bool {
     selected == index
 }

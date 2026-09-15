@@ -388,5 +388,6 @@ impl PlatformWindow for AndroidWindow {
             f32::from(bounds.size.width),
             f32::from(bounds.size.height),
         );
+        let _ = crate::ime::flush_if_attached(&self.inner.pending_jni.borrow());
     }
 }

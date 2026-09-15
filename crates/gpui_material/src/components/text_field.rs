@@ -34,17 +34,28 @@ pub const NOTCH_START_DP: f32 = 8.0;
 /// actually interrupted, not just a label drawn on top of a full stroke.
 /// Wide letters (`m`, `w`, `@`) use a larger advance so the stroke does not
 /// sliver under the floating legend.
-pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
-    let mut units = 0.0_f32;
-    for ch in label.chars() {
-        units += match ch {
-            'm' | 'M' | 'w' | 'W' | '@' => 0.96,
-            'i' | 'l' | 'j' | 'I' | '.' | ',' | '\'' | '|' => 0.32,
-            'f' | 't' | 'r' | 's' => 0.42,
-            _ => 0.58,
-        };
+pub fn roboto_advance_em(ch: char) -> f32 {
+    match ch {
+        'm' | 'M' | 'w' | 'W' | '@' => 0.96,
+        'i' | 'l' | 'j' | 'I' | '.' | ',' | '\'' | '|' => 0.32,
+        'f' | 't' | 'r' | 's' => 0.42,
+        'A'..='Z' => 0.66,
+        _ => 0.58,
     }
-    (units * label_size_sp + NOTCH_PAD_DP * 2.0 + NOTCH_WIDTH_SAFETY_DP).max(28.0)
+}
+
+/// Measured (or Roboto-estimated) label width in dp at `size_sp`.
+pub fn measured_label_width_dp(label: &str, size_sp: f32) -> f32 {
+    label.chars().map(roboto_advance_em).sum::<f32>() * size_sp
+}
+
+/// Notch cutout from a host-measured floating-label width (GPUI text layout).
+pub fn notch_width_from_measured_dp(measured_label_dp: f32) -> f32 {
+    (measured_label_dp + NOTCH_PAD_DP * 2.0 + NOTCH_WIDTH_SAFETY_DP).max(28.0)
+}
+
+pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
+    notch_width_from_measured_dp(measured_label_width_dp(label, label_size_sp))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

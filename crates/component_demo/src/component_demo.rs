@@ -102,6 +102,30 @@ fn stroke_round(width: f32) -> PathBuilder {
     ))
 }
 
+fn paint_round_polyline(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    pts: &[(f32, f32)],
+    stroke: f32,
+    color: gpui::Rgba,
+) {
+    if pts.len() < 2 {
+        return;
+    }
+    let mut builder = stroke_round(stroke);
+    for (i, (x, y)) in pts.iter().enumerate() {
+        let p = point(origin.x + px(*x), origin.y + px(*y));
+        if i == 0 {
+            builder.move_to(p);
+        } else {
+            builder.line_to(p);
+        }
+    }
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
+}
+
 fn paint_filled_polygon(
     window: &mut Window,
     origin: gpui::Point<gpui::Pixels>,
@@ -1801,6 +1825,42 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                         .text_color(paint(theme.color.on_surface_variant))
                         .child(progress::PTR_LABEL),
                 )
+                .child({
+                    let circ = progress::circular_indeterminate(theme);
+                    let cap_size = circ.size_dp;
+                    let cap_stroke = circ.stroke_dp;
+                    let cap_arc = circ.arc_deg;
+                    let cap_color = paint(circ.indicator);
+                    let cap_dur = circ.duration_ms as u64;
+                    div()
+                        .w(px(cap_size))
+                        .h(px(cap_size))
+                        .with_animation(
+                            "android-circ-cap",
+                            Animation::new(Duration::from_millis(cap_dur)).repeat(),
+                            move |this, delta| {
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let pts = progress::ptr_arc_polyline(
+                                                cap_size, cap_stroke, cap_arc, delta,
+                                            );
+                                            paint_round_polyline(
+                                                window,
+                                                bounds.origin,
+                                                &pts,
+                                                cap_stroke,
+                                                cap_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(cap_size))
+                                    .h(px(cap_size)),
+                                )
+                            },
+                        )
+                })
                 .child({
                     let det_size = progress::LOADING_SIZE_DP;
                     let det_color = paint(progress::loading_indicator(theme).indicator);
