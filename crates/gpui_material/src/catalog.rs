@@ -1,10 +1,10 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
-    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
-    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
-    time_picker, toolbar, tooltip, top_app_bar, Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip,
+    date_picker, dialog, divider, fab, fab_menu, icon_button, list, menu, navigation_bar,
+    navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar,
+    split_button, switch, tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -394,6 +394,10 @@ a {{ color: var(--primary); }}
   transition: border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
 .chip .chip-ico {{ width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }}
+.menu-anchor-stage {{
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  position: relative; min-width: 360px; padding: 24px;
+}}
 .card-demo {{
   width: 220px; min-height: 88px; border-radius: 12px; padding: 16px;
   flex-direction: column; align-items: flex-start; justify-content: center;
@@ -680,7 +684,7 @@ table.inv th {{ font-weight: 500; }}
 .menu-cascade[data-open="0"] .menu-flyout {{ display: none; }}
 .menu-overlay {{
   display: flex; flex-direction: row; align-items: flex-end; gap: 4px;
-  position: relative; min-width: 360px; padding: 24px; border-radius: 16px;
+  position: relative; min-width: 280px;
 }}
 .menu-overlay[data-open="0"] .menu-flyout {{ display: none; }}
 .menu-flyout {{
@@ -3377,16 +3381,23 @@ fn paint_list_reorder(theme: &Theme) -> String {
 }
 
 fn paint_chip(theme: &Theme, demo: chip::ChipDemo, attrs: &str) -> String {
-    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
-    let lead = chip::leading_icon(demo.variant, demo.selected)
-        .map(|g| format!(r#"<span class="chip-ico" data-chip-lead="1">{g}</span>"#))
+    let a = chip::resolve_demo(theme, demo);
+    let ico = a.secondary_content.unwrap_or(a.content).css_hex();
+    let lead = chip::demo_leading_icon(demo)
+        .map(|g| {
+            format!(r#"<span class="chip-ico" data-chip-lead="1" style="color:{ico}">{g}</span>"#)
+        })
         .unwrap_or_default();
     let trail = chip::trailing_icon(demo.variant)
-        .map(|g| format!(r#"<span class="chip-ico" data-chip-trail="1">{g}</span>"#))
+        .map(|g| {
+            format!(r#"<span class="chip-ico" data-chip-trail="1" style="color:{ico}">{g}</span>"#)
+        })
         .unwrap_or_default();
     format!(
-        r#"<div class="chip" data-chip="{v}" data-chip-label="{label}" data-selected="{sel}" data-chip-state="{st}" data-chip-r="{r}" data-chip-morph="{morph}" {attrs} style="background:{bg};color:{fg};border:{bd};border-radius:{rad};padding-left:{ps}px;padding-right:{pe}px">{lead}{label}{trail}</div>"#,
+        r#"<div class="chip" data-chip="{v}" data-chip-label="{label}" data-chip-style="{style}" data-chip-elev="{elev}" data-selected="{sel}" data-chip-state="{st}" data-chip-r="{r}" data-chip-morph="{morph}" {attrs} style="background:{bg};color:{fg};border:{bd};border-radius:{rad};padding-left:{ps}px;padding-right:{pe}px;box-shadow:{sh}">{lead}{label}{trail}</div>"#,
         v = demo.variant.label(),
+        style = demo.color.label(),
+        elev = a.elevation_dp,
         label = demo.label,
         sel = demo.selected,
         st = demo.state.label(),
@@ -3398,21 +3409,36 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo, attrs: &str) -> String {
         rad = a.corners.css(),
         ps = a.pad_start_dp,
         pe = a.pad_end_dp,
+        sh = ElevationLevels::css_shadow(a.elevation_dp),
     )
 }
 
 fn chips(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Chips</h2><p class=\"note\">Expressive FilterChip / InputChip morph Compose <code>ChipShapes</code>: CornerMedium 12 rest, CornerFull selected, CornerSmall 8 pressed. Selected filter shows a leading check; input keeps a trailing close. Assist / suggestion stay 32dp full-round baseline. <a href=\"https://m3.material.io/components/chips/specs\">spec</a></p>",
+        "<h2>Chips</h2><p class=\"note\">Expressive FilterChip / InputChip morph Compose <code>ChipShapes</code>: CornerMedium 12 rest, CornerFull selected, CornerSmall 8 pressed. Flat filter is outlined (outline-variant). Tonal leading icons use on-surface-variant (<code>ChipsTokens.UnselectedLeadingIconColor</code>). ElevatedFilterChip is surface-container-low · elev 1 · no outline (<code>tonalElevatedFilterChipColors</code>). Selected filter shows a leading check; input keeps a trailing close. Assist / suggestion stay 32dp full-round baseline. <a href=\"https://m3.material.io/components/chips/specs\">spec</a></p>",
     );
     out.push_str("<div class=\"hero-card\" data-hero=\"chips\">");
     out.push_str("<div class=\"state-body\" data-chip-row=\"filter\">");
     for demo in chip::FILTER_HERO {
         out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="filter""#));
     }
+    out.push_str("</div><div class=\"state-body\" data-chip-row=\"tonal\">");
+    for demo in chip::TONAL_FILTER_HERO {
+        out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="tonal""#));
+    }
     out.push_str("</div><div class=\"state-body\" data-chip-row=\"input\">");
     for demo in chip::INPUT_HERO {
         out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="input""#));
+    }
+    out.push_str("</div></div>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"chips-elevated\">");
+    out.push_str("<div class=\"state-body\" data-chip-row=\"elevated-hero\">");
+    for demo in chip::ELEVATED_FILTER_HERO {
+        out.push_str(&paint_chip(
+            theme,
+            demo,
+            r#"data-hero-chip="elevated" data-chip-elevated="1""#,
+        ));
     }
     out.push_str("</div></div>");
     out.push_str("<div class=\"state-body\">");
@@ -3423,6 +3449,7 @@ fn chips(theme: &Theme) -> String {
             }
             let demo = chip::ChipDemo {
                 variant,
+                color: chip::ChipColor::Flat,
                 label: if selected {
                     match variant {
                         chip::ChipVariant::Filter => "filter · selected",
@@ -3435,6 +3462,7 @@ fn chips(theme: &Theme) -> String {
                 },
                 selected,
                 state: InteractionState::Enabled,
+                leading: None,
             };
             out.push_str(&paint_chip(theme, demo, r#"data-chip-matrix="1""#));
         }
@@ -4438,19 +4466,27 @@ fn paint_submenu_cascade(theme: &Theme) -> String {
 
 fn paint_overlay_menu(theme: &Theme) -> String {
     let scheme = menu::MenuScheme::Standard;
-    let scrim = theme
-        .color
-        .scrim
-        .with_alpha(0.32)
-        .composite_over(theme.color.surface);
+    let anchor = button::resolve(
+        theme,
+        button::ButtonVariant::Tonal,
+        InteractionState::Enabled,
+    );
     format!(
-        r#"<div class="menu-overlay" data-hero="menu-overlay" data-menu-overlay="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-overlay-flyout="1" style="gap:{gap}px;background:{bg}">
+        r#"<div class="menu-anchor-stage" data-hero="menu-overlay" data-menu-overlay-stage="1" data-scrim="{scrim}" data-anchored="1">
+  <button class="btn" data-menu-anchor="1" data-menu-anchor-label="{label}" style="background:{abg};color:{afg};border:none;min-width:64px;height:{ah}px;padding:0 16px;border-radius:{ar}px;font-size:14px">{label}</button>
+  <div class="menu-overlay" data-hero="menu-overlay" data-menu-overlay="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-overlay-flyout="1" data-anchored="1" data-scrim="{scrim}" style="gap:{gap}px">
   {parent}
   {flyout}
+</div>
 </div>"#,
         open = if menu::OVERLAY_FLYOUT_OPEN { "1" } else { "0" },
         gap = menu::SUBMENU_GAP_DP,
-        bg = scrim.css_hex(),
+        scrim = if menu::OVERLAY_USES_SCRIM { "1" } else { "0" },
+        label = menu::OVERLAY_ANCHOR_LABEL,
+        abg = anchor.container.css_hex(),
+        afg = anchor.content.css_hex(),
+        ah = anchor.height_dp,
+        ar = anchor.corners.top_left,
         parent = paint_vertical_menu_focus(
             theme,
             scheme,
@@ -4520,7 +4556,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus start as grouped surfaces; More hover/click opens the End flyout (does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; More hover/click opens the End flyout (does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}
@@ -4534,7 +4570,7 @@ fn menus(theme: &Theme) -> String {
 <div class="hero-card" data-hero="menu-submenu">
   {cascade}
 </div>
-<div class="hero-card" data-hero="menu-overlay">
+<div class="hero-card">
   {overlay}
 </div>"#,
         standard = paint_vertical_menu(theme, menu::MenuScheme::Standard),

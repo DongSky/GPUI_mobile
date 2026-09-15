@@ -1,20 +1,21 @@
 //! Golden tests against androidx Material 3 token values (v0_210 palette / type scale).
 
+use gpui_material::Argb;
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
-    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
+    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress,
+    radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
+    time_picker, toolbar, tooltip, top_app_bar,
 };
-use gpui_material::inventory::{Parity, INVENTORY};
+use gpui_material::inventory::{INVENTORY, Parity};
 use gpui_material::motion;
 use gpui_material::palette;
 use gpui_material::state::{
-    InteractionState, DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY,
-    HOVER_OPACITY, PRESSED_OPACITY,
+    DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY, HOVER_OPACITY,
+    InteractionState, PRESSED_OPACITY,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
-use gpui_material::Argb;
 
 fn hex(c: Argb) -> String {
     c.css_hex()
@@ -289,10 +290,7 @@ fn text_field_metrics_and_error_focus() {
     assert!(d.contains(" A"));
     assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
-    assert!(
-        text_field::notch_width_dp("WWW", 12.0)
-            > text_field::notch_width_dp("iii", 12.0)
-    );
+    assert!(text_field::notch_width_dp("WWW", 12.0) > text_field::notch_width_dp("iii", 12.0));
     assert!(text_field::notch_width_dp("@gmail", 12.0) >= 28.0 + text_field::NOTCH_WIDTH_SAFETY_DP);
     assert!(
         (text_field::notch_width_from_measured_dp(40.0)
@@ -303,7 +301,10 @@ fn text_field_metrics_and_error_focus() {
     let from_layout = text_field::notch_frame_from_layout("Email", &focused, 40.0);
     assert!((from_layout.width_dp - text_field::notch_width_from_measured_dp(40.0)).abs() < 1e-5);
     let fallback = text_field::notch_frame_from_layout("Email", &focused, 0.0);
-    assert_eq!(fallback.width_dp, text_field::notch_frame("Email", &focused).width_dp);
+    assert_eq!(
+        fallback.width_dp,
+        text_field::notch_frame("Email", &focused).width_dp
+    );
     assert!(text_field::roboto_advance_em('W') > text_field::roboto_advance_em('i'));
 
     let error = text_field::resolve(
@@ -822,6 +823,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"menu-overlay\""));
     assert!(html.contains("data-menu-overlay=\"1\""));
     assert!(html.contains("data-overlay-flyout=\"1\""));
+    assert!(html.contains("data-menu-anchor-label=\"Menu\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
     assert!(html.contains("data-hero=\"slider\""));
     assert!(html.contains("data-hero=\"buttons\""));
@@ -843,18 +845,30 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-icon-width-w=\"48\""));
     assert!(html.contains("data-icon-width-w=\"72\""));
     assert!(html.contains("data-hero=\"chips\""));
+    assert!(html.contains("data-hero=\"chips-elevated\""));
     assert!(html.contains("data-chip-morph=\"1\""));
     assert!(html.contains("data-hero-chip=\"filter\""));
+    assert!(html.contains("data-hero-chip=\"tonal\""));
+    assert!(html.contains("data-hero-chip=\"elevated\""));
     assert!(html.contains("data-hero-chip=\"input\""));
+    assert!(html.contains("data-chip-style=\"flat\""));
+    assert!(html.contains("data-chip-style=\"tonal\""));
+    assert!(html.contains("data-chip-style=\"tonal-elevated\""));
+    assert!(html.contains("data-chip-elev=\"1\""));
     assert!(html.contains("data-chip-label=\"Elevator\""));
     assert!(html.contains("data-chip-label=\"Washer\""));
     assert!(html.contains("data-chip-label=\"Pets\""));
+    assert!(html.contains("data-chip-label=\"Wifi\""));
     assert!(html.contains("data-chip-label=\"Portland\""));
     assert!(html.contains("data-chip-r=\"12\""));
     assert!(html.contains("data-chip-r=\"16\""));
     assert!(html.contains("data-chip-r=\"8\""));
     assert!(html.contains("data-chip-lead=\"1\""));
     assert!(html.contains("data-chip-trail=\"1\""));
+    assert!(html.contains("data-menu-anchor=\"1\""));
+    assert!(html.contains("data-anchored=\"1\""));
+    assert!(html.contains("data-scrim=\"0\""));
+    assert!(html.contains("data-menu-overlay-stage=\"1\""));
     assert!(html.contains("data-hero=\"icon-buttons-toggle\""));
     assert!(html.contains("data-icon-toggle=\"unselected\""));
     assert!(html.contains("data-icon-toggle=\"selected\""));
@@ -936,18 +950,22 @@ fn inventory_covers_claimed_and_followups() {
     assert!(INVENTORY.iter().any(|e| {
         e.name == "List" && e.parity == Parity::Done && e.notes.contains("segmented")
     }));
-    assert!(INVENTORY.iter().any(|e| {
-        e.name == "List" && e.notes.contains("swipe") && e.notes.contains("reorder")
-    }));
+    assert!(
+        INVENTORY.iter().any(|e| {
+            e.name == "List" && e.notes.contains("swipe") && e.notes.contains("reorder")
+        })
+    );
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Button group"
             && e.notes.contains("Standard")
             && e.notes.contains("0.15")
             && e.notes.contains("OverflowIndicator")
     }));
-    assert!(INVENTORY.iter().any(|e| {
-        e.name == "Tooltip" && e.notes.contains("long-press")
-    }));
+    assert!(
+        INVENTORY
+            .iter()
+            .any(|e| { e.name == "Tooltip" && e.notes.contains("long-press") })
+    );
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Icon button"
             && e.notes.contains("narrow")
@@ -960,6 +978,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ChipShapes")
             && e.notes.contains("12/16/8")
             && e.notes.contains("check")
+            && e.notes.contains("ElevatedFilterChip")
+            && e.notes.contains("tonal")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Navigation rail"
@@ -975,16 +995,23 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("typeahead")
             && e.notes.contains("overlay")
             && e.notes.contains("More")
+            && e.notes.contains("unscrimmed")
     }));
-    assert!(!INVENTORY
-        .iter()
-        .any(|e| e.notes.contains("intentionally not") || e.notes.contains("skip Expressive")));
-    assert!(INVENTORY
-        .iter()
-        .any(|e| e.name == "Button" && e.parity == Parity::Done));
-    assert!(INVENTORY
-        .iter()
-        .any(|e| e.name == "Text field" && e.parity == Parity::Done));
+    assert!(
+        !INVENTORY
+            .iter()
+            .any(|e| e.notes.contains("intentionally not") || e.notes.contains("skip Expressive"))
+    );
+    assert!(
+        INVENTORY
+            .iter()
+            .any(|e| e.name == "Button" && e.parity == Parity::Done)
+    );
+    assert!(
+        INVENTORY
+            .iter()
+            .any(|e| e.name == "Text field" && e.parity == Parity::Done)
+    );
     for required in [
         "Dialog",
         "Bottom sheet",
@@ -1030,7 +1057,10 @@ fn dialog_sheet_menu_tokens() {
     assert_eq!(d.min_width_dp, 280.0);
     assert_eq!(dialog::RESET_ACCOUNTS.len(), 3);
     assert!(dialog::RESET_SUPPORTING.contains("The following accounts"));
-    assert_eq!(dialog::account_initials("leevilanuevanotes@google.com"), "L");
+    assert_eq!(
+        dialog::account_initials("leevilanuevanotes@google.com"),
+        "L"
+    );
     let fs = dialog::resolve_fullscreen(&theme);
     assert_eq!(fs.corners.top_left, 0.0);
     assert_eq!(fs.header_h_dp, 64.0);
@@ -1080,7 +1110,10 @@ fn expressive_menu_tokens() {
     assert_eq!(menu::HORIZONTAL_LABELS[menu::HORIZONTAL_SELECTED], "Week");
     assert_eq!(menu::VERTICAL_GROUPS.len(), 3);
     assert_eq!(menu::EDIT_ITEMS[0].shortcut, "⌘X");
-    assert_eq!(menu::trailing_text(&menu::MORE_ITEMS[0]), menu::SUBMENU_CHEVRON);
+    assert_eq!(
+        menu::trailing_text(&menu::MORE_ITEMS[0]),
+        menu::SUBMENU_CHEVRON
+    );
 
     let standard = menu::resolve_container(&theme, menu::MenuScheme::Standard);
     assert_eq!(standard.container, theme.color.surface_container_low);
@@ -1152,13 +1185,7 @@ fn expressive_menu_tokens() {
     );
     assert_eq!(day.corners.top_left, 4.0);
 
-    let icon_on = menu::resolve_horizontal_icon(
-        &theme,
-        menu::MenuScheme::Standard,
-        1,
-        3,
-        true,
-    );
+    let icon_on = menu::resolve_horizontal_icon(&theme, menu::MenuScheme::Standard, 1, 3, true);
     assert_eq!(icon_on.height_dp, 52.0);
     assert_eq!(icon_on.corners.top_left, 999.0);
 }
@@ -1280,7 +1307,10 @@ fn expressive_chip_tokens() {
         chip::leading_icon(chip::ChipVariant::Filter, true),
         Some(chip::CHECK_GLYPH)
     );
-    assert_eq!(chip::trailing_icon(chip::ChipVariant::Input), Some(chip::CLOSE_GLYPH));
+    assert_eq!(
+        chip::trailing_icon(chip::ChipVariant::Input),
+        Some(chip::CLOSE_GLYPH)
+    );
 
     let filter_off = chip::resolve(
         &theme,
@@ -1289,7 +1319,9 @@ fn expressive_chip_tokens() {
         InteractionState::Enabled,
     );
     assert_eq!(filter_off.corners.top_left, theme.shapes.medium);
-    assert_eq!(filter_off.outline, Some((theme.color.outline, 1.0)));
+    assert_eq!(filter_off.outline, Some((theme.color.outline_variant, 1.0)));
+    assert_eq!(filter_off.content, theme.color.on_surface_variant);
+    assert_eq!(filter_off.elevation_dp, 0.0);
     assert_eq!(filter_off.pad_start_dp, chip::PAD_H_DP);
 
     let filter_on = chip::resolve(
@@ -1320,6 +1352,10 @@ fn expressive_chip_tokens() {
     );
     assert_eq!(input_off.corners.top_left, theme.shapes.medium);
     assert_eq!(input_off.pad_end_dp, chip::TRAILING_PAD_END_DP);
+    assert_eq!(
+        input_off.secondary_content,
+        Some(theme.color.on_surface_variant)
+    );
 
     let input_on = chip::resolve(
         &theme,
@@ -1344,6 +1380,52 @@ fn expressive_chip_tokens() {
         InteractionState::Enabled,
     );
     assert_eq!(suggestion.corners.top_left, 16.0);
+
+    assert_eq!(chip::ChipColor::TonalElevated.label(), "tonal-elevated");
+    assert!(chip::ChipColor::Tonal.tonal());
+    assert!(chip::ChipColor::TonalElevated.elevated());
+    assert_eq!(chip::ELEVATED_DP, 1.0);
+    assert_eq!(chip::ELEVATED_FILTER_HERO[0].label, "Elevator");
+    assert_eq!(
+        chip::ELEVATED_FILTER_HERO[0].color,
+        chip::ChipColor::TonalElevated
+    );
+    assert_eq!(
+        chip::demo_leading_icon(chip::ELEVATED_FILTER_HERO[0]),
+        Some(chip::LEADING_GLYPH)
+    );
+    assert_eq!(
+        chip::demo_leading_icon(chip::ELEVATED_FILTER_HERO[1]),
+        Some(chip::CHECK_GLYPH)
+    );
+    let elev_off = chip::resolve_demo(&theme, chip::ELEVATED_FILTER_HERO[0]);
+    assert_eq!(elev_off.container, theme.color.surface_container_low);
+    assert_eq!(elev_off.content, theme.color.on_surface_variant);
+    assert_eq!(elev_off.outline, None);
+    assert_eq!(elev_off.elevation_dp, chip::ELEVATED_DP);
+    assert_eq!(
+        elev_off.secondary_content,
+        Some(theme.color.on_surface_variant)
+    );
+    assert_eq!(elev_off.pad_start_dp, chip::LEADING_PAD_START_DP);
+    let elev_on = chip::resolve_demo(&theme, chip::ELEVATED_FILTER_HERO[1]);
+    assert_eq!(elev_on.container, theme.color.secondary_container);
+    assert_eq!(elev_on.elevation_dp, chip::ELEVATED_DP);
+    assert_eq!(
+        elev_on.secondary_content,
+        Some(theme.color.on_secondary_container)
+    );
+    let tonal_off = chip::resolve_demo(&theme, chip::TONAL_FILTER_HERO[0]);
+    assert_eq!(tonal_off.outline, Some((theme.color.outline_variant, 1.0)));
+    assert_eq!(tonal_off.elevation_dp, 0.0);
+    assert_eq!(
+        tonal_off.secondary_content,
+        Some(theme.color.on_surface_variant)
+    );
+    let flat_lead = chip::leading_icon_color(&theme, chip::ChipColor::Flat, false);
+    assert_eq!(flat_lead, theme.color.primary);
+    assert!(!menu::OVERLAY_USES_SCRIM);
+    assert_eq!(menu::OVERLAY_ANCHOR_LABEL, "Menu");
 }
 
 #[test]
@@ -1573,7 +1655,10 @@ fn desktop_type_fallbacks_keep_word_gaps() {
     assert_eq!(typography::FONT_FAMILY_DESKTOP, "Liberation Sans");
     assert_eq!(typography::words("Call volume"), vec!["Call", "volume"]);
     assert_eq!(typography::WORD_GAP_DP, 6.0);
-    assert_eq!(typography::words("Reset settings?"), vec!["Reset", "settings?"]);
+    assert_eq!(
+        typography::words("Reset settings?"),
+        vec!["Reset", "settings?"]
+    );
     let family = typography::desktop_font_family();
     assert!(family == "Roboto" || family == "Liberation Sans");
 }
@@ -1650,8 +1735,14 @@ fn fab_menu_split_button_toolbar_tokens() {
 
     assert_eq!(split_button::GAP_DP, 2.0);
     assert_eq!(split_button::inner_rest_dp(button::ButtonSize::Small), 4.0);
-    assert_eq!(split_button::inner_pressed_dp(button::ButtonSize::Small), 12.0);
-    assert_eq!(split_button::trailing_icon_dp(button::ButtonSize::Small), 22.0);
+    assert_eq!(
+        split_button::inner_pressed_dp(button::ButtonSize::Small),
+        12.0
+    );
+    assert_eq!(
+        split_button::trailing_icon_dp(button::ButtonSize::Small),
+        22.0
+    );
     let lead = split_button::resolve_leading(
         &theme,
         split_button::SplitButtonVariant::Filled,
@@ -1753,7 +1844,10 @@ fn connected_button_group_tokens() {
     let std_idle = button_group::resolve_standard(&theme, 0, 3, false, false, Some(1));
     assert_eq!(std_idle.container, theme.color.secondary_container);
     assert_eq!(std_idle.corners.top_left, 20.0);
-    assert_eq!(button_group::STANDARD_OVERFLOW_ITEMS, ["Left", "Right", "Justify"]);
+    assert_eq!(
+        button_group::STANDARD_OVERFLOW_ITEMS,
+        ["Left", "Right", "Justify"]
+    );
     assert_eq!(
         button_group::STANDARD_OVERFLOW_GLYPH,
         button_group::OVERFLOW_GLYPH
@@ -2002,18 +2096,28 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(time_picker::select_hour(6, 9), 9);
     assert_eq!(time_picker::select_minute(30, 17), 15);
-    assert_eq!(time_picker::DEMO_PERIOD.toggle(), time_picker::DayPeriod::Am);
+    assert_eq!(
+        time_picker::DEMO_PERIOD.toggle(),
+        time_picker::DayPeriod::Am
+    );
     assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
     let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
-    assert!(x > 80.0 && x < 130.0, "12 should sit near top center, x={x}");
+    assert!(
+        x > 80.0 && x < 130.0,
+        "12 should sit near top center, x={x}"
+    );
     assert!(y < 20.0, "12 should sit near top, y={y}");
     let (mx, my) = time_picker::minute_offset(30, 256.0, 48.0);
     assert!(mx > 80.0 && mx < 130.0, "30 sits bottom-center-ish x={mx}");
     assert!(my > 180.0, "30 sits near bottom, y={my}");
-    assert!((time_picker::hand_angle_deg(time_picker::DialFace::Minute, 6, 30) - 180.0).abs() < 0.01);
+    assert!(
+        (time_picker::hand_angle_deg(time_picker::DialFace::Minute, 6, 30) - 180.0).abs() < 0.01
+    );
     let quad = time_picker::hand_quad(256.0, time_picker::DialFace::Minute, 6, 30, 48.0);
     assert_eq!(quad.len(), 4);
-    assert!(time_picker::hand_svg_d(256.0, time_picker::DialFace::Minute, 6, 30, 48.0).starts_with('M'));
+    assert!(
+        time_picker::hand_svg_d(256.0, time_picker::DialFace::Minute, 6, 30, 48.0).starts_with('M')
+    );
     let (s, _e) = slider::drag_thumb_snapped(0.2, 0.75, slider::RangeThumb::Start, 0.33);
     assert!((s - 0.35).abs() < 1e-5);
     assert!(slider::RANGE_SNAP_WHILE_DRAG);
@@ -2037,7 +2141,9 @@ fn search_bar_and_time_picker_tokens() {
         navigation_rail::resolve_mode(&theme, navigation_rail::RailMode::Expanded).width_dp,
         220.0
     );
-    assert!(navigation_rail::is_modal(navigation_rail::RailMode::Expanded));
+    assert!(navigation_rail::is_modal(
+        navigation_rail::RailMode::Expanded
+    ));
     assert!((search::morph_list_opacity(1.0) - 1.0).abs() < 1e-5);
     assert!((search::morph_back_opacity(1.0) - 1.0).abs() < 1e-5);
     assert!(search::morph_avatar_opacity(1.0).abs() < 1e-5);
@@ -2058,11 +2164,7 @@ fn search_bar_and_time_picker_tokens() {
     let [pre, post] = search::top_center_scale_translates(0.0, 0.0, 100.0);
     assert!((pre.0 + 50.0).abs() < 1e-5);
     assert_eq!(post.0, 50.0);
-    let layer_box = search::morph_layer_box(
-        search::MORPH_STAGE_W_DP,
-        docked.height_dp,
-        layer,
-    );
+    let layer_box = search::morph_layer_box(search::MORPH_STAGE_W_DP, docked.height_dp, layer);
     assert!((layer_box.height_dp - docked.height_dp * search::SHARED_SCALE_DOCKED).abs() < 0.02);
     assert!(layer_box.x_dp > 0.0);
     assert!((search::morph_layer_height_dp(grown) - grown.height_dp).abs() < 0.02);
@@ -2078,7 +2180,9 @@ fn search_bar_and_time_picker_tokens() {
     assert!((grown.leading_activity_opacity - 1.0).abs() < 1e-5);
     assert!(grown.leading_docked_opacity.abs() < 1e-5);
     assert_eq!(search::morph_container(&theme, 1.0), theme.color.surface);
-    assert!(navigation_rail::focus_trapped(navigation_rail::RailMode::Expanded));
+    assert!(navigation_rail::focus_trapped(
+        navigation_rail::RailMode::Expanded
+    ));
     assert!(navigation_rail::dismiss_on_scrim());
     assert_eq!(
         navigation_rail::modal_elevation_dp(&theme),
@@ -2086,10 +2190,8 @@ fn search_bar_and_time_picker_tokens() {
     );
     let win = text_field::ime_caret_rect_in_window(8.0, 16.0, 3, 16.0);
     assert_eq!(win.2, text_field::IME_CARET_W_DP);
-    let mut focused_ed = text_field::TextFieldEditor::new(
-        text_field::TextFieldVariant::Outlined,
-        "ab",
-    );
+    let mut focused_ed =
+        text_field::TextFieldEditor::new(text_field::TextFieldVariant::Outlined, "ab");
     focused_ed.set_focus(true);
     let cat = text_field::catalog_ime_from_focused(&focused_ed, 16.0).expect("focused caret");
     assert_eq!(cat.2, text_field::IME_CARET_W_DP);
@@ -2184,12 +2286,18 @@ fn search_bar_and_time_picker_tokens() {
     assert!(carousel::decay_velocity(10.0, 0.25) < 10.0);
     let paint = slider::range_paint(0.20, 0.75, 280.0, 4.0);
     assert!(paint.left < paint.end_handle);
-    assert!((paint.left + paint.handle_w + paint.active + paint.handle_w + paint.right - 280.0).abs() < 1.0);
+    assert!(
+        (paint.left + paint.handle_w + paint.active + paint.handle_w + paint.right - 280.0).abs()
+            < 1.0
+    );
     let pts = progress::ptr_arc_polyline(40.0, 4.0, 90.0, 0.25);
     assert!(pts.len() > 4);
     let caps = progress::ptr_cap_centers(40.0, 4.0, 90.0, 0.25);
     assert_eq!(caps.len(), 2);
-    assert_eq!(progress::clock_ms(&theme), theme.motion.effects_default_ms * 6);
+    assert_eq!(
+        progress::clock_ms(&theme),
+        theme.motion.effects_default_ms * 6
+    );
     assert_eq!(progress::LOADING_LABEL, "Loading");
     let morph = progress::loading_polygon(progress::LOADING_SIZE_DP, 0.3);
     assert_eq!(morph.len(), progress::LOADING_SAMPLES);
@@ -2208,7 +2316,10 @@ fn search_bar_and_time_picker_tokens() {
     physics.impulse_items(2);
     let landed = physics.step_until_rest(1.0 / 60.0, 180);
     assert_eq!(landed, 2);
-    assert_eq!(carousel::apply_wheel(0, 96.0, 0.0), carousel::advance(0, carousel::inertial_steps(96.0, 0.0)));
+    assert_eq!(
+        carousel::apply_wheel(0, 96.0, 0.0),
+        carousel::advance(0, carousel::inertial_steps(96.0, 0.0))
+    );
     assert!((carousel::item_width_during_fling(0, 0, 0.0) - carousel::LARGE_W_DP).abs() < 0.01);
     assert!(carousel::item_width_during_fling(0, 0, 0.5) < carousel::LARGE_W_DP);
     assert!(carousel::item_width_during_fling(1, 0, 0.5) > carousel::SMALL_W_DP);
@@ -2218,12 +2329,18 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(snap.selected, 1);
     assert!(snap.resting());
     assert_eq!(carousel::FLING_FRAME_DT, gpui_material::motion::FRAME_DT);
-    assert_eq!(time_picker::SECOND_HAND_FRAME_MS, gpui_material::motion::FRAME_MS);
+    assert_eq!(
+        time_picker::SECOND_HAND_FRAME_MS,
+        gpui_material::motion::FRAME_MS
+    );
     assert!(progress::loading_svg_d(38.0, 0.0).starts_with('M'));
     assert!(progress::loading_svg_values(38.0, 4).contains(';'));
     let sausage = progress::round_capped_arc_polygon(48.0, 4.0, -90.0, 90.0);
     assert!(sausage.len() > 20);
-    assert_eq!(progress::contained_loading_indicator(&theme).contained, true);
+    assert_eq!(
+        progress::contained_loading_indicator(&theme).contained,
+        true
+    );
     assert_eq!(
         progress::contained_loading_indicator(&theme).container,
         theme.color.primary_container
@@ -2271,7 +2388,9 @@ fn search_bar_and_time_picker_tokens() {
     assert!(poly.iter().any(|(x, _)| (*x - notch_r).abs() < 2.0));
     let gap_mid = frame.start_dp + frame.width_dp * 0.5;
     assert!(
-        !poly.iter().any(|(x, y)| (*x - gap_mid).abs() < 6.0 && *y < 0.4),
+        !poly
+            .iter()
+            .any(|(x, y)| (*x - gap_mid).abs() < 6.0 && *y < 0.4),
         "C-path must leave the legend gap open on the top edge"
     );
     let [c1, _, to] = gpui_material::shape::rounded_polygon_quarter(
@@ -2286,7 +2405,9 @@ fn search_bar_and_time_picker_tokens() {
     assert!((wait.fraction() - 0.65).abs() < 1e-5);
     assert_eq!(progress::DEMO_WAIT.fraction(), wait.fraction());
     assert_eq!(progress::LINE_CAP, "round");
-    assert!(navigation_rail::overlay_window(navigation_rail::RailMode::Expanded));
+    assert!(navigation_rail::overlay_window(
+        navigation_rail::RailMode::Expanded
+    ));
     assert_eq!(
         navigation_rail::rail_chrome(navigation_rail::RailMode::Expanded),
         navigation_rail::RailChrome::Popup
@@ -2343,7 +2464,11 @@ fn catalog_jpeg_decodes_for_scene_photos() {
     assert!(uri.starts_with("data:image/jpeg;base64,"));
     let mosaic = PhotoKind::Bloom.mosaic(8, 6);
     assert_eq!(mosaic.len(), 48);
-    assert!(PhotoKind::Mugs.css_background().contains("url('data:image/jpeg"));
+    assert!(
+        PhotoKind::Mugs
+            .css_background()
+            .contains("url('data:image/jpeg")
+    );
     for kind in PhotoKind::ALL {
         assert!(kind.is_licensed_camera(), "{}", kind.label());
         assert!(!kind.credit().license.is_empty());
@@ -2353,6 +2478,9 @@ fn catalog_jpeg_decodes_for_scene_photos() {
     assert_eq!(PhotoKind::Bloom.credit().license, "CC0");
     assert_eq!(PhotoKind::Bloom.credit().source, "commons");
     assert_eq!(PhotoKind::Basket.credit().license, "CC BY-SA 4.0");
-    assert_eq!(PhotoKind::PortraitCarmen.credit().license, "Unsplash License");
+    assert_eq!(
+        PhotoKind::PortraitCarmen.credit().license,
+        "Unsplash License"
+    );
     assert_eq!(PhotoKind::Lake.credit().license, "Public domain");
 }

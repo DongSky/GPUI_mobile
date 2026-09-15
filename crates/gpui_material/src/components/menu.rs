@@ -11,7 +11,7 @@
 
 use crate::argb::Argb;
 use crate::shape::Corners;
-use crate::state::{apply_state_layer, InteractionState};
+use crate::state::{InteractionState, apply_state_layer};
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
 
@@ -514,6 +514,12 @@ pub const MORE_INDEX: usize = STYLE_ITEMS.len() + EDIT_ITEMS.len();
 
 /// Overlay menus start as the grouped parent only; More opens the flyout.
 pub const OVERLAY_FLYOUT_OPEN: bool = false;
+/// Official dropdowns are popups next to an anchor — no 32% modal scrim.
+pub const OVERLAY_USES_SCRIM: bool = false;
+/// Catalog / host anchor label (split/overflow overflow glyph is separate).
+pub const OVERLAY_ANCHOR_LABEL: &str = "Menu";
+/// Gap between the anchor control and the grouped popup.
+pub const OVERLAY_ANCHOR_GAP_DP: f32 = 8.0;
 
 pub fn parent_item_count() -> usize {
     VERTICAL_GROUPS.iter().map(|group| group.len()).sum()

@@ -5,19 +5,20 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    black, canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
-    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    StrokeOptions, Styled, TextRun, Window,
+    Animation, AnimationExt, App, Application, Context, FillOptions, FillRule, FontWeight,
+    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
+    PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString, StrokeOptions,
+    Styled, TextRun, Window, black, canvas, div, point, px,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider, fab,
-    fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, slider,
-    side_sheet, snackbar, split_button, switch, tabs, text_field, toolbar, tooltip, top_app_bar, Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog,
+    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
+    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
+    toolbar, tooltip, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -38,22 +39,17 @@ fn paint(c: Argb) -> gpui::Rgba {
 
 fn photo_mosaic(kind: photo_stub::PhotoKind, cols: u32, rows: u32) -> impl IntoElement {
     let cells = std::rc::Rc::new(kind.mosaic(cols, rows));
-    div()
-        .size_full()
-        .flex()
-        .flex_col()
-        .children((0..rows).map({
-            let cells = cells.clone();
-            move |y| {
-                let start = (y * cols) as usize;
-                let row = cells[start..start + cols as usize].to_vec();
-                div()
-                    .flex()
-                    .flex_1()
-                    .w_full()
-                    .children(row.into_iter().map(|c| div().flex_1().h_full().bg(paint(c))))
-            }
-        }))
+    div().size_full().flex().flex_col().children((0..rows).map({
+        let cells = cells.clone();
+        move |y| {
+            let start = (y * cols) as usize;
+            let row = cells[start..start + cols as usize].to_vec();
+            div().flex().flex_1().w_full().children(
+                row.into_iter()
+                    .map(|c| div().flex_1().h_full().bg(paint(c))),
+            )
+        }
+    }))
 }
 
 fn photo_fill(kind: photo_stub::PhotoKind) -> impl IntoElement {
@@ -352,11 +348,8 @@ impl CatalogView {
     }
 
     fn bump_time_hand(&mut self) {
-        self.time_hand_from = time_picker::hand_angle_deg(
-            self.time_dial,
-            self.time_hour,
-            self.time_minute,
-        );
+        self.time_hand_from =
+            time_picker::hand_angle_deg(self.time_dial, self.time_hour, self.time_minute);
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
     }
 
@@ -460,15 +453,13 @@ impl Render for CatalogView {
                     })),
             );
 
+        let show_menu = matches!(self.overlay, Overlay::Menu);
         let body = match self.overlay {
-            Overlay::None => catalog_body(self, &theme, cx).into_any_element(),
+            Overlay::None | Overlay::Menu => catalog_body(self, &theme, cx).into_any_element(),
             Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
             Overlay::ListDialog => list_dialog_overlay(self, &theme, cx).into_any_element(),
-            Overlay::FullscreenDialog => {
-                fullscreen_dialog_overlay(&theme, cx).into_any_element()
-            }
+            Overlay::FullscreenDialog => fullscreen_dialog_overlay(&theme, cx).into_any_element(),
             Overlay::Sheet => sheet_overlay(&theme, cx).into_any_element(),
-            Overlay::Menu => menu_overlay(self, &theme, cx).into_any_element(),
         };
 
         let keyboard = self.field_focused().then(|| onscreen_keys(&theme, cx));
@@ -481,7 +472,17 @@ impl Render for CatalogView {
             .font_family("Roboto")
             .text_color(paint(c.on_background))
             .child(chrome)
-            .child(body)
+            .child(
+                div()
+                    .id("catalog-host")
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .w_full()
+                    .child(body)
+                    .when(show_menu, |el| el.child(menu_overlay(self, &theme, cx))),
+            )
             .children(keyboard)
             .child(
                 div()
@@ -1360,47 +1361,52 @@ fn list_dialog_overlay(
                         .text_color(paint(a.headline))
                         .child(dialog::RINGTONE_HEADLINE),
                 )
-                .children(dialog::RINGTONE_OPTIONS.iter().enumerate().map(|(i, label)| {
-                    let selected = this.ringtone == i;
-                    let r = radio::resolve(theme, selected, InteractionState::Enabled);
-                    div()
-                        .id(SharedString::from(format!("ringtone-{i}")))
-                        .w_full()
-                        .h(px(r.target_dp))
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child(
+                .children(
+                    dialog::RINGTONE_OPTIONS
+                        .iter()
+                        .enumerate()
+                        .map(|(i, label)| {
+                            let selected = this.ringtone == i;
+                            let r = radio::resolve(theme, selected, InteractionState::Enabled);
                             div()
-                                .text_size(px(theme.typography.body_large.size_sp))
-                                .text_color(paint(r.label))
-                                .child(*label),
-                        )
-                        .child(
-                            div()
-                                .w(px(r.outer_dp))
-                                .h(px(r.outer_dp))
-                                .rounded(px(r.outer_dp / 2.0))
-                                .border_2()
-                                .border_color(paint(r.ring))
+                                .id(SharedString::from(format!("ringtone-{i}")))
+                                .w_full()
+                                .h(px(r.target_dp))
                                 .flex()
                                 .items_center()
-                                .justify_center()
-                                .when(r.inner.is_some(), |el| {
-                                    el.child(
-                                        div()
-                                            .w(px(r.inner_dp))
-                                            .h(px(r.inner_dp))
-                                            .rounded(px(r.inner_dp / 2.0))
-                                            .bg(paint(r.inner.unwrap())),
-                                    )
-                                }),
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.ringtone = i;
-                            cx.notify();
-                        }))
-                }))
+                                .justify_between()
+                                .child(
+                                    div()
+                                        .text_size(px(theme.typography.body_large.size_sp))
+                                        .text_color(paint(r.label))
+                                        .child(*label),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(r.outer_dp))
+                                        .h(px(r.outer_dp))
+                                        .rounded(px(r.outer_dp / 2.0))
+                                        .border_2()
+                                        .border_color(paint(r.ring))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .when(r.inner.is_some(), |el| {
+                                            el.child(
+                                                div()
+                                                    .w(px(r.inner_dp))
+                                                    .h(px(r.inner_dp))
+                                                    .rounded(px(r.inner_dp / 2.0))
+                                                    .bg(paint(r.inner.unwrap())),
+                                            )
+                                        }),
+                                )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.ringtone = i;
+                                    cx.notify();
+                                }))
+                        }),
+                )
                 .child(
                     div()
                         .w_full()
@@ -1489,24 +1495,19 @@ fn fullscreen_dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> im
         .when(dialog::FULLSCREEN_HAS_DIVIDER, |el| {
             el.child(div().h(px(1.)).w_full().bg(paint(a.divider)))
         })
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(12.))
-                .p(px(24.))
-                .children(dialog::FULLSCREEN_FIELDS.iter().map(|label| {
-                    div()
-                        .h(px(56.))
-                        .px(px(16.))
-                        .rounded(px(4.))
-                        .bg(paint(field.field.container))
-                        .text_color(paint(a.supporting))
-                        .flex()
-                        .items_center()
-                        .child(*label)
-                })),
-        )
+        .child(div().flex().flex_col().gap(px(12.)).p(px(24.)).children(
+            dialog::FULLSCREEN_FIELDS.iter().map(|label| {
+                div()
+                    .h(px(56.))
+                    .px(px(16.))
+                    .rounded(px(4.))
+                    .bg(paint(field.field.container))
+                    .text_color(paint(a.supporting))
+                    .flex()
+                    .items_center()
+                    .child(*label)
+            }),
+        ))
 }
 
 fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoElement {
@@ -1567,9 +1568,11 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_between()
-                .children(fractions.into_iter().map(|frac| {
-                    slider_stop(slide, frac <= slide.value + 0.001)
-                })),
+                .children(
+                    fractions
+                        .into_iter()
+                        .map(|frac| slider_stop(slide, frac <= slide.value + 0.001)),
+                ),
         )
         .into_any_element()
 }
@@ -1579,23 +1582,15 @@ fn volume_slider_scene(
     media_value: f32,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    div()
-        .w_full()
-        .flex()
-        .flex_col()
-        .gap(px(8.))
-        .children(slider::OVERVIEW_ROWS.iter().copied().map(|row| {
+    div().w_full().flex().flex_col().gap(px(8.)).children(
+        slider::OVERVIEW_ROWS.iter().copied().map(|row| {
             let value = if row.label.starts_with("Media") {
                 media_value
             } else {
                 row.value
             };
-            let slide = slider::resolve_with_stops(
-                theme,
-                value,
-                InteractionState::Enabled,
-                row.stop_count,
-            );
+            let slide =
+                slider::resolve_with_stops(theme, value, InteractionState::Enabled, row.stop_count);
             let interactive = row.label.starts_with("Media");
             div()
                 .id(SharedString::from(row.label))
@@ -1636,7 +1631,8 @@ fn volume_slider_scene(
                         cx.notify();
                     }))
                 })
-        }))
+        }),
+    )
 }
 
 fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElement {
@@ -1661,14 +1657,19 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                 .flex_wrap()
                 .gap(px(4.))
                 .p(px(8.))
-                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, _caption)| {
-                    div()
-                        .w(px(104.))
-                        .h(px(bottom_sheet::PHOTO_TILE_H_DP * 0.7))
-                        .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(bottom_sheet::photo_kind(i)))
-                })),
+                .children(
+                    bottom_sheet::PHOTO_GRID
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _caption)| {
+                            div()
+                                .w(px(104.))
+                                .h(px(bottom_sheet::PHOTO_TILE_H_DP * 0.7))
+                                .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
+                                .overflow_hidden()
+                                .child(photo_fill(bottom_sheet::photo_kind(i)))
+                        }),
+                ),
         )
         .child(
             div()
@@ -1696,17 +1697,21 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                         .pb(px(8.))
                         .flex()
                         .justify_between()
-                        .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
-                            div()
-                                .w(px(56.))
-                                .flex()
-                                .flex_col()
-                                .items_center()
-                                .gap(px(4.))
-                                .text_color(paint(a.content))
-                                .child(*icon)
-                                .child(*label)
-                        })),
+                        .children(
+                            bottom_sheet::SHARE_ACTIONS
+                                .into_iter()
+                                .map(|(icon, label)| {
+                                    div()
+                                        .w(px(56.))
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .gap(px(4.))
+                                        .text_color(paint(a.content))
+                                        .child(*icon)
+                                        .child(*label)
+                                }),
+                        ),
                 )
                 .child(
                     div()
@@ -1732,7 +1737,7 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                                 .child(photo_avatar(person.photo, 40.0))
                                 .child(person.first)
                         })),
-                )
+                ),
         )
 }
 
@@ -2111,49 +2116,46 @@ fn android_horizontal_icons(theme: &Theme) -> impl IntoElement {
         .p(px(shell.pad_dp))
         .rounded(px(shell.corners.top_left))
         .bg(paint(shell.container))
-        .children(
-            menu::HORIZONTAL_ICONS
-                .iter()
-                .enumerate()
-                .map(|(i, glyph)| {
-                    let selected = i == menu::HORIZONTAL_ICON_SELECTED;
-                    let a = menu::resolve_horizontal_icon(
-                        theme,
-                        menu::MenuScheme::Standard,
-                        i,
-                        count,
-                        selected,
-                    );
-                    div()
-                        .w(px(a.height_dp))
-                        .h(px(a.height_dp))
-                        .rounded(px(a.corners.top_left))
-                        .bg(paint(a.container))
-                        .text_color(paint(a.label))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(*glyph)
-                }),
-        )
+        .children(menu::HORIZONTAL_ICONS.iter().enumerate().map(|(i, glyph)| {
+            let selected = i == menu::HORIZONTAL_ICON_SELECTED;
+            let a = menu::resolve_horizontal_icon(
+                theme,
+                menu::MenuScheme::Standard,
+                i,
+                count,
+                selected,
+            );
+            div()
+                .w(px(a.height_dp))
+                .h(px(a.height_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+                .text_color(paint(a.label))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(*glyph)
+        }))
 }
 
 fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
-    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
-    let lead = chip::leading_icon(demo.variant, demo.selected);
+    let a = chip::resolve_demo(theme, demo);
+    let lead = chip::demo_leading_icon(demo);
     let trail = chip::trailing_icon(demo.variant);
+    let ico = a.secondary_content.unwrap_or(a.content);
     div()
         .h(px(a.height_dp))
-        .px(px(a.pad_start_dp.min(a.pad_end_dp)))
+        .pl(px(a.pad_start_dp))
+        .pr(px(a.pad_end_dp))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .text_color(paint(a.content))
         .flex()
         .items_center()
         .gap(px(chip::ICON_GAP_DP))
+        .when(a.elevation_dp > 0.0, |el| el.shadow_sm())
         .when(a.outline.is_some(), |el| {
-            el.border_1()
-                .border_color(paint(a.outline.unwrap().0))
+            el.border_1().border_color(paint(a.outline.unwrap().0))
         })
         .children(lead.map(|g| {
             div()
@@ -2162,6 +2164,7 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_color(paint(ico))
                 .child(g)
         }))
         .child(demo.label)
@@ -2172,6 +2175,7 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_color(paint(ico))
                 .child(g)
         }))
 }
@@ -2187,7 +2191,35 @@ fn android_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(chip::FILTER_HERO.iter().map(|demo| paint_chip(theme, *demo))),
+                .children(
+                    chip::FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(
+                    chip::TONAL_FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(
+                    chip::ELEVATED_FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
         )
         .child(
             div()
@@ -2232,23 +2264,44 @@ fn menu_overlay(
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
+    let anchor = button::resolve(
+        theme,
+        button::ButtonVariant::Tonal,
+        InteractionState::Enabled,
+    );
     div()
-        .id("menu-scrim")
-        .flex_1()
-        .w_full()
-        .p(px(24.))
-        .bg(paint(
-            theme
-                .color
-                .scrim
-                .with_alpha(0.32)
-                .composite_over(theme.color.surface),
-        ))
+        .id("menu-popup-host")
+        .absolute()
+        .top(px(0.))
+        .left(px(0.))
+        .size_full()
         .on_click(cx.listener(|this, _, _, cx| {
             this.overlay = Overlay::None;
             cx.notify();
         }))
-        .child(android_live_cascade(this, theme, cx, true))
+        .child(
+            div()
+                .id("menu-anchored")
+                .absolute()
+                .top(px(8.))
+                .left(px(16.))
+                .flex()
+                .flex_col()
+                .gap(px(menu::OVERLAY_ANCHOR_GAP_DP))
+                .child(
+                    div()
+                        .id("menu-anchor")
+                        .h(px(anchor.height_dp))
+                        .px(px(16.))
+                        .rounded(px(anchor.corners.top_left))
+                        .bg(paint(anchor.container))
+                        .text_color(paint(anchor.content))
+                        .flex()
+                        .items_center()
+                        .child(menu::OVERLAY_ANCHOR_LABEL),
+                )
+                .child(android_live_cascade(this, theme, cx, true)),
+        )
 }
 
 fn android_mail_snack(
@@ -2282,11 +2335,7 @@ fn android_mail_snack(
         )
         .children(snackbar::MAIL_ROWS.iter().map(|row| {
             div()
-                .h(px(if row.peek {
-                    snackbar::PEEK_H_DP
-                } else {
-                    72.0
-                }))
+                .h(px(if row.peek { snackbar::PEEK_H_DP } else { 72.0 }))
                 .px(px(16.))
                 .overflow_hidden()
                 .flex()
@@ -2298,7 +2347,11 @@ fn android_mail_snack(
                         .flex_1()
                         .flex()
                         .flex_col()
-                        .child(div().text_color(paint(theme.color.on_surface)).child(row.from))
+                        .child(
+                            div()
+                                .text_color(paint(theme.color.on_surface))
+                                .child(row.from),
+                        )
                         .child(
                             div()
                                 .text_color(paint(theme.color.on_surface_variant))
@@ -2406,8 +2459,14 @@ fn android_nav_bars(theme: &Theme) -> impl IntoElement {
         .flex()
         .flex_col()
         .gap(px(12.))
-        .child(android_nav_row(&compact, navigation_bar::COMPACT_DESTS.as_slice()))
-        .child(android_nav_row(&medium, navigation_bar::MEDIUM_DESTS.as_slice()))
+        .child(android_nav_row(
+            &compact,
+            navigation_bar::COMPACT_DESTS.as_slice(),
+        ))
+        .child(android_nav_row(
+            &medium,
+            navigation_bar::MEDIUM_DESTS.as_slice(),
+        ))
 }
 
 fn android_nav_row(
@@ -2996,20 +3055,15 @@ fn android_side_sheet(theme: &Theme) -> impl IntoElement {
                 .child(side_sheet::STATUS_TIME)
                 .child("5G · 100%"),
         )
-        .child(
-            div()
-                .p(px(8.))
-                .flex()
-                .flex_wrap()
-                .gap(px(8.))
-                .children(side_sheet::SCENE_PHOTOS.iter().map(|kind| {
-                    div()
-                        .w(px(140.))
-                        .h(px(side_sheet::PHOTO_TILE_H_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(*kind))
-                })),
-        )
+        .child(div().p(px(8.)).flex().flex_wrap().gap(px(8.)).children(
+            side_sheet::SCENE_PHOTOS.iter().map(|kind| {
+                div()
+                    .w(px(140.))
+                    .h(px(side_sheet::PHOTO_TILE_H_DP))
+                    .overflow_hidden()
+                    .child(photo_fill(*kind))
+            }),
+        ))
         .child(
             div()
                 .absolute()
@@ -3050,11 +3104,7 @@ fn android_side_sheet(theme: &Theme) -> impl IntoElement {
                         .justify_between()
                         .items_center()
                         .child(*label)
-                        .child(
-                            div()
-                                .text_color(paint(a.supporting))
-                                .child(*value),
-                        )
+                        .child(div().text_color(paint(a.supporting)).child(*value))
                 }))
                 .child(
                     div()
@@ -3155,21 +3205,16 @@ fn android_media_scene(
                         }),
                 ),
         )
-        .child(
-            div()
-                .p(px(12.))
-                .flex()
-                .flex_wrap()
-                .gap(px(8.))
-                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
-                    div()
-                        .w(px(140.))
-                        .h(px(tabs::SCENE_TILE_H_DP * 0.8))
-                        .rounded(px(tabs::SCENE_TILE_CORNER_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(tabs::scene_tile_kind(i)))
-                })),
-        )
+        .child(div().p(px(12.)).flex().flex_wrap().gap(px(8.)).children(
+            tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
+                div()
+                    .w(px(140.))
+                    .h(px(tabs::SCENE_TILE_H_DP * 0.8))
+                    .rounded(px(tabs::SCENE_TILE_CORNER_DP))
+                    .overflow_hidden()
+                    .child(photo_fill(tabs::scene_tile_kind(i)))
+            }),
+        ))
 }
 
 fn tab_row(
@@ -3536,8 +3581,7 @@ fn m_button(
         .items_center()
         .justify_center()
         .when(a.container.a() > 0, |el| {
-            el.rounded(px(a.corners.top_left))
-                .bg(paint(a.container))
+            el.rounded(px(a.corners.top_left)).bg(paint(a.container))
         })
         .text_color(paint(a.content))
         .text_size(type_size(a.label_style))
@@ -3672,33 +3716,28 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(
-                            div()
-                                .w(px(shape_s))
-                                .h(px(shape_s))
-                                .with_animation(
-                                    "android-ptr-morph",
-                                    Animation::new(Duration::from_millis(dur)).repeat(),
-                                    move |this, delta| {
-                                        this.child(
-                                            canvas(
-                                                move |_, _, _| {},
-                                                move |bounds, _, window, _| {
-                                                    let pts = progress::loading_polygon(shape_s, delta);
-                                                    paint_filled_polygon(
-                                                        window,
-                                                        bounds.origin,
-                                                        &pts,
-                                                        ptr_color,
-                                                    );
-                                                },
-                                            )
-                                            .w(px(shape_s))
-                                            .h(px(shape_s)),
-                                        )
-                                    },
-                                ),
-                        )
+                        .child(div().w(px(shape_s)).h(px(shape_s)).with_animation(
+                            "android-ptr-morph",
+                            Animation::new(Duration::from_millis(dur)).repeat(),
+                            move |this, delta| {
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let pts = progress::loading_polygon(shape_s, delta);
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &pts,
+                                                ptr_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(shape_s))
+                                    .h(px(shape_s)),
+                                )
+                            },
+                        ))
                 })
                 .child(
                     div()
@@ -3713,34 +3752,31 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                     let cap_arc = circ.arc_deg;
                     let cap_color = paint(circ.indicator);
                     let cap_dur = circ.duration_ms as u64;
-                    div()
-                        .w(px(cap_size))
-                        .h(px(cap_size))
-                        .with_animation(
-                            "android-circ-cap",
-                            Animation::new(Duration::from_millis(cap_dur)).repeat(),
-                            move |this, delta| {
-                                this.child(
-                                    canvas(
-                                        move |_, _, _| {},
-                                        move |bounds, _, window, _| {
-                                            let pts = progress::ptr_arc_polyline(
-                                                cap_size, cap_stroke, cap_arc, delta,
-                                            );
-                                            paint_round_polyline(
-                                                window,
-                                                bounds.origin,
-                                                &pts,
-                                                cap_stroke,
-                                                cap_color,
-                                            );
-                                        },
-                                    )
-                                    .w(px(cap_size))
-                                    .h(px(cap_size)),
+                    div().w(px(cap_size)).h(px(cap_size)).with_animation(
+                        "android-circ-cap",
+                        Animation::new(Duration::from_millis(cap_dur)).repeat(),
+                        move |this, delta| {
+                            this.child(
+                                canvas(
+                                    move |_, _, _| {},
+                                    move |bounds, _, window, _| {
+                                        let pts = progress::ptr_arc_polyline(
+                                            cap_size, cap_stroke, cap_arc, delta,
+                                        );
+                                        paint_round_polyline(
+                                            window,
+                                            bounds.origin,
+                                            &pts,
+                                            cap_stroke,
+                                            cap_color,
+                                        );
+                                    },
                                 )
-                            },
-                        )
+                                .w(px(cap_size))
+                                .h(px(cap_size)),
+                            )
+                        },
+                    )
                 })
                 .child({
                     let det_size = progress::LOADING_SIZE_DP;
@@ -3751,34 +3787,29 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                         .flex()
                         .items_center()
                         .gap(px(8.))
-                        .child(
-                            div()
-                                .w(px(det_size))
-                                .h(px(det_size))
-                                .with_animation(
-                                    "android-det-wait",
-                                    Animation::new(Duration::from_millis(wait_ms)).repeat(),
-                                    move |this, delta| {
-                                        let wait = progress::WaitProgress::from_fraction(delta);
-                                        let pts = progress::loading_polygon_for_wait(det_size, wait);
-                                        this.child(
-                                            canvas(
-                                                move |_, _, _| {},
-                                                move |bounds, _, window, _| {
-                                                    paint_filled_polygon(
-                                                        window,
-                                                        bounds.origin,
-                                                        &pts,
-                                                        det_color,
-                                                    );
-                                                },
-                                            )
-                                            .w(px(det_size))
-                                            .h(px(det_size)),
-                                        )
-                                    },
-                                ),
-                        )
+                        .child(div().w(px(det_size)).h(px(det_size)).with_animation(
+                            "android-det-wait",
+                            Animation::new(Duration::from_millis(wait_ms)).repeat(),
+                            move |this, delta| {
+                                let wait = progress::WaitProgress::from_fraction(delta);
+                                let pts = progress::loading_polygon_for_wait(det_size, wait);
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &pts,
+                                                det_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(det_size))
+                                    .h(px(det_size)),
+                                )
+                            },
+                        ))
                         .child(
                             div()
                                 .text_size(px(12.))
@@ -3786,9 +3817,7 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                                 .with_animation(
                                     "android-det-label",
                                     Animation::new(Duration::from_millis(wait_ms)).repeat(),
-                                    move |this, delta| {
-                                        this.child(format!("{:.0}%", delta * 100.0))
-                                    },
+                                    move |this, delta| this.child(format!("{:.0}%", delta * 100.0)),
                                 ),
                         )
                 }),
@@ -3833,7 +3862,10 @@ fn android_rail_static_column(
     let rail = navigation_rail::resolve(theme);
     let selected = this.rail_selected;
     div()
-        .id(SharedString::from(format!("wide-rail-{}", position.label())))
+        .id(SharedString::from(format!(
+            "wide-rail-{}",
+            position.label()
+        )))
         .w(px(width_dp))
         .min_h(px(220.))
         .bg(paint(rail.container))
@@ -3869,8 +3901,14 @@ fn android_nav_rail(
         .gap(px(navigation_rail::DEST_GAP_DP))
         .bg(paint(rail.container))
         .with_animation(
-            if expanded { "android-rail-expand" } else { "android-rail-collapse" },
-            Animation::new(Duration::from_millis(navigation_rail::morph_ms(theme) as u64)),
+            if expanded {
+                "android-rail-expand"
+            } else {
+                "android-rail-collapse"
+            },
+            Animation::new(Duration::from_millis(
+                navigation_rail::morph_ms(theme) as u64
+            )),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
                 this.w(px(navigation_rail::morph_width_dp(t).min(200.0)))
@@ -3969,8 +4007,7 @@ fn android_rail_dest_views(
                 .items_center()
                 .gap(px(metrics.icon_label_gap_dp))
                 .on_click(cx.listener(move |this, _, _, cx| {
-                    this.rail_selected =
-                        navigation_rail::select_destination(this.rail_selected, i);
+                    this.rail_selected = navigation_rail::select_destination(this.rail_selected, i);
                     cx.notify();
                 }));
             dest = if position.is_start() {
@@ -4114,24 +4151,19 @@ fn android_carousel(
                 })
                 .when(layout.center_aligned(), |el| el.justify_center())
                 .flex()
-                .when(
-                    layout.axis() == carousel::CarouselAxis::Vertical,
-                    |el| el.flex_col(),
-                )
+                .when(layout.axis() == carousel::CarouselAxis::Vertical, |el| {
+                    el.flex_col()
+                })
                 .gap(px(a.gap_dp))
                 .child(
-                    div()
-                        .absolute()
-                        .w(px(1.))
-                        .h(px(1.))
-                        .with_animation(
-                            "android-carousel-live",
-                            Animation::new(Duration::from_millis(
-                                gpui_material::motion::FRAME_MS as u64,
-                            ))
-                            .repeat(),
-                            |el, _| el,
-                        ),
+                    div().absolute().w(px(1.)).h(px(1.)).with_animation(
+                        "android-carousel-live",
+                        Animation::new(Duration::from_millis(
+                            gpui_material::motion::FRAME_MS as u64,
+                        ))
+                        .repeat(),
+                        |el, _| el,
+                    ),
                 )
                 .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
                     let (dx, dy) = match ev.delta {
@@ -4143,34 +4175,43 @@ fn android_carousel(
                     this.carousel_fling_at = None;
                     cx.notify();
                 }))
-                .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, _label)| {
-                    let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t)
-                        .min(if layout.axis() == carousel::CarouselAxis::Vertical {
-                            320.0
-                        } else {
-                            160.0
-                        });
-                    let h = carousel::item_height_for_index(layout, i)
-                        * if layout.axis() == carousel::CarouselAxis::Vertical {
-                            0.45
-                        } else {
-                            0.7
-                        };
-                    div()
-                        .id(SharedString::from(format!("carousel-{i}")))
-                        .w(px(w))
-                        .h(px(h))
-                        .ml(px(shift))
-                        .rounded(px(a.corners.top_left))
-                        .overflow_hidden()
-                        .child(photo_fill(carousel::media_kind(i)))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.carousel_index = carousel::snap_to(i);
-                            this.carousel_fling = carousel::FlingState::new(i);
-                            this.carousel_fling_at = None;
-                            cx.notify();
-                        }))
-                })),
+                .children(
+                    carousel::MEDIA_CAPTIONS
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _label)| {
+                            let w = carousel::item_width_during_fling_for(
+                                layout, i, selected, offset_t,
+                            )
+                            .min(
+                                if layout.axis() == carousel::CarouselAxis::Vertical {
+                                    320.0
+                                } else {
+                                    160.0
+                                },
+                            );
+                            let h = carousel::item_height_for_index(layout, i)
+                                * if layout.axis() == carousel::CarouselAxis::Vertical {
+                                    0.45
+                                } else {
+                                    0.7
+                                };
+                            div()
+                                .id(SharedString::from(format!("carousel-{i}")))
+                                .w(px(w))
+                                .h(px(h))
+                                .ml(px(shift))
+                                .rounded(px(a.corners.top_left))
+                                .overflow_hidden()
+                                .child(photo_fill(carousel::media_kind(i)))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.carousel_index = carousel::snap_to(i);
+                                    this.carousel_fling = carousel::FlingState::new(i);
+                                    this.carousel_fling_at = None;
+                                    cx.notify();
+                                }))
+                        }),
+                ),
         )
 }
 
@@ -4207,7 +4248,11 @@ fn android_search_bar(
     let avatar_bg = paint(a.avatar);
     let avatar_fg = paint(a.avatar_label);
     let header = div()
-        .id(if open { "search-activity" } else { "search-bar" })
+        .id(if open {
+            "search-activity"
+        } else {
+            "search-bar"
+        })
         .w_full()
         .px(px(16.))
         .flex()
@@ -4255,9 +4300,9 @@ fn android_search_bar(
                             Animation::new(Duration::from_millis(morph_ms)),
                             move |this, delta| {
                                 let linear = if open { delta } else { 1.0 - delta };
-                                this.opacity(search::morph_avatar_opacity(
-                                    search::morph_eased_t(linear),
-                                ))
+                                this.opacity(search::morph_avatar_opacity(search::morph_eased_t(
+                                    linear,
+                                )))
                             },
                         ),
                 )
@@ -4286,9 +4331,9 @@ fn android_search_bar(
                             Animation::new(Duration::from_millis(morph_ms)),
                             move |this, delta| {
                                 let linear = if open { delta } else { 1.0 - delta };
-                                this.opacity(search::morph_back_opacity(
-                                    search::morph_eased_t(linear),
-                                ))
+                                this.opacity(search::morph_back_opacity(search::morph_eased_t(
+                                    linear,
+                                )))
                             },
                         ),
                 ),
@@ -4374,11 +4419,8 @@ fn android_search_bar(
                     let frame = search::morph_frame_eased(linear);
                     anim_frame.set(frame);
                     let layer = search::morph_layer_transform(frame);
-                    let box_ = search::morph_layer_box(
-                        search::MORPH_STAGE_W_DP,
-                        frame.height_dp,
-                        layer,
-                    );
+                    let box_ =
+                        search::morph_layer_box(search::MORPH_STAGE_W_DP, frame.height_dp, layer);
                     this.min_h(px(box_.height_dp))
                         .rounded(px(frame.corner_dp))
                         .ml(px(box_.x_dp.max(frame.inset_h_dp)))
@@ -4444,11 +4486,7 @@ fn android_time_picker(
             .collect(),
     };
     let from_angle = this.time_hand_from;
-    let to_angle = time_picker::hand_angle_deg(
-        this.time_dial,
-        this.time_hour,
-        this.time_minute,
-    );
+    let to_angle = time_picker::hand_angle_deg(this.time_dial, this.time_hour, this.time_minute);
     let hand_gen = this.time_hand_gen;
     let hand_ms = time_picker::hand_motion_ms(theme) as u64;
     let hour_live = hour_on;
@@ -4477,11 +4515,7 @@ fn android_time_picker(
                         } else {
                             a.clock
                         }))
-                        .text_color(paint(if hour_on {
-                            a.number_selected
-                        } else {
-                            a.header
-                        }))
+                        .text_color(paint(if hour_on { a.number_selected } else { a.header }))
                         .child(time_picker::format_hour_field(this.time_hour))
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.bump_time_hand();
@@ -4602,7 +4636,8 @@ fn android_time_picker(
                                             let r = time_picker::HAND_HUB_DP / 2.0;
                                             let n = 12u32;
                                             for i in 0..n {
-                                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                                                let ang =
+                                                    i as f32 / n as f32 * std::f32::consts::TAU;
                                                 let p = point(
                                                     bounds.origin.x + px(hub.0 + r * ang.cos()),
                                                     bounds.origin.y + px(hub.1 + r * ang.sin()),
@@ -4696,7 +4731,8 @@ fn android_time_picker(
                             this.bump_time_hand();
                             match face {
                                 DialFace::Hour => {
-                                    this.time_hour = time_picker::select_hour(this.time_hour, value);
+                                    this.time_hour =
+                                        time_picker::select_hour(this.time_hour, value);
                                     this.time_dial = DialFace::Minute;
                                 }
                                 DialFace::Minute => {
@@ -4711,34 +4747,28 @@ fn android_time_picker(
 }
 
 fn android_icon_button_widths(theme: &Theme) -> impl IntoElement {
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(8.))
-        .children(
-            [
-                icon_button::WIDTH_HERO_SIZE,
-                icon_button::WIDTH_HERO_SIZE_MEDIUM,
-            ]
-            .iter()
-            .map(|size| {
-                div()
-                    .flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .children(icon_button::IconButtonWidth::ALL.iter().map(|width| {
-                        let a = icon_button::resolve_width(
-                            theme,
-                            icon_button::IconButtonVariant::Filled,
-                            *size,
-                            button::ButtonShape::Round,
-                            *width,
-                            InteractionState::Enabled,
-                        );
-                        android_paint_icon_button(&a, "★")
-                    }))
-            }),
-        )
+    div().flex().flex_col().gap(px(8.)).children(
+        [
+            icon_button::WIDTH_HERO_SIZE,
+            icon_button::WIDTH_HERO_SIZE_MEDIUM,
+        ]
+        .iter()
+        .map(|size| {
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonWidth::ALL.iter().map(|width| {
+                    let a = icon_button::resolve_width(
+                        theme,
+                        icon_button::IconButtonVariant::Filled,
+                        *size,
+                        button::ButtonShape::Round,
+                        *width,
+                        InteractionState::Enabled,
+                    );
+                    android_paint_icon_button(&a, "★")
+                }),
+            )
+        }),
+    )
 }
 
 fn android_paint_icon_button(a: &Appearance, glyph: &'static str) -> impl IntoElement + use<> {
@@ -4764,44 +4794,44 @@ fn android_icon_button_toggles(theme: &Theme) -> impl IntoElement {
         .flex_col()
         .gap(px(8.))
         .child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .items_center()
-                .children(
-                    icon_button::IconButtonVariant::TOGGLE_OVERVIEW.iter().flat_map(|variant| {
-                        icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
-                            let a = icon_button::resolve_selection(
-                                theme,
-                                *variant,
-                                icon_button::TOGGLE_HERO_SIZE,
-                                button::ButtonShape::Round,
-                                icon_button::IconButtonWidth::Default,
-                                *selection,
-                                InteractionState::Enabled,
-                            );
-                            android_paint_icon_button(&a, selection.glyph())
-                        })
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonVariant::TOGGLE_OVERVIEW
+                    .iter()
+                    .flat_map(|variant| {
+                        icon_button::IconButtonSelection::TOGGLE
+                            .iter()
+                            .map(|selection| {
+                                let a = icon_button::resolve_selection(
+                                    theme,
+                                    *variant,
+                                    icon_button::TOGGLE_HERO_SIZE,
+                                    button::ButtonShape::Round,
+                                    icon_button::IconButtonWidth::Default,
+                                    *selection,
+                                    InteractionState::Enabled,
+                                );
+                                android_paint_icon_button(&a, selection.glyph())
+                            })
                     }),
-                ),
+            ),
         )
         .child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .items_center()
-                .children(icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
-                    let a = icon_button::resolve_selection(
-                        theme,
-                        icon_button::IconButtonVariant::Filled,
-                        icon_button::TOGGLE_HERO_SIZE,
-                        button::ButtonShape::Square,
-                        icon_button::IconButtonWidth::Default,
-                        *selection,
-                        InteractionState::Enabled,
-                    );
-                    android_paint_icon_button(&a, selection.glyph())
-                })),
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonSelection::TOGGLE
+                    .iter()
+                    .map(|selection| {
+                        let a = icon_button::resolve_selection(
+                            theme,
+                            icon_button::IconButtonVariant::Filled,
+                            icon_button::TOGGLE_HERO_SIZE,
+                            button::ButtonShape::Square,
+                            icon_button::IconButtonWidth::Default,
+                            *selection,
+                            InteractionState::Enabled,
+                        );
+                        android_paint_icon_button(&a, selection.glyph())
+                    }),
+            ),
         )
 }
 
@@ -4995,19 +5025,23 @@ fn android_icon_group(
                     .min_w(px(140.))
                     .rounded(px(menu.corners.top_left))
                     .bg(paint(menu.container))
-                    .children(button_group::OVERFLOW_ITEMS.iter().enumerate().map(
-                        |(i, label)| {
-                            let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-                            div()
-                                .h(px(item.height_dp))
-                                .px(px(12.))
-                                .bg(paint(item.container))
-                                .text_color(paint(item.label))
-                                .flex()
-                                .items_center()
-                                .child(*label)
-                        },
-                    )),
+                    .children(
+                        button_group::OVERFLOW_ITEMS
+                            .iter()
+                            .enumerate()
+                            .map(|(i, label)| {
+                                let item =
+                                    menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+                                div()
+                                    .h(px(item.height_dp))
+                                    .px(px(12.))
+                                    .bg(paint(item.container))
+                                    .text_color(paint(item.label))
+                                    .flex()
+                                    .items_center()
+                                    .child(*label)
+                            }),
+                    ),
             )
         })
 }
@@ -5080,12 +5114,14 @@ fn android_range_slider(
                     if ev.dragging() {
                         if let Some(thumb) = this.range_drag {
                             let (origin, w) = hit_move.get();
-                            let frac = slider::fraction_from_local_x(
-                                f32::from(ev.position.x) - origin,
-                                w,
+                            let frac =
+                                slider::fraction_from_local_x(f32::from(ev.position.x) - origin, w);
+                            let (s, e) = slider::drag_thumb_snapped(
+                                this.range_start,
+                                this.range_end,
+                                thumb,
+                                frac,
                             );
-                            let (s, e) =
-                                slider::drag_thumb_snapped(this.range_start, this.range_end, thumb, frac);
                             this.range_start = s;
                             this.range_end = e;
                             this.range_moved = true;
@@ -5261,12 +5297,12 @@ fn android_settings_scene(
                     }),
                 ))
                 .child(android_connected_group(theme, this.group_selected, cx))
-        .child(android_icon_group(
-            theme,
-            this.icon_selected,
-            this.overflow_open,
-            cx,
-        )),
+                .child(android_icon_group(
+                    theme,
+                    this.icon_selected,
+                    this.overflow_open,
+                    cx,
+                )),
         )
         .child(m_button(
             "settings-reset",
@@ -5374,41 +5410,49 @@ fn android_docked_date(
                         ),
                 )
                 .child(
-                    div()
-                        .flex()
-                        .flex_wrap()
-                        .children(cells.iter().copied().enumerate().take(14).map(|(i, (day, kind))| {
-                    let (bg, fg, radius) = match kind {
-                        DayKind::Selected => (
-                            paint(pick.day_selected_container),
-                            paint(pick.day_selected),
-                            pick.day_dp / 2.0,
-                        ),
-                        DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                        _ => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                    };
-                    let in_month = kind != DayKind::OutOfMonth;
-                    div()
-                        .id(SharedString::from(format!("docked-day-{i}")))
-                        .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
-                        .rounded(px(radius))
-                        .bg(bg)
-                        .text_color(fg)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(day.to_string())
-                        .when(in_month, |el| {
-                            el.on_click(cx.listener(move |this, _, _, cx| {
-                                this.selected = CivilDate { year, month, day };
-                                if date_picker::DOCKED_DISMISS_ON_SELECT {
-                                    this.docked_open = false;
-                                }
-                                cx.notify();
-                            }))
-                        })
-                })),
+                    div().flex().flex_wrap().children(
+                        cells
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .take(14)
+                            .map(|(i, (day, kind))| {
+                                let (bg, fg, radius) = match kind {
+                                    DayKind::Selected => (
+                                        paint(pick.day_selected_container),
+                                        paint(pick.day_selected),
+                                        pick.day_dp / 2.0,
+                                    ),
+                                    DayKind::Today => {
+                                        (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
+                                    }
+                                    _ => {
+                                        (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
+                                    }
+                                };
+                                let in_month = kind != DayKind::OutOfMonth;
+                                div()
+                                    .id(SharedString::from(format!("docked-day-{i}")))
+                                    .w(px(pick.day_dp))
+                                    .h(px(pick.day_dp))
+                                    .rounded(px(radius))
+                                    .bg(bg)
+                                    .text_color(fg)
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(day.to_string())
+                                    .when(in_month, |el| {
+                                        el.on_click(cx.listener(move |this, _, _, cx| {
+                                            this.selected = CivilDate { year, month, day };
+                                            if date_picker::DOCKED_DISMISS_ON_SELECT {
+                                                this.docked_open = false;
+                                            }
+                                            cx.notify();
+                                        }))
+                                    })
+                            }),
+                    ),
                 ),
         );
     }
@@ -5583,16 +5627,12 @@ fn field_block(
             .flex_col()
             .on_click(on_click)
             .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .child(
-                        div()
-                            .text_size(px(field.label_style.size_sp))
-                            .text_color(paint(field.label))
-                            .child(label),
-                    ),
+                div().flex_1().flex().items_center().child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(label),
+                ),
             )
             .child(
                 div()
@@ -5602,18 +5642,13 @@ fn field_block(
             )
             .into_any_element()
     };
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(4.))
-        .child(box_el)
-        .child(
-            div()
-                .px(px(16.))
-                .text_size(px(field.supporting_style.size_sp))
-                .text_color(paint(field.supporting))
-                .child(supporting.into()),
-        )
+    div().flex().flex_col().gap(px(4.)).child(box_el).child(
+        div()
+            .px(px(16.))
+            .text_size(px(field.supporting_style.size_sp))
+            .text_color(paint(field.supporting))
+            .child(supporting.into()),
+    )
 }
 
 fn list_row(
@@ -5760,8 +5795,7 @@ fn android_main(app: AndroidApp) {
                 docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                 search_open: search::VIEW_OPEN_BY_DEFAULT,
                 search: {
-                    let mut ed =
-                        TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
+                    let mut ed = TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
                     ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
                     ed
                 },

@@ -15,18 +15,20 @@
 
 use gpui::prelude::*;
 use gpui::{
-    black, canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
-    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    StrokeOptions, Styled, TextRun, TitlebarOptions, Window, WindowBounds, WindowKind, WindowOptions,
+    Animation, AnimationExt, App, Bounds, Context, FillOptions, FillRule, FontWeight, IntoElement,
+    KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement, PathBuilder,
+    PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString, StrokeOptions, Styled, TextRun,
+    TitlebarOptions, Window, WindowBounds, WindowKind, WindowOptions, black, canvas, div, point,
+    px, size,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, carousel, checkbox, chip, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail,
-    photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, tooltip, top_app_bar,
-    Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, carousel, checkbox, chip, dialog,
+    fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress,
+    radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar,
+    tooltip, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -48,22 +50,17 @@ fn paint(c: Argb) -> gpui::Rgba {
 
 fn photo_mosaic(kind: photo_stub::PhotoKind, cols: u32, rows: u32) -> impl IntoElement {
     let cells = std::rc::Rc::new(kind.mosaic(cols, rows));
-    div()
-        .size_full()
-        .flex()
-        .flex_col()
-        .children((0..rows).map({
-            let cells = cells.clone();
-            move |y| {
-                let start = (y * cols) as usize;
-                let row = cells[start..start + cols as usize].to_vec();
-                div()
-                    .flex()
-                    .flex_1()
-                    .w_full()
-                    .children(row.into_iter().map(|c| div().flex_1().h_full().bg(paint(c))))
-            }
-        }))
+    div().size_full().flex().flex_col().children((0..rows).map({
+        let cells = cells.clone();
+        move |y| {
+            let start = (y * cols) as usize;
+            let row = cells[start..start + cols as usize].to_vec();
+            div().flex().flex_1().w_full().children(
+                row.into_iter()
+                    .map(|c| div().flex_1().h_full().bg(paint(c))),
+            )
+        }
+    }))
 }
 
 fn photo_fill(kind: photo_stub::PhotoKind) -> impl IntoElement {
@@ -296,7 +293,6 @@ fn paint_filled_polygon(
     }
 }
 
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Overlay {
     None,
@@ -372,11 +368,8 @@ impl CatalogView {
     }
 
     fn bump_time_hand(&mut self) {
-        self.time_hand_from = time_picker::hand_angle_deg(
-            self.time_dial,
-            self.time_hour,
-            self.time_minute,
-        );
+        self.time_hand_from =
+            time_picker::hand_angle_deg(self.time_dial, self.time_hour, self.time_minute);
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
     }
 
@@ -456,12 +449,12 @@ impl Render for CatalogView {
                     })),
             );
 
+        let show_menu = matches!(self.overlay, Overlay::Menu);
         let body = match self.overlay {
-            Overlay::None => catalog_body(self, &theme, cx).into_any_element(),
+            Overlay::None | Overlay::Menu => catalog_body(self, &theme, cx).into_any_element(),
             Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
             Overlay::ListDialog => list_dialog_overlay(self, &theme, cx).into_any_element(),
             Overlay::FullscreenDialog => fullscreen_dialog_overlay(&theme, cx).into_any_element(),
-            Overlay::Menu => menu_overlay(self, &theme, cx).into_any_element(),
         };
 
         div()
@@ -472,7 +465,17 @@ impl Render for CatalogView {
             .font_family(typography::desktop_font_family())
             .text_color(paint(c.on_background))
             .child(chrome)
-            .child(body)
+            .child(
+                div()
+                    .id("catalog-host")
+                    .relative()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .w_full()
+                    .child(body)
+                    .when(show_menu, |el| el.child(menu_overlay(self, &theme, cx))),
+            )
     }
 }
 
@@ -609,16 +612,12 @@ fn catalog_body(
         .child(section_title(theme, "Split button"))
         .child(desktop_split_button(this, theme, cx))
         .child(section_title(theme, "Icon buttons"))
-        .child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .items_center()
-                .children(icon_button::IconButtonVariant::ALL.iter().map(|variant| {
-                    let a = icon_button::resolve(theme, *variant, InteractionState::Enabled);
-                    paint_icon_button(&a)
-                })),
-        )
+        .child(div().flex().gap(px(8.)).items_center().children(
+            icon_button::IconButtonVariant::ALL.iter().map(|variant| {
+                let a = icon_button::resolve(theme, *variant, InteractionState::Enabled);
+                paint_icon_button(&a)
+            }),
+        ))
         .child(desktop_icon_button_widths(theme))
         .child(desktop_icon_button_toggles(theme))
         .child(section_title(theme, "FAB menu"))
@@ -862,41 +861,34 @@ fn paint_icon_button_glyph(a: &Appearance, glyph: &'static str) -> impl IntoElem
         .items_center()
         .justify_center()
         .when(a.outline.is_some(), |el| {
-            el.border_1()
-                .border_color(paint(a.outline.unwrap().0))
+            el.border_1().border_color(paint(a.outline.unwrap().0))
         })
         .child(glyph)
 }
 
 fn desktop_icon_button_widths(theme: &Theme) -> impl IntoElement {
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(8.))
-        .children(
-            [
-                icon_button::WIDTH_HERO_SIZE,
-                icon_button::WIDTH_HERO_SIZE_MEDIUM,
-            ]
-            .iter()
-            .map(|size| {
-                div()
-                    .flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .children(icon_button::IconButtonWidth::ALL.iter().map(|width| {
-                        let a = icon_button::resolve_width(
-                            theme,
-                            icon_button::IconButtonVariant::Filled,
-                            *size,
-                            button::ButtonShape::Round,
-                            *width,
-                            InteractionState::Enabled,
-                        );
-                        paint_icon_button(&a)
-                    }))
-            }),
-        )
+    div().flex().flex_col().gap(px(8.)).children(
+        [
+            icon_button::WIDTH_HERO_SIZE,
+            icon_button::WIDTH_HERO_SIZE_MEDIUM,
+        ]
+        .iter()
+        .map(|size| {
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonWidth::ALL.iter().map(|width| {
+                    let a = icon_button::resolve_width(
+                        theme,
+                        icon_button::IconButtonVariant::Filled,
+                        *size,
+                        button::ButtonShape::Round,
+                        *width,
+                        InteractionState::Enabled,
+                    );
+                    paint_icon_button(&a)
+                }),
+            )
+        }),
+    )
 }
 
 fn desktop_icon_button_toggles(theme: &Theme) -> impl IntoElement {
@@ -905,63 +897,65 @@ fn desktop_icon_button_toggles(theme: &Theme) -> impl IntoElement {
         .flex_col()
         .gap(px(8.))
         .child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .items_center()
-                .children(
-                    icon_button::IconButtonVariant::TOGGLE_OVERVIEW.iter().flat_map(|variant| {
-                        icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
-                            let a = icon_button::resolve_selection(
-                                theme,
-                                *variant,
-                                icon_button::TOGGLE_HERO_SIZE,
-                                button::ButtonShape::Round,
-                                icon_button::IconButtonWidth::Default,
-                                *selection,
-                                InteractionState::Enabled,
-                            );
-                            paint_icon_button_glyph(&a, selection.glyph())
-                        })
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonVariant::TOGGLE_OVERVIEW
+                    .iter()
+                    .flat_map(|variant| {
+                        icon_button::IconButtonSelection::TOGGLE
+                            .iter()
+                            .map(|selection| {
+                                let a = icon_button::resolve_selection(
+                                    theme,
+                                    *variant,
+                                    icon_button::TOGGLE_HERO_SIZE,
+                                    button::ButtonShape::Round,
+                                    icon_button::IconButtonWidth::Default,
+                                    *selection,
+                                    InteractionState::Enabled,
+                                );
+                                paint_icon_button_glyph(&a, selection.glyph())
+                            })
                     }),
-                ),
+            ),
         )
         .child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .items_center()
-                .children(icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
-                    let a = icon_button::resolve_selection(
-                        theme,
-                        icon_button::IconButtonVariant::Filled,
-                        icon_button::TOGGLE_HERO_SIZE,
-                        button::ButtonShape::Square,
-                        icon_button::IconButtonWidth::Default,
-                        *selection,
-                        InteractionState::Enabled,
-                    );
-                    paint_icon_button_glyph(&a, selection.glyph())
-                })),
+            div().flex().gap(px(8.)).items_center().children(
+                icon_button::IconButtonSelection::TOGGLE
+                    .iter()
+                    .map(|selection| {
+                        let a = icon_button::resolve_selection(
+                            theme,
+                            icon_button::IconButtonVariant::Filled,
+                            icon_button::TOGGLE_HERO_SIZE,
+                            button::ButtonShape::Square,
+                            icon_button::IconButtonWidth::Default,
+                            *selection,
+                            InteractionState::Enabled,
+                        );
+                        paint_icon_button_glyph(&a, selection.glyph())
+                    }),
+            ),
         )
 }
 
 fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
-    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
-    let lead = chip::leading_icon(demo.variant, demo.selected);
+    let a = chip::resolve_demo(theme, demo);
+    let lead = chip::demo_leading_icon(demo);
     let trail = chip::trailing_icon(demo.variant);
+    let ico = a.secondary_content.unwrap_or(a.content);
     div()
         .h(px(a.height_dp))
-        .px(px(a.pad_start_dp.min(a.pad_end_dp)))
+        .pl(px(a.pad_start_dp))
+        .pr(px(a.pad_end_dp))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .text_color(paint(a.content))
         .flex()
         .items_center()
         .gap(px(chip::ICON_GAP_DP))
+        .when(a.elevation_dp > 0.0, |el| el.shadow_sm())
         .when(a.outline.is_some(), |el| {
-            el.border_1()
-                .border_color(paint(a.outline.unwrap().0))
+            el.border_1().border_color(paint(a.outline.unwrap().0))
         })
         .children(lead.map(|g| {
             div()
@@ -970,6 +964,7 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_color(paint(ico))
                 .child(g)
         }))
         .child(demo.label)
@@ -980,6 +975,7 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_color(paint(ico))
                 .child(g)
         }))
 }
@@ -995,7 +991,35 @@ fn desktop_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(chip::FILTER_HERO.iter().map(|demo| paint_chip(theme, *demo))),
+                .children(
+                    chip::FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(
+                    chip::TONAL_FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(
+                    chip::ELEVATED_FILTER_HERO
+                        .iter()
+                        .map(|demo| paint_chip(theme, *demo)),
+                ),
         )
         .child(
             div()
@@ -1338,23 +1362,44 @@ fn menu_overlay(
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
+    let anchor = button::resolve(
+        theme,
+        button::ButtonVariant::Tonal,
+        InteractionState::Enabled,
+    );
     div()
-        .id("menu-scrim")
-        .flex_1()
-        .w_full()
-        .p(px(24.))
-        .bg(paint(
-            theme
-                .color
-                .scrim
-                .with_alpha(0.32)
-                .composite_over(theme.color.surface),
-        ))
+        .id("menu-popup-host")
+        .absolute()
+        .top(px(0.))
+        .left(px(0.))
+        .size_full()
         .on_click(cx.listener(|this, _, _, cx| {
             this.overlay = Overlay::None;
             cx.notify();
         }))
-        .child(desktop_live_cascade(this, theme, cx, true))
+        .child(
+            div()
+                .id("menu-anchored")
+                .absolute()
+                .top(px(8.))
+                .left(px(20.))
+                .flex()
+                .flex_col()
+                .gap(px(menu::OVERLAY_ANCHOR_GAP_DP))
+                .child(
+                    div()
+                        .id("menu-anchor")
+                        .h(px(anchor.height_dp))
+                        .px(px(16.))
+                        .rounded(px(anchor.corners.top_left))
+                        .bg(paint(anchor.container))
+                        .text_color(paint(anchor.content))
+                        .flex()
+                        .items_center()
+                        .child(menu::OVERLAY_ANCHOR_LABEL),
+                )
+                .child(desktop_live_cascade(this, theme, cx, true)),
+        )
 }
 
 fn desktop_horizontal_menu(theme: &Theme) -> impl IntoElement {
@@ -1647,19 +1692,23 @@ fn connected_icon_group(
                     .min_w(px(160.))
                     .rounded(px(menu.corners.top_left))
                     .bg(paint(menu.container))
-                    .children(button_group::OVERFLOW_ITEMS.iter().enumerate().map(
-                        |(i, label)| {
-                            let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-                            div()
-                                .h(px(item.height_dp))
-                                .px(px(12.))
-                                .bg(paint(item.container))
-                                .text_color(paint(item.label))
-                                .flex()
-                                .items_center()
-                                .child(*label)
-                        },
-                    )),
+                    .children(
+                        button_group::OVERFLOW_ITEMS
+                            .iter()
+                            .enumerate()
+                            .map(|(i, label)| {
+                                let item =
+                                    menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+                                div()
+                                    .h(px(item.height_dp))
+                                    .px(px(12.))
+                                    .bg(paint(item.container))
+                                    .text_color(paint(item.label))
+                                    .flex()
+                                    .items_center()
+                                    .child(*label)
+                            }),
+                    ),
             )
         })
 }
@@ -2167,29 +2216,21 @@ fn settings_scene(
         .flex()
         .flex_col()
         .gap(px(button_group::SETTINGS_GROUP_GAP_DP))
-        .child(
-            div()
-                .font_weight(type_weight(title))
-                .child(spaced_line(
-                    button_group::SETTINGS_SCENE_TITLE,
-                    title.size_sp,
-                    paint(theme.color.on_surface),
-                )),
-        )
+        .child(div().font_weight(type_weight(title)).child(spaced_line(
+            button_group::SETTINGS_SCENE_TITLE,
+            title.size_sp,
+            paint(theme.color.on_surface),
+        )))
         .child(
             div()
                 .flex()
                 .flex_col()
                 .gap(px(button_group::SETTINGS_ROW_GAP_DP))
-                .child(
-                    div()
-                        .font_weight(type_weight(section))
-                        .child(spaced_line(
-                            button_group::SETTINGS_VOLUME_TITLE,
-                            section.size_sp,
-                            paint(theme.color.on_surface),
-                        )),
-                )
+                .child(div().font_weight(type_weight(section)).child(spaced_line(
+                    button_group::SETTINGS_VOLUME_TITLE,
+                    section.size_sp,
+                    paint(theme.color.on_surface),
+                )))
                 .child(volume_slider_scene(theme, this.slider, cx)),
         )
         .child(
@@ -2197,15 +2238,11 @@ fn settings_scene(
                 .flex()
                 .flex_col()
                 .gap(px(button_group::SETTINGS_ROW_GAP_DP))
-                .child(
-                    div()
-                        .font_weight(type_weight(section))
-                        .child(spaced_line(
-                            button_group::SETTINGS_QUIET_HOURS_TITLE,
-                            section.size_sp,
-                            paint(theme.color.on_surface),
-                        )),
-                )
+                .child(div().font_weight(type_weight(section)).child(spaced_line(
+                    button_group::SETTINGS_QUIET_HOURS_TITLE,
+                    section.size_sp,
+                    paint(theme.color.on_surface),
+                )))
                 .child(field_block(
                     "settings-email",
                     &outlined,
@@ -2280,43 +2317,29 @@ fn docked_date_picker(
                     .flex()
                     .items_center()
                     .justify_between()
-                    .child(
-                        div()
-                            .id("docked-month-prev")
-                            .p(px(8.))
-                            .child("<")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                let (y, m) = date_picker::add_months(
-                                    this.picker_year,
-                                    this.picker_month,
-                                    -1,
-                                );
-                                this.picker_year = y;
-                                this.picker_month = m;
-                                cx.notify();
-                            })),
-                    )
+                    .child(div().id("docked-month-prev").p(px(8.)).child("<").on_click(
+                        cx.listener(|this, _, _, cx| {
+                            let (y, m) =
+                                date_picker::add_months(this.picker_year, this.picker_month, -1);
+                            this.picker_year = y;
+                            this.picker_month = m;
+                            cx.notify();
+                        }),
+                    ))
                     .child(spaced_line(
                         date_picker::month_nav_label(this.picker_year, this.picker_month),
                         pick.year_style.size_sp,
                         paint(pick.header_year),
                     ))
-                    .child(
-                        div()
-                            .id("docked-month-next")
-                            .p(px(8.))
-                            .child(">")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                let (y, m) = date_picker::add_months(
-                                    this.picker_year,
-                                    this.picker_month,
-                                    1,
-                                );
-                                this.picker_year = y;
-                                this.picker_month = m;
-                                cx.notify();
-                            })),
-                    ),
+                    .child(div().id("docked-month-next").p(px(8.)).child(">").on_click(
+                        cx.listener(|this, _, _, cx| {
+                            let (y, m) =
+                                date_picker::add_months(this.picker_year, this.picker_month, 1);
+                            this.picker_year = y;
+                            this.picker_month = m;
+                            cx.notify();
+                        }),
+                    )),
             )
             .child(weekday_row(pick, cal_w))
             .child(div().w(px(cal_w)).flex().flex_wrap().children(
@@ -2437,9 +2460,11 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_between()
-                .children(fractions.into_iter().map(|frac| {
-                    slider_stop(slide, frac <= slide.value + 0.001)
-                })),
+                .children(
+                    fractions
+                        .into_iter()
+                        .map(|frac| slider_stop(slide, frac <= slide.value + 0.001)),
+                ),
         )
         .into_any_element()
 }
@@ -2449,23 +2474,15 @@ fn volume_slider_scene(
     media_value: f32,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    div()
-        .w_full()
-        .flex()
-        .flex_col()
-        .gap(px(12.))
-        .children(slider::OVERVIEW_ROWS.iter().copied().map(|row| {
+    div().w_full().flex().flex_col().gap(px(12.)).children(
+        slider::OVERVIEW_ROWS.iter().copied().map(|row| {
             let value = if row.label.starts_with("Media") {
                 media_value
             } else {
                 row.value
             };
-            let slide = slider::resolve_with_stops(
-                theme,
-                value,
-                InteractionState::Enabled,
-                row.stop_count,
-            );
+            let slide =
+                slider::resolve_with_stops(theme, value, InteractionState::Enabled, row.stop_count);
             let interactive = row.label.starts_with("Media");
             div()
                 .id(SharedString::from(row.label))
@@ -2489,11 +2506,7 @@ fn volume_slider_scene(
                         .flex_col()
                         .flex_1()
                         .gap(px(4.))
-                        .child(spaced_line(
-                            row.label,
-                            12.0,
-                            paint(theme.color.on_surface),
-                        ))
+                        .child(spaced_line(row.label, 12.0, paint(theme.color.on_surface)))
                         .child(expressive_slider(&slide)),
                 )
                 .when(interactive, |el| {
@@ -2505,7 +2518,8 @@ fn volume_slider_scene(
                         cx.notify();
                     }))
                 })
-        }))
+        }),
+    )
 }
 
 fn dialog_account_row(theme: &Theme, email: &'static str) -> impl IntoElement {
@@ -2595,18 +2609,16 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                             paint(a.headline),
                         )),
                 )
-                .child(
-                    div()
-                        .w_full()
-                        .child(spaced_line(
-                            dialog::RESET_SUPPORTING,
-                            a.supporting_style.size_sp,
-                            paint(a.supporting),
-                        )),
+                .child(div().w_full().child(spaced_line(
+                    dialog::RESET_SUPPORTING,
+                    a.supporting_style.size_sp,
+                    paint(a.supporting),
+                )))
+                .children(
+                    dialog::RESET_ACCOUNTS
+                        .iter()
+                        .map(|email| dialog_account_row(theme, email)),
                 )
-                .children(dialog::RESET_ACCOUNTS.iter().map(|email| {
-                    dialog_account_row(theme, email)
-                }))
                 .child(
                     div()
                         .w_full()
@@ -2667,47 +2679,52 @@ fn list_dialog_overlay(
                         .text_color(paint(a.headline))
                         .child(dialog::RINGTONE_HEADLINE),
                 )
-                .children(dialog::RINGTONE_OPTIONS.iter().enumerate().map(|(i, label)| {
-                    let selected = this.ringtone == i;
-                    let r = radio::resolve(theme, selected, InteractionState::Enabled);
-                    div()
-                        .id(SharedString::from(format!("ringtone-{i}")))
-                        .w_full()
-                        .h(px(r.target_dp))
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child(
+                .children(
+                    dialog::RINGTONE_OPTIONS
+                        .iter()
+                        .enumerate()
+                        .map(|(i, label)| {
+                            let selected = this.ringtone == i;
+                            let r = radio::resolve(theme, selected, InteractionState::Enabled);
                             div()
-                                .text_size(px(theme.typography.body_large.size_sp))
-                                .text_color(paint(r.label))
-                                .child(*label),
-                        )
-                        .child(
-                            div()
-                                .w(px(r.outer_dp))
-                                .h(px(r.outer_dp))
-                                .rounded(px(r.outer_dp / 2.0))
-                                .border_2()
-                                .border_color(paint(r.ring))
+                                .id(SharedString::from(format!("ringtone-{i}")))
+                                .w_full()
+                                .h(px(r.target_dp))
                                 .flex()
                                 .items_center()
-                                .justify_center()
-                                .when(r.inner.is_some(), |el| {
-                                    el.child(
-                                        div()
-                                            .w(px(r.inner_dp))
-                                            .h(px(r.inner_dp))
-                                            .rounded(px(r.inner_dp / 2.0))
-                                            .bg(paint(r.inner.unwrap())),
-                                    )
-                                }),
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.ringtone = i;
-                            cx.notify();
-                        }))
-                }))
+                                .justify_between()
+                                .child(
+                                    div()
+                                        .text_size(px(theme.typography.body_large.size_sp))
+                                        .text_color(paint(r.label))
+                                        .child(*label),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(r.outer_dp))
+                                        .h(px(r.outer_dp))
+                                        .rounded(px(r.outer_dp / 2.0))
+                                        .border_2()
+                                        .border_color(paint(r.ring))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .when(r.inner.is_some(), |el| {
+                                            el.child(
+                                                div()
+                                                    .w(px(r.inner_dp))
+                                                    .h(px(r.inner_dp))
+                                                    .rounded(px(r.inner_dp / 2.0))
+                                                    .bg(paint(r.inner.unwrap())),
+                                            )
+                                        }),
+                                )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.ringtone = i;
+                                    cx.notify();
+                                }))
+                        }),
+                )
                 .child(
                     div()
                         .w_full()
@@ -2785,24 +2802,19 @@ fn fullscreen_dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> im
         .when(dialog::FULLSCREEN_HAS_DIVIDER, |el| {
             el.child(div().h(px(1.)).w_full().bg(paint(a.divider)))
         })
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(12.))
-                .p(px(24.))
-                .children(dialog::FULLSCREEN_FIELDS.iter().map(|label| {
-                    div()
-                        .h(px(56.))
-                        .px(px(16.))
-                        .rounded(px(4.))
-                        .bg(paint(field.field.container))
-                        .text_color(paint(a.supporting))
-                        .flex()
-                        .items_center()
-                        .child(*label)
-                })),
-        )
+        .child(div().flex().flex_col().gap(px(12.)).p(px(24.)).children(
+            dialog::FULLSCREEN_FIELDS.iter().map(|label| {
+                div()
+                    .h(px(56.))
+                    .px(px(16.))
+                    .rounded(px(4.))
+                    .bg(paint(field.field.container))
+                    .text_color(paint(a.supporting))
+                    .flex()
+                    .items_center()
+                    .child(*label)
+            }),
+        ))
 }
 
 fn day_colors(
@@ -2815,20 +2827,23 @@ fn day_colors(
             paint(pick.day_selected),
             pick.day_dp / 2.0,
         ),
-        DayKind::InRange => (
-            paint(pick.day_range_container),
-            paint(pick.day_range),
-            0.0,
-        ),
+        DayKind::InRange => (paint(pick.day_range_container), paint(pick.day_range), 0.0),
         DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
         DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-        DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0),
+        DayKind::OutOfMonth => (
+            paint(pick.container),
+            paint(pick.day_out),
+            pick.day_dp / 2.0,
+        ),
     }
 }
 
 fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl IntoElement {
-    div().w(px(cal_w)).flex().flex_wrap().children(
-        date_picker::WEEKDAYS.iter().map(|d| {
+    div()
+        .w(px(cal_w))
+        .flex()
+        .flex_wrap()
+        .children(date_picker::WEEKDAYS.iter().map(|d| {
             div()
                 .w(px(pick.day_dp))
                 .h(px(32.))
@@ -2837,8 +2852,7 @@ fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl Int
                 .justify_center()
                 .text_color(paint(pick.weekday))
                 .child(*d)
-        }),
-    )
+        }))
 }
 
 fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> impl IntoElement {
@@ -2879,24 +2893,28 @@ fn date_range_hero(_theme: &Theme, pick: &date_picker::DatePickerAppearance) -> 
             paint(pick.header_year),
         ))
         .child(weekday_row(pick, cal_w))
-        .child(div().w(px(cal_w)).flex().flex_wrap().children(
-            cells.iter().copied().map(|(day, kind)| {
-                let (bg, fg, radius) = day_colors(pick, kind);
-                div()
-                    .w(px(pick.day_dp))
-                    .h(px(pick.day_dp))
-                    .rounded(px(radius))
-                    .bg(bg)
-                    .text_color(fg)
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .when(kind == DayKind::Today, |el| {
-                        el.border_1().border_color(paint(pick.day_today_outline))
-                    })
-                    .child(day.to_string())
-            }),
-        ))
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .flex_wrap()
+                .children(cells.iter().copied().map(|(day, kind)| {
+                    let (bg, fg, radius) = day_colors(pick, kind);
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(radius))
+                        .bg(bg)
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(kind == DayKind::Today, |el| {
+                            el.border_1().border_color(paint(pick.day_today_outline))
+                        })
+                        .child(day.to_string())
+                })),
+        )
 }
 
 fn date_picker_card(
@@ -2940,11 +2958,8 @@ fn date_picker_card(
                         .p(px(8.))
                         .child("<")
                         .on_click(cx.listener(|this, _, _, cx| {
-                            let (y, m) = date_picker::add_months(
-                                this.picker_year,
-                                this.picker_month,
-                                -1,
-                            );
+                            let (y, m) =
+                                date_picker::add_months(this.picker_year, this.picker_month, -1);
                             this.picker_year = y;
                             this.picker_month = m;
                             cx.notify();
@@ -2969,11 +2984,8 @@ fn date_picker_card(
                         .p(px(8.))
                         .child(">")
                         .on_click(cx.listener(|this, _, _, cx| {
-                            let (y, m) = date_picker::add_months(
-                                this.picker_year,
-                                this.picker_month,
-                                1,
-                            );
+                            let (y, m) =
+                                date_picker::add_months(this.picker_year, this.picker_month, 1);
                             this.picker_year = y;
                             this.picker_month = m;
                             cx.notify();
@@ -3110,11 +3122,7 @@ fn desktop_mail_snack(
         )
         .children(snackbar::MAIL_ROWS.iter().map(|row| {
             div()
-                .h(px(if row.peek {
-                    snackbar::PEEK_H_DP
-                } else {
-                    72.0
-                }))
+                .h(px(if row.peek { snackbar::PEEK_H_DP } else { 72.0 }))
                 .px(px(16.))
                 .overflow_hidden()
                 .flex()
@@ -3237,8 +3245,14 @@ fn desktop_nav_bars(theme: &Theme) -> impl IntoElement {
         .flex()
         .flex_col()
         .gap(px(12.))
-        .child(desktop_nav_row(&compact, navigation_bar::COMPACT_DESTS.as_slice()))
-        .child(desktop_nav_row(&medium, navigation_bar::MEDIUM_DESTS.as_slice()))
+        .child(desktop_nav_row(
+            &compact,
+            navigation_bar::COMPACT_DESTS.as_slice(),
+        ))
+        .child(desktop_nav_row(
+            &medium,
+            navigation_bar::MEDIUM_DESTS.as_slice(),
+        ))
 }
 
 fn desktop_nav_row(
@@ -3730,18 +3744,16 @@ fn desktop_media_scene(
                     18.0,
                     paint(theme.color.on_surface),
                 ))
-                .child(
-                    div()
-                        .flex_1()
-                        .child(spaced_line(
-                            tabs::SCENE_TITLE,
-                            theme.typography.title_large.size_sp,
-                            paint(theme.color.on_surface),
-                        )),
-                )
-                .children(tabs::SCENE_TRAILING.iter().map(|g| {
-                    spaced_line(*g, 16.0, paint(theme.color.on_surface))
-                })),
+                .child(div().flex_1().child(spaced_line(
+                    tabs::SCENE_TITLE,
+                    theme.typography.title_large.size_sp,
+                    paint(theme.color.on_surface),
+                )))
+                .children(
+                    tabs::SCENE_TRAILING
+                        .iter()
+                        .map(|g| spaced_line(*g, 16.0, paint(theme.color.on_surface))),
+                ),
         )
         .child(
             div()
@@ -3790,21 +3802,16 @@ fn desktop_media_scene(
                         }),
                 ),
         )
-        .child(
-            div()
-                .p(px(12.))
-                .flex()
-                .flex_wrap()
-                .gap(px(8.))
-                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
-                    div()
-                        .w(px(150.))
-                        .h(px(tabs::SCENE_TILE_H_DP))
-                        .rounded(px(tabs::SCENE_TILE_CORNER_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(tabs::scene_tile_kind(i)))
-                })),
-        )
+        .child(div().p(px(12.)).flex().flex_wrap().gap(px(8.)).children(
+            tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
+                div()
+                    .w(px(150.))
+                    .h(px(tabs::SCENE_TILE_H_DP))
+                    .rounded(px(tabs::SCENE_TILE_CORNER_DP))
+                    .overflow_hidden()
+                    .child(photo_fill(tabs::scene_tile_kind(i)))
+            }),
+        ))
 }
 
 fn desktop_app_bar_scene(
@@ -3856,24 +3863,20 @@ fn desktop_app_bar_scene(
                                 .flex()
                                 .items_center()
                                 .gap(px(8.))
-                                .child(spaced_line(
-                                    top_app_bar::SCENE_LEADING,
-                                    18.0,
-                                    paint(a.icon),
-                                ))
+                                .child(spaced_line(top_app_bar::SCENE_LEADING, 18.0, paint(a.icon)))
                                 .when(this.app_bar_collapse >= 0.999, |el| {
-                                    el.child(
-                                        div().flex_1().child(spaced_line(
-                                            top_app_bar::SCENE_TITLE,
-                                            a.title_style.size_sp,
-                                            paint(a.title),
-                                        )),
-                                    )
+                                    el.child(div().flex_1().child(spaced_line(
+                                        top_app_bar::SCENE_TITLE,
+                                        a.title_style.size_sp,
+                                        paint(a.title),
+                                    )))
                                 })
                                 .when(this.app_bar_collapse < 0.999, |el| el.child(div().flex_1()))
-                                .children(top_app_bar::SCENE_TRAILING.iter().map(|g| {
-                                    spaced_line(*g, 16.0, paint(a.icon))
-                                })),
+                                .children(
+                                    top_app_bar::SCENE_TRAILING
+                                        .iter()
+                                        .map(|g| spaced_line(*g, 16.0, paint(a.icon))),
+                                ),
                         )
                         .when(this.app_bar_collapse < 0.999, |el| {
                             el.child(
@@ -3895,7 +3898,8 @@ fn desktop_app_bar_scene(
                             )
                         })
                         .on_click(cx.listener(|this, _, _, cx| {
-                            this.app_bar_collapse = top_app_bar::next_collapse(this.app_bar_collapse);
+                            this.app_bar_collapse =
+                                top_app_bar::next_collapse(this.app_bar_collapse);
                             cx.notify();
                         })),
                 )
@@ -3963,20 +3967,15 @@ fn desktop_side_sheet(theme: &Theme) -> impl IntoElement {
                 .child(side_sheet::STATUS_TIME)
                 .child("5G · 100%"),
         )
-        .child(
-            div()
-                .p(px(8.))
-                .flex()
-                .flex_wrap()
-                .gap(px(8.))
-                .children(side_sheet::SCENE_PHOTOS.iter().map(|kind| {
-                    div()
-                        .w(px(160.))
-                        .h(px(side_sheet::PHOTO_TILE_H_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(*kind))
-                })),
-        )
+        .child(div().p(px(8.)).flex().flex_wrap().gap(px(8.)).children(
+            side_sheet::SCENE_PHOTOS.iter().map(|kind| {
+                div()
+                    .w(px(160.))
+                    .h(px(side_sheet::PHOTO_TILE_H_DP))
+                    .overflow_hidden()
+                    .child(photo_fill(*kind))
+            }),
+        ))
         .child(
             div()
                 .id("side-scrim")
@@ -4030,11 +4029,7 @@ fn desktop_side_sheet(theme: &Theme) -> impl IntoElement {
                         .px(px(side_sheet::PAD_H_DP))
                         .flex()
                         .items_center()
-                        .child(spaced_line(
-                            side_sheet::APPLY_LABEL,
-                            14.0,
-                            paint(a.action),
-                        )),
+                        .child(spaced_line(side_sheet::APPLY_LABEL, 14.0, paint(a.action))),
                 ),
         )
 }
@@ -4065,19 +4060,19 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                 .child("5G · 100%"),
         )
         .child(
-            div()
-                .p(px(8.))
-                .flex()
-                .flex_wrap()
-                .gap(px(4.))
-                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, _caption)| {
-                    div()
-                        .w(px(108.))
-                        .h(px(bottom_sheet::PHOTO_TILE_H_DP))
-                        .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
-                        .overflow_hidden()
-                        .child(photo_fill(bottom_sheet::photo_kind(i)))
-                })),
+            div().p(px(8.)).flex().flex_wrap().gap(px(4.)).children(
+                bottom_sheet::PHOTO_GRID
+                    .iter()
+                    .enumerate()
+                    .map(|(i, _caption)| {
+                        div()
+                            .w(px(108.))
+                            .h(px(bottom_sheet::PHOTO_TILE_H_DP))
+                            .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
+                            .overflow_hidden()
+                            .child(photo_fill(bottom_sheet::photo_kind(i)))
+                    }),
+            ),
         )
         .child(
             div()
@@ -4104,17 +4099,21 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                         .pb(px(8.))
                         .flex()
                         .justify_between()
-                        .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
-                            div()
-                                .w(px(56.))
-                                .flex()
-                                .flex_col()
-                                .items_center()
-                                .gap(px(4.))
-                                .text_color(paint(a.content))
-                                .child(icon)
-                                .child(spaced_line(label, 10.0, paint(a.content)))
-                        })),
+                        .children(
+                            bottom_sheet::SHARE_ACTIONS
+                                .into_iter()
+                                .map(|(icon, label)| {
+                                    div()
+                                        .w(px(56.))
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .gap(px(4.))
+                                        .text_color(paint(a.content))
+                                        .child(icon)
+                                        .child(spaced_line(label, 10.0, paint(a.content)))
+                                }),
+                        ),
                 )
                 .child(spaced_line(
                     bottom_sheet::SEND_TITLE,
@@ -4138,7 +4137,7 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                                 .child(photo_avatar(person.photo, 40.0))
                                 .child(spaced_line(person.first, 11.0, paint(a.content)))
                         })),
-                )
+                ),
         )
 }
 
@@ -4160,8 +4159,7 @@ fn m_button(
         .items_center()
         .justify_center()
         .when(a.container.a() > 0, |el| {
-            el.rounded(px(a.corners.top_left))
-                .bg(paint(a.container))
+            el.rounded(px(a.corners.top_left)).bg(paint(a.container))
         })
         .text_color(paint(a.content))
         .text_size(type_size(a.label_style))
@@ -4212,7 +4210,11 @@ fn search_bar_hero(
     let avatar_fg = paint(a.avatar_label);
     let mic_color = paint(if open { view.header } else { a.trailing_icon });
     let header = div()
-        .id(if open { "search-activity" } else { "search-bar" })
+        .id(if open {
+            "search-activity"
+        } else {
+            "search-bar"
+        })
         .w_full()
         .px(px(16.))
         .flex()
@@ -4265,9 +4267,9 @@ fn search_bar_hero(
                             Animation::new(Duration::from_millis(morph_ms)),
                             move |this, delta| {
                                 let linear = if open { delta } else { 1.0 - delta };
-                                this.opacity(search::morph_avatar_opacity(
-                                    search::morph_eased_t(linear),
-                                ))
+                                this.opacity(search::morph_avatar_opacity(search::morph_eased_t(
+                                    linear,
+                                )))
                             },
                         ),
                 )
@@ -4301,9 +4303,9 @@ fn search_bar_hero(
                             Animation::new(Duration::from_millis(morph_ms)),
                             move |this, delta| {
                                 let linear = if open { delta } else { 1.0 - delta };
-                                this.opacity(search::morph_back_opacity(
-                                    search::morph_eased_t(linear),
-                                ))
+                                this.opacity(search::morph_back_opacity(search::morph_eased_t(
+                                    linear,
+                                )))
                             },
                         ),
                 ),
@@ -4407,11 +4409,8 @@ fn search_bar_hero(
                     let frame = search::morph_frame_eased(linear);
                     anim_frame.set(frame);
                     let layer = search::morph_layer_transform(frame);
-                    let box_ = search::morph_layer_box(
-                        search::MORPH_STAGE_W_DP,
-                        frame.height_dp,
-                        layer,
-                    );
+                    let box_ =
+                        search::morph_layer_box(search::MORPH_STAGE_W_DP, frame.height_dp, layer);
                     this.min_h(px(box_.height_dp))
                         .rounded(px(frame.corner_dp))
                         .ml(px(box_.x_dp.max(frame.inset_h_dp)))
@@ -4477,11 +4476,7 @@ fn time_picker_hero(
             .collect(),
     };
     let from_angle = this.time_hand_from;
-    let to_angle = time_picker::hand_angle_deg(
-        this.time_dial,
-        this.time_hour,
-        this.time_minute,
-    );
+    let to_angle = time_picker::hand_angle_deg(this.time_dial, this.time_hour, this.time_minute);
     let hand_gen = this.time_hand_gen;
     let hand_ms = time_picker::hand_motion_ms(theme) as u64;
     let hour_live = hour_on;
@@ -4662,7 +4657,8 @@ fn time_picker_hero(
                                             let r = time_picker::HAND_HUB_DP / 2.0;
                                             let n = 12u32;
                                             for i in 0..n {
-                                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                                                let ang =
+                                                    i as f32 / n as f32 * std::f32::consts::TAU;
                                                 let p = point(
                                                     bounds.origin.x + px(hub.0 + r * ang.cos()),
                                                     bounds.origin.y + px(hub.1 + r * ang.sin()),
@@ -4756,7 +4752,8 @@ fn time_picker_hero(
                             this.bump_time_hand();
                             match face {
                                 DialFace::Hour => {
-                                    this.time_hour = time_picker::select_hour(this.time_hour, value);
+                                    this.time_hour =
+                                        time_picker::select_hour(this.time_hour, value);
                                     this.time_dial = DialFace::Minute;
                                 }
                                 DialFace::Minute => {
@@ -4808,7 +4805,10 @@ fn nav_rail_static_column(
     let rail = navigation_rail::resolve(theme);
     let selected = this.rail_selected;
     div()
-        .id(SharedString::from(format!("wide-rail-{}", position.label())))
+        .id(SharedString::from(format!(
+            "wide-rail-{}",
+            position.label()
+        )))
         .w(px(width_dp))
         .min_h(px(280.))
         .pt(px(navigation_rail::PAD_TOP_DP))
@@ -4818,7 +4818,9 @@ fn nav_rail_static_column(
         .when(position.is_start(), |el| el.items_stretch())
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
-        .children(nav_rail_dest_views(theme, &rail, width_dp, position, selected, cx))
+        .children(nav_rail_dest_views(
+            theme, &rail, width_dp, position, selected, cx,
+        ))
 }
 
 fn nav_rail_hero(
@@ -4896,7 +4898,11 @@ fn nav_rail_column(
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .with_animation(
-            if expanded { "rail-expand" } else { "rail-collapse" },
+            if expanded {
+                "rail-expand"
+            } else {
+                "rail-collapse"
+            },
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
@@ -4973,9 +4979,7 @@ fn nav_rail_dest_views(
                         rail.container
                     }))
             } else {
-                dest.flex_col()
-                    .justify_center()
-                    .w(px(width_dp))
+                dest.flex_col().justify_center().w(px(width_dp))
             };
             if position.is_start() {
                 dest = dest
@@ -5183,33 +5187,28 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(
-                            div()
-                                .w(px(shape_s))
-                                .h(px(shape_s))
-                                .with_animation(
-                                    "ptr-morph",
-                                    Animation::new(Duration::from_millis(dur)).repeat(),
-                                    move |this, delta| {
-                                        this.child(
-                                            canvas(
-                                                move |_, _, _| {},
-                                                move |bounds, _, window, _| {
-                                                    let pts = progress::loading_polygon(shape_s, delta);
-                                                    paint_filled_polygon(
-                                                        window,
-                                                        bounds.origin,
-                                                        &pts,
-                                                        ptr_color,
-                                                    );
-                                                },
-                                            )
-                                            .w(px(shape_s))
-                                            .h(px(shape_s)),
-                                        )
-                                    },
-                                ),
-                        )
+                        .child(div().w(px(shape_s)).h(px(shape_s)).with_animation(
+                            "ptr-morph",
+                            Animation::new(Duration::from_millis(dur)).repeat(),
+                            move |this, delta| {
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let pts = progress::loading_polygon(shape_s, delta);
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &pts,
+                                                ptr_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(shape_s))
+                                    .h(px(shape_s)),
+                                )
+                            },
+                        ))
                 })
                 .child(spaced_line(
                     progress::PTR_LABEL,
@@ -5239,33 +5238,28 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                         .flex_col()
                         .items_center()
                         .gap(px(8.))
-                        .child(
-                            div()
-                                .w(px(size))
-                                .h(px(size))
-                                .with_animation(
-                                    "loading-morph",
-                                    Animation::new(Duration::from_millis(dur)).repeat(),
-                                    move |this, delta| {
-                                        this.child(
-                                            canvas(
-                                                move |_, _, _| {},
-                                                move |bounds, _, window, _| {
-                                                    let pts = progress::loading_polygon(size, delta);
-                                                    paint_filled_polygon(
-                                                        window,
-                                                        bounds.origin,
-                                                        &pts,
-                                                        load_color,
-                                                    );
-                                                },
-                                            )
-                                            .w(px(size))
-                                            .h(px(size)),
-                                        )
-                                    },
-                                ),
-                        )
+                        .child(div().w(px(size)).h(px(size)).with_animation(
+                            "loading-morph",
+                            Animation::new(Duration::from_millis(dur)).repeat(),
+                            move |this, delta| {
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let pts = progress::loading_polygon(size, delta);
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &pts,
+                                                load_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(size))
+                                    .h(px(size)),
+                                )
+                            },
+                        ))
                         .child(spaced_line(
                             progress::LOADING_LABEL,
                             12.0,
@@ -5282,80 +5276,66 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                         .flex_col()
                         .items_center()
                         .gap(px(8.))
-                        .child(
-                            div()
-                                .w(px(det_size))
-                                .h(px(det_size))
-                                .with_animation(
-                                    "loading-det-wait",
-                                    Animation::new(Duration::from_millis(wait_ms)).repeat(),
-                                    move |this, delta| {
-                                        let wait = progress::WaitProgress::from_fraction(delta);
-                                        let pts = progress::loading_polygon_for_wait(det_size, wait);
-                                        this.child(
-                                            canvas(
-                                                move |_, _, _| {},
-                                                move |bounds, _, window, _| {
-                                                    paint_filled_polygon(
-                                                        window,
-                                                        bounds.origin,
-                                                        &pts,
-                                                        det_color,
-                                                    );
-                                                },
-                                            )
-                                            .w(px(det_size))
-                                            .h(px(det_size)),
-                                        )
-                                    },
-                                ),
-                        )
-                        .child(
-                            div()
-                                .w(px(det_size))
-                                .with_animation(
-                                    "loading-det-label",
-                                    Animation::new(Duration::from_millis(wait_ms)).repeat(),
-                                    move |this, delta| {
-                                        this.child(spaced_line(
-                                            format!("{:.0}%", delta * 100.0),
-                                            12.0,
-                                            wait_label,
-                                        ))
-                                    },
-                                ),
-                        )
-                })
-                .child(
-                    div()
-                        .w(px(cap_size))
-                        .h(px(cap_size))
-                        .with_animation(
-                            "circ-indet-cap",
-                            Animation::new(Duration::from_millis(cap_dur)).repeat(),
+                        .child(div().w(px(det_size)).h(px(det_size)).with_animation(
+                            "loading-det-wait",
+                            Animation::new(Duration::from_millis(wait_ms)).repeat(),
                             move |this, delta| {
+                                let wait = progress::WaitProgress::from_fraction(delta);
+                                let pts = progress::loading_polygon_for_wait(det_size, wait);
                                 this.child(
                                     canvas(
                                         move |_, _, _| {},
                                         move |bounds, _, window, _| {
-                                            let pts = progress::ptr_arc_polyline(
-                                                cap_size, cap_stroke, cap_arc, delta,
-                                            );
-                                            paint_round_polyline(
+                                            paint_filled_polygon(
                                                 window,
                                                 bounds.origin,
                                                 &pts,
-                                                cap_stroke,
-                                                cap_color,
+                                                det_color,
                                             );
                                         },
                                     )
-                                    .w(px(cap_size))
-                                    .h(px(cap_size)),
+                                    .w(px(det_size))
+                                    .h(px(det_size)),
                                 )
                             },
-                        ),
-                )
+                        ))
+                        .child(div().w(px(det_size)).with_animation(
+                            "loading-det-label",
+                            Animation::new(Duration::from_millis(wait_ms)).repeat(),
+                            move |this, delta| {
+                                this.child(spaced_line(
+                                    format!("{:.0}%", delta * 100.0),
+                                    12.0,
+                                    wait_label,
+                                ))
+                            },
+                        ))
+                })
+                .child(div().w(px(cap_size)).h(px(cap_size)).with_animation(
+                    "circ-indet-cap",
+                    Animation::new(Duration::from_millis(cap_dur)).repeat(),
+                    move |this, delta| {
+                        this.child(
+                            canvas(
+                                move |_, _, _| {},
+                                move |bounds, _, window, _| {
+                                    let pts = progress::ptr_arc_polyline(
+                                        cap_size, cap_stroke, cap_arc, delta,
+                                    );
+                                    paint_round_polyline(
+                                        window,
+                                        bounds.origin,
+                                        &pts,
+                                        cap_stroke,
+                                        cap_color,
+                                    );
+                                },
+                            )
+                            .w(px(cap_size))
+                            .h(px(cap_size)),
+                        )
+                    },
+                ))
         })
 }
 
@@ -5389,32 +5369,30 @@ fn carousel_hero(
                 .id("carousel")
                 .relative()
                 .w_full()
-                .when(layout.uses_lists_scene() || layout.uses_phone_frame(), |el| {
-                    el.border_color(paint(theme.color.on_surface))
-                        .p(px(12.))
-                        .rounded(px(carousel::PHONE_CORNER_DP))
-                        .overflow_hidden()
-                })
+                .when(
+                    layout.uses_lists_scene() || layout.uses_phone_frame(),
+                    |el| {
+                        el.border_color(paint(theme.color.on_surface))
+                            .p(px(12.))
+                            .rounded(px(carousel::PHONE_CORNER_DP))
+                            .overflow_hidden()
+                    },
+                )
                 .when(layout.center_aligned(), |el| el.justify_center())
                 .flex()
-                .when(
-                    layout.axis() == carousel::CarouselAxis::Vertical,
-                    |el| el.flex_col(),
-                )
+                .when(layout.axis() == carousel::CarouselAxis::Vertical, |el| {
+                    el.flex_col()
+                })
                 .gap(px(a.gap_dp))
                 .child(
-                    div()
-                        .absolute()
-                        .w(px(1.))
-                        .h(px(1.))
-                        .with_animation(
-                            "carousel-live-clock",
-                            Animation::new(Duration::from_millis(
-                                gpui_material::motion::FRAME_MS as u64,
-                            ))
-                            .repeat(),
-                            |el, _| el,
-                        ),
+                    div().absolute().w(px(1.)).h(px(1.)).with_animation(
+                        "carousel-live-clock",
+                        Animation::new(Duration::from_millis(
+                            gpui_material::motion::FRAME_MS as u64,
+                        ))
+                        .repeat(),
+                        |el, _| el,
+                    ),
                 )
                 .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
                     let (dx, dy) = match ev.delta {
@@ -5426,29 +5404,36 @@ fn carousel_hero(
                     this.carousel_fling_at = None;
                     cx.notify();
                 }))
-                .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, _label)| {
-                    let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t);
-                    let h = carousel::item_height_for_index(layout, i)
-                        * if layout.axis() == carousel::CarouselAxis::Vertical {
-                            0.45
-                        } else {
-                            1.0
-                        };
-                    div()
-                        .id(SharedString::from(format!("carousel-{i}")))
-                        .w(px(w))
-                        .h(px(h))
-                        .ml(px(shift))
-                        .rounded(px(a.corners.top_left))
-                        .overflow_hidden()
-                        .child(photo_fill(carousel::media_kind(i)))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.carousel_index = carousel::snap_to(i);
-                            this.carousel_fling = carousel::FlingState::new(i);
-                            this.carousel_fling_at = None;
-                            cx.notify();
-                        }))
-                })),
+                .children(
+                    carousel::MEDIA_CAPTIONS
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _label)| {
+                            let w = carousel::item_width_during_fling_for(
+                                layout, i, selected, offset_t,
+                            );
+                            let h = carousel::item_height_for_index(layout, i)
+                                * if layout.axis() == carousel::CarouselAxis::Vertical {
+                                    0.45
+                                } else {
+                                    1.0
+                                };
+                            div()
+                                .id(SharedString::from(format!("carousel-{i}")))
+                                .w(px(w))
+                                .h(px(h))
+                                .ml(px(shift))
+                                .rounded(px(a.corners.top_left))
+                                .overflow_hidden()
+                                .child(photo_fill(carousel::media_kind(i)))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.carousel_index = carousel::snap_to(i);
+                                    this.carousel_fling = carousel::FlingState::new(i);
+                                    this.carousel_fling_at = None;
+                                    cx.notify();
+                                }))
+                        }),
+                ),
         )
         .when(layout.uses_lists_scene(), |el| {
             el.child(
@@ -5473,11 +5458,7 @@ fn carousel_hero(
                                 div()
                                     .flex()
                                     .flex_col()
-                                    .child(spaced_line(
-                                        *title,
-                                        14.0,
-                                        paint(theme.color.on_surface),
-                                    ))
+                                    .child(spaced_line(*title, 14.0, paint(theme.color.on_surface)))
                                     .child(spaced_line(
                                         *sub,
                                         12.0,
@@ -5497,7 +5478,11 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
         .font_weight(type_weight(style))
         .text_color(paint(theme.color.on_surface))
         .whitespace_nowrap()
-        .child(spaced_line(title, style.size_sp, paint(theme.color.on_surface)))
+        .child(spaced_line(
+            title,
+            style.size_sp,
+            paint(theme.color.on_surface),
+        ))
 }
 
 fn spaced_line(text: impl AsRef<str>, size: f32, color: gpui::Rgba) -> gpui::AnyElement {
@@ -5706,16 +5691,12 @@ fn field_block(
             .flex_col()
             .on_click(on_click)
             .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .child(
-                        div()
-                            .text_size(px(field.label_style.size_sp))
-                            .text_color(paint(field.label))
-                            .child(label),
-                    ),
+                div().flex_1().flex().items_center().child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(label),
+                ),
             )
             .child(
                 div()
@@ -5725,18 +5706,13 @@ fn field_block(
             )
             .into_any_element()
     };
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(4.))
-        .child(box_el)
-        .child(
-            div()
-                .px(px(16.))
-                .text_size(px(field.supporting_style.size_sp))
-                .text_color(paint(field.supporting))
-                .child(supporting.into()),
-        )
+    div().flex().flex_col().gap(px(4.)).child(box_el).child(
+        div()
+            .px(px(16.))
+            .text_size(px(field.supporting_style.size_sp))
+            .text_color(paint(field.supporting))
+            .child(supporting.into()),
+    )
 }
 
 fn main() {
@@ -5776,7 +5752,10 @@ fn main() {
                         month: 9,
                         day: 11,
                     },
-                    filled: TextFieldEditor::new(text_field::TextFieldVariant::Filled, "Input text"),
+                    filled: TextFieldEditor::new(
+                        text_field::TextFieldVariant::Filled,
+                        "Input text",
+                    ),
                     outlined: TextFieldEditor::new(
                         text_field::TextFieldVariant::Outlined,
                         "you@domain.com",
@@ -5800,10 +5779,7 @@ fn main() {
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
                     search: {
-                        let mut ed = TextFieldEditor::new(
-                            text_field::TextFieldVariant::Filled,
-                            "",
-                        );
+                        let mut ed = TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
                         ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
                         ed
                     },
@@ -5839,13 +5815,14 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{nav_rail_os_popup_options, WindowKind};
+    use super::{WindowKind, nav_rail_os_popup_options};
+    use gpui_material::InteractionState;
     use gpui_material::components::{
-                button, button_group, carousel, chip, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
-                split_button, text_field, time_picker, toolbar, tooltip, top_app_bar,
+        button, button_group, carousel, chip, dialog, fab_menu, icon_button, list, menu,
+        navigation_bar, navigation_rail, progress, search, side_sheet, slider, split_button,
+        text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
-    use gpui_material::InteractionState;
 
     #[test]
     fn desktop_heroes_use_shared_resolve_not_local_constants() {
@@ -5921,8 +5898,8 @@ mod tests {
             "displaySmallEmphasized"
         );
         assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
-        let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::Start, "right")
-            .expect("arrow");
+        let (s, e, thumb) =
+            slider::apply_arrow(0.2, 0.75, slider::RangeThumb::Start, "right").expect("arrow");
         assert!((s - 0.25).abs() < 1e-5);
         assert_eq!(e, 0.75);
         assert_eq!(thumb, slider::RangeThumb::Start);
@@ -6099,6 +6076,8 @@ mod tests {
             InteractionState::Enabled,
         );
         assert_eq!(elevator.corners.top_left, 12.0);
+        assert_eq!(elevator.outline, Some((theme.color.outline_variant, 1.0)));
+        assert_eq!(elevator.content, theme.color.on_surface_variant);
         let pets = chip::resolve(
             &theme,
             chip::ChipVariant::Filter,
@@ -6106,6 +6085,13 @@ mod tests {
             InteractionState::Pressed,
         );
         assert_eq!(pets.corners.top_left, 8.0);
+        let elev = chip::resolve_demo(&theme, chip::ELEVATED_FILTER_HERO[0]);
+        assert_eq!(elev.container, theme.color.surface_container_low);
+        assert_eq!(elev.elevation_dp, 1.0);
+        assert_eq!(elev.outline, None);
+        assert_eq!(elev.secondary_content, Some(theme.color.on_surface_variant));
+        assert!(!menu::OVERLAY_USES_SCRIM);
+        assert_eq!(menu::OVERLAY_ANCHOR_LABEL, "Menu");
         assert_eq!(
             navigation_rail::icon_position_for(false),
             navigation_rail::IconPosition::Top
@@ -6114,10 +6100,7 @@ mod tests {
             navigation_rail::icon_position_for(true),
             navigation_rail::IconPosition::Start
         );
-        let start = navigation_rail::item_metrics(
-            &theme,
-            navigation_rail::IconPosition::Start,
-        );
+        let start = navigation_rail::item_metrics(&theme, navigation_rail::IconPosition::Start);
         assert_eq!(start.indicator_h_dp, 56.0);
         assert_eq!(start.label_style.name, "labelLarge");
         assert_eq!(navigation_rail::WIDE_COLLAPSED_WIDTH_DP, 96.0);
