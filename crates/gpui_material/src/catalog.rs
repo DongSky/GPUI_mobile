@@ -204,13 +204,20 @@ a {{ color: var(--primary); }}
 .search-morph[data-open="0"] {{
   margin: 0 16px; transform: scale(0.94);
 }}
-.search-morph[data-search-style="contained"],
-.search-morph[data-search-style="contained"][data-open="1"],
-.search-view[data-search-style="contained"][data-search-activity="1"] {{
+.search-morph[data-search-style="contained"][data-width-class="medium"],
+.search-morph[data-search-style="contained"][data-search-expanded="docked"][data-open="1"],
+.search-view[data-search-style="contained"][data-search-expanded="docked"] {{
   border-radius: 28px; max-width: 720px; min-height: 280px; margin: 12px; transform: none;
 }}
-.search-morph[data-search-style="contained"][data-open="0"] {{
+.search-morph[data-search-style="contained"][data-width-class="medium"][data-open="0"] {{
   margin: 24px; min-height: 56px; transform: none;
+}}
+.search-morph[data-search-style="contained"][data-width-class="compact"][data-open="1"],
+.search-morph[data-search-style="contained"][data-search-expanded="fullscreen"] {{
+  border-radius: 0; max-width: none; min-height: 320px; margin: 0; transform: none;
+}}
+.search-morph[data-search-style="contained"][data-width-class="compact"][data-open="0"] {{
+  border-radius: 28px; max-width: 720px; margin: 16px; min-height: 56px; transform: none;
 }}
 .search-morph[data-search-style="contained"] .sv-divider {{ display: none; }}
 .search-morph[data-open="0"] .sv-list {{ max-height: 0; opacity: 0; }}
@@ -2012,10 +2019,19 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     if (view.classList.contains("search-morph")) {{
       var contained = view.getAttribute("data-search-style") === "contained";
       if (contained) {{
-        view.style.minHeight = open ? "280px" : "56px";
-        view.style.borderRadius = "28px";
-        view.style.marginLeft = open ? "12px" : "24px";
-        view.style.marginRight = open ? "12px" : "24px";
+        var compact = view.getAttribute("data-width-class") === "compact"
+          || view.getAttribute("data-search-expanded") === "fullscreen";
+        if (compact) {{
+          view.style.minHeight = open ? "320px" : "56px";
+          view.style.borderRadius = open ? "0" : "28px";
+          view.style.marginLeft = open ? "0" : "16px";
+          view.style.marginRight = open ? "0" : "16px";
+        }} else {{
+          view.style.minHeight = open ? "280px" : "56px";
+          view.style.borderRadius = "28px";
+          view.style.marginLeft = open ? "12px" : "24px";
+          view.style.marginRight = open ? "12px" : "24px";
+        }}
         view.style.transform = "none";
         view.setAttribute("data-search-scale", "1");
         view.setAttribute("data-search-anim-scale", "1");
@@ -5981,10 +5997,16 @@ fn date_pickers(theme: &Theme) -> String {
     )
 }
 
-fn search_section(theme: &Theme) -> String {
+fn paint_contained_search(
+    theme: &Theme,
+    width_class: search::WindowWidthClass,
+    hero: bool,
+) -> String {
     let bar = search::resolve(theme);
     let contained = search::resolve_view(theme);
-    let activity = search::resolve_activity(theme);
+    let layout = width_class.expanded_search();
+    let focused =
+        search::contained_frame_at_layout(layout, 1.0, search::contained_suggestion_count());
     let mut rows = String::new();
     for (i, label) in search::SUGGESTIONS.iter().enumerate() {
         rows.push_str(&format!(
@@ -5995,11 +6017,8 @@ fn search_section(theme: &Theme) -> String {
             icon = if i == 0 { "⌕" } else { "◌" },
         ));
     }
-    let focused = search::contained_frame_at(1.0, search::contained_suggestion_count());
     format!(
-        r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search — persistent filled container, Corner 28 stays focused, 24→12dp margin, no divider. Divided full-screen activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
+        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -6010,16 +6029,10 @@ fn search_section(theme: &Theme) -> String {
     <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
   <div class="sv-list">{rows}</div>
-</div>
-<h3>divided (baseline)</h3>
-<p class="note">Not recommended. Divider + full-screen activity flatten (0dp corners).</p>
-<div class="search-morph" data-search-style="divided" data-search-view="1" data-search-activity="1" data-open="1" style="background:{abg2};border-radius:{ar}px;min-height:{amh}px">
-  <div class="sv-head" style="height:{ah}px;color:{afg2}">
-    <div class="lead"><span class="lead-activity">{back}</span></div>
-    <input class="hint" placeholder="{placeholder}" style="color:{aph}"/>
-  </div>
-  <div class="sv-divider" style="height:1px;background:{vdiv}"></div>
 </div>"#,
+        wc = width_class.label(),
+        layout = layout.label(),
+        hero_attr = if hero { r#" data-hero="search""# } else { "" },
         cbg = search::contained_container(theme).css_hex(),
         cr = focused.corner_dp,
         mh = focused.height_dp,
@@ -6034,6 +6047,33 @@ fn search_section(theme: &Theme) -> String {
         placeholder = search::PLACEHOLDER,
         mic = search::TRAILING_MIC,
         rows = rows,
+    )
+}
+
+fn search_section(theme: &Theme) -> String {
+    let activity = search::resolve_activity(theme);
+    let compact = paint_contained_search(theme, search::WindowWidthClass::Compact, true);
+    let docked = paint_contained_search(theme, search::WindowWidthClass::Medium, false);
+    format!(
+        r#"<h2>Search</h2>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+{compact}
+<h3>medium docked (≥600dp)</h3>
+<p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin.</p>
+{docked}
+<h3>divided (baseline)</h3>
+<p class="note">Not recommended. Divider + full-screen activity flatten (0dp corners).</p>
+<div class="search-morph" data-search-style="divided" data-search-view="1" data-search-activity="1" data-open="1" style="background:{abg2};border-radius:{ar}px;min-height:{amh}px">
+  <div class="sv-head" style="height:{ah}px;color:{afg2}">
+    <div class="lead"><span class="lead-activity">{back}</span></div>
+    <input class="hint" placeholder="{placeholder}" style="color:{aph}"/>
+  </div>
+  <div class="sv-divider" style="height:1px;background:{vdiv}"></div>
+</div>"#,
+        compact = compact,
+        docked = docked,
+        back = search::VIEW_BACK,
+        placeholder = search::PLACEHOLDER,
         abg2 = activity.container.css_hex(),
         ar = activity.corners.top_left,
         amh = search::ACTIVITY_MIN_H_DP,

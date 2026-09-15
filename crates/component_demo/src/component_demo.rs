@@ -5285,6 +5285,7 @@ fn android_search_bar(
     };
     let morph_ms = search::morph_ms(theme) as u64;
     let open = this.search_open;
+    let search_layout = search::WindowWidthClass::Compact.expanded_search();
     let contained_bg = search::contained_container(theme);
     let query_color = paint(if open && !this.search.value().is_empty() {
         view.input
@@ -5324,7 +5325,8 @@ fn android_search_bar(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::contained_frame_eased(linear, suggestion_count);
+                let frame =
+                    search::contained_frame_eased_layout(search_layout, linear, suggestion_count);
                 this.h(px(frame.header_h_dp))
             },
         )
@@ -5460,7 +5462,8 @@ fn android_search_bar(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::contained_frame_eased(linear, suggestion_count);
+                let frame =
+                    search::contained_frame_eased_layout(search_layout, linear, suggestion_count);
                 this.min_h(px(frame.height_dp))
                     .rounded(px(frame.corner_dp))
                     .ml(px(frame.margin_dp))

@@ -4505,6 +4505,7 @@ fn search_bar_hero(
         search::query_display(this.search.value()).to_string()
     };
     let morph_ms = search::morph_ms(theme) as u64;
+    let search_layout = search::WindowWidthClass::Medium.expanded_search();
     let contained_bg = search::contained_container(theme);
     let query_color = paint(if open && !this.search.value().is_empty() {
         view.input
@@ -4545,7 +4546,8 @@ fn search_bar_hero(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::contained_frame_eased(linear, suggestion_count);
+                let frame =
+                    search::contained_frame_eased_layout(search_layout, linear, suggestion_count);
                 this.h(px(frame.header_h_dp))
             },
         )
@@ -4708,7 +4710,8 @@ fn search_bar_hero(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::contained_frame_eased(linear, suggestion_count);
+                let frame =
+                    search::contained_frame_eased_layout(search_layout, linear, suggestion_count);
                 this.min_h(px(frame.height_dp))
                     .rounded(px(frame.corner_dp))
                     .ml(px(frame.margin_dp))
@@ -7278,6 +7281,14 @@ mod tests {
         assert!(!time_picker::DEMO_FORMAT.shows_period());
         assert_eq!(search::DEMO_STYLE, search::SearchStyle::Contained);
         assert_eq!(search::contained_margin_dp(true), 12.0);
+        assert_eq!(
+            search::WindowWidthClass::from_width_dp(search::DEMO_COMPACT_WIDTH_DP).expanded_search(),
+            search::SearchExpandedLayout::FullScreen
+        );
+        assert_eq!(
+            search::contained_corner_dp_layout(search::SearchExpandedLayout::FullScreen, true),
+            0.0
+        );
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);

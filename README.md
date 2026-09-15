@@ -54,7 +54,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Tabs | Tabs | done | Primary 48dp + 3dp indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone (Audio selected, Bloom/Egret licensed stills, app-bar chrome) | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
 | Date picker | Date pickers | done | Modal calendar; docked popup with month nav + outside-click dismiss | [spec](https://m3.material.io/components/date-pickers/specs) |
-| Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade; MorphLayerTransform top-center; with_animation PathBuilder::scale fill; morph_layer_box layout) | [spec](https://m3.material.io/components/search/specs) |
+| Search | Search bar + view | done | Expressive contained: compact <600dp fullscreen (0/0); medium ≥600dp docked Corner 28 + 24→12dp, no divider; divided activity still available | [spec](https://m3.material.io/components/search/specs) |
 | Time picker | Time pickers (dial + TimeScroll) | done | Expressive TimeScroll (recommended): two ScrollFields (12h / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. Dial remains available | [spec](https://m3.material.io/components/time-pickers/specs) |
 | Carousel | Carousel (hero / multi-browse / uncontained-multi) | done | Hero / multi-browse / uncontained / uncontained-multi / centered-hero / full-screen; phone-frame mask; Your lists phone; licensed camera stills + parallax | [spec](https://m3.material.io/components/carousel/specs) |
 

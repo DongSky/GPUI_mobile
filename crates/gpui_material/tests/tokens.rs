@@ -869,6 +869,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Hinted search text"));
     assert!(html.contains("data-search-view=\"1\""));
     assert!(html.contains(r#"data-search-style="contained""#));
+    assert!(html.contains(r#"data-width-class="compact""#));
+    assert!(html.contains(r#"data-width-class="medium""#));
+    assert!(html.contains(r#"data-search-expanded="fullscreen""#));
+    assert!(html.contains(r#"data-search-expanded="docked""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
@@ -1140,6 +1144,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("contained")
             && e.notes.contains("24→12")
             && e.notes.contains("no divider")
+            && e.notes.contains("compact")
+            && e.notes.contains("600dp")
+            && e.notes.contains("fullscreen")
     }));
     assert!(INVENTORY
         .iter()
@@ -2741,6 +2748,26 @@ fn search_bar_and_time_picker_tokens() {
     assert!((contained.corner_dp - 28.0).abs() < 0.01);
     assert!((contained.margin_dp - 12.0).abs() < 0.01);
     assert!(contained.height_dp > search::HEIGHT_DP);
+    assert_eq!(
+        search::WindowWidthClass::from_width_dp(359.0),
+        search::WindowWidthClass::Compact
+    );
+    assert_eq!(
+        search::WindowWidthClass::from_width_dp(600.0),
+        search::WindowWidthClass::Medium
+    );
+    assert_eq!(
+        search::DEMO_WIDTH_CLASS.expanded_search(),
+        search::SearchExpandedLayout::FullScreen
+    );
+    let compact = search::contained_frame_at_layout(
+        search::SearchExpandedLayout::FullScreen,
+        1.0,
+        search::contained_suggestion_count(),
+    );
+    assert!((compact.corner_dp - 0.0).abs() < 0.01);
+    assert!((compact.margin_dp - 0.0).abs() < 0.01);
+    assert!(compact.height_dp >= search::ACTIVITY_MIN_H_DP);
     assert_eq!(
         search::contained_container(&theme),
         theme.color.surface_container_high

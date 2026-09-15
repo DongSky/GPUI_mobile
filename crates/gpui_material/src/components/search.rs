@@ -2,9 +2,11 @@
 //! Specs: https://m3.material.io/components/search/specs
 //!
 //! Expressive (recommended): contained search — persistent filled container,
-//! Corner 28 stays focused, 24→12dp margin, no divider. Divided (baseline)
-//! full-screen activity + divider remains available. Catalog / hosts do not
-//! use `cx.transform` for the shared-element scale (PathBuilder stand-in).
+//! no divider. Compact width (`< 600dp`) expands to
+//! `ExpandedFullScreenSearchBar` (0 margin / 0 corner). Medium+ (`≥ 600dp`)
+//! uses `ExpandedDockedSearchBar` (Corner 28 stays, 24→12dp margin). Divided
+//! (baseline) full-screen activity + divider remains available. Catalog /
+//! hosts do not use `cx.transform` (height/margin/corner tokens only).
 
 use crate::argb::Argb;
 use crate::components::Appearance;
@@ -411,33 +413,134 @@ impl SearchStyle {
 
 /// Catalog / host hero uses contained (recommended). Divided stays available.
 pub const DEMO_STYLE: SearchStyle = SearchStyle::Contained;
-/// Contained container keeps the 56dp-bar full-round (28) when focused.
+/// Contained container keeps the 56dp-bar full-round (28) when docked/focused.
 pub const CONTAINED_CORNER_DP: f32 = HEIGHT_DP / 2.0;
-/// Unfocused horizontal margin (`SearchBar` rest).
+/// Unfocused horizontal margin (`SearchBar` rest, medium docked).
 pub const CONTAINED_MARGIN_UNFOCUSED_DP: f32 = 24.0;
-/// Focused horizontal margin (Expressive: 24 → 12).
+/// Focused horizontal margin (Expressive docked: 24 → 12).
 pub const CONTAINED_MARGIN_FOCUSED_DP: f32 = 12.0;
+/// Compact collapsed SearchBar inset (full-screen expand goes to 0).
+pub const CONTAINED_MARGIN_COMPACT_UNFOCUSED_DP: f32 = 16.0;
 /// Contained header stays the 56dp search bar (not the 72dp activity header).
 pub const CONTAINED_HEADER_DP: f32 = HEIGHT_DP;
+/// Compose `WindowWidthSizeClass.Compact` exclusive upper bound.
+pub const COMPACT_MAX_WIDTH_DP: f32 = 600.0;
+/// Phone / compact catalog column (full-screen default).
+pub const DEMO_COMPACT_WIDTH_DP: f32 = 360.0;
+/// Tablet / medium catalog column (docked).
+pub const DEMO_MEDIUM_WIDTH_DP: f32 = 720.0;
+/// Catalog hero uses compact (phone) so expanded search is full-screen.
+pub const DEMO_WIDTH_CLASS: WindowWidthClass = WindowWidthClass::Compact;
+
+/// Compose material3-adaptive window width size class.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WindowWidthClass {
+    /// width < 600dp — phones in portrait.
+    Compact,
+    /// width ≥ 600dp — tablets / desktop (medium and up share docked search).
+    Medium,
+}
+
+impl WindowWidthClass {
+    pub const ALL: [Self; 2] = [Self::Compact, Self::Medium];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Compact => "compact",
+            Self::Medium => "medium",
+        }
+    }
+
+    pub fn from_width_dp(width_dp: f32) -> Self {
+        if width_dp < COMPACT_MAX_WIDTH_DP {
+            Self::Compact
+        } else {
+            Self::Medium
+        }
+    }
+
+    /// `ExpandedFullScreenSearchBar` on compact; `ExpandedDockedSearchBar` on medium+.
+    pub const fn expanded_search(self) -> SearchExpandedLayout {
+        match self {
+            Self::Compact => SearchExpandedLayout::FullScreen,
+            Self::Medium => SearchExpandedLayout::Docked,
+        }
+    }
+}
+
+/// Compose expanded search host (`ExpandedFullScreenSearchBar` vs docked popup).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchExpandedLayout {
+    FullScreen,
+    Docked,
+}
+
+impl SearchExpandedLayout {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::FullScreen => "fullscreen",
+            Self::Docked => "docked",
+        }
+    }
+}
 
 pub fn contained_margin_dp(focused: bool) -> f32 {
-    if focused {
-        CONTAINED_MARGIN_FOCUSED_DP
-    } else {
-        CONTAINED_MARGIN_UNFOCUSED_DP
+    contained_margin_dp_layout(SearchExpandedLayout::Docked, focused)
+}
+
+pub fn contained_margin_dp_layout(layout: SearchExpandedLayout, focused: bool) -> f32 {
+    match layout {
+        SearchExpandedLayout::Docked => {
+            if focused {
+                CONTAINED_MARGIN_FOCUSED_DP
+            } else {
+                CONTAINED_MARGIN_UNFOCUSED_DP
+            }
+        }
+        SearchExpandedLayout::FullScreen => {
+            if focused {
+                0.0
+            } else {
+                CONTAINED_MARGIN_COMPACT_UNFOCUSED_DP
+            }
+        }
     }
 }
 
 pub fn contained_height_dp(focused: bool, suggestion_count: usize) -> f32 {
-    if focused {
-        CONTAINED_HEADER_DP + SUGGESTION_H_DP * suggestion_count as f32
-    } else {
-        HEIGHT_DP
+    contained_height_dp_layout(SearchExpandedLayout::Docked, focused, suggestion_count)
+}
+
+pub fn contained_height_dp_layout(
+    layout: SearchExpandedLayout,
+    focused: bool,
+    suggestion_count: usize,
+) -> f32 {
+    if !focused {
+        return HEIGHT_DP;
+    }
+    let list = CONTAINED_HEADER_DP + SUGGESTION_H_DP * suggestion_count as f32;
+    match layout {
+        SearchExpandedLayout::Docked => list,
+        SearchExpandedLayout::FullScreen => list.max(ACTIVITY_MIN_H_DP),
     }
 }
 
 pub fn contained_corner_dp(_focused: bool) -> f32 {
     CONTAINED_CORNER_DP
+}
+
+pub fn contained_corner_dp_layout(layout: SearchExpandedLayout, focused: bool) -> f32 {
+    match layout {
+        SearchExpandedLayout::Docked => CONTAINED_CORNER_DP,
+        SearchExpandedLayout::FullScreen => {
+            if focused {
+                ACTIVITY_CORNER_DP
+            } else {
+                CONTAINED_CORNER_DP
+            }
+        }
+    }
 }
 
 /// Shared-element stand-in for contained expand (corners stay 28; no flatten).
@@ -458,15 +561,27 @@ pub fn contained_suggestion_count() -> usize {
 }
 
 pub fn contained_frame_at(t: f32, suggestion_count: usize) -> ContainedFrame {
+    contained_frame_at_layout(SearchExpandedLayout::Docked, t, suggestion_count)
+}
+
+pub fn contained_frame_at_layout(
+    layout: SearchExpandedLayout,
+    t: f32,
+    suggestion_count: usize,
+) -> ContainedFrame {
     let t = t.clamp(0.0, 1.0);
-    let n = suggestion_count.max(1) as f32;
+    let collapsed_h = HEIGHT_DP;
+    let expanded_h = contained_height_dp_layout(layout, true, suggestion_count);
+    let collapsed_m = contained_margin_dp_layout(layout, false);
+    let expanded_m = contained_margin_dp_layout(layout, true);
+    let collapsed_c = contained_corner_dp_layout(layout, false);
+    let expanded_c = contained_corner_dp_layout(layout, true);
     ContainedFrame {
         t,
-        height_dp: HEIGHT_DP + SUGGESTION_H_DP * n * t,
-        corner_dp: CONTAINED_CORNER_DP,
+        height_dp: collapsed_h + (expanded_h - collapsed_h) * t,
+        corner_dp: collapsed_c + (expanded_c - collapsed_c) * t,
         header_h_dp: CONTAINED_HEADER_DP,
-        margin_dp: CONTAINED_MARGIN_UNFOCUSED_DP
-            + (CONTAINED_MARGIN_FOCUSED_DP - CONTAINED_MARGIN_UNFOCUSED_DP) * t,
+        margin_dp: collapsed_m + (expanded_m - collapsed_m) * t,
         suggestion_opacity: t,
         leading_docked_opacity: morph_avatar_opacity(t),
         leading_activity_opacity: morph_back_opacity(t),
@@ -475,6 +590,30 @@ pub fn contained_frame_at(t: f32, suggestion_count: usize) -> ContainedFrame {
 
 pub fn contained_frame_eased(linear: f32, suggestion_count: usize) -> ContainedFrame {
     contained_frame_at(morph_eased_t(linear), suggestion_count)
+}
+
+pub fn contained_frame_eased_layout(
+    layout: SearchExpandedLayout,
+    linear: f32,
+    suggestion_count: usize,
+) -> ContainedFrame {
+    contained_frame_at_layout(layout, morph_eased_t(linear), suggestion_count)
+}
+
+pub fn contained_frame_for_width(width_dp: f32, t: f32, suggestion_count: usize) -> ContainedFrame {
+    contained_frame_at_layout(
+        WindowWidthClass::from_width_dp(width_dp).expanded_search(),
+        t,
+        suggestion_count,
+    )
+}
+
+pub fn contained_frame_eased_for_width(
+    width_dp: f32,
+    linear: f32,
+    suggestion_count: usize,
+) -> ContainedFrame {
+    contained_frame_for_width(width_dp, morph_eased_t(linear), suggestion_count)
 }
 
 /// Persistent filled container (contained never lerps to activity `surface`).
