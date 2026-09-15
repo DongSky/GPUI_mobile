@@ -69,7 +69,7 @@ pub fn resolve(theme: &Theme) -> DatePickerAppearance {
         elevation_dp: theme.elevation.level3,
         day_dp: DAY_DP,
         year_style: theme.typography.label_large,
-        date_style: theme.typography.headline_large,
+        date_style: theme.typography.headline_large.emphasized(),
         weekday_style: theme.typography.body_small,
         day_style: theme.typography.body_large,
     }
@@ -236,6 +236,14 @@ pub fn header_range_label(start: CivilDate, end: CivilDate) -> String {
 
 pub fn month_nav_label(year: i32, month: u32) -> String {
     format!("{} ▾", month_title(year, month))
+}
+
+/// Compose docked date picker: outlined field + calendar attached below
+/// (https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary#DatePickerDocked).
+pub const DOCKED_FIELD_LABEL: &str = "Date of birth";
+
+pub fn docked_field_value(date: CivilDate) -> String {
+    format!("{}, {}", header_date_short(date), date.year)
 }
 
 fn date_ord(d: CivilDate) -> i32 {

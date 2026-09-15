@@ -1,8 +1,8 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    badge, bottom_sheet, button, card, checkbox, chip, date_picker, dialog, divider, fab,
-    icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
+    badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
+    fab, icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
     text_field, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
@@ -40,6 +40,7 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&inventory_section());
     body.push_str(&color_section(theme));
     body.push_str(&type_section(theme));
+    body.push_str(&settings_scene(theme));
     body.push_str(&buttons(theme));
     body.push_str(&icon_buttons(theme));
     body.push_str(&fabs(theme));
@@ -134,6 +135,18 @@ a {{ color: var(--primary); }}
 }}
 .btn:active {{ border-radius: var(--press-r, 8px) !important; }}
 .icon-btn:active {{ border-radius: var(--press-r, 8px) !important; }}
+.btn-group {{
+  display: flex; gap: {gap}px; align-items: stretch; flex-wrap: wrap;
+}}
+.btn-connected {{ min-width: 72px; }}
+.btn-connected.selected {{ font-weight: 700; }}
+.docked {{
+  display: flex; flex-direction: column; align-items: stretch;
+  max-width: 360px;
+}}
+.docked .cal {{ margin-top: 0; border-top-left-radius: 8px; border-top-right-radius: 8px; }}
+.settings-scene {{ display: flex; flex-direction: column; gap: 16px; }}
+.settings-scene h3 {{ margin: 0; }}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -344,6 +357,26 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
   input.addEventListener("focus", sync);
   input.addEventListener("blur", sync);
 }});
+document.querySelectorAll("[data-button-group]").forEach(function (group) {{
+  group.querySelectorAll(".btn-connected").forEach(function (btn) {{
+    btn.addEventListener("click", function () {{
+      group.querySelectorAll(".btn-connected").forEach(function (other) {{
+        other.classList.remove("selected");
+        other.style.background = other.getAttribute("data-idle-bg") || other.style.background;
+        other.style.color = other.getAttribute("data-idle-fg") || other.style.color;
+        other.style.borderRadius = other.getAttribute("data-idle-r") || other.style.borderRadius;
+        other.style.border = other.getAttribute("data-idle-bd") || other.style.border;
+        other.style.fontWeight = "500";
+      }});
+      btn.classList.add("selected");
+      btn.style.background = btn.getAttribute("data-sel-bg") || btn.style.background;
+      btn.style.color = btn.getAttribute("data-sel-fg") || btn.style.color;
+      btn.style.borderRadius = btn.getAttribute("data-sel-r") || btn.style.borderRadius;
+      btn.style.border = "none";
+      btn.style.fontWeight = "700";
+    }});
+  }});
+}});
 </script>
 </body>
 </html>
@@ -362,6 +395,7 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
         body = body,
         motion = theme.motion.css_state_transition(),
         ease = theme.motion.emphasized,
+        gap = button_group::CONNECTED_GAP_DP,
     )
 }
 
@@ -472,7 +506,7 @@ fn color_section(theme: &Theme) -> String {
 }
 
 fn type_section(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Type scale</h2>");
+    let mut out = String::from("<h2>Type scale</h2><h3>baseline</h3>");
     for style in theme.typography.all() {
         out.push_str(&format!(
             "<div data-type=\"{name}\" style=\"font-size:{sz}px;line-height:{lh}px;letter-spacing:{tr}px;font-weight:{w};color:{c}\">{name} · {sz}/{lh} · {w}</div>",
@@ -484,7 +518,131 @@ fn type_section(theme: &Theme) -> String {
             c = theme.color.on_surface.css_hex(),
         ));
     }
+    out.push_str("<h3>emphasized</h3><p class=\"note\">Expressive hero moments: same size/line-height, heavier weight. Wired on dialog headlines and date-picker large dates.</p>");
+    for style in theme.typography.emphasized().all() {
+        out.push_str(&format!(
+            "<div data-type=\"{name}\" style=\"font-size:{sz}px;line-height:{lh}px;letter-spacing:{tr}px;font-weight:{w};color:{c}\">{name} · {sz}/{lh} · {w}</div>",
+            name = style.name,
+            sz = style.size_sp,
+            lh = style.line_height_sp,
+            tr = style.tracking_sp,
+            w = style.weight,
+            c = theme.color.on_surface.css_hex(),
+        ));
+    }
     out
+}
+
+fn paint_connected_group(theme: &Theme, selected: usize) -> String {
+    let count = button_group::DEMO_SEGMENTS.len();
+    let mut parts = String::from(
+        r#"<div class="btn-group" data-button-group="connected" data-hero="button-group">"#,
+    );
+    for (i, label) in button_group::DEMO_SEGMENTS.iter().enumerate() {
+        let sel = i == selected;
+        let a = button_group::resolve_segment(theme, i, count, sel, false);
+        let idle = button_group::resolve_segment(theme, i, count, false, false);
+        let on = button_group::resolve_segment(theme, i, count, true, false);
+        let role = match button_group::segment_role(i, count) {
+            button_group::SegmentRole::Leading => "leading",
+            button_group::SegmentRole::Middle => "middle",
+            button_group::SegmentRole::Trailing => "trailing",
+        };
+        let class = if sel {
+            format!("btn btn-connected {role} selected")
+        } else {
+            format!("btn btn-connected {role}")
+        };
+        parts.push_str(&format!(
+            r#"<button class="{class}" data-segment="{i}" data-role="{role}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-r="{ir}" data-idle-bd="{ibd}" data-sel-bg="{sbg}" data-sel-fg="{sfg}" data-sel-r="{sr}" style="--press-r:{pr}px;background:{bg};color:{fg};border:{bd};border-radius:{r};height:{h}px;padding:0 {pad}px;font-size:{fs}px;font-weight:{fw}">{label}</button>"#,
+            class = class,
+            i = i,
+            role = role,
+            ibg = idle.container.css_hex(),
+            ifg = idle.content.css_hex(),
+            ir = idle.corners.css(),
+            ibd = idle.outline_css(),
+            sbg = on.container.css_hex(),
+            sfg = on.content.css_hex(),
+            sr = on.corners.css(),
+            pr = button::ButtonSize::Small.pressed_corner_dp(),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            bd = a.outline_css(),
+            r = a.corners.css(),
+            h = a.height_dp,
+            pad = a.pad_start_dp,
+            fs = a.label_style.size_sp,
+            fw = a.label_style.weight,
+            label = label,
+        ));
+    }
+    parts.push_str("</div>");
+    parts
+}
+
+fn settings_scene(theme: &Theme) -> String {
+    let title = theme.typography.title_large.emphasized();
+    let card_a = card::resolve(
+        theme,
+        card::CardVariant::Filled,
+        InteractionState::Enabled,
+    );
+    let outlined = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    let mut rows = String::new();
+    for row in slider::OVERVIEW_ROWS.iter().take(2) {
+        let a = slider::resolve_with_stops(
+            theme,
+            row.value,
+            InteractionState::Enabled,
+            row.stop_count,
+        );
+        rows.push_str(&format!(
+            r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div><div class="slider-meta"><div class="slider-label">{label}</div>{}</div></div>"#,
+            paint_expressive_slider(&a, row.label),
+            label = row.label,
+            icon = row.icon,
+        ));
+    }
+    let text_btn = button::resolve(
+        theme,
+        button::ButtonVariant::Text,
+        InteractionState::Enabled,
+    );
+    format!(
+        r#"<h2>Settings scene</h2>
+<p class="note">Composed catalog screen (not an isolated hero): emphasized title, volume rows, notched field, connected group, dialog action.</p>
+<div class="hero-card settings-scene" data-settings-scene="1" style="background:{bg};border-radius:{r}px">
+  <h3 style="font-size:{ts}px;line-height:{tl}px;font-weight:{tw};color:{on}">{title}</h3>
+  {rows}
+  {field}
+  {group}
+  <div class="actions"><button class="btn" data-settings-dialog="1" style="background:{abg};color:{act}">{reset}</button></div>
+</div>"#,
+        bg = card_a.container.css_hex(),
+        r = card_a.corners.top_left,
+        ts = title.size_sp,
+        tl = title.line_height_sp,
+        tw = title.weight,
+        on = theme.color.on_surface.css_hex(),
+        title = button_group::SETTINGS_SCENE_TITLE,
+        rows = rows,
+        field = paint_outlined_field(
+            &outlined,
+            "data-field-hero=\"settings-email\"",
+            "Email",
+            r#"<input class="val" value="you@domain.com" data-editor="settings"/>"#,
+        ),
+        group = paint_connected_group(theme, button_group::DEMO_SELECTED),
+        abg = text_btn.container.css_hex(),
+        act = theme.color.primary.css_hex(),
+        reset = dialog::RESET_HEADLINE.trim_end_matches('?'),
+    )
 }
 
 fn paint_button(theme: &Theme, variant: button::ButtonVariant, state: InteractionState) -> String {
@@ -559,7 +717,10 @@ fn buttons(theme: &Theme) -> String {
             },
         ));
     }
-    out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p></div>");
+    out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p>");
+    out.push_str("<h3>connected button group</h3>");
+    out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
+    out.push_str("<p class=\"note\">Expressive connected group: 2dp gap, 8dp inner corners, full-round outer. Selected segment morphs toward square (checkedShape). Click to restyle.</p></div>");
     for variant in button::ButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in InteractionState::ALL_COMMON {
@@ -1146,7 +1307,7 @@ fn dialogs(theme: &Theme) -> String {
 <div class="scrim" data-dialog="scrim" style="background:{scrim}">
   <div class="dialog" data-dialog="basic" data-hero="dialog" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px;text-align:center;align-items:center">
     <div style="font-size:{icon_dp}px;color:{icon}">{reset_icon}</div>
-    <div style="font-size:{hs}px;line-height:{hl}px;color:{head}">{reset_h}</div>
+    <div style="font-size:{hs}px;line-height:{hl}px;font-weight:{hw};color:{head}">{reset_h}</div>
     <div style="font-size:{bs}px;line-height:{bl}px;color:{sup};text-align:center">{reset_s}</div>
     {accounts}
     <div class="actions">
@@ -1157,7 +1318,7 @@ fn dialogs(theme: &Theme) -> String {
 </div>
 <div class="scrim" data-dialog="list-scrim" style="background:{scrim};margin-top:16px">
   <div class="dialog dialog-list" data-dialog="list" data-hero="dialog-list" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px">
-    <div style="font-size:{hs}px;line-height:{hl}px;color:{head};text-align:left">{list_h}</div>
+    <div style="font-size:{hs}px;line-height:{hl}px;font-weight:{hw};color:{head};text-align:left">{list_h}</div>
     {rows}
     <div class="actions">
       <button class="btn" style="background:{abg};color:{act}">{list_cancel}</button>
@@ -1173,6 +1334,7 @@ fn dialogs(theme: &Theme) -> String {
         mw = a.min_width_dp,
         hs = a.headline_style.size_sp,
         hl = a.headline_style.line_height_sp,
+        hw = a.headline_style.weight,
         head = a.headline.css_hex(),
         bs = a.supporting_style.size_sp,
         bl = a.supporting_style.line_height_sp,
@@ -1292,6 +1454,39 @@ fn paint_expressive_slider(a: &slider::SliderAppearance, label: &str) -> String 
     )
 }
 
+fn paint_range_slider(a: &slider::RangeSliderAppearance, label: &str) -> String {
+    let t = &a.track;
+    let left = (a.start * 42.0).max(6.0);
+    let mid = ((a.end - a.start) * 42.0).max(8.0);
+    format!(
+        r#"<div class="slider-row" data-slider-range="1" data-start="{start}" data-end="{end}">
+  <div class="slider-meta"><div class="slider-label">{label}</div>
+  <div class="xslider" data-slider="{label}" data-handle-visual="{hv}">
+    <div class="xseg inactive" style="width:{lw}%;height:{th}px;background:{inactive};border-radius:{oc}px {ic}px {ic}px {oc}px"></div>
+    <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
+    <div class="xseg active" style="width:{mw}%;height:{th}px;background:{active};border-radius:{ic}px"></div>
+    <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
+    <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px"></div>
+  </div></div>
+</div>"#,
+        start = a.start,
+        end = a.end,
+        label = label,
+        hv = t.handle_h_visual,
+        lw = left,
+        mw = mid,
+        th = t.track_h,
+        inactive = t.inactive.css_hex(),
+        active = t.active.css_hex(),
+        oc = t.track_corner,
+        ic = t.inner_corner,
+        hw = t.handle_w,
+        hh = t.handle_h_visual,
+        handle = t.handle.css_hex(),
+        gap = t.gap_dp,
+    )
+}
+
 fn sliders(theme: &Theme) -> String {
     let mut out = String::from("<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical handle, 6dp gap, 4dp stops. Overview scene is volume rows; Alarm has mid-track stops. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>");
     out.push_str("<div class=\"hero-card\" data-hero=\"slider\">");
@@ -1310,6 +1505,14 @@ fn sliders(theme: &Theme) -> String {
         ));
     }
     out.push_str("<p class=\"note\">XS 16dp track · painted handle track+12 (~28) · token handle 44 · Alarm unified mid-stops from resolve_with_stops().</p></div>");
+    let range = slider::resolve_range(
+        theme,
+        slider::RANGE_DEMO_START,
+        slider::RANGE_DEMO_END,
+        InteractionState::Enabled,
+    );
+    out.push_str("<h3>range</h3>");
+    out.push_str(&paint_range_slider(&range, slider::RANGE_HERO_LABEL));
     for (label, value, state) in [
         ("0.3 enabled", 0.3, InteractionState::Enabled),
         ("0.7 pressed", 0.7, InteractionState::Pressed),
@@ -1465,20 +1668,20 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLarge + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Overview range hero uses InRange fill. Docked/inline attaches the calendar under an outlined field (Compose DatePickerDocked). 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
-    <div style="color:{hd};font-size:{ds}px">{range_headline}</div>
+    <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
     <div style="color:{hy};font-size:{ys}px;margin-top:8px">{range_month}</div>
   </div>
   <div class="week">{week}</div>
   <div class="grid">{range_grid}</div>
 </div>
-<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">Select date</div>
-    <div style="color:{hd};font-size:{ds}px">{headline}</div>
+    <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
   </div>
   <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
   <div class="week">{week}</div>
@@ -1486,6 +1689,14 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="actions" style="padding:8px 12px 0">
     <button class="btn" style="background:transparent;color:{act}">Cancel</button>
     <button class="btn" style="background:transparent;color:{act}">OK</button>
+  </div>
+</div>
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked">
+  {docked_field}
+  <div class="cal dialog" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
+    <div style="text-align:center;padding:8px;font-weight:500">{month}</div>
+    <div class="week">{week}</div>
+    <div class="grid">{grid}</div>
   </div>
 </div>"#,
         bg = a.container.css_hex(),
@@ -1495,6 +1706,7 @@ fn date_pickers(theme: &Theme) -> String {
         ys = a.year_style.size_sp,
         hd = a.header_date.css_hex(),
         ds = a.date_style.size_sp,
+        dw = a.date_style.weight,
         headline = date_picker::header_date_label(selected),
         month = date_picker::month_nav_label(2026, 9),
         range_title = date_picker::RANGE_HERO_TITLE,
@@ -1507,13 +1719,27 @@ fn date_pickers(theme: &Theme) -> String {
             date_picker::RANGE_DEMO_START.month
         ),
         act = theme.color.primary.css_hex(),
+        docked_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Enabled,
+                true,
+            ),
+            "data-field-hero=\"docked-date\"",
+            date_picker::DOCKED_FIELD_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::docked_field_value(selected)
+            ),
+        ),
     )
 }
 
 fn motion_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Motion</h2>
-<p class="note">Expressive spatial <code>{ease}</code> ({sd}ms) + effects springs. GPUI has no shared animation clock.</p>
+<p class="note">Expressive spatial <code>{ease}</code> ({sd}ms) + effects springs. Button / connected-group press morph uses the same CSS transition. GPUI has no shared animation clock.</p>
 <div class="motion-box" data-motion="emphasized" style="background:{p}"></div>"#,
         ease = theme.motion.spatial_fast,
         sd = theme.motion.spatial_fast_ms,

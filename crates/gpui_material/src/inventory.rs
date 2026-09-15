@@ -39,7 +39,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Type scale (15 baseline styles)",
         docs: "https://m3.material.io/styles/typography/type-scale-tokens",
         parity: Parity::Done,
-        notes: "Roboto; emphasized styles not implemented",
+        notes: "Roboto; 15 baseline + 15 emphasized (400→500 / 500→700, same size/lh); heroes use emphasized headlines",
     },
     ComponentEntry {
         name: "Shape",
@@ -67,7 +67,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Easing and duration",
         docs: "https://m3.material.io/styles/motion/easing-and-duration/tokens-specs",
         parity: Parity::Done,
-        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; no GPUI animation clock",
+        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph on buttons/connected group; no GPUI animation clock",
     },
     ComponentEntry {
         name: "Button",
@@ -75,6 +75,13 @@ pub const INVENTORY: &[ComponentEntry] = &[
         docs: "https://m3.material.io/components/buttons/specs",
         parity: Parity::Done,
         notes: "Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant",
+    },
+    ComponentEntry {
+        name: "Button group",
+        material: "Connected button groups (Expressive)",
+        docs: "https://m3.material.io/components/button-groups/specs",
+        parity: Parity::Done,
+        notes: "2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month demo",
     },
     ComponentEntry {
         name: "Icon button",
@@ -179,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Basic dialogs",
         docs: "https://m3.material.io/components/dialogs/specs",
         parity: Parity::Done,
-        notes: "surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept",
+        notes: "surface-container-high, 28dp, elev 3, headlineSmallEmphasized/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept",
     },
     ComponentEntry {
         name: "Bottom sheet",
@@ -200,7 +207,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -221,7 +228,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + month ▾ chrome",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked/inline field+calendar; month ▾ chrome; emphasized large date",
     },
 ];
 

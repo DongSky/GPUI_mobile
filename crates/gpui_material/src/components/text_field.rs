@@ -203,7 +203,9 @@ pub fn resolve(
 }
 
 /// Shared notch geometry for desktop GPUI / Android / HTML paint tricks.
-/// The gap (`width_dp` starting at `start_dp`) must contain no outline stroke.
+/// Mapping paints left-stroke | gap+label | right-stroke so the border is
+/// actually interrupted (Compose OutlinedTextField / HTML fieldset), not a
+/// label overlay on a continuous stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NotchCutout {
     pub start_dp: f32,

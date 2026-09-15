@@ -12,9 +12,9 @@ use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::{
-    badge, bottom_sheet, button, card, checkbox, chip, dialog, divider, fab, icon_button, list,
-    menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs, text_field, top_app_bar,
-    Appearance,
+    badge, bottom_sheet, button, button_group, card, checkbox, chip, dialog, divider, fab,
+    icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
+    text_field, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::{Argb, InteractionState};
@@ -30,6 +30,14 @@ fn paint(c: Argb) -> gpui::Rgba {
 
 fn type_size(style: gpui_material::typography::TypeStyle) -> gpui::Pixels {
     px(style.size_sp)
+}
+
+fn type_weight(style: gpui_material::typography::TypeStyle) -> FontWeight {
+    match style.weight {
+        w if w >= 700 => FontWeight::BOLD,
+        w if w >= 500 => FontWeight::MEDIUM,
+        _ => FontWeight::NORMAL,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -61,6 +69,7 @@ struct CatalogView {
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
     nav: usize,
+    group_selected: usize,
 }
 
 impl CatalogView {
@@ -289,6 +298,7 @@ fn catalog_body(
                 .text_color(paint(c.on_surface_variant))
                 .child("Material 3 / Expressive (m3.material.io). Color roles: androidx v0_210."),
         )
+        .child(android_settings_scene(this, theme, cx))
         .child(section_title(theme, "Buttons"))
         .child(
             div()
@@ -375,6 +385,7 @@ fn catalog_body(
                         .child("Label")
                 })),
         )
+        .child(android_connected_group(theme, this.group_selected, cx))
         .child(section_title(theme, "Text fields"))
         .child(
             div()
@@ -593,6 +604,7 @@ fn catalog_body(
         )
         .child(section_title(theme, "Slider"))
         .child(volume_slider_scene(theme, this.slider, cx))
+        .child(android_range_slider(theme))
         .child(
             div()
                 .text_size(px(12.))
@@ -635,6 +647,7 @@ fn catalog_body(
                 ),
         )
         .child(section_title(theme, "Date picker"))
+        .child(android_docked_date(this, theme, &pick, &cells))
         .child(
             div()
                 .text_size(px(pick.year_style.size_sp))
@@ -889,6 +902,7 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                         .flex()
                         .justify_center()
                         .text_size(type_size(a.headline_style))
+                        .font_weight(type_weight(a.headline_style))
                         .text_color(paint(a.headline))
                         .child(dialog::RESET_HEADLINE),
                 )
@@ -994,6 +1008,7 @@ fn list_dialog_overlay(
                 .child(
                     div()
                         .text_size(type_size(a.headline_style))
+                        .font_weight(type_weight(a.headline_style))
                         .text_color(paint(a.headline))
                         .child(dialog::RINGTONE_HEADLINE),
                 )
@@ -1510,6 +1525,216 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
         .child(title)
 }
 
+fn android_connected_group(
+    theme: &Theme,
+    selected: usize,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let count = button_group::DEMO_SEGMENTS.len();
+    div()
+        .flex()
+        .flex_row()
+        .gap(px(button_group::CONNECTED_GAP_DP))
+        .children(
+            button_group::DEMO_SEGMENTS
+                .iter()
+                .enumerate()
+                .map(|(i, label)| {
+                    let a = button_group::resolve_segment(theme, i, count, i == selected, false);
+                    div()
+                        .id(SharedString::from(format!("group-{i}")))
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_start_dp))
+                        .rounded_tl(px(a.corners.top_left))
+                        .rounded_tr(px(a.corners.top_right))
+                        .rounded_br(px(a.corners.bottom_right))
+                        .rounded_bl(px(a.corners.bottom_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .text_size(type_size(a.label_style))
+                        .font_weight(type_weight(a.label_style))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(a.outline.is_some(), |el| {
+                            let (color, _) = a.outline.unwrap();
+                            el.border_1().border_color(paint(color))
+                        })
+                        .child(*label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.group_selected = i;
+                            cx.notify();
+                        }))
+                }),
+        )
+}
+
+fn android_range_slider(theme: &Theme) -> impl IntoElement {
+    let range = slider::resolve_range(
+        theme,
+        slider::RANGE_DEMO_START,
+        slider::RANGE_DEMO_END,
+        InteractionState::Enabled,
+    );
+    let t = range.track;
+    let total = 240.0;
+    let left = (total * range.start).max(12.0);
+    let mid = (total * (range.end - range.start)).max(16.0);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(
+            div()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(slider::RANGE_HERO_LABEL),
+        )
+        .child(
+            div()
+                .w(px(total))
+                .h(px(t.target_dp))
+                .flex()
+                .items_center()
+                .child(
+                    div()
+                        .h(px(t.track_h))
+                        .w(px(left))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
+                )
+                .child(
+                    div()
+                        .mx(px(t.gap_dp))
+                        .w(px(t.handle_w))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .h(px(t.track_h))
+                        .w(px(mid))
+                        .rounded(px(t.inner_corner))
+                        .bg(paint(t.active)),
+                )
+                .child(
+                    div()
+                        .mx(px(t.gap_dp))
+                        .w(px(t.handle_w))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .h(px(t.track_h))
+                        .flex_1()
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
+                ),
+        )
+}
+
+fn android_settings_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let card_a = card::resolve(
+        theme,
+        card::CardVariant::Filled,
+        InteractionState::Enabled,
+    );
+    let title = theme.typography.title_large.emphasized();
+    div()
+        .w_full()
+        .p(px(16.))
+        .rounded(px(card_a.corners.top_left))
+        .bg(paint(card_a.container))
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .text_size(px(title.size_sp))
+                .font_weight(type_weight(title))
+                .text_color(paint(theme.color.on_surface))
+                .child(button_group::SETTINGS_SCENE_TITLE),
+        )
+        .child(android_connected_group(theme, this.group_selected, cx))
+        .child(m_button(
+            "settings-reset",
+            theme,
+            button::ButtonVariant::Text,
+            InteractionState::Enabled,
+            "Reset settings",
+            cx.listener(|this, _, _, cx| {
+                this.blur_fields();
+                this.overlay = Overlay::Dialog;
+                cx.notify();
+            }),
+        ))
+}
+
+fn android_docked_date(
+    this: &CatalogView,
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+    cells: &[(u32, DayKind); 42],
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Enabled,
+        true,
+    );
+    let value = date_picker::docked_field_value(this.selected);
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(field_block(
+            "docked-date-field",
+            &field,
+            date_picker::DOCKED_FIELD_LABEL,
+            value,
+            "",
+            |_, _, _| {},
+        ))
+        .child(
+            div()
+                .w_full()
+                .p(px(8.))
+                .rounded(px(pick.corners.top_left))
+                .bg(paint(pick.container))
+                .flex()
+                .flex_wrap()
+                .children(cells.iter().copied().take(14).map(|(day, kind)| {
+                    let (bg, fg, radius) = match kind {
+                        DayKind::Selected => (
+                            paint(pick.day_selected_container),
+                            paint(pick.day_selected),
+                            pick.day_dp / 2.0,
+                        ),
+                        DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                        _ => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    };
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(radius))
+                        .bg(bg)
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(day.to_string())
+                })),
+        )
+}
+
 fn field_block(
     id: &'static str,
     field: &text_field::TextFieldAppearance,
@@ -1525,51 +1750,89 @@ fn field_block(
     let box_el = if outlined && field.notched {
         let cut = text_field::notch_cutout(label.as_ref(), field);
         let radius = field.field.corners.top_left;
-        let lift = cut.label_h_dp * 0.5;
+        let stroke = cut.stroke_dp;
+        let body_h = (field.field.height_dp - stroke).max(40.0);
         div()
             .id(id)
-            .relative()
+            .flex()
+            .flex_col()
             .w_full()
-            .h(px(field.field.height_dp + lift))
             .on_click(on_click)
             .child(
                 div()
-                    .absolute()
-                    .top(px(lift))
-                    .left(px(0.))
-                    .w_full()
-                    .h(px(field.field.height_dp))
-                    .px(px(16.))
-                    .rounded(px(radius))
-                    .bg(paint(field.field.container))
-                    .when(outline.1 >= 2.0, |el| {
-                        el.border_2().border_color(paint(outline.0))
-                    })
-                    .when(outline.1 < 2.0, |el| {
-                        el.border_1().border_color(paint(outline.0))
-                    })
                     .flex()
+                    .flex_row()
                     .items_center()
+                    .h(px(cut.label_h_dp))
                     .child(
                         div()
-                            .text_size(px(field.input_style.size_sp))
-                            .text_color(paint(field.input))
-                            .child(value),
+                            .w(px(cut.start_dp))
+                            .h(px(stroke))
+                            .rounded_tl(px(radius))
+                            .bg(paint(outline.0)),
+                    )
+                    .child(
+                        div()
+                            .w(px(cut.width_dp))
+                            .h(px(cut.label_h_dp))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(
+                                div()
+                                    .text_size(px(field.label_style.size_sp))
+                                    .text_color(paint(field.label))
+                                    .child(label),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .h(px(stroke))
+                            .rounded_tr(px(radius))
+                            .bg(paint(outline.0)),
                     ),
             )
             .child(
                 div()
-                    .absolute()
-                    .top(px(0.))
-                    .left(px(cut.start_dp))
-                    .px(px(text_field::NOTCH_PAD_DP))
-                    .bg(paint(field.cutout_fill))
+                    .flex()
+                    .flex_row()
+                    .h(px(body_h))
                     .child(
                         div()
-                            .text_size(px(field.label_style.size_sp))
-                            .text_color(paint(field.label))
-                            .child(label),
+                            .w(px(stroke))
+                            .h(px(body_h))
+                            .bg(paint(outline.0)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .h(px(body_h))
+                            .px(px(16.))
+                            .flex()
+                            .items_center()
+                            .bg(paint(field.field.container))
+                            .child(
+                                div()
+                                    .text_size(px(field.input_style.size_sp))
+                                    .text_color(paint(field.input))
+                                    .child(value),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .w(px(stroke))
+                            .h(px(body_h))
+                            .bg(paint(outline.0)),
                     ),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .h(px(stroke))
+                    .rounded_bl(px(radius))
+                    .rounded_br(px(radius))
+                    .bg(paint(outline.0)),
             )
             .into_any_element()
     } else if outlined {
@@ -1786,6 +2049,7 @@ fn android_main(app: AndroidApp) {
                     ed
                 },
                 nav: 0,
+                group_selected: button_group::DEMO_SELECTED,
             })
         })
         .expect("failed to open window");

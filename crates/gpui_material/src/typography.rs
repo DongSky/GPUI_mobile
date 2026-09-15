@@ -16,6 +16,46 @@ impl TypeStyle {
     pub const fn css_weight(self) -> u16 {
         self.weight
     }
+
+    /// M3 Expressive emphasized role: same size / line-height / tracking,
+    /// heavier weight (Regular 400 → Medium 500, Medium 500 → Bold 700).
+    /// https://m3.material.io/styles/typography/type-scale-tokens
+    pub fn emphasized(self) -> Self {
+        Self {
+            name: emphasized_style_name(self.name),
+            weight: emphasized_weight(self.weight),
+            ..self
+        }
+    }
+}
+
+const fn emphasized_weight(weight: u16) -> u16 {
+    match weight {
+        400 => 500,
+        500 => 700,
+        other => other,
+    }
+}
+
+fn emphasized_style_name(name: &'static str) -> &'static str {
+    match name {
+        "displayLarge" => "displayLargeEmphasized",
+        "displayMedium" => "displayMediumEmphasized",
+        "displaySmall" => "displaySmallEmphasized",
+        "headlineLarge" => "headlineLargeEmphasized",
+        "headlineMedium" => "headlineMediumEmphasized",
+        "headlineSmall" => "headlineSmallEmphasized",
+        "titleLarge" => "titleLargeEmphasized",
+        "titleMedium" => "titleMediumEmphasized",
+        "titleSmall" => "titleSmallEmphasized",
+        "bodyLarge" => "bodyLargeEmphasized",
+        "bodyMedium" => "bodyMediumEmphasized",
+        "bodySmall" => "bodySmallEmphasized",
+        "labelLarge" => "labelLargeEmphasized",
+        "labelMedium" => "labelMediumEmphasized",
+        "labelSmall" => "labelSmallEmphasized",
+        other => other,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -91,6 +131,27 @@ impl TypeScale {
             self.label_medium,
             self.label_small,
         ]
+    }
+
+    /// The 15 emphasized styles (hero / expressive moments).
+    pub fn emphasized(self) -> Self {
+        Self {
+            display_large: self.display_large.emphasized(),
+            display_medium: self.display_medium.emphasized(),
+            display_small: self.display_small.emphasized(),
+            headline_large: self.headline_large.emphasized(),
+            headline_medium: self.headline_medium.emphasized(),
+            headline_small: self.headline_small.emphasized(),
+            title_large: self.title_large.emphasized(),
+            title_medium: self.title_medium.emphasized(),
+            title_small: self.title_small.emphasized(),
+            body_large: self.body_large.emphasized(),
+            body_medium: self.body_medium.emphasized(),
+            body_small: self.body_small.emphasized(),
+            label_large: self.label_large.emphasized(),
+            label_medium: self.label_medium.emphasized(),
+            label_small: self.label_small.emphasized(),
+        }
     }
 }
 

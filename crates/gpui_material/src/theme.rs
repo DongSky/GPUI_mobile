@@ -36,4 +36,9 @@ impl Theme {
             motion: MotionTokens::baseline(),
         }
     }
+
+    /// Emphasized type scale for hero moments (dialog headlines, large dates).
+    pub fn emphasized_type(self) -> TypeScale {
+        self.typography.emphasized()
+    }
 }

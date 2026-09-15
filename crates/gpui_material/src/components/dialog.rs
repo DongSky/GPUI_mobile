@@ -73,7 +73,7 @@ pub fn resolve(theme: &Theme) -> DialogAppearance {
         elevation_dp: theme.elevation.level3,
         pad_dp: PAD_DP,
         min_width_dp: MIN_WIDTH_DP,
-        headline_style: theme.typography.headline_small,
+        headline_style: theme.typography.headline_small.emphasized(),
         supporting_style: theme.typography.body_medium,
         action_style: theme.typography.label_large,
     }

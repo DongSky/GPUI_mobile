@@ -232,3 +232,30 @@ pub fn resolve_size_with_stops(
     a.stop_count = stop_count.max(2);
     a
 }
+
+/// Dual-handle range slider (M3 Expressive / official dual-thumb pattern).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RangeSliderAppearance {
+    pub track: SliderAppearance,
+    pub start: f32,
+    pub end: f32,
+}
+
+pub const RANGE_DEMO_START: f32 = 0.20;
+pub const RANGE_DEMO_END: f32 = 0.75;
+pub const RANGE_HERO_LABEL: &str = "Price range";
+
+pub fn resolve_range(
+    theme: &Theme,
+    start: f32,
+    end: f32,
+    state: InteractionState,
+) -> RangeSliderAppearance {
+    let start = start.clamp(0.0, 1.0);
+    let end = end.clamp(start, 1.0);
+    RangeSliderAppearance {
+        track: resolve(theme, (start + end) * 0.5, state),
+        start,
+        end,
+    }
+}
