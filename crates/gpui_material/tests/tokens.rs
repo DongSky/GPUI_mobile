@@ -300,6 +300,10 @@ fn text_field_metrics_and_error_focus() {
             .abs()
             < 1e-5
     );
+    let from_layout = text_field::notch_frame_from_layout("Email", &focused, 40.0);
+    assert!((from_layout.width_dp - text_field::notch_width_from_measured_dp(40.0)).abs() < 1e-5);
+    let fallback = text_field::notch_frame_from_layout("Email", &focused, 0.0);
+    assert_eq!(fallback.width_dp, text_field::notch_frame("Email", &focused).width_dp);
     assert!(text_field::roboto_advance_em('W') > text_field::roboto_advance_em('i'));
 
     let error = text_field::resolve(
@@ -515,6 +519,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-avatar"));
     assert!(html.contains("data-search-scale"));
     assert!(html.contains("data-search-transform-origin"));
+    assert!(html.contains("data-search-path-scale=\"1\""));
+    assert!(html.contains("data-stroke-cap=\"round\""));
     assert!(html.contains("data-rail-chrome=\"popup\""));
     assert!(html.contains("data-rail-os-popup=\"0\""));
     assert!(html.contains("data-progress-stroke=\"round\""));
@@ -947,6 +953,12 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(layer.origin_x_frac, 0.5);
     assert_eq!(search::TRANSFORM_ORIGIN, "top center");
     assert!(search::morph_layer_css(docked).contains("0.94"));
+    let [pre, post] = search::top_center_scale_translates(0.0, 0.0, 100.0);
+    assert!((pre.0 + 50.0).abs() < 1e-5);
+    assert_eq!(post.0, 50.0);
+    assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
+    assert!(progress::STROKE_CAP.is_round());
+    assert_eq!(progress::STROKE_CAP.css(), progress::LINE_CAP);
     assert!((grown.leading_activity_opacity - 1.0).abs() < 1e-5);
     assert!(grown.leading_docked_opacity.abs() < 1e-5);
     assert_eq!(search::morph_container(&theme, 1.0), theme.color.surface);
@@ -1081,10 +1093,17 @@ fn search_bar_and_time_picker_tokens() {
         "popup"
     );
     assert_eq!(navigation_rail::POPUP_WINDOW_KIND, "popup");
+    assert_eq!(navigation_rail::GPUI_WINDOW_KIND, "PopUp");
+    assert!(!navigation_rail::OS_POPUP_OPENED);
     let popup = navigation_rail::os_popup_spec(navigation_rail::RailMode::Expanded);
     assert_eq!(popup.kind, "popup");
     assert!(!popup.supported_on_android);
     assert_eq!(navigation_rail::os_popup_attr(), "0");
+    let (kind, width, android) =
+        navigation_rail::os_popup_window_options(navigation_rail::RailMode::Expanded);
+    assert_eq!(kind, "PopUp");
+    assert_eq!(width, 220.0);
+    assert!(!android);
     assert_eq!(
         navigation_rail::overlay_window_attr(navigation_rail::RailMode::Collapsed),
         "0"

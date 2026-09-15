@@ -58,6 +58,34 @@ pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
     notch_width_from_measured_dp(measured_label_width_dp(label, label_size_sp))
 }
 
+/// Notch frame using a host-measured floating-label width (GPUI `layout_line`).
+/// `measured_label_dp <= 1` falls back to the Roboto-advance estimate.
+pub fn notch_frame_from_layout(
+    label: &str,
+    appearance: &TextFieldAppearance,
+    measured_label_dp: f32,
+) -> NotchFrame {
+    let width_dp = if measured_label_dp > 1.0 {
+        notch_width_from_measured_dp(measured_label_dp)
+    } else {
+        notch_width_dp(label, appearance.label_style.size_sp)
+    };
+    let stroke = appearance
+        .field
+        .outline
+        .map(|(_, w)| w)
+        .unwrap_or(OUTLINE_DP)
+        .max(1.0);
+    NotchFrame {
+        start_dp: NOTCH_START_DP,
+        width_dp,
+        stroke_dp: stroke,
+        radius_dp: appearance.field.corners.top_left.max(stroke),
+        label_h_dp: appearance.label_style.line_height_sp,
+        field_h_dp: appearance.field.height_dp,
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextFieldVariant {
     Filled,
@@ -670,15 +698,7 @@ impl OutlineVerb {
 }
 
 pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {
-    let cut = notch_cutout(label, appearance);
-    NotchFrame {
-        start_dp: cut.start_dp,
-        width_dp: cut.width_dp,
-        stroke_dp: cut.stroke_dp,
-        radius_dp: appearance.field.corners.top_left.max(cut.stroke_dp),
-        label_h_dp: cut.label_h_dp,
-        field_h_dp: appearance.field.height_dp,
-    }
+    notch_frame_from_layout(label, appearance, 0.0)
 }
 
 fn muted_icon(theme: &Theme) -> Argb {

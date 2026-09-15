@@ -2212,6 +2212,7 @@ dependencies = [
  "futures",
  "gpui",
  "gpui_wgpu",
+ "jni-sys 0.4.1",
  "log",
  "ndk",
  "raw-window-handle",

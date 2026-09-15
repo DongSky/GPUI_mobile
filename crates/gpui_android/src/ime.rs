@@ -535,6 +535,8 @@ pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> us
 }
 
 static ATTACHED_JNI_ENV: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static ATTACHED_VM: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+static ATTACHED_ACTIVITY: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 
 /// Store the NativeActivity `JNIEnv*` (null clears). Safe to call from host tests.
 pub unsafe fn attach_jni_env(env: *mut c_void) {
@@ -545,6 +547,28 @@ pub fn attached_jni_env() -> *mut c_void {
     ATTACHED_JNI_ENV.load(Ordering::SeqCst)
 }
 
+/// Bind NativeActivity `JavaVM*` + activity jobject (from `AndroidApp`).
+pub unsafe fn attach_native_activity(vm: *mut c_void, activity: *mut c_void) {
+    ATTACHED_VM.store(vm, Ordering::SeqCst);
+    ATTACHED_ACTIVITY.store(activity, Ordering::SeqCst);
+    if !vm.is_null() {
+        unsafe { attach_jni_env(vm) };
+    }
+}
+
+pub unsafe fn detach_native_activity() {
+    ATTACHED_VM.store(std::ptr::null_mut(), Ordering::SeqCst);
+    ATTACHED_ACTIVITY.store(std::ptr::null_mut(), Ordering::SeqCst);
+    unsafe { attach_jni_env(std::ptr::null_mut()) };
+}
+
+pub fn attached_native_activity() -> (*mut c_void, *mut c_void) {
+    (
+        ATTACHED_VM.load(Ordering::SeqCst),
+        ATTACHED_ACTIVITY.load(Ordering::SeqCst),
+    )
+}
+
 /// Flush the IMM queue when a `JNIEnv` is attached. Host tests pass a dummy
 /// non-null pointer; a live JVM is still required for `CallVoidMethod`.
 pub fn flush_if_attached(queue: &ImeJniQueue) -> Result<usize, &'static str> {
@@ -553,6 +577,127 @@ pub fn flush_if_attached(queue: &ImeJniQueue) -> Result<usize, &'static str> {
     } else {
         Ok(queue.pending().len())
     }
+}
+
+/// Flush via NativeActivity handles. On device this walks the JNI vtable;
+/// on host it dry-runs once both pointers are attached.
+pub fn flush_native_activity_imm(queue: &ImeJniQueue) -> Result<usize, &'static str> {
+    let (vm, activity) = attached_native_activity();
+    if vm.is_null() || activity.is_null() {
+        return Err("no NativeActivity");
+    }
+    #[cfg(target_os = "android")]
+    {
+        unsafe { flush_toggle_soft_input_jni(vm, activity, queue) }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (vm, activity);
+        Ok(queue.pending().len())
+    }
+}
+
+#[cfg(target_os = "android")]
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn flush_toggle_soft_input_jni(
+    vm: *mut c_void,
+    activity: *mut c_void,
+    queue: &ImeJniQueue,
+) -> Result<usize, &'static str> {
+    use jni_sys::{
+        jvalue, JNIEnv, JavaVM, JNI_OK, JNI_VERSION_1_6, jobject,
+    };
+    let mut show_flags = 0i32;
+    let mut hide_flags = 0i32;
+    let mut saw_toggle = false;
+    for call in queue.pending() {
+        if let JniImmCall::ToggleSoftInput {
+            show_flags: s,
+            hide_flags: h,
+        } = call
+        {
+            show_flags = *s;
+            hide_flags = *h;
+            saw_toggle = true;
+        }
+    }
+    if !saw_toggle {
+        return Ok(queue.pending().len());
+    }
+    let vm = vm as *mut JavaVM;
+    if vm.is_null() {
+        return Err("null JavaVM");
+    }
+    let invoke = unsafe { &(**vm).v1_2 };
+    let mut env: *mut JNIEnv = std::ptr::null_mut();
+    let rc = (invoke.GetEnv)(vm, &mut env as *mut _ as *mut *mut c_void, JNI_VERSION_1_6);
+    if rc != JNI_OK || env.is_null() {
+        let rc = (invoke.AttachCurrentThread)(
+            vm,
+            &mut env as *mut _ as *mut *mut c_void,
+            std::ptr::null_mut(),
+        );
+        if rc != JNI_OK || env.is_null() {
+            return Err("GetEnv");
+        }
+    }
+    let jni = unsafe { &(**env).v1_2 };
+    let jni_ok = |env: *mut JNIEnv| -> Result<(), &'static str> {
+        if (jni.ExceptionCheck)(env) {
+            (jni.ExceptionClear)(env);
+            Err("jni exception")
+        } else {
+            Ok(())
+        }
+    };
+    let ctx_cls = (jni.FindClass)(env, b"android/content/Context\0".as_ptr().cast());
+    jni_ok(env)?;
+    if ctx_cls.is_null() {
+        return Err("FindClass Context");
+    }
+    let get_svc = (jni.GetMethodID)(
+        env,
+        ctx_cls,
+        b"getSystemService\0".as_ptr().cast(),
+        b"(Ljava/lang/String;)Ljava/lang/Object;\0".as_ptr().cast(),
+    );
+    jni_ok(env)?;
+    if get_svc.is_null() {
+        return Err("getSystemService");
+    }
+    let name = (jni.NewStringUTF)(env, b"input_method\0".as_ptr().cast());
+    jni_ok(env)?;
+    if name.is_null() {
+        return Err("NewStringUTF");
+    }
+    let args_svc = [jvalue { l: name }];
+    let imm = (jni.CallObjectMethodA)(env, activity as jobject, get_svc, args_svc.as_ptr());
+    jni_ok(env)?;
+    if imm.is_null() {
+        return Err("input_method");
+    }
+    let imm_cls = (jni.FindClass)(
+        env,
+        b"android/view/inputmethod/InputMethodManager\0".as_ptr().cast(),
+    );
+    jni_ok(env)?;
+    if imm_cls.is_null() {
+        return Err("FindClass IMM");
+    }
+    let toggle = (jni.GetMethodID)(
+        env,
+        imm_cls,
+        b"toggleSoftInput\0".as_ptr().cast(),
+        b"(II)V\0".as_ptr().cast(),
+    );
+    jni_ok(env)?;
+    if toggle.is_null() {
+        return Err("toggleSoftInput");
+    }
+    let args_toggle = [jvalue { i: show_flags }, jvalue { i: hide_flags }];
+    (jni.CallVoidMethodA)(env, imm, toggle, args_toggle.as_ptr());
+    jni_ok(env)?;
+    Ok(queue.pending().len())
 }
 
 /// Record caret + session + the IMM JNI queue a NativeActivity should flush.
@@ -745,11 +890,37 @@ mod tests {
         assert_eq!(flush_if_attached(&queue.borrow()), Ok(3));
     }
 
+    #[test]
+    fn native_activity_attach_dry_runs_imm_flush() {
+        assert_eq!(
+            flush_native_activity_imm(&ImeJniQueue::new()),
+            Err("no NativeActivity")
+        );
+        let slot = Cell::new(None);
+        let session = RefCell::new(ImeSession::new());
+        let queue = RefCell::new(ImeJniQueue::new());
+        apply_update_ime_position_queued(&slot, &session, &queue, 8.0, 16.0, 2.0, 24.0);
+        unsafe { attach_native_activity(0x1 as *mut _, 0x2 as *mut _) };
+        let _clear = scopeguard_clear_native();
+        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(3));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(3));
+    }
+
+    fn scopeguard_clear_native() -> impl Drop {
+        struct Clear;
+        impl Drop for Clear {
+            fn drop(&mut self) {
+                unsafe { detach_native_activity() };
+            }
+        }
+        Clear
+    }
+
     fn scopeguard_clear_env() -> impl Drop {
         struct Clear;
         impl Drop for Clear {
             fn drop(&mut self) {
-                unsafe { attach_jni_env(std::ptr::null_mut()) };
+                unsafe { detach_native_activity() };
             }
         }
         Clear

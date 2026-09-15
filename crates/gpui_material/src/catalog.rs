@@ -816,6 +816,7 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     view.setAttribute("data-search-morph", open ? "1" : "0");
     view.setAttribute("data-search-shared", "1");
     view.setAttribute("data-search-scale", open ? "1" : "0.94");
+    view.setAttribute("data-search-path-scale", "1");
     view.setAttribute("data-search-transform-origin", "top center");
     if (view.classList.contains("search-morph")) {{
       view.style.minHeight = open ? "320px" : "56px";
@@ -1956,7 +1957,7 @@ fn progress_section(theme: &Theme) -> String {
     </path>
   </svg>
   <svg width="{csz}" height="{csz}" viewBox="0 0 {csz} {csz}" aria-hidden="true">
-    <path d="{capd}" fill="none" stroke="{cind_fill}" stroke-width="{csw}" stroke-linecap="round" data-linecap="{lcap}" data-progress-stroke="round"/>
+    <path d="{capd}" fill="none" stroke="{cind_fill}" stroke-width="{csw}" stroke-linecap="round" data-linecap="{lcap}" data-stroke-cap="{lcap}" data-progress-stroke="round"/>
   </svg>
   <div class="note">{llabel}</div>
 </div>
@@ -2515,7 +2516,7 @@ fn search_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Search</h2>
 <p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
+<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>

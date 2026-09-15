@@ -259,8 +259,9 @@ pub fn morph_scale_attr(frame: MorphFrame) -> String {
 }
 
 /// CSS / GPUI layer transform for the shared-element search container.
-/// GPUI `div` still has no element transform; hosts use `morph_scaled_margin_dp`
-/// plus this scale. HTML applies `transform` with `top center` origin.
+/// GPUI `div` still has no element transform; hosts paint the container fill
+/// with `PathBuilder::scale` about [`TRANSFORM_ORIGIN`] and keep
+/// `morph_scaled_margin_dp` / inset for layout. HTML uses CSS `transform`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MorphLayerTransform {
     pub scale: f32,
@@ -280,6 +281,19 @@ pub fn morph_layer_transform(frame: MorphFrame) -> MorphLayerTransform {
 
 pub fn morph_layer_css(frame: MorphFrame) -> String {
     format!("scale({:.2})", frame.scale)
+}
+
+/// CSS `top center` origin in the same space as a GPUI `bounds`.
+pub fn path_scale_origin_dp(x: f32, y: f32, width: f32) -> (f32, f32) {
+    let layer = morph_layer_transform(morph_frame_at(0.0));
+    (x + width * layer.origin_x_frac, y)
+}
+
+/// Translations wrapping `PathBuilder::scale` so it matches
+/// `transform-origin: top center`. Apply `pre`, then `scale`, then `post`.
+pub fn top_center_scale_translates(x: f32, y: f32, width: f32) -> [(f32, f32); 2] {
+    let (ox, oy) = path_scale_origin_dp(x, y, width);
+    [(-ox, -oy), (ox, oy)]
 }
 
 /// Container fill lerp: docked `surface-container-high` → activity `surface`.

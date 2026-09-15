@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (RoundedPolygon cubics via PathBuilder cubic_bezier_to); Roboto-advance + measured-width notch API; IME caret + InputConnection session + JNI IMM queue / RegisterNatives / JNIEnv sink (no live JVM CallVoidMethod yet)",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (RoundedPolygon cubics via PathBuilder cubic_bezier_to); GPUI layout_line notch width with Roboto-advance fallback; IME caret + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput vtable (no View-backed InputConnection)",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph driven by WaitProgress; circular/PTR arc stroked with lyon LineCap::Round; shared clock_ms animation helper",
+        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph driven by WaitProgress; circular/PTR arc stroked with StrokeCap::Round (lyon LineCap until gpui re-exports); shared clock_ms animation helper",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim; OsPopupSpec records gpui WindowKind::PopUp (not opened on NativeActivity); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim; OsPopupSpec + WindowOptions kind=PopUp helper (not opened: Linux ignores kind, NativeActivity is single-window); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, GPUI scaled-margin stand-in, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, PathBuilder::scale container fill, morph_scaled_margin_dp layout, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",

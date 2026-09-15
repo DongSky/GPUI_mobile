@@ -154,6 +154,12 @@ pub enum RailChrome {
 
 /// `gpui::WindowKind::PopUp` name for desktop hosts.
 pub const POPUP_WINDOW_KIND: &str = "popup";
+/// gpui enum variant spelling (`WindowKind::PopUp`).
+pub const GPUI_WINDOW_KIND: &str = "PopUp";
+/// Desktop catalog keeps the in-window overlay: Linux `WindowParams.kind` is
+/// unused, so `cx.open_window(WindowKind::PopUp)` would be a second Normal
+/// window. NativeActivity cannot open a second OS window.
+pub const OS_POPUP_OPENED: bool = false;
 
 pub fn rail_chrome(mode: RailMode) -> RailChrome {
     if is_modal(mode) {
@@ -191,7 +197,14 @@ pub fn os_popup_spec(mode: RailMode) -> OsPopupSpec {
 }
 
 pub fn os_popup_attr() -> &'static str {
-    "0"
+    if OS_POPUP_OPENED { "1" } else { "0" }
+}
+
+/// `WindowOptions { kind: WindowKind::PopUp, width }` tokens for desktop hosts.
+/// Do not call `open_window` with this on Linux or NativeActivity.
+pub fn os_popup_window_options(mode: RailMode) -> (&'static str, f32, bool) {
+    let spec = os_popup_spec(mode);
+    (GPUI_WINDOW_KIND, spec.width_dp, spec.supported_on_android)
 }
 
 pub fn is_active(selected: usize, index: usize) -> bool {

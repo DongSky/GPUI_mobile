@@ -219,7 +219,29 @@ fn polyline_svg_d(pts: &[(f32, f32)], close: bool) -> String {
 /// Used for determinate/indeterminate circular progress — gpui does not re-export
 /// Catalog HTML `stroke-linecap` / lyon `LineCap::Round`. Circular/PTR and wavy
 /// hosts stroke the centerline with `StrokeOptions::with_line_cap(Round)`.
+/// gpui still does not re-export `LineCap`; hosts map [`StrokeCap`] to lyon.
 pub const LINE_CAP: &str = "round";
+
+/// Stroke cap token until upstream gpui re-exports `lyon::tessellation::LineCap`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StrokeCap {
+    Round,
+}
+
+pub const STROKE_CAP: StrokeCap = StrokeCap::Round;
+
+impl StrokeCap {
+    pub const fn css(self) -> &'static str {
+        match self {
+            Self::Round => LINE_CAP,
+        }
+    }
+
+    /// Hosts map this to `lyon::tessellation::LineCap::Round`.
+    pub const fn is_round(self) -> bool {
+        matches!(self, Self::Round)
+    }
+}
 
 /// Host-owned determinate wait (download bytes, job ticks, elapsed/duration).
 #[derive(Clone, Copy, Debug, PartialEq)]

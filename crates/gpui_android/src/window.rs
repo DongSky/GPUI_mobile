@@ -377,8 +377,8 @@ impl PlatformWindow for AndroidWindow {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
-        // Record caret + ImeSession + pending IMM JNI queue. NativeActivity
-        // still has no live `JNIEnv` / View-backed InputConnection.
+        // Record caret + ImeSession + pending IMM JNI queue, then flush
+        // NativeActivity `JavaVM*` + activity jobject when attached.
         crate::ime::apply_update_ime_position_queued(
             &self.inner.last_ime_bounds,
             &self.inner.ime,
@@ -388,6 +388,8 @@ impl PlatformWindow for AndroidWindow {
             f32::from(bounds.size.width),
             f32::from(bounds.size.height),
         );
-        let _ = crate::ime::flush_if_attached(&self.inner.pending_jni.borrow());
+        let pending = self.inner.pending_jni.borrow();
+        let _ = crate::ime::flush_if_attached(&pending);
+        let _ = crate::ime::flush_native_activity_imm(&pending);
     }
 }

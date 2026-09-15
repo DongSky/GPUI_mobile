@@ -115,6 +115,12 @@ impl AndroidPlatform {
     ) {
         match event {
             MainEvent::InitWindow { .. } => {
+                unsafe {
+                    crate::ime::attach_native_activity(
+                        self.app.vm_as_ptr(),
+                        self.app.activity_as_ptr(),
+                    );
+                }
                 if !*launched {
                     *launched = true;
                     // 首个 surface 就绪后才启动 app：open_window 需要 native_window。
@@ -291,6 +297,12 @@ impl Platform for AndroidPlatform {
         handle: AnyWindowHandle,
         _params: WindowParams,
     ) -> Result<Box<dyn PlatformWindow>> {
+        unsafe {
+            crate::ime::attach_native_activity(
+                self.app.vm_as_ptr(),
+                self.app.activity_as_ptr(),
+            );
+        }
         anyhow::ensure!(
             self.window.borrow().is_none(),
             "gpui_android supports a single window"

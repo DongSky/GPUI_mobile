@@ -5,10 +5,10 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
+    black, canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
     FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
     ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    StrokeOptions, Styled, Window,
+    StrokeOptions, Styled, TextRun, Window,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
@@ -20,6 +20,7 @@ use gpui_material::components::{
     snackbar, switch, tabs, text_field, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
+use gpui_material::typography;
 use gpui_material::{Argb, InteractionState};
 use lyon::tessellation::{LineCap, LineJoin};
 use std::cell::Cell;
@@ -97,9 +98,84 @@ fn stroke_round(width: f32) -> PathBuilder {
     PathBuilder::stroke(px(width)).with_style(PathStyle::Stroke(
         StrokeOptions::default()
             .with_line_width(width)
-            .with_line_cap(LineCap::Round)
+            .with_line_cap(gpui_line_cap(progress::STROKE_CAP))
             .with_line_join(LineJoin::Round),
     ))
+}
+
+fn gpui_line_cap(cap: progress::StrokeCap) -> LineCap {
+    match cap {
+        progress::StrokeCap::Round => LineCap::Round,
+    }
+}
+
+fn measure_label_width_dp(window: &mut Window, label: &str, size_sp: f32) -> f32 {
+    if label.is_empty() {
+        return 0.0;
+    }
+    let run = TextRun {
+        len: label.len(),
+        font: gpui::font(typography::FONT_FAMILY),
+        color: black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let layout = window
+        .text_system()
+        .layout_line(label, px(size_sp), &[run], None);
+    f32::from(layout.width)
+}
+
+fn paint_search_scaled_fill(
+    window: &mut Window,
+    bounds: gpui::Bounds<gpui::Pixels>,
+    scale: f32,
+    radius: f32,
+    color: gpui::Rgba,
+) {
+    let w = f32::from(bounds.size.width);
+    let h = f32::from(bounds.size.height);
+    if w <= 0.0 || h <= 0.0 {
+        return;
+    }
+    let [pre, post] = search::top_center_scale_translates(
+        f32::from(bounds.origin.x),
+        f32::from(bounds.origin.y),
+        w,
+    );
+    let r = radius.max(0.0).min(w / 2.0).min(h / 2.0);
+    let k = gpui_material::shape::CIRCULAR_KAPPA;
+    let verbs = if r < 0.5 {
+        vec![
+            text_field::OutlineVerb::Move(0.0, 0.0),
+            text_field::OutlineVerb::Line(w, 0.0),
+            text_field::OutlineVerb::Line(w, h),
+            text_field::OutlineVerb::Line(0.0, h),
+            text_field::OutlineVerb::Close,
+        ]
+    } else {
+        vec![
+            text_field::OutlineVerb::Move(r, 0.0),
+            text_field::OutlineVerb::Line(w - r, 0.0),
+            text_field::OutlineVerb::cubic_quarter((w - r, 0.0), (w, 0.0), (w, r), k),
+            text_field::OutlineVerb::Line(w, h - r),
+            text_field::OutlineVerb::cubic_quarter((w, h - r), (w, h), (w - r, h), k),
+            text_field::OutlineVerb::Line(r, h),
+            text_field::OutlineVerb::cubic_quarter((r, h), (0.0, h), (0.0, h - r), k),
+            text_field::OutlineVerb::Line(0.0, r),
+            text_field::OutlineVerb::cubic_quarter((0.0, r), (0.0, 0.0), (r, 0.0), k),
+            text_field::OutlineVerb::Close,
+        ]
+    };
+    let mut builder = PathBuilder::fill();
+    builder.translate(point(px(pre.0), px(pre.1)));
+    builder.scale(scale);
+    builder.translate(point(px(post.0), px(post.1)));
+    feed_outline_verbs(&mut builder, bounds.origin, verbs);
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
 }
 
 fn paint_round_polyline(
@@ -2321,11 +2397,11 @@ fn android_search_bar(
         .into_any_element();
     div()
         .id("search-morph")
+        .relative()
         .w_full()
         .flex()
         .flex_col()
         .overflow_hidden()
-        .bg(paint(if open { activity_bg } else { docked_bg }))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.search_open {
@@ -2339,14 +2415,28 @@ fn android_search_bar(
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
                 let frame = search::morph_frame_eased(linear);
-                let margin = search::morph_scaled_margin_dp(frame, search::MORPH_STAGE_W_DP);
                 this.min_h(px(frame.height_dp))
                     .rounded(px(frame.corner_dp))
-                    .ml(px(margin))
-                    .mr(px(margin))
-                    .bg(paint(docked_bg.lerp(activity_bg, frame.t)))
+                    .ml(px(frame.inset_h_dp))
+                    .mr(px(frame.inset_h_dp))
             },
         )
+        .child({
+            let settled = search::morph_frame_at(search::morph_t(open));
+            let fill = paint(docked_bg.lerp(activity_bg, settled.t));
+            let scale = search::morph_layer_transform(settled).scale;
+            let corner = settled.corner_dp;
+            canvas(
+                move |_, _, _| scale,
+                move |bounds, scale, window, _| {
+                    paint_search_scaled_fill(window, bounds, scale, corner, fill);
+                },
+            )
+            .absolute()
+            .top(px(0.))
+            .left(px(0.))
+            .size_full()
+        })
         .child(header)
         .child(
             div()
@@ -3114,9 +3204,10 @@ fn field_block(
         let fill = field.field.container;
         let (lx, ly) = frame.label_origin_dp();
         let stroke_color = paint(outline.0);
-        let verbs = frame.evenodd_verbs(280.0);
         let h = field.field.height_dp;
         let radius = frame.radius_dp;
+        let field_m = field.clone();
+        let label_m = label.clone();
         div()
             .id(id)
             .relative()
@@ -3134,22 +3225,17 @@ fn field_block(
             )
             .child(
                 canvas(
-                    move |_, _, _| {},
-                    move |bounds, _, window, _| {
+                    move |_, window, _| {
+                        let measured = measure_label_width_dp(
+                            window,
+                            label_m.as_ref(),
+                            field_m.label_style.size_sp,
+                        );
+                        text_field::notch_frame_from_layout(label_m.as_ref(), &field_m, measured)
+                    },
+                    move |bounds, frame, window, _| {
                         let w = f32::from(bounds.size.width);
-                        let frame = text_field::NotchFrame {
-                            start_dp: frame.start_dp,
-                            width_dp: frame.width_dp,
-                            stroke_dp: frame.stroke_dp,
-                            radius_dp: frame.radius_dp,
-                            label_h_dp: frame.label_h_dp,
-                            field_h_dp: frame.field_h_dp,
-                        };
-                        let verbs_w = if (w - 280.0).abs() > 1.0 {
-                            frame.evenodd_verbs(w)
-                        } else {
-                            verbs.clone()
-                        };
+                        let verbs_w = frame.evenodd_verbs(w);
                         let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
                             FillOptions::default().with_fill_rule(FillRule::EvenOdd),
                         ));

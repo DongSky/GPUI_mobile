@@ -15,10 +15,10 @@
 
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
+    black, canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
     FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
     ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    StrokeOptions, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
+    StrokeOptions, Styled, TextRun, TitlebarOptions, Window, WindowBounds, WindowKind, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -107,9 +107,99 @@ fn stroke_round(width: f32) -> PathBuilder {
     PathBuilder::stroke(px(width)).with_style(PathStyle::Stroke(
         StrokeOptions::default()
             .with_line_width(width)
-            .with_line_cap(LineCap::Round)
+            .with_line_cap(gpui_line_cap(progress::STROKE_CAP))
             .with_line_join(LineJoin::Round),
     ))
+}
+
+fn gpui_line_cap(cap: progress::StrokeCap) -> LineCap {
+    match cap {
+        progress::StrokeCap::Round => LineCap::Round,
+    }
+}
+
+fn measure_label_width_dp(window: &mut Window, label: &str, size_sp: f32) -> f32 {
+    if label.is_empty() {
+        return 0.0;
+    }
+    let run = TextRun {
+        len: label.len(),
+        font: gpui::font(typography::desktop_font_family()),
+        color: black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let layout = window
+        .text_system()
+        .layout_line(label, px(size_sp), &[run], None);
+    f32::from(layout.width)
+}
+
+fn paint_search_scaled_fill(
+    window: &mut Window,
+    bounds: gpui::Bounds<gpui::Pixels>,
+    scale: f32,
+    radius: f32,
+    color: gpui::Rgba,
+) {
+    let w = f32::from(bounds.size.width);
+    let h = f32::from(bounds.size.height);
+    if w <= 0.0 || h <= 0.0 {
+        return;
+    }
+    let [pre, post] = search::top_center_scale_translates(
+        f32::from(bounds.origin.x),
+        f32::from(bounds.origin.y),
+        w,
+    );
+    let r = radius.max(0.0).min(w / 2.0).min(h / 2.0);
+    let k = gpui_material::shape::CIRCULAR_KAPPA;
+    let verbs = if r < 0.5 {
+        vec![
+            text_field::OutlineVerb::Move(0.0, 0.0),
+            text_field::OutlineVerb::Line(w, 0.0),
+            text_field::OutlineVerb::Line(w, h),
+            text_field::OutlineVerb::Line(0.0, h),
+            text_field::OutlineVerb::Close,
+        ]
+    } else {
+        vec![
+            text_field::OutlineVerb::Move(r, 0.0),
+            text_field::OutlineVerb::Line(w - r, 0.0),
+            text_field::OutlineVerb::cubic_quarter((w - r, 0.0), (w, 0.0), (w, r), k),
+            text_field::OutlineVerb::Line(w, h - r),
+            text_field::OutlineVerb::cubic_quarter((w, h - r), (w, h), (w - r, h), k),
+            text_field::OutlineVerb::Line(r, h),
+            text_field::OutlineVerb::cubic_quarter((r, h), (0.0, h), (0.0, h - r), k),
+            text_field::OutlineVerb::Line(0.0, r),
+            text_field::OutlineVerb::cubic_quarter((0.0, r), (0.0, 0.0), (r, 0.0), k),
+            text_field::OutlineVerb::Close,
+        ]
+    };
+    let mut builder = PathBuilder::fill();
+    builder.translate(point(px(pre.0), px(pre.1)));
+    builder.scale(scale);
+    builder.translate(point(px(post.0), px(post.1)));
+    feed_outline_verbs(&mut builder, bounds.origin, verbs);
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
+}
+
+fn nav_rail_os_popup_options(spec: navigation_rail::OsPopupSpec) -> WindowOptions {
+    WindowOptions {
+        kind: WindowKind::PopUp,
+        window_bounds: Some(WindowBounds::Windowed(Bounds {
+            origin: point(px(0.), px(0.)),
+            size: size(px(spec.width_dp), px(880.)),
+        })),
+        titlebar: None,
+        focus: true,
+        show: true,
+        is_movable: false,
+        ..Default::default()
+    }
 }
 
 fn paint_round_polyline(
@@ -1940,11 +2030,11 @@ fn search_bar_hero(
         .into_any_element();
     div()
         .id("search-morph")
+        .relative()
         .w_full()
         .flex()
         .flex_col()
         .overflow_hidden()
-        .bg(paint(if open { activity_bg } else { docked_bg }))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.search_open {
@@ -1958,14 +2048,28 @@ fn search_bar_hero(
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
                 let frame = search::morph_frame_eased(linear);
-                let margin = search::morph_scaled_margin_dp(frame, search::MORPH_STAGE_W_DP);
                 this.min_h(px(frame.height_dp))
                     .rounded(px(frame.corner_dp))
-                    .ml(px(margin))
-                    .mr(px(margin))
-                    .bg(paint(docked_bg.lerp(activity_bg, frame.t)))
+                    .ml(px(frame.inset_h_dp))
+                    .mr(px(frame.inset_h_dp))
             },
         )
+        .child({
+            let settled = search::morph_frame_at(search::morph_t(open));
+            let fill = paint(docked_bg.lerp(activity_bg, settled.t));
+            let scale = search::morph_layer_transform(settled).scale;
+            let corner = settled.corner_dp;
+            canvas(
+                move |_, _, _| scale,
+                move |bounds, scale, window, _| {
+                    paint_search_scaled_fill(window, bounds, scale, corner, fill);
+                },
+            )
+            .absolute()
+            .top(px(0.))
+            .left(px(0.))
+            .size_full()
+        })
         .child(header)
         .child(
             div()
@@ -2892,9 +2996,10 @@ fn outlined_notched_field(
     let fill = field.field.container;
     let (lx, ly) = frame.label_origin_dp();
     let stroke_color = paint(outline.0);
-    let verbs = frame.evenodd_verbs(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
+    let field_m = field.clone();
+    let label_m = label.clone();
     div()
         .id(id)
         .relative()
@@ -2912,22 +3017,17 @@ fn outlined_notched_field(
         )
         .child(
             canvas(
-                move |_, _, _| {},
-                move |bounds, _, window, _| {
+                move |_, window, _| {
+                    let measured = measure_label_width_dp(
+                        window,
+                        label_m.as_ref(),
+                        field_m.label_style.size_sp,
+                    );
+                    text_field::notch_frame_from_layout(label_m.as_ref(), &field_m, measured)
+                },
+                move |bounds, frame, window, _| {
                     let w = f32::from(bounds.size.width);
-                    let frame = text_field::NotchFrame {
-                        start_dp: frame.start_dp,
-                        width_dp: frame.width_dp,
-                        stroke_dp: frame.stroke_dp,
-                        radius_dp: frame.radius_dp,
-                        label_h_dp: frame.label_h_dp,
-                        field_h_dp: frame.field_h_dp,
-                    };
-                    let verbs_w = if (w - 280.0).abs() > 1.0 {
-                        frame.evenodd_verbs(w)
-                    } else {
-                        verbs.clone()
-                    };
+                    let verbs_w = frame.evenodd_verbs(w);
                     let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
                         FillOptions::default().with_fill_rule(FillRule::EvenOdd),
                     ));
@@ -3168,8 +3268,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, search, slider, text_field, time_picker,
+                button, button_group, carousel, dialog, navigation_rail, progress, search, slider,
+                text_field, time_picker,
     };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
@@ -3251,6 +3353,12 @@ mod tests {
         assert!(frame.evenodd_svg_d(280.0).contains('Z'));
         assert_eq!(frame.evenodd_subpath_count(280.0), 1);
         assert_eq!(carousel::LARGE_W_DP, 256.0);
+        let popup_opts = nav_rail_os_popup_options(navigation_rail::os_popup_spec(
+            navigation_rail::RailMode::Expanded,
+        ));
+        assert!(matches!(popup_opts.kind, WindowKind::PopUp));
+        assert!(!navigation_rail::OS_POPUP_OPENED);
+        assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);
     }
