@@ -461,6 +461,17 @@ impl NotchFrame {
     pub fn evenodd_polygon(self, width_dp: f32) -> Vec<(f32, f32)> {
         flatten_outline_verbs(&self.evenodd_verbs(width_dp))
     }
+
+    /// Lyon-strokable centerline of the notched outline (open at the legend
+    /// gap). Hosts stroke this with `LineCap::Round` so the cutout ends match
+    /// Compose `OutlinedTextField` stroke caps.
+    pub fn centerline_polyline(self, width_dp: f32) -> Vec<(f32, f32)> {
+        flatten_outline_verbs(&self.outline_verbs(width_dp))
+    }
+
+    pub fn centerline_svg_d(self, width_dp: f32) -> String {
+        self.outline_svg_d(width_dp)
+    }
 }
 
 /// Tessellate verbs to a polyline (arcs/cubics become line samples).
@@ -872,6 +883,37 @@ pub fn ime_caret_rect_in_window(
 ) -> (f32, f32, f32, f32) {
     let (x, y, w, h) = ime_caret_rect_dp(caret_chars, size_sp);
     (field_x + x, field_y + y, w, h)
+}
+
+/// Catalog field origin used when GPUI `Window` does not expose caret bounds.
+pub const CATALOG_FIELD_ORIGIN_DP: (f32, f32) = (16.0, 240.0);
+
+/// Window caret from a focused catalog editor. `None` when the field is idle.
+pub fn catalog_ime_from_editor(
+    editor: &TextFieldEditor,
+    field_x: f32,
+    field_y: f32,
+    size_sp: f32,
+) -> Option<(f32, f32, f32, f32)> {
+    if !editor.focused {
+        return None;
+    }
+    Some(ime_caret_rect_in_window(
+        field_x,
+        field_y,
+        editor.caret(),
+        size_sp,
+    ))
+}
+
+/// Same as [`catalog_ime_from_editor`] using [`CATALOG_FIELD_ORIGIN_DP`].
+pub fn catalog_ime_from_focused(editor: &TextFieldEditor, size_sp: f32) -> Option<(f32, f32, f32, f32)> {
+    catalog_ime_from_editor(
+        editor,
+        CATALOG_FIELD_ORIGIN_DP.0,
+        CATALOG_FIELD_ORIGIN_DP.1,
+        size_sp,
+    )
 }
 
 /// Lightweight email check used by the outlined error demo.

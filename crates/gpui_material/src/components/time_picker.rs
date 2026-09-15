@@ -29,8 +29,8 @@ pub const SECOND_HAND_LENGTH_SCALE: f32 = 0.92;
 pub const DEMO_SECOND: u8 = 12;
 /// One revolution of the ticking second hand.
 pub const SECOND_PERIOD_MS: u16 = 60_000;
-/// GPUI animation period for the wall-clock second hand (~60 Hz).
-pub const SECOND_HAND_FRAME_MS: u16 = 16;
+/// GPUI animation period for the wall-clock second hand (shared vsync clock).
+pub const SECOND_HAND_FRAME_MS: u16 = crate::motion::FRAME_MS;
 
 /// Seconds + in-second fraction from the host wall clock (UTC ≡ local seconds).
 pub fn wall_second() -> (u8, f32) {

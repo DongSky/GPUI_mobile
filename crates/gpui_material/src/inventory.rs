@@ -67,7 +67,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Easing and duration",
         docs: "https://m3.material.io/styles/motion/easing-and-duration/tokens-specs",
         parity: Parity::Done,
-        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; GPUI Animation clock on indeterminate/wavy progress",
+        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; shared FRAME_MS/FRAME_DT vsync clock for GPUI second-hand + carousel fling",
     },
     ComponentEntry {
         name: "Button",
@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (RoundedPolygon cubics via PathBuilder cubic_bezier_to); GPUI layout_line notch width with Roboto-advance fallback; IME caret + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput vtable + dummy View/BaseInputConnection NewObject (hasCode=false, no RegisterNatives peer)",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path plus lyon-stroked centerline (round caps at the legend gap); GPUI layout_line notch width with Roboto-advance fallback; IME caret from focused catalog editor + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput + dummy View + NativeInputConnection (hasCode=true) + live CursorAnchorInfo.Builder CallVoidMethod",
     },
     ComponentEntry {
         name: "List",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim; OsPopupSpec + WindowOptions kind=PopUp helper (not opened: Linux ignores kind, NativeActivity is single-window); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim; OsPopupSpec (PopUp, 880dp, titled, focus, not movable) + WindowOptions helper (not opened: Linux ignores kind, NativeActivity is single-window); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, PathBuilder::scale container fill, morph_layer_box layout beyond inset, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, with_animation PathBuilder::scale fill + morph_layer_box layout, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",
@@ -256,7 +256,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay, hosts notify while needs_frame) + apply_wheel 60 Hz integrator (can skip more than one item)",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay, leftover snap-to-nearest, interpolating hero/neighbor widths, hosts notify while needs_frame) + apply_wheel 60 Hz integrator (can skip more than one item)",
     },
 ];
 

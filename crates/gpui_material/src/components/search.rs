@@ -348,6 +348,22 @@ pub fn top_center_scale_translates(x: f32, y: f32, width: f32) -> [(f32, f32); 2
     [(-ox, -oy), (ox, oy)]
 }
 
+/// PathBuilder / CSS scale for a morph frame (hosts interpolate this with
+/// `with_animation` instead of painting only the settled end state).
+pub fn morph_path_scale(frame: MorphFrame) -> f32 {
+    morph_layer_transform(frame).scale
+}
+
+/// Shared-element scale at linear time (eased). Used by GPUI canvas clocks.
+pub fn morph_path_scale_eased(linear: f32) -> f32 {
+    morph_path_scale(morph_frame_eased(linear))
+}
+
+/// HTML `data-search-anim-scale` for the live CSS/PathBuilder scale.
+pub fn morph_path_scale_attr(frame: MorphFrame) -> String {
+    format!("{:.2}", morph_path_scale(frame))
+}
+
 /// Container fill lerp: docked `surface-container-high` → activity `surface`.
 pub fn morph_container(theme: &Theme, t: f32) -> crate::argb::Argb {
     theme

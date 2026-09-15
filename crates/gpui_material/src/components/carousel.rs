@@ -22,6 +22,8 @@ pub const FLING_UNIT: f32 = 24.0;
 /// Exponential decay per second for a one-shot velocity model (`v * e^{-k t}`).
 /// `k = 2` so a ~96dp flick rests ~2 items away (beyond ±1).
 pub const FLING_DECAY: f32 = 2.0;
+/// When velocity dies, leftover ≥ this fraction of `FLING_UNIT` snaps one more item.
+pub const FLING_SNAP_FRACTION: f32 = 0.5;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarouselAppearance {
@@ -54,6 +56,27 @@ pub fn resolve(theme: &Theme) -> CarouselAppearance {
 pub fn item_width_dp(index: usize, selected: usize) -> f32 {
     if index == selected {
         LARGE_W_DP
+    } else {
+        SMALL_W_DP
+    }
+}
+
+/// Hero/neighbor widths while a fling leftover is mid-item (`offset_t` = leftover / unit).
+pub fn item_width_during_fling(index: usize, selected: usize, offset_t: f32) -> f32 {
+    let t = offset_t.clamp(-1.0, 1.0);
+    if t.abs() < 0.001 {
+        return item_width_dp(index, selected);
+    }
+    let next = if t >= 0.0 {
+        advance(selected, 1)
+    } else {
+        advance(selected, -1)
+    };
+    let at = t.abs();
+    if index == selected {
+        LARGE_W_DP + (SMALL_W_DP - LARGE_W_DP) * at
+    } else if index == next {
+        SMALL_W_DP + (LARGE_W_DP - SMALL_W_DP) * at
     } else {
         SMALL_W_DP
     }
@@ -124,7 +147,7 @@ pub fn decay_velocity(v: f32, dt_s: f32) -> f32 {
 
 /// Per-frame inertial fling (velocity → item steps). Live hosts step this
 /// from a vsync / rAF clock; one-shot wheel still uses `apply_wheel`.
-pub const FLING_FRAME_DT: f32 = 1.0 / 60.0;
+pub const FLING_FRAME_DT: f32 = crate::motion::FRAME_DT;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FlingState {
@@ -160,11 +183,29 @@ impl FlingState {
             self.selected = advance(self.selected, dir);
             self.leftover -= dir as f32 * FLING_UNIT;
         }
+        if self.velocity.abs() < 0.5 {
+            self.settle();
+        }
         self.selected
     }
 
+    /// Snap leftover to the nearest item once the flick has died.
+    pub fn settle(&mut self) {
+        if self.leftover.abs() >= FLING_UNIT * FLING_SNAP_FRACTION {
+            let dir = if self.leftover > 0.0 { 1 } else { -1 };
+            self.selected = advance(self.selected, dir);
+        }
+        self.leftover = 0.0;
+        self.velocity = 0.0;
+    }
+
+    /// Signed progress toward the next item (`leftover / FLING_UNIT`).
+    pub fn snap_offset_t(&self) -> f32 {
+        self.leftover / FLING_UNIT
+    }
+
     pub fn resting(&self) -> bool {
-        self.velocity.abs() < 0.5 && self.leftover.abs() < FLING_UNIT
+        self.velocity.abs() < 0.5 && self.leftover.abs() < FLING_UNIT * FLING_SNAP_FRACTION
     }
 
     /// True while a live host should keep requesting frames.
@@ -205,5 +246,5 @@ pub fn apply_wheel(selected: usize, dx: f32, dy: f32) -> usize {
     }
     let mut fling = FlingState::new(selected);
     fling.impulse_items(steps);
-    fling.step_until_rest(1.0 / 60.0, 180)
+    fling.step_until_rest(FLING_FRAME_DT, 180)
 }

@@ -180,18 +180,31 @@ pub fn rail_chrome_attr(mode: RailMode) -> &'static str {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OsPopupSpec {
     pub kind: &'static str,
+    pub gpui_kind: &'static str,
     pub width_dp: f32,
+    pub height_dp: f32,
+    pub focus: bool,
+    pub movable: bool,
+    pub title: &'static str,
     pub supported_on_android: bool,
 }
+
+pub const OS_POPUP_HEIGHT_DP: f32 = 880.0;
+pub const OS_POPUP_TITLE: &str = "Navigation rail";
 
 pub fn os_popup_spec(mode: RailMode) -> OsPopupSpec {
     OsPopupSpec {
         kind: POPUP_WINDOW_KIND,
+        gpui_kind: GPUI_WINDOW_KIND,
         width_dp: if is_modal(mode) {
             EXPANDED_WIDTH_DP
         } else {
             WIDTH_DP
         },
+        height_dp: OS_POPUP_HEIGHT_DP,
+        focus: true,
+        movable: false,
+        title: OS_POPUP_TITLE,
         supported_on_android: false,
     }
 }

@@ -270,6 +270,7 @@ struct CatalogView {
     carousel_index: usize,
     carousel_fling: carousel::FlingState,
     carousel_fling_at: Option<Instant>,
+    last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -656,6 +657,8 @@ fn catalog_body(
             cx.listener(|this, _, _, cx| {
                 this.outlined.set_focus(false);
                 this.filled.set_focus(true);
+                this.last_catalog_ime = text_field::catalog_ime_from_focused(&this.filled, 16.0)
+                    .map(|r| [r.0, r.1, r.2, r.3]);
                 cx.notify();
             }),
         ))
@@ -672,6 +675,8 @@ fn catalog_body(
             cx.listener(|this, _, _, cx| {
                 this.filled.set_focus(false);
                 this.outlined.set_focus(true);
+                this.last_catalog_ime = text_field::catalog_ime_from_focused(&this.outlined, 16.0)
+                    .map(|r| [r.0, r.1, r.2, r.3]);
                 cx.notify();
             }),
         ))
@@ -2186,7 +2191,8 @@ fn android_carousel(
                 .h(px(1.))
                 .with_animation(
                     "android-carousel-live",
-                    Animation::new(Duration::from_millis(16)).repeat(),
+                    Animation::new(Duration::from_millis(gpui_material::motion::FRAME_MS as u64))
+                        .repeat(),
                     |el, _| el,
                 ),
         )
@@ -2201,7 +2207,12 @@ fn android_carousel(
             cx.notify();
         }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_dp(i, selected).min(160.0);
+            let w = carousel::item_width_during_fling(
+                i,
+                selected,
+                this.carousel_fling.snap_offset_t(),
+            )
+            .min(160.0);
             let (bg, fg) = if i == selected {
                 (a.container, a.label)
             } else {
@@ -2398,6 +2409,11 @@ fn android_search_bar(
                 }))
         }))
         .into_any_element();
+    let anim_frame = Rc::new(Cell::new(search::morph_frame_eased(if open {
+        0.0
+    } else {
+        1.0
+    })));
     div()
         .id("search-morph")
         .relative()
@@ -2415,30 +2431,33 @@ fn android_search_bar(
         .with_animation(
             if open { "search-grow" } else { "search-shrink" },
             Animation::new(Duration::from_millis(morph_ms)),
-            move |this, delta| {
-                let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::morph_frame_eased(linear);
-                let layer = search::morph_layer_transform(frame);
-                let box_ = search::morph_layer_box(
-                    search::MORPH_STAGE_W_DP,
-                    frame.height_dp,
-                    layer,
-                );
-                this.min_h(px(box_.height_dp))
-                    .rounded(px(frame.corner_dp))
-                    .ml(px(box_.x_dp.max(frame.inset_h_dp)))
-                    .mr(px(box_.x_dp.max(frame.inset_h_dp)))
+            {
+                let anim_frame = anim_frame.clone();
+                move |this, delta| {
+                    let linear = if open { delta } else { 1.0 - delta };
+                    let frame = search::morph_frame_eased(linear);
+                    anim_frame.set(frame);
+                    let layer = search::morph_layer_transform(frame);
+                    let box_ = search::morph_layer_box(
+                        search::MORPH_STAGE_W_DP,
+                        frame.height_dp,
+                        layer,
+                    );
+                    this.min_h(px(box_.height_dp))
+                        .rounded(px(frame.corner_dp))
+                        .ml(px(box_.x_dp.max(frame.inset_h_dp)))
+                        .mr(px(box_.x_dp.max(frame.inset_h_dp)))
+                }
             },
         )
         .child({
-            let settled = search::morph_frame_at(search::morph_t(open));
-            let fill = paint(docked_bg.lerp(activity_bg, settled.t));
-            let scale = search::morph_layer_transform(settled).scale;
-            let corner = settled.corner_dp;
+            let anim_frame = anim_frame.clone();
             canvas(
-                move |_, _, _| scale,
-                move |bounds, scale, window, _| {
-                    paint_search_scaled_fill(window, bounds, scale, corner, fill);
+                move |_, _, _| anim_frame.get(),
+                move |bounds, frame, window, _| {
+                    let fill = paint(docked_bg.lerp(activity_bg, frame.t));
+                    let scale = search::morph_path_scale(frame);
+                    paint_search_scaled_fill(window, bounds, scale, frame.corner_dp, fill);
                 },
             )
             .absolute()
@@ -3252,6 +3271,14 @@ fn field_block(
                         if let Ok(path) = fill_b.build() {
                             window.paint_path(path, stroke_color);
                         }
+                        let center = frame.centerline_polyline(w);
+                        paint_round_polyline(
+                            window,
+                            bounds.origin,
+                            &center,
+                            frame.stroke_dp,
+                            stroke_color,
+                        );
                     },
                 )
                 .absolute()
@@ -3529,6 +3556,7 @@ fn android_main(app: AndroidApp) {
                 carousel_index: carousel::DEMO_INDEX,
                 carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
                 carousel_fling_at: None,
+                last_catalog_ime: None,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,
                 time_period: time_picker::DEMO_PERIOD,

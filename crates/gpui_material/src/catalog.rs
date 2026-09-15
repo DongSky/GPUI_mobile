@@ -818,6 +818,7 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     view.setAttribute("data-search-scale", open ? "1" : "0.94");
     view.setAttribute("data-search-path-scale", "1");
     view.setAttribute("data-search-layer-box", "1");
+    view.setAttribute("data-search-anim-scale", open ? "1" : "0.94");
     view.setAttribute("data-search-transform-origin", "top center");
     if (view.classList.contains("search-morph")) {{
       view.style.minHeight = open ? "320px" : "56px";
@@ -858,16 +859,27 @@ document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
 document.querySelectorAll("[data-carousel]").forEach(function (car) {{
   car.setAttribute("data-carousel-fling", "1");
   car.setAttribute("data-carousel-live", "1");
+  car.setAttribute("data-carousel-snap", "1");
   var fling = {{ selected: 0, velocity: 0, leftover: 0, raf: 0, last: 0 }};
+  function applyWidths(sel, offsetT) {{
+    var n = car.querySelectorAll("[data-carousel-item]").length;
+    var next = offsetT >= 0 ? sel + 1 : sel - 1;
+    next = ((next % n) + n) % n;
+    var at = Math.min(1, Math.abs(offsetT));
+    car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
+      var i = Number(t.getAttribute("data-carousel-item"));
+      var w = 120;
+      if (i === sel) w = 256 + (120 - 256) * at;
+      else if (i === next) w = 120 + (256 - 120) * at;
+      t.style.width = w + "px";
+    }});
+  }}
   function applySel(sel) {{
     var n = car.querySelectorAll("[data-carousel-item]").length;
     sel = ((sel % n) + n) % n;
     fling.selected = sel;
     car.setAttribute("data-carousel-selected", String(sel));
-    car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
-      var i = Number(t.getAttribute("data-carousel-item"));
-      t.style.width = (i === sel ? 256 : 120) + "px";
-    }});
+    applyWidths(sel, 0);
   }}
   function stepLive(dt) {{
     fling.leftover += fling.velocity * dt;
@@ -878,6 +890,15 @@ document.querySelectorAll("[data-carousel]").forEach(function (car) {{
       applySel(fling.selected + dir);
       fling.leftover -= dir * {fling_unit};
     }}
+    if (Math.abs(fling.velocity) < 0.5) {{
+      if (Math.abs(fling.leftover) >= {fling_unit} * {fling_snap}) {{
+        var dir = fling.leftover > 0 ? 1 : -1;
+        applySel(fling.selected + dir);
+      }}
+      fling.leftover = 0;
+      fling.velocity = 0;
+    }}
+    applyWidths(fling.selected, fling.leftover / {fling_unit});
   }}
   function loop(now) {{
     if (fling.last) {{
@@ -885,7 +906,7 @@ document.querySelectorAll("[data-carousel]").forEach(function (car) {{
       stepLive(dt);
     }}
     fling.last = now;
-    if (Math.abs(fling.velocity) >= 0.5 || Math.abs(fling.leftover) >= {fling_unit}) {{
+    if (Math.abs(fling.velocity) >= 0.5 || Math.abs(fling.leftover) >= {fling_unit} * {fling_snap}) {{
       fling.raf = requestAnimationFrame(loop);
     }} else {{
       fling.raf = 0;
@@ -973,6 +994,7 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         ease = theme.motion.emphasized,
         fling_unit = carousel::FLING_UNIT,
         fling_decay = carousel::FLING_DECAY,
+        fling_snap = carousel::FLING_SNAP_FRACTION,
         wait_ms = progress::determinate_wait_ms(theme),
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
@@ -1493,8 +1515,8 @@ fn paint_outlined_field(
         let d = frame.outline_svg_d(280.0);
         let even = frame.evenodd_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-rounded-polygon="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
-  <svg class="ol-evenodd" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" fill="{oc}" d="{even}"/></svg>
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-rounded-polygon="1" data-notch-centerline="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
+  <svg class="ol-evenodd" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" fill="{oc}" d="{even}"/><path data-notch-centerline-path="1" fill="none" stroke="{oc}" stroke-width="{ow}" stroke-linecap="round" d="{center}"/></svg>
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
   {inner_html}
 </fieldset>"#,
@@ -1503,6 +1525,7 @@ fn paint_outlined_field(
             lab = a.label.css_hex(),
             pad = text_field::NOTCH_PAD_DP,
             d = d,
+            center = frame.centerline_svg_d(280.0),
         )
     } else {
         let even = text_field::notch_frame(label, a).evenodd_svg_d(280.0);
@@ -1886,7 +1909,7 @@ fn chrome(theme: &Theme) -> String {
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
-  <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0">
+  <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
   <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
   </div>
 </div>"#,
@@ -1903,6 +1926,7 @@ fn chrome(theme: &Theme) -> String {
         rail_dests = rail_dests,
         fab = fab,
         scrim = navigation_rail::scrim(theme).css_hex(),
+        frame_ms = crate::motion::FRAME_MS,
     )
 }
 
@@ -2517,7 +2541,7 @@ fn search_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Search</h2>
 <p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
+<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -2718,7 +2742,7 @@ fn carousel_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Carousel</h2>
 <p class="note">Hero large item (256dp) plus smaller neighbors (120dp). Click a tile to snap; wheel fling uses a live rAF clock with per-frame decay. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
-<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-live="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
+<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
         tiles = tiles,
     )
 }

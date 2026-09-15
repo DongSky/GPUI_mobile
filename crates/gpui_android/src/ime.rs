@@ -3,9 +3,10 @@
 //! `ImeSession` mirrors Android `InputConnection` (`commitText`, compose,
 //! delete, cursor-anchor). `update_ime_position` fills the session and emits a
 //! host-testable JNI call plan for `InputMethodManager` (`toggleSoftInput` is
-//! the NativeActivity-safe show/hide). A live flush also constructs a dummy
-//! `android.view.View` + `BaseInputConnection` (`hasCode=false` still cannot
-//! `RegisterNatives` a Java peer).
+//! the NativeActivity-safe show/hide). A live flush constructs a dummy
+//! `android.view.View`, prefers `dev.gpui.material.NativeInputConnection`
+//! (`hasCode=true`), and builds a real `CursorAnchorInfo` via
+//! `CallVoidMethod` / `CallObjectMethod`.
 
 use std::cell::Cell;
 use std::os::raw::c_void;
@@ -246,6 +247,43 @@ pub const JNI_BASE_IC_CTOR: JniMethod = JniMethod {
     sig: "(Landroid/view/View;Z)V",
 };
 
+/// Java peer compiled into the APK (`application hasCode=true`).
+pub const NATIVE_IC_CLASS: &str = "dev/gpui/material/NativeInputConnection";
+pub const NATIVE_IC_HAS_CODE: bool = true;
+
+pub const JNI_NATIVE_IC_CTOR: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "<init>",
+    sig: "(Landroid/view/View;Z)V",
+};
+
+pub const JNI_CAI_BUILDER_CTOR: JniMethod = JniMethod {
+    class: "android/view/inputmethod/CursorAnchorInfo$Builder",
+    name: "<init>",
+    sig: "()V",
+};
+
+pub const JNI_CAI_SET_SELECTION: JniMethod = JniMethod {
+    class: "android/view/inputmethod/CursorAnchorInfo$Builder",
+    name: "setSelectionRange",
+    sig: "(II)Landroid/view/inputmethod/CursorAnchorInfo$Builder;",
+};
+
+pub const JNI_CAI_SET_INSERTION: JniMethod = JniMethod {
+    class: "android/view/inputmethod/CursorAnchorInfo$Builder",
+    name: "setInsertionMarkerLocation",
+    sig: "(FFFFI)Landroid/view/inputmethod/CursorAnchorInfo$Builder;",
+};
+
+pub const JNI_CAI_BUILD: JniMethod = JniMethod {
+    class: "android/view/inputmethod/CursorAnchorInfo$Builder",
+    name: "build",
+    sig: "()Landroid/view/inputmethod/CursorAnchorInfo;",
+};
+
+/// `CursorAnchorInfo.FLAG_HAS_VISIBLE_REGION`.
+pub const CAI_FLAG_HAS_VISIBLE_REGION: i32 = 1;
+
 pub const JNI_IC_COMMIT_TEXT: JniMethod = JniMethod {
     class: "android/view/inputmethod/InputConnection",
     name: "commitText",
@@ -326,6 +364,10 @@ pub enum JniImmCall {
     },
     NewView,
     NewBaseInputConnection,
+    NewNativeInputConnection,
+    NewCursorAnchorInfo {
+        payload: CursorAnchorInfoPayload,
+    },
     UpdateCursorAnchorInfo {
         payload: CursorAnchorInfoPayload,
     },
@@ -364,11 +406,11 @@ impl ImeSession {
                     hide_flags: 0,
                 });
                 calls.push(JniImmCall::NewView);
-                calls.push(JniImmCall::NewBaseInputConnection);
+                calls.push(JniImmCall::NewNativeInputConnection);
                 if self.bounds.is_some() {
-                    calls.push(JniImmCall::UpdateCursorAnchorInfo {
-                        payload: self.cursor_anchor_payload(),
-                    });
+                    let payload = self.cursor_anchor_payload();
+                    calls.push(JniImmCall::NewCursorAnchorInfo { payload });
+                    calls.push(JniImmCall::UpdateCursorAnchorInfo { payload });
                 }
             }
             None => {}
@@ -437,6 +479,8 @@ pub fn jni_imm_call_name(call: &JniImmCall) -> &'static str {
         JniImmCall::ToggleSoftInput { .. } => "toggleSoftInput",
         JniImmCall::NewView => "<init>",
         JniImmCall::NewBaseInputConnection => "<init>",
+        JniImmCall::NewNativeInputConnection => "NativeInputConnection",
+        JniImmCall::NewCursorAnchorInfo { .. } => "CursorAnchorInfo$Builder",
         JniImmCall::UpdateCursorAnchorInfo { .. } => "updateCursorAnchorInfo",
     }
 }
@@ -551,6 +595,28 @@ pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> us
                 sink.new_object(JNI_BASE_IC_CTOR.class, JNI_BASE_IC_CTOR.sig);
                 n += 1;
             }
+            JniImmCall::NewNativeInputConnection => {
+                sink.new_object(JNI_NATIVE_IC_CTOR.class, JNI_NATIVE_IC_CTOR.sig);
+                n += 1;
+            }
+            JniImmCall::NewCursorAnchorInfo { .. } => {
+                sink.new_object(JNI_CAI_BUILDER_CTOR.class, JNI_CAI_BUILDER_CTOR.sig);
+                sink.get_method_id(
+                    JNI_CAI_SET_SELECTION.class,
+                    JNI_CAI_SET_SELECTION.name,
+                    JNI_CAI_SET_SELECTION.sig,
+                );
+                sink.call_void(JNI_CAI_SET_SELECTION.name);
+                sink.get_method_id(
+                    JNI_CAI_SET_INSERTION.class,
+                    JNI_CAI_SET_INSERTION.name,
+                    JNI_CAI_SET_INSERTION.sig,
+                );
+                sink.call_void(JNI_CAI_SET_INSERTION.name);
+                sink.get_method_id(JNI_CAI_BUILD.class, JNI_CAI_BUILD.name, JNI_CAI_BUILD.sig);
+                sink.call_void(JNI_CAI_BUILD.name);
+                n += 1;
+            }
             JniImmCall::UpdateCursorAnchorInfo { .. } => {
                 sink.find_class(JNI_IMM_UPDATE_CURSOR_ANCHOR.class);
                 sink.get_method_id(
@@ -644,6 +710,8 @@ unsafe fn flush_toggle_soft_input_jni(
     let mut saw_toggle = false;
     let mut want_view = false;
     let mut want_ic = false;
+    let mut want_native_ic = false;
+    let mut cai_payload: Option<CursorAnchorInfoPayload> = None;
     for call in queue.pending() {
         match call {
             JniImmCall::ToggleSoftInput {
@@ -656,10 +724,15 @@ unsafe fn flush_toggle_soft_input_jni(
             }
             JniImmCall::NewView => want_view = true,
             JniImmCall::NewBaseInputConnection => want_ic = true,
+            JniImmCall::NewNativeInputConnection => want_native_ic = true,
+            JniImmCall::NewCursorAnchorInfo { payload }
+            | JniImmCall::UpdateCursorAnchorInfo { payload } => {
+                cai_payload = Some(*payload);
+            }
             _ => {}
         }
     }
-    if !saw_toggle && !want_view && !want_ic {
+    if !saw_toggle && !want_view && !want_ic && !want_native_ic && cai_payload.is_none() {
         return Ok(queue.pending().len());
     }
     let vm = vm as *mut JavaVM;
@@ -762,14 +835,23 @@ unsafe fn flush_toggle_soft_input_jni(
         if view.is_null() {
             return Err("new View");
         }
-        if want_ic {
-            let ic_cls = (jni.FindClass)(
+        if want_ic || want_native_ic {
+            let mut ic_cls = (jni.FindClass)(
                 env,
-                b"android/view/inputmethod/BaseInputConnection\0".as_ptr().cast(),
+                b"dev/gpui/material/NativeInputConnection\0".as_ptr().cast(),
             );
-            jni_ok(env)?;
+            if (jni.ExceptionCheck)(env) || ic_cls.is_null() {
+                (jni.ExceptionClear)(env);
+                ic_cls = (jni.FindClass)(
+                    env,
+                    b"android/view/inputmethod/BaseInputConnection\0"
+                        .as_ptr()
+                        .cast(),
+                );
+                jni_ok(env)?;
+            }
             if ic_cls.is_null() {
-                return Err("FindClass BaseInputConnection");
+                return Err("FindClass InputConnection");
             }
             let ic_ctor = (jni.GetMethodID)(
                 env,
@@ -779,7 +861,7 @@ unsafe fn flush_toggle_soft_input_jni(
             );
             jni_ok(env)?;
             if ic_ctor.is_null() {
-                return Err("BaseInputConnection.<init>");
+                return Err("InputConnection.<init>");
             }
             let args_ic = [
                 jvalue { l: view },
@@ -789,6 +871,102 @@ unsafe fn flush_toggle_soft_input_jni(
             ];
             let _ic = (jni.NewObjectA)(env, ic_cls, ic_ctor, args_ic.as_ptr());
             jni_ok(env)?;
+        }
+
+        if let Some(payload) = cai_payload {
+            let b_cls = (jni.FindClass)(
+                env,
+                b"android/view/inputmethod/CursorAnchorInfo$Builder\0"
+                    .as_ptr()
+                    .cast(),
+            );
+            jni_ok(env)?;
+            if b_cls.is_null() {
+                return Err("FindClass CursorAnchorInfo$Builder");
+            }
+            let b_ctor = (jni.GetMethodID)(
+                env,
+                b_cls,
+                b"<init>\0".as_ptr().cast(),
+                b"()V\0".as_ptr().cast(),
+            );
+            jni_ok(env)?;
+            if b_ctor.is_null() {
+                return Err("Builder.<init>");
+            }
+            let builder = (jni.NewObjectA)(env, b_cls, b_ctor, std::ptr::null());
+            jni_ok(env)?;
+            if builder.is_null() {
+                return Err("new Builder");
+            }
+            let set_sel = (jni.GetMethodID)(
+                env,
+                b_cls,
+                b"setSelectionRange\0".as_ptr().cast(),
+                b"(II)Landroid/view/inputmethod/CursorAnchorInfo$Builder;\0"
+                    .as_ptr()
+                    .cast(),
+            );
+            jni_ok(env)?;
+            let args_sel = [
+                jvalue {
+                    i: payload.selection_start,
+                },
+                jvalue {
+                    i: payload.selection_end,
+                },
+            ];
+            let _ = (jni.CallObjectMethodA)(env, builder, set_sel, args_sel.as_ptr());
+            jni_ok(env)?;
+            let set_ins = (jni.GetMethodID)(
+                env,
+                b_cls,
+                b"setInsertionMarkerLocation\0".as_ptr().cast(),
+                b"(FFFFI)Landroid/view/inputmethod/CursorAnchorInfo$Builder;\0"
+                    .as_ptr()
+                    .cast(),
+            );
+            jni_ok(env)?;
+            let [l, t, _r, btm] = payload.insertion_marker;
+            let args_ins = [
+                jvalue { f: l },
+                jvalue { f: t },
+                jvalue { f: t + (btm - t) * 0.8 },
+                jvalue { f: btm },
+                jvalue {
+                    i: CAI_FLAG_HAS_VISIBLE_REGION,
+                },
+            ];
+            let _ = (jni.CallObjectMethodA)(env, builder, set_ins, args_ins.as_ptr());
+            jni_ok(env)?;
+            let build = (jni.GetMethodID)(
+                env,
+                b_cls,
+                b"build\0".as_ptr().cast(),
+                b"()Landroid/view/inputmethod/CursorAnchorInfo;\0"
+                    .as_ptr()
+                    .cast(),
+            );
+            jni_ok(env)?;
+            let cai = (jni.CallObjectMethodA)(env, builder, build, std::ptr::null());
+            jni_ok(env)?;
+            if cai.is_null() {
+                return Err("CursorAnchorInfo.build");
+            }
+            let update = (jni.GetMethodID)(
+                env,
+                imm_cls,
+                b"updateCursorAnchorInfo\0".as_ptr().cast(),
+                b"(Landroid/view/View;Landroid/view/inputmethod/CursorAnchorInfo;)V\0"
+                    .as_ptr()
+                    .cast(),
+            );
+            jni_ok(env)?;
+            if !update.is_null() {
+                let args_upd = [jvalue { l: view }, jvalue { l: cai }];
+                (jni.CallVoidMethodA)(env, imm, update, args_upd.as_ptr());
+                jni_ok(env)?;
+            }
         }
     }
 
@@ -807,6 +985,17 @@ pub fn apply_update_ime_position_queued(
 ) {
     apply_update_ime_position(slot, session, x, y, w, h);
     queue.borrow_mut().sync_from(&session.borrow());
+}
+
+/// Catalog-focused caret → session + IMM queue (GPUI `Window` has no caret API).
+/// `rect` is window-space `(x, y, w, h)` from `text_field::catalog_ime_from_editor`.
+pub fn apply_catalog_editor_caret(
+    slot: &Cell<Option<ImeBoundsDp>>,
+    session: &std::cell::RefCell<ImeSession>,
+    queue: &std::cell::RefCell<ImeJniQueue>,
+    rect: (f32, f32, f32, f32),
+) {
+    apply_update_ime_position_queued(slot, session, queue, rect.0, rect.1, rect.2, rect.3);
 }
 
 /// Dispatch every `RegisterNatives` InputConnection method name onto `session`.
@@ -926,13 +1115,19 @@ mod tests {
             }
         ));
         assert!(matches!(calls[2], JniImmCall::NewView));
-        assert!(matches!(calls[3], JniImmCall::NewBaseInputConnection));
+        assert!(matches!(calls[3], JniImmCall::NewNativeInputConnection));
         match &calls[4] {
-            JniImmCall::UpdateCursorAnchorInfo { payload } => {
+            JniImmCall::NewCursorAnchorInfo { payload } => {
                 assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
                 assert_eq!(payload.selection_end, 2);
             }
-            other => panic!("expected cursor-anchor, got {other:?}"),
+            other => panic!("expected CursorAnchorInfo builder, got {other:?}"),
+        }
+        match &calls[5] {
+            JniImmCall::UpdateCursorAnchorInfo { payload } => {
+                assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
+            }
+            other => panic!("expected updateCursorAnchorInfo, got {other:?}"),
         }
     }
 
@@ -954,7 +1149,8 @@ mod tests {
                 "getSystemService",
                 "toggleSoftInput",
                 "<init>",
-                "<init>",
+                "NativeInputConnection",
+                "CursorAnchorInfo$Builder",
                 "updateCursorAnchorInfo"
             ]
         );
@@ -976,14 +1172,22 @@ mod tests {
         );
         let mut sink = RecordingJniSink::default();
         let n = flush_ime_jni_queue(&mut sink, &queue.borrow());
-        assert_eq!(n, 5);
+        assert_eq!(n, 6);
         assert!(sink.log.iter().any(|s| s.contains("toggleSoftInput")));
         assert!(sink.log.iter().any(|s| s.contains("android/view/View")));
         assert!(
             sink.log
                 .iter()
-                .any(|s| s.contains("android/view/inputmethod/BaseInputConnection"))
+                .any(|s| s.contains("dev/gpui/material/NativeInputConnection"))
         );
+        assert!(
+            sink.log
+                .iter()
+                .any(|s| s.contains("CursorAnchorInfo$Builder"))
+        );
+        assert!(sink.log.iter().any(|s| s.contains("setInsertionMarkerLocation")));
+        assert_eq!(NATIVE_IC_HAS_CODE, true);
+        assert_eq!(JNI_CAI_SET_SELECTION.name, "setSelectionRange");
         assert!(
             jni_native_method_descriptors()
                 .iter()
@@ -992,7 +1196,7 @@ mod tests {
         assert_eq!(flush_if_attached(&queue.borrow()), Err("no JNIEnv"));
         unsafe { attach_jni_env(0x1 as *mut _) };
         let _clear = scopeguard_clear_env();
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(5));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(6));
     }
 
     #[test]
@@ -1007,8 +1211,13 @@ mod tests {
         apply_update_ime_position_queued(&slot, &session, &queue, 8.0, 16.0, 2.0, 24.0);
         unsafe { attach_native_activity(0x1 as *mut _, 0x2 as *mut _) };
         let _clear = scopeguard_clear_native();
-        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(5));
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(5));
+        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(6));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(6));
+        let slot2 = Cell::new(None);
+        let session2 = RefCell::new(ImeSession::new());
+        let queue2 = RefCell::new(ImeJniQueue::new());
+        apply_catalog_editor_caret(&slot2, &session2, &queue2, (24.0, 32.0, 2.0, 24.0));
+        assert_eq!(last_ime_position(&slot2), Some([24.0, 32.0, 2.0, 24.0]));
     }
 
     fn scopeguard_clear_native() -> impl Drop {

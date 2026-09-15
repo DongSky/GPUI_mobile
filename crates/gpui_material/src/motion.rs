@@ -3,6 +3,8 @@
 //!
 //! Hosts without a GPUI animation clock can still evaluate the same curves
 //! (`emphasized_at`, `lerp`) and reuse the CSS strings in catalogs.
+//! Shared vsync tokens (`FRAME_MS` / `FRAME_DT`) drive the time-picker second
+//! hand and carousel fling integrator.
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MotionTokens {
@@ -81,6 +83,15 @@ impl MotionTokens {
         from + (to - from) * self.emphasized_at(t)
     }
 
+    /// Shared catalog / GPUI vsync period (~60 Hz).
+    pub fn frame_ms(self) -> u16 {
+        FRAME_MS
+    }
+
+    pub fn frame_dt(self) -> f32 {
+        FRAME_DT
+    }
+
     /// CSS `transition` for Expressive state + shape morph.
     pub fn css_state_transition(self) -> String {
         format!(
@@ -92,6 +103,12 @@ impl MotionTokens {
         )
     }
 }
+
+/// GPUI / HTML rAF period for live clocks (second hand, carousel fling).
+pub const FRAME_MS: u16 = 16;
+/// 60 Hz integrator step used by `carousel::FlingState`.
+pub const FRAME_HZ: u16 = 60;
+pub const FRAME_DT: f32 = 1.0 / FRAME_HZ as f32;
 
 /// Evaluate CSS `cubic-bezier(x1,y1,x2,y2)` at time `t` in `[0, 1]`.
 pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, t: f32) -> f32 {

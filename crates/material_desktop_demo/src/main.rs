@@ -192,12 +192,16 @@ fn nav_rail_os_popup_options(spec: navigation_rail::OsPopupSpec) -> WindowOption
         kind: WindowKind::PopUp,
         window_bounds: Some(WindowBounds::Windowed(Bounds {
             origin: point(px(0.), px(0.)),
-            size: size(px(spec.width_dp), px(880.)),
+            size: size(px(spec.width_dp), px(spec.height_dp)),
         })),
-        titlebar: None,
-        focus: true,
+        titlebar: Some(TitlebarOptions {
+            title: Some(spec.title.into()),
+            ..Default::default()
+        }),
+        focus: spec.focus,
         show: true,
-        is_movable: false,
+        is_movable: spec.movable,
+        app_id: Some("dev.gpui.material_desktop_demo".into()),
         ..Default::default()
     }
 }
@@ -288,6 +292,7 @@ struct CatalogView {
     carousel_index: usize,
     carousel_fling: carousel::FlingState,
     carousel_fling_at: Option<Instant>,
+    last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -569,6 +574,8 @@ fn catalog_body(
                 this.outlined.insert_char('a');
                 let v = this.outlined.value().to_string();
                 this.outlined.error = !v.is_empty() && !text_field::looks_like_email(&v);
+                this.last_catalog_ime = text_field::catalog_ime_from_focused(&this.outlined, 16.0)
+                    .map(|r| [r.0, r.1, r.2, r.3]);
                 cx.notify();
             }),
         ))
@@ -582,6 +589,8 @@ fn catalog_body(
                 this.outlined.set_focus(false);
                 this.filled.set_focus(true);
                 this.filled.insert_char('x');
+                this.last_catalog_ime = text_field::catalog_ime_from_focused(&this.filled, 16.0)
+                    .map(|r| [r.0, r.1, r.2, r.3]);
                 cx.notify();
             }),
         ))
@@ -2031,6 +2040,11 @@ fn search_bar_hero(
                 }))
         }))
         .into_any_element();
+    let anim_frame = Rc::new(Cell::new(search::morph_frame_eased(if open {
+        0.0
+    } else {
+        1.0
+    })));
     div()
         .id("search-morph")
         .relative()
@@ -2048,30 +2062,33 @@ fn search_bar_hero(
         .with_animation(
             if open { "search-grow" } else { "search-shrink" },
             Animation::new(Duration::from_millis(morph_ms)),
-            move |this, delta| {
-                let linear = if open { delta } else { 1.0 - delta };
-                let frame = search::morph_frame_eased(linear);
-                let layer = search::morph_layer_transform(frame);
-                let box_ = search::morph_layer_box(
-                    search::MORPH_STAGE_W_DP,
-                    frame.height_dp,
-                    layer,
-                );
-                this.min_h(px(box_.height_dp))
-                    .rounded(px(frame.corner_dp))
-                    .ml(px(box_.x_dp.max(frame.inset_h_dp)))
-                    .mr(px(box_.x_dp.max(frame.inset_h_dp)))
+            {
+                let anim_frame = anim_frame.clone();
+                move |this, delta| {
+                    let linear = if open { delta } else { 1.0 - delta };
+                    let frame = search::morph_frame_eased(linear);
+                    anim_frame.set(frame);
+                    let layer = search::morph_layer_transform(frame);
+                    let box_ = search::morph_layer_box(
+                        search::MORPH_STAGE_W_DP,
+                        frame.height_dp,
+                        layer,
+                    );
+                    this.min_h(px(box_.height_dp))
+                        .rounded(px(frame.corner_dp))
+                        .ml(px(box_.x_dp.max(frame.inset_h_dp)))
+                        .mr(px(box_.x_dp.max(frame.inset_h_dp)))
+                }
             },
         )
         .child({
-            let settled = search::morph_frame_at(search::morph_t(open));
-            let fill = paint(docked_bg.lerp(activity_bg, settled.t));
-            let scale = search::morph_layer_transform(settled).scale;
-            let corner = settled.corner_dp;
+            let anim_frame = anim_frame.clone();
             canvas(
-                move |_, _, _| scale,
-                move |bounds, scale, window, _| {
-                    paint_search_scaled_fill(window, bounds, scale, corner, fill);
+                move |_, _, _| anim_frame.get(),
+                move |bounds, frame, window, _| {
+                    let fill = paint(docked_bg.lerp(activity_bg, frame.t));
+                    let scale = search::morph_path_scale(frame);
+                    paint_search_scaled_fill(window, bounds, scale, frame.corner_dp, fill);
                 },
             )
             .absolute()
@@ -2911,7 +2928,8 @@ fn carousel_hero(
                 .h(px(1.))
                 .with_animation(
                     "carousel-live-clock",
-                    Animation::new(Duration::from_millis(16)).repeat(),
+                    Animation::new(Duration::from_millis(gpui_material::motion::FRAME_MS as u64))
+                        .repeat(),
                     |el, _| el,
                 ),
         )
@@ -2926,7 +2944,11 @@ fn carousel_hero(
             cx.notify();
         }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_dp(i, selected);
+            let w = carousel::item_width_during_fling(
+                i,
+                selected,
+                this.carousel_fling.snap_offset_t(),
+            );
             let (bg, fg) = if i == selected {
                 (a.container, a.label)
             } else {
@@ -3044,6 +3066,14 @@ fn outlined_notched_field(
                     if let Ok(path) = fill_b.build() {
                         window.paint_path(path, stroke_color);
                     }
+                    let center = frame.centerline_polyline(w);
+                    paint_round_polyline(
+                        window,
+                        bounds.origin,
+                        &center,
+                        frame.stroke_dp,
+                        stroke_color,
+                    );
                 },
             )
             .absolute()
@@ -3257,6 +3287,7 @@ fn main() {
                     carousel_index: carousel::DEMO_INDEX,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
                     carousel_fling_at: None,
+                    last_catalog_ime: None,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
                     time_period: time_picker::DEMO_PERIOD,
@@ -3367,6 +3398,16 @@ mod tests {
         ));
         assert!(matches!(popup_opts.kind, WindowKind::PopUp));
         assert!(!navigation_rail::OS_POPUP_OPENED);
+        assert!(
+            popup_opts
+                .titlebar
+                .as_ref()
+                .and_then(|t| t.title.as_ref())
+                .map(|s| s.as_ref() == navigation_rail::OS_POPUP_TITLE)
+                .unwrap_or(false)
+        );
+        assert!((search::morph_path_scale_eased(0.0) - search::SHARED_SCALE_DOCKED).abs() < 0.01);
+        assert_eq!(gpui_material::motion::FRAME_MS, 16);
         assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);

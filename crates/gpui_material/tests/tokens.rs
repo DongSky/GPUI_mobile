@@ -521,6 +521,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-transform-origin"));
     assert!(html.contains("data-search-path-scale=\"1\""));
     assert!(html.contains("data-search-layer-box"));
+    assert!(html.contains("data-search-anim-scale"));
+    assert!(html.contains("data-notch-centerline"));
+    assert!(html.contains("data-carousel-snap"));
+    assert!(html.contains("data-rail-popup-title"));
+    assert!(html.contains("data-rail-frame-ms"));
     assert!(html.contains("data-stroke-cap=\"round\""));
     assert!(html.contains("data-rail-chrome=\"popup\""));
     assert!(html.contains("data-rail-os-popup=\"0\""));
@@ -968,6 +973,9 @@ fn search_bar_and_time_picker_tokens() {
     let (mx, my) = search::morph_layer_map_point(0.0, 10.0, 640.0, 56.0, layer);
     assert!(mx > 0.0);
     assert!((my - 10.0 * search::SHARED_SCALE_DOCKED).abs() < 0.05);
+    assert!((search::morph_path_scale(docked) - search::SHARED_SCALE_DOCKED).abs() < 0.01);
+    assert!((search::morph_path_scale_eased(1.0) - 1.0).abs() < 0.01);
+    assert!(search::morph_path_scale_attr(grown).contains("1"));
     assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
     assert!(progress::STROKE_CAP.is_round());
     assert_eq!(progress::STROKE_CAP.css(), progress::LINE_CAP);
@@ -982,6 +990,16 @@ fn search_bar_and_time_picker_tokens() {
     );
     let win = text_field::ime_caret_rect_in_window(8.0, 16.0, 3, 16.0);
     assert_eq!(win.2, text_field::IME_CARET_W_DP);
+    let mut focused_ed = text_field::TextFieldEditor::new(
+        text_field::TextFieldVariant::Outlined,
+        "ab",
+    );
+    focused_ed.set_focus(true);
+    let cat = text_field::catalog_ime_from_focused(&focused_ed, 16.0).expect("focused caret");
+    assert_eq!(cat.2, text_field::IME_CARET_W_DP);
+    assert!(cat.0 > text_field::CATALOG_FIELD_ORIGIN_DP.0);
+    let idle = text_field::TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
+    assert!(text_field::catalog_ime_from_focused(&idle, 16.0).is_none());
     assert_eq!(slider::range_tick_count(), 21);
     let ticks = slider::range_ticks(0.20, 0.75, 280.0, 4.0);
     assert_eq!(ticks.len(), 21);
@@ -1032,6 +1050,16 @@ fn search_bar_and_time_picker_tokens() {
     let landed = physics.step_until_rest(1.0 / 60.0, 180);
     assert_eq!(landed, 2);
     assert_eq!(carousel::apply_wheel(0, 96.0, 0.0), carousel::advance(0, carousel::inertial_steps(96.0, 0.0)));
+    assert!((carousel::item_width_during_fling(0, 0, 0.0) - carousel::LARGE_W_DP).abs() < 0.01);
+    assert!(carousel::item_width_during_fling(0, 0, 0.5) < carousel::LARGE_W_DP);
+    assert!(carousel::item_width_during_fling(1, 0, 0.5) > carousel::SMALL_W_DP);
+    let mut snap = carousel::FlingState::new(0);
+    snap.leftover = carousel::FLING_UNIT * 0.6;
+    snap.settle();
+    assert_eq!(snap.selected, 1);
+    assert!(snap.resting());
+    assert_eq!(carousel::FLING_FRAME_DT, gpui_material::motion::FRAME_DT);
+    assert_eq!(time_picker::SECOND_HAND_FRAME_MS, gpui_material::motion::FRAME_MS);
     assert!(progress::loading_svg_d(38.0, 0.0).starts_with('M'));
     assert!(progress::loading_svg_values(38.0, 4).contains(';'));
     let sausage = progress::round_capped_arc_polygon(48.0, 4.0, -90.0, 90.0);
@@ -1068,6 +1096,10 @@ fn search_bar_and_time_picker_tokens() {
     );
     let hole = frame.hole_rect(280.0);
     assert!(hole.2 > 200.0);
+    let center = frame.centerline_polyline(280.0);
+    assert!(center.len() > 8);
+    assert!(frame.centerline_svg_d(280.0).starts_with('M'));
+    assert!(!frame.centerline_svg_d(280.0).contains('Z'));
     assert!(frame.evenodd_svg_d(280.0).contains('Z'));
     assert_eq!(frame.evenodd_subpath_count(280.0), 1);
     assert!(frame.evenodd_svg_d(280.0).contains('C'));
@@ -1109,6 +1141,11 @@ fn search_bar_and_time_picker_tokens() {
     assert!(!navigation_rail::OS_POPUP_OPENED);
     let popup = navigation_rail::os_popup_spec(navigation_rail::RailMode::Expanded);
     assert_eq!(popup.kind, "popup");
+    assert_eq!(popup.gpui_kind, "PopUp");
+    assert_eq!(popup.height_dp, navigation_rail::OS_POPUP_HEIGHT_DP);
+    assert_eq!(popup.title, navigation_rail::OS_POPUP_TITLE);
+    assert!(popup.focus);
+    assert!(!popup.movable);
     assert!(!popup.supported_on_android);
     assert_eq!(navigation_rail::os_popup_attr(), "0");
     let (kind, width, android) =
