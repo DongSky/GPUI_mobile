@@ -121,3 +121,46 @@ pub fn integrate_fling(velocity: f32, residual: f32, dt_s: f32) -> (f32, f32, i3
 pub fn decay_velocity(v: f32, dt_s: f32) -> f32 {
     v * (-FLING_DECAY * dt_s.max(0.0)).exp()
 }
+
+/// Per-frame inertial fling (velocity → item steps). One-shot wheel still uses `fling_steps`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlingState {
+    pub selected: usize,
+    pub velocity: f32,
+    pub leftover: f32,
+}
+
+impl FlingState {
+    pub fn new(selected: usize) -> Self {
+        Self {
+            selected: clamp_index(selected),
+            velocity: 0.0,
+            leftover: 0.0,
+        }
+    }
+
+    pub fn impulse(&mut self, dx: f32, dy: f32) {
+        let dominant = if dx.abs() >= dy.abs() { dx } else { dy };
+        self.velocity += dominant;
+    }
+
+    /// Integrate one frame. Returns the new selected index.
+    pub fn step(&mut self, dt_s: f32) -> usize {
+        let dt = dt_s.max(0.0);
+        self.leftover += self.velocity * dt;
+        self.velocity = decay_velocity(self.velocity, dt);
+        if self.velocity.abs() < 0.5 {
+            self.velocity = 0.0;
+        }
+        while self.leftover.abs() >= FLING_UNIT {
+            let dir = if self.leftover > 0.0 { 1 } else { -1 };
+            self.selected = advance(self.selected, dir);
+            self.leftover -= dir as f32 * FLING_UNIT;
+        }
+        self.selected
+    }
+
+    pub fn resting(&self) -> bool {
+        self.velocity.abs() < 0.5 && self.leftover.abs() < FLING_UNIT
+    }
+}

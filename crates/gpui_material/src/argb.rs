@@ -75,4 +75,16 @@ impl Argb {
     pub const fn rgb_u32(self) -> u32 {
         self.0 & 0x00ff_ffff
     }
+
+    /// Channel-wise lerp for shared-element container morphs.
+    pub fn lerp(self, other: Self, t: f32) -> Self {
+        let t = t.clamp(0.0, 1.0);
+        let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
+        Self::rgba(
+            mix(self.a(), other.a()),
+            mix(self.r(), other.r()),
+            mix(self.g(), other.g()),
+            mix(self.b(), other.b()),
+        )
+    }
 }

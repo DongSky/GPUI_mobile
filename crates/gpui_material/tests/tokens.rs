@@ -498,6 +498,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-carousel-selected"));
     assert!(html.contains("data-rail-selected"));
     assert!(html.contains("data-search-morph"));
+    assert!(html.contains("data-search-shared"));
     assert!(html.contains("data-rail-scrim"));
     assert!(html.contains("data-notch-evenodd"));
     assert!(html.contains("data-notch-cpath"));
@@ -509,6 +510,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("min span 5%") || html.contains("Price range"));
     assert!(html.contains("stroke-linecap=\"round\""));
     assert!(html.contains("data-nav-rail-expanded=\"1\""));
+    assert!(html.contains("data-rail-focus-trap"));
     assert!(html.contains("data-rail-fab=\"1\""));
     assert!(html.contains("data-docked-grid=\"1\""));
 }
@@ -902,6 +904,26 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(navigation_rail::is_modal(navigation_rail::RailMode::Expanded));
     assert!((search::morph_list_opacity(1.0) - 1.0).abs() < 1e-5);
+    let grown = search::morph_frame_eased(1.0);
+    assert!((grown.height_dp - search::ACTIVITY_MIN_H_DP).abs() < 0.01);
+    assert!(grown.inset_h_dp.abs() < 0.01);
+    assert!((grown.scale - 1.0).abs() < 0.01);
+    assert_eq!(search::morph_container(&theme, 1.0), theme.color.surface);
+    assert!(navigation_rail::focus_trapped(navigation_rail::RailMode::Expanded));
+    assert!(navigation_rail::dismiss_on_scrim());
+    assert_eq!(
+        navigation_rail::modal_elevation_dp(&theme),
+        theme.elevation.level2
+    );
+    let win = text_field::ime_caret_rect_in_window(8.0, 16.0, 3, 16.0);
+    assert_eq!(win.2, text_field::IME_CARET_W_DP);
+    assert_eq!(slider::range_tick_count(), 21);
+    let ticks = slider::range_ticks(0.20, 0.75, 280.0, 4.0);
+    assert_eq!(ticks.len(), 21);
+    let mut fling = carousel::FlingState::new(0);
+    fling.impulse(80.0, 0.0);
+    let _ = fling.step(0.25);
+    assert!(!fling.resting() || fling.selected != 0);
     assert_eq!(navigation_rail::DESTINATION_BADGES[1], Some(3));
     let car = carousel::resolve(&theme);
     assert_eq!(car.large_w_dp, 256.0);

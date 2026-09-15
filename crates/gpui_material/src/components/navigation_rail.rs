@@ -120,6 +120,20 @@ pub fn is_modal(mode: RailMode) -> bool {
     mode == RailMode::Expanded
 }
 
+/// Expanded rail traps destination focus; scrim tap dismisses (catalog overlay).
+pub fn focus_trapped(mode: RailMode) -> bool {
+    is_modal(mode)
+}
+
+pub fn dismiss_on_scrim() -> bool {
+    true
+}
+
+/// Modal rail elevation (level 2) — in-catalog overlay, not a separate Window.
+pub fn modal_elevation_dp(theme: &Theme) -> f32 {
+    theme.elevation.level2
+}
+
 pub fn is_active(selected: usize, index: usize) -> bool {
     selected == index
 }

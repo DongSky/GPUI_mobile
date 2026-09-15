@@ -157,15 +157,21 @@ a {{ color: var(--primary); }}
 .search-morph, .search-bar, .search-view {{
   display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
   min-height: 56px; border-radius: 28px;
+  transform-origin: top center;
   transition: min-height 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
-    border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+    border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
+    margin 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
+    transform 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
 .search-morph .sv-head, .search-bar {{
   display: flex; align-items: center; gap: 16px;
   height: 56px; padding: 0 16px;
 }}
 .search-morph[data-open="1"], .search-view[data-search-activity="1"] {{
-  border-radius: 0; max-width: none; min-height: 320px;
+  border-radius: 0; max-width: none; min-height: 320px; margin: 0; transform: scale(1);
+}}
+.search-morph[data-open="0"] {{
+  margin: 0 16px; transform: scale(0.94);
 }}
 .search-morph[data-open="0"] .sv-list {{ max-height: 0; opacity: 0; }}
 .search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
@@ -770,9 +776,13 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     view.setAttribute("data-open", open ? "1" : "0");
     view.setAttribute("data-search-activity", open ? "1" : "0");
     view.setAttribute("data-search-morph", open ? "1" : "0");
+    view.setAttribute("data-search-shared", "1");
     if (view.classList.contains("search-morph")) {{
       view.style.minHeight = open ? "320px" : "56px";
       view.style.borderRadius = open ? "0" : "28px";
+      view.style.marginLeft = open ? "0" : "16px";
+      view.style.marginRight = open ? "0" : "16px";
+      view.style.transform = open ? "scale(1)" : "scale(0.94)";
     }} else {{
       view.style.display = open ? "flex" : "none";
       bar.setAttribute("data-hidden", open ? "1" : "0");
@@ -1789,7 +1799,7 @@ fn chrome(theme: &Theme) -> String {
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
-  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
 </div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
@@ -2402,7 +2412,7 @@ fn search_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Search</h2>
 <p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-open="1" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
+<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="ico" aria-hidden="true">{back}</div>
     <input class="hint" data-search-input="1" placeholder="{placeholder}" style="color:{vph}"/>

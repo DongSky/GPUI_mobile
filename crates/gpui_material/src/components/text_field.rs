@@ -842,6 +842,17 @@ pub fn ime_caret_rect_dp(caret_chars: usize, size_sp: f32) -> (f32, f32, f32, f3
     )
 }
 
+/// Window-space caret rect for `update_ime_position` (`field` origin + local caret).
+pub fn ime_caret_rect_in_window(
+    field_x: f32,
+    field_y: f32,
+    caret_chars: usize,
+    size_sp: f32,
+) -> (f32, f32, f32, f32) {
+    let (x, y, w, h) = ime_caret_rect_dp(caret_chars, size_sp);
+    (field_x + x, field_y + y, w, h)
+}
+
 /// Lightweight email check used by the outlined error demo.
 pub fn looks_like_email(s: &str) -> bool {
     let Some(at) = s.find('@') else {

@@ -72,6 +72,11 @@ impl MotionTokens {
         cubic_bezier(0.05, 0.7, 0.1, 1.0, t)
     }
 
+    /// Expressive spatial-fast spring (may overshoot). Used by search grow.
+    pub fn spatial_fast_at(self, t: f32) -> f32 {
+        cubic_bezier(0.42, 1.67, 0.21, 0.90, t).clamp(0.0, 1.2)
+    }
+
     pub fn lerp(self, from: f32, to: f32, t: f32) -> f32 {
         from + (to - from) * self.emphasized_at(t)
     }

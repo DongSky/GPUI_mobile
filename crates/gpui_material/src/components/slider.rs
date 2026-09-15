@@ -391,6 +391,33 @@ pub struct RangePaint {
     pub handle_w: f32,
 }
 
+/// Discrete 5% tick count for the dual-thumb track (0%, 5%, …, 100%).
+pub fn range_tick_count() -> usize {
+    range_tick_fractions().len()
+}
+
+/// One painted stop on a dual-thumb track.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RangeTick {
+    pub fraction: f32,
+    pub x_dp: f32,
+    pub active: bool,
+}
+
+/// Paint boxes for discrete snap ticks along a `width`-dp dual-thumb track.
+pub fn range_ticks(start: f32, end: f32, width: f32, stop_dp: f32) -> Vec<RangeTick> {
+    let width = width.max(1.0);
+    let half = stop_dp / 2.0;
+    range_tick_fractions()
+        .into_iter()
+        .map(|fraction| RangeTick {
+            fraction,
+            x_dp: (width * fraction - half).clamp(0.0, (width - stop_dp).max(0.0)),
+            active: range_tick_active(fraction, start, end),
+        })
+        .collect()
+}
+
 /// Place thumbs on `start`/`end` of a `width`-dp track.
 pub fn range_paint(start: f32, end: f32, width: f32, handle_w: f32) -> RangePaint {
     let hw = handle_w.max(HANDLE_W_DP);

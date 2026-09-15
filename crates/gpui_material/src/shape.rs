@@ -67,3 +67,40 @@ impl Corners {
         )
     }
 }
+
+/// Material `RoundedPolygon` / `CornerRounding.smoothing` (0 = circular, 1 = fully smooth).
+/// androidx.graphics.shapes uses this to consume extra edge and flatten the bulge.
+pub const CORNER_SMOOTHING: f32 = 0.6;
+/// κ for a circular quarter-cubic (≈ 4/3 tan(π/8)).
+pub const CIRCULAR_KAPPA: f32 = 0.55228475;
+
+/// Extra edge consumed beyond `radius` when smoothing > 0 (`√2 − 1` scale).
+pub fn smooth_cut(radius: f32, smoothing: f32) -> f32 {
+    let s = smoothing.clamp(0.0, 1.0);
+    radius * (1.0 + 0.29289322 * s)
+}
+
+/// Cubic κ: circular at 0, flatter superellipse as smoothing rises.
+pub fn smooth_kappa(smoothing: f32) -> f32 {
+    let s = smoothing.clamp(0.0, 1.0);
+    CIRCULAR_KAPPA + (0.85 - CIRCULAR_KAPPA) * s
+}
+
+/// Clockwise quarter-cubic from `from` → `to` around a corner at `corner`.
+/// Matches androidx `RoundedPolygon` + `CornerRounding(radius, smoothing)`.
+pub fn rounded_polygon_quarter(
+    from: (f32, f32),
+    corner: (f32, f32),
+    to: (f32, f32),
+    kappa: f32,
+) -> [(f32, f32); 3] {
+    let c1 = (
+        from.0 + (corner.0 - from.0) * kappa,
+        from.1 + (corner.1 - from.1) * kappa,
+    );
+    let c2 = (
+        to.0 + (corner.0 - to.0) * kappa,
+        to.1 + (corner.1 - to.1) * kappa,
+    );
+    [c1, c2, to]
+}

@@ -77,6 +77,8 @@ pub(crate) struct AndroidWindowInner {
     gpu_context: GpuContext,
     /// Last caret bounds from `update_ime_position` (NativeActivity has no IME).
     pub last_ime_bounds: Cell<Option<crate::ime::ImeBoundsDp>>,
+    /// InputConnection-shaped session filled by `update_ime_position`.
+    pub ime: std::cell::RefCell<crate::ime::ImeSession>,
 }
 
 impl AndroidWindowInner {
@@ -114,6 +116,7 @@ impl AndroidWindowInner {
             display,
             gpu_context: gpu_context.clone(),
             last_ime_bounds: Cell::new(None),
+            ime: std::cell::RefCell::new(crate::ime::ImeSession::new()),
         }))
     }
 
@@ -371,16 +374,16 @@ impl PlatformWindow for AndroidWindow {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
-        // NativeActivity has no InputConnection. Record the caret rect so a
-        // later InputConnection can consume `gpui_material::text_field::ime_caret_rect_dp`.
-        crate::ime::record_caret_rect(
+        // NativeActivity has no JNI InputConnection yet. Record the caret rect
+        // and the InputConnection session so a later JNI layer can consume
+        // `gpui_material::text_field::ime_caret_rect_dp`.
+        crate::ime::apply_update_ime_position(
             &self.inner.last_ime_bounds,
-            (
-                f32::from(bounds.origin.x),
-                f32::from(bounds.origin.y),
-                f32::from(bounds.size.width),
-                f32::from(bounds.size.height),
-            ),
+            &self.inner.ime,
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
         );
     }
 }

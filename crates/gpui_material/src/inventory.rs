@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, explicit quarter-circle corners); HTML SVG even-odd fill (fieldset border none); GPUI even-odd fill of the same polygon so the label cuts the stroke on any background; 8dp start; focus outline 2dp; IME caret rect stub wired to NativeActivity update_ime_position",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, explicit quarter-circle corners); HTML SVG even-odd fill (fieldset border none); GPUI even-odd fill of the same polygon so the label cuts the stroke on any background; 8dp start; focus outline 2dp; IME caret rect + InputConnection session wired to NativeActivity update_ime_position (no JNI yet)",
     },
     ComponentEntry {
         name: "List",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp modal column that morphs over a 32% scrim (spatial-fast width + opacity, elevation); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp modal column that morphs over a 32% scrim (spatial-fast width + opacity, level-2 elevation, focus trap / scrim dismiss); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar growing-bar morph into full-screen search activity (spatial-fast height/corners, overflow-clipped list); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale + container lerp, overflow-clipped list); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",
@@ -256,7 +256,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) that can skip more than one item",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) + FlingState per-frame integrator that can skip more than one item",
     },
 ];
 

@@ -2136,9 +2136,12 @@ fn android_search_bar(
             if open { "search-grow" } else { "search-shrink" },
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
-                let t = if open { delta } else { 1.0 - delta };
-                this.min_h(px(search::morph_height_dp(t)))
-                    .rounded(px(search::morph_corner_dp_at(t)))
+                let linear = if open { delta } else { 1.0 - delta };
+                let frame = search::morph_frame_eased(linear);
+                this.min_h(px(frame.height_dp))
+                    .rounded(px(frame.corner_dp))
+                    .ml(px(frame.inset_h_dp))
+                    .mr(px(frame.inset_h_dp))
             },
         )
         .child(header)

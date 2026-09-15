@@ -191,6 +191,55 @@ pub fn morph_avatar_opacity(t: f32) -> f32 {
     (1.0 - t.clamp(0.0, 1.0)).max(0.0)
 }
 
+/// Compose SearchBar-style shared-element frame (one container, not a swap).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MorphFrame {
+    pub t: f32,
+    pub height_dp: f32,
+    pub corner_dp: f32,
+    pub header_h_dp: f32,
+    pub suggestion_opacity: f32,
+    /// Horizontal inset that collapses as the bar grows into the activity.
+    pub inset_h_dp: f32,
+    /// Subtle shared-element scale (docked 0.94 → activity 1.0).
+    pub scale: f32,
+}
+
+/// How far the docked bar sits inset from the activity edges (shared-element).
+pub const SHARED_INSET_DOCKED_DP: f32 = 16.0;
+pub const SHARED_SCALE_DOCKED: f32 = 0.94;
+
+/// Spatial-fast easing for the growing-bar (may slightly overshoot, then clamp).
+pub fn morph_eased_t(linear: f32) -> f32 {
+    crate::motion::cubic_bezier(0.42, 1.67, 0.21, 0.90, linear.clamp(0.0, 1.0)).clamp(0.0, 1.0)
+}
+
+/// Shared-element container at linear or already-eased `t` (0 docked … 1 activity).
+pub fn morph_frame_at(t: f32) -> MorphFrame {
+    let t = t.clamp(0.0, 1.0);
+    MorphFrame {
+        t,
+        height_dp: morph_height_dp(t),
+        corner_dp: morph_corner_dp_at(t),
+        header_h_dp: HEIGHT_DP + (VIEW_HEADER_DP - HEIGHT_DP) * t,
+        suggestion_opacity: t,
+        inset_h_dp: SHARED_INSET_DOCKED_DP * (1.0 - t),
+        scale: SHARED_SCALE_DOCKED + (1.0 - SHARED_SCALE_DOCKED) * t,
+    }
+}
+
+pub fn morph_frame_eased(linear: f32) -> MorphFrame {
+    morph_frame_at(morph_eased_t(linear))
+}
+
+/// Container fill lerp: docked `surface-container-high` → activity `surface`.
+pub fn morph_container(theme: &Theme, t: f32) -> crate::argb::Argb {
+    theme
+        .color
+        .surface_container_high
+        .lerp(theme.color.surface, t.clamp(0.0, 1.0))
+}
+
 pub fn pick_suggestion(query: &str, index: usize) -> Option<&'static str> {
     filter_suggestions(query).get(index).copied()
 }
