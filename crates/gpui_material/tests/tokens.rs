@@ -870,6 +870,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-display-live="1""#));
     assert!(html.contains(r#"data-date-display-toggle="1""#));
     assert!(html.contains(r#"data-hero="datepicker-year""#));
+    assert!(html.contains(r#"data-hero="datepicker-range-input""#));
+    assert!(html.contains(r#"data-datepicker-range-input="1""#));
+    assert!(html.contains(r#"data-date-range-start="1""#));
+    assert!(html.contains(r#"data-date-range-end="1""#));
+    assert!(html.contains("Enter dates"));
+    assert!(html.contains("Start date"));
+    assert!(html.contains("End date"));
     assert!(html.contains(r#"data-datepicker-year="1""#));
     assert!(html.contains(r#"data-date-pane="year""#));
     assert!(html.contains(r#"data-date-years="1""#));
@@ -2358,6 +2365,21 @@ fn date_picker_grid_and_weekday() {
     );
     assert!(date_picker::is_input_valid("09/15/2026"));
     assert!(!date_picker::is_input_valid("13/40/2026"));
+    assert_eq!(date_picker::RANGE_INPUT_HEADLINE, "Enter dates");
+    assert_eq!(date_picker::RANGE_START_LABEL, "Start date");
+    assert_eq!(date_picker::RANGE_END_LABEL, "End date");
+    assert!(date_picker::is_range_input_valid(
+        "09/15/2026",
+        "09/21/2026"
+    ));
+    assert!(!date_picker::is_range_input_valid(
+        "09/21/2026",
+        "09/15/2026"
+    ));
+    assert!(date_picker::range_input_ordered(
+        date_picker::RANGE_DEMO_START,
+        date_picker::RANGE_DEMO_END
+    ));
     assert_eq!(
         date_picker::DatePickerDisplayMode::Picker.toggle(),
         date_picker::DatePickerDisplayMode::Input

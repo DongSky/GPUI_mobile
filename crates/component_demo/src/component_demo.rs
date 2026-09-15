@@ -1482,6 +1482,7 @@ fn catalog_body(
             },
         )
         .child(android_date_input(this, theme, pick))
+        .child(android_date_range_input(theme, pick))
         .child(section_title(theme, "Overlays"))
         .child(
             div()
@@ -7132,6 +7133,128 @@ fn android_date_input(
                         .text_size(px(field.input_style.size_sp))
                         .text_color(paint(field.input))
                         .child(date_picker::input_field_value(this.selected)),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .justify_end()
+                .gap(px(16.))
+                .child(
+                    div()
+                        .text_color(paint(theme.color.primary))
+                        .child(date_picker::INPUT_CANCEL),
+                )
+                .child(
+                    div()
+                        .text_color(paint(theme.color.primary))
+                        .child(date_picker::INPUT_OK),
+                ),
+        )
+}
+
+fn android_date_range_input(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.outline);
+    div()
+        .id("date-range-input")
+        .w(px(pick.day_dp * 7.0))
+        .p(px(12.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+        .child(
+            div()
+                .flex()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(pick.year_style.size_sp))
+                                .text_color(paint(pick.header_year))
+                                .child(date_picker::RANGE_INPUT_HEADLINE),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(22.))
+                                .text_color(paint(pick.header_date))
+                                .child(date_picker::header_range_label(
+                                    date_picker::RANGE_DEMO_START,
+                                    date_picker::RANGE_DEMO_END,
+                                )),
+                        ),
+                )
+                .child(
+                    div()
+                        .w(px(date_picker::TOGGLE_SIZE_DP))
+                        .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
+        )
+        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .child(
+            div()
+                .w_full()
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(date_picker::RANGE_START_LABEL),
+                )
+                .child(
+                    div()
+                        .text_size(px(field.input_style.size_sp))
+                        .text_color(paint(field.input))
+                        .child(date_picker::input_field_value(
+                            date_picker::RANGE_DEMO_START,
+                        )),
+                ),
+        )
+        .child(
+            div()
+                .w_full()
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(date_picker::RANGE_END_LABEL),
+                )
+                .child(
+                    div()
+                        .text_size(px(field.input_style.size_sp))
+                        .text_color(paint(field.input))
+                        .child(date_picker::input_field_value(date_picker::RANGE_DEMO_END)),
                 ),
         )
         .child(

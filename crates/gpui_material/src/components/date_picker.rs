@@ -304,6 +304,12 @@ pub const INPUT_TOGGLE_EDIT: &str = "✎";
 pub const INPUT_TOGGLE_CALENDAR: &str = "▦";
 pub const INPUT_OK: &str = "OK";
 pub const INPUT_CANCEL: &str = "Cancel";
+/// Compose `DateRangeInputTitle`.
+pub const RANGE_INPUT_HEADLINE: &str = "Enter dates";
+/// Compose `DateRangePickerStartHeadline` / `DateRangePickerEndHeadline`.
+pub const RANGE_START_LABEL: &str = "Start date";
+pub const RANGE_END_LABEL: &str = "End date";
+pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 
 pub fn apply_display_toggle(mode: DatePickerDisplayMode) -> DatePickerDisplayMode {
     mode.toggle()
@@ -427,6 +433,17 @@ pub fn classify_year(year: i32, displayed: i32, today_year: i32) -> YearKind {
 
 fn date_ord(d: CivilDate) -> i32 {
     d.year * 400 + d.month as i32 * 32 + d.day as i32
+}
+
+pub fn range_input_ordered(start: CivilDate, end: CivilDate) -> bool {
+    date_ord(start) <= date_ord(end)
+}
+
+pub fn is_range_input_valid(start: &str, end: &str) -> bool {
+    match (parse_input_field(start), parse_input_field(end)) {
+        (Some(s), Some(e)) => range_input_ordered(s, e),
+        _ => false,
+    }
 }
 
 pub fn date_in_range_interior(day: CivilDate, start: CivilDate, end: CivilDate) -> bool {

@@ -1285,6 +1285,8 @@ table.inv th {{ font-weight: 500; }}
   cursor: pointer; font-size: 16px;
 }}
 .cal .dp-input {{ padding: 8px 12px 16px; }}
+.dp-range-input {{ display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 16px; }}
+.dp-divider {{ height: 1px; margin: 0 12px 8px; }}
 .cal .dp-toggle {{
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 20px;
@@ -6236,7 +6238,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -6294,6 +6296,26 @@ fn date_pickers(theme: &Theme) -> String {
     <button class="btn" style="background:transparent;color:{act}">{ok}</button>
   </div>
 </div>
+<h3>range input</h3>
+<p class="note">Compose <code>DateRangePicker</code> <code>DisplayMode.Input</code>: <code>Enter dates</code>, two outlined <code>Start date</code> / <code>End date</code> fields, calendar toggle, Cancel / OK.</p>
+<div class="cal dialog" data-datepicker-range-input="1" data-hero="datepicker-range-input" data-date-display="input" data-date-display-mode="input">
+  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <div>
+      <div style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
+      <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
+    </div>
+    <div class="dp-toggle" aria-label="{toggle_label}">{toggle_icon}</div>
+  </div>
+  <div class="dp-divider" data-date-divider="1" style="background:{hy}"></div>
+  <div class="dp-range-input" data-date-range-fields="1">
+    {range_start_field}
+    {range_end_field}
+  </div>
+  <div class="actions" style="padding:8px 12px 0">
+    <button class="btn" style="background:transparent;color:{act}">{cancel}</button>
+    <button class="btn" style="background:transparent;color:{act}">{ok}</button>
+  </div>
+</div>
 <h3>year picker</h3>
 <p class="note">Compose <code>YearPicker</code>: 3-column 72×36 pills, <code>YearRange</code> 1900–2100, selected primary, current-year outline. Month ▾ opens this pane.</p>
 <div class="cal dialog" data-datepicker-year="1" data-hero="datepicker-year" data-date-pane="year" data-date-display="picker" data-year="2026" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
@@ -6346,6 +6368,35 @@ fn date_pickers(theme: &Theme) -> String {
         ),
         input_headline = date_picker::INPUT_HEADLINE,
         input_supporting = date_picker::INPUT_SUPPORTING,
+        range_input_headline = date_picker::RANGE_INPUT_HEADLINE,
+        range_start_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Enabled,
+                true,
+            ),
+            r#"data-date-range-start="1""#,
+            date_picker::RANGE_START_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(date_picker::RANGE_DEMO_START)
+            ),
+        ),
+        range_end_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Enabled,
+                true,
+            ),
+            r#"data-date-range-end="1""#,
+            date_picker::RANGE_END_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(date_picker::RANGE_DEMO_END)
+            ),
+        ),
         live_toggle_icon = date_picker::LIVE_DISPLAY_MODE.toggle_icon(),
         live_toggle_label = date_picker::LIVE_DISPLAY_MODE.toggle_label(),
         toggle_icon = date_picker::DEMO_DISPLAY_MODE.toggle_icon(),
