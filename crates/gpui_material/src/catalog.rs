@@ -1,9 +1,10 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
-    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar, Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip,
+    date_picker, dialog, divider, fab, fab_menu, icon_button, list, menu, navigation_bar,
+    navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar,
+    split_button, switch, tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -1830,12 +1831,8 @@ fn paint_connected_group(theme: &Theme, selected: usize) -> String {
 fn paint_icon_group(theme: &Theme, selected: usize, overflow_open: bool) -> String {
     let count = button_group::icon_group_count();
     let menu = menu::resolve_menu(theme);
-    let mut parts = String::from(
-        r#"<div class="overflow-menu" data-hero="button-group-icons">"#,
-    );
-    parts.push_str(
-        r#"<div class="btn-group" data-button-group="icons" data-icon-group="1">"#,
-    );
+    let mut parts = String::from(r#"<div class="overflow-menu" data-hero="button-group-icons">"#);
+    parts.push_str(r#"<div class="btn-group" data-button-group="icons" data-icon-group="1">"#);
     for i in 0..count {
         let glyph = button_group::icon_glyph(i);
         let overflow = i == button_group::overflow_index();
@@ -1912,12 +1909,8 @@ fn settings_scene(theme: &Theme) -> String {
     );
     let mut rows = String::new();
     for row in slider::OVERVIEW_ROWS.iter().take(2) {
-        let a = slider::resolve_with_stops(
-            theme,
-            row.value,
-            InteractionState::Enabled,
-            row.stop_count,
-        );
+        let a =
+            slider::resolve_with_stops(theme, row.value, InteractionState::Enabled, row.stop_count);
         rows.push_str(&format!(
             r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div><div class="slider-meta"><div class="slider-label">{label}</div>{}</div></div>"#,
             paint_expressive_slider(&a, row.label),
@@ -1995,7 +1988,9 @@ fn paint_button(theme: &Theme, variant: button::ButtonVariant, state: Interactio
 }
 
 fn buttons(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Buttons</h2><p class=\"note\">M3 Expressive: five colors, XS–XL, round/square, press morph. Default S is 40×16. <a href=\"https://m3.material.io/components/buttons/specs\">spec</a></p>");
+    let mut out = String::from(
+        "<h2>Buttons</h2><p class=\"note\">M3 Expressive: five colors, XS–XL, round/square, press morph. Default S is 40×16. <a href=\"https://m3.material.io/components/buttons/specs\">spec</a></p>",
+    );
     out.push_str("<div class=\"hero-card\" data-hero=\"buttons\"><div class=\"state-body\">");
     for variant in button::OVERVIEW_ORDER {
         out.push_str(&paint_button(theme, variant, InteractionState::Enabled));
@@ -2048,7 +2043,10 @@ fn buttons(theme: &Theme) -> String {
     }
     out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p>");
     out.push_str("<h3>standard button group</h3>");
-    out.push_str(&paint_standard_group(theme, button_group::STANDARD_SELECTED));
+    out.push_str(&paint_standard_group(
+        theme,
+        button_group::STANDARD_SELECTED,
+    ));
     out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square.</p>");
     out.push_str("<h3>connected button group</h3>");
     out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
@@ -2070,9 +2068,9 @@ fn buttons(theme: &Theme) -> String {
     out
 }
 
-fn paint_icon_btn(a: &Appearance, attrs: &str, press_r: f32, font_px: f32) -> String {
+fn paint_icon_btn(a: &Appearance, attrs: &str, press_r: f32, font_px: f32, glyph: &str) -> String {
     format!(
-        "<div class=\"icon-btn\" {attrs} style=\"--press-r:{press_r}px;width:{w}px;height:{h}px;background:{bg};color:{fg};border:{bd};border-radius:{r}px;font-size:{font_px}px\">★</div>",
+        "<div class=\"icon-btn\" {attrs} style=\"--press-r:{press_r}px;width:{w}px;height:{h}px;background:{bg};color:{fg};border:{bd};border-radius:{r}px;font-size:{font_px}px\">{glyph}</div>",
         w = a.width_dp.unwrap_or(a.height_dp),
         h = a.height_dp,
         bg = a.container.css_hex(),
@@ -2105,14 +2103,58 @@ fn paint_icon_width_row(theme: &Theme, size: button::ButtonSize) -> String {
             ),
             size.pressed_corner_dp(),
             icon_button::icon_dp(size) * 0.75,
+            "★",
         ));
     }
     out.push_str("</div>");
     out
 }
 
+fn paint_icon_toggle_row(
+    theme: &Theme,
+    rest: button::ButtonShape,
+    variants: &[icon_button::IconButtonVariant],
+) -> String {
+    let size = icon_button::TOGGLE_HERO_SIZE;
+    let mut out = format!(
+        "<div class=\"state-body\" data-icon-toggle-rest=\"{}\">",
+        rest.label()
+    );
+    for variant in variants {
+        for selection in icon_button::IconButtonSelection::TOGGLE {
+            let a = icon_button::resolve_selection(
+                theme,
+                *variant,
+                size,
+                rest,
+                icon_button::IconButtonWidth::Default,
+                selection,
+                InteractionState::Enabled,
+            );
+            let paint_shape = icon_button::resting_shape(rest, selection);
+            out.push_str(&paint_icon_btn(
+                &a,
+                &format!(
+                    "data-icon-toggle=\"{sel}\" data-icon-toggle-variant=\"{v}\" data-icon-toggle-shape=\"{sh}\" data-icon-toggle-r=\"{r}\"",
+                    sel = selection.label(),
+                    v = variant.label(),
+                    sh = paint_shape.label(),
+                    r = a.corners.top_left,
+                ),
+                size.pressed_corner_dp(),
+                icon_button::icon_dp(size) * 0.75,
+                selection.glyph(),
+            ));
+        }
+    }
+    out.push_str("</div>");
+    out
+}
+
 fn icon_buttons(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Icon buttons</h2><p class=\"note\">Expressive: filled / tonal / outlined / standard, XS–XL, round/square, press morph, narrow/default/wide. Default S is 40×24. <a href=\"https://m3.material.io/components/icon-buttons/specs\">spec</a></p>");
+    let mut out = String::from(
+        "<h2>Icon buttons</h2><p class=\"note\">Expressive: filled / tonal / outlined / standard, XS–XL, round/square, press morph, narrow/default/wide, toggle selected round↔square. Default S is 40×24. <a href=\"https://m3.material.io/components/icon-buttons/specs\">spec</a></p>",
+    );
     out.push_str("<div class=\"hero-card\" data-hero=\"icon-buttons\"><div class=\"state-body\">");
     for variant in icon_button::IconButtonVariant::ALL {
         let a = icon_button::resolve(theme, variant, InteractionState::Enabled);
@@ -2121,6 +2163,7 @@ fn icon_buttons(theme: &Theme) -> String {
             &format!("data-icon-button=\"{}\"", variant.label()),
             8.0,
             18.0,
+            "★",
         ));
     }
     out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
@@ -2137,6 +2180,7 @@ fn icon_buttons(theme: &Theme) -> String {
             &format!("data-icon-size=\"{}\"", size.label()),
             size.pressed_corner_dp(),
             icon_button::icon_dp(size) * 0.75,
+            "★",
         ));
     }
     out.push_str("</div></div>");
@@ -2146,6 +2190,19 @@ fn icon_buttons(theme: &Theme) -> String {
     out.push_str(&paint_icon_width_row(
         theme,
         icon_button::WIDTH_HERO_SIZE_MEDIUM,
+    ));
+    out.push_str("</div>");
+    out.push_str("<h3>toggle</h3><p class=\"note\">Compose <code>IconToggleButton</code>: unselected outlined glyph, selected filled glyph. Rest round morphs to square when selected (and the reverse). Colors: filled surface-container→primary; tonal secondary-container→secondary; outlined outline→inverse-surface; standard on-surface-variant→primary.</p>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"icon-buttons-toggle\">");
+    out.push_str(&paint_icon_toggle_row(
+        theme,
+        button::ButtonShape::Round,
+        &icon_button::IconButtonVariant::TOGGLE_OVERVIEW,
+    ));
+    out.push_str(&paint_icon_toggle_row(
+        theme,
+        button::ButtonShape::Square,
+        &[icon_button::IconButtonVariant::Filled],
     ));
     out.push_str("</div>");
     for variant in icon_button::IconButtonVariant::ALL {
@@ -2173,7 +2230,9 @@ fn icon_buttons(theme: &Theme) -> String {
 }
 
 fn fabs(theme: &Theme) -> String {
-    let mut out = String::from("<h2>FAB</h2><p class=\"note\">Expressive: regular 56 / medium 80 / large 96 / small-extended. Baseline 40dp small FAB is deprecated.</p><div class=\"hero-card\" data-hero=\"fab\"><div class=\"state-body\">");
+    let mut out = String::from(
+        "<h2>FAB</h2><p class=\"note\">Expressive: regular 56 / medium 80 / large 96 / small-extended. Baseline 40dp small FAB is deprecated.</p><div class=\"hero-card\" data-hero=\"fab\"><div class=\"state-body\">",
+    );
     for variant in fab::FabVariant::ALL {
         let a = fab::resolve(theme, variant, InteractionState::Enabled);
         out.push_str(&format!(
@@ -2286,9 +2345,19 @@ fn fab_menu_section(theme: &Theme) -> String {
             fab_menu::DEMO_EXPANDED,
         ),
     ));
-    out.push_str("<h3>color sets</h3><div class=\"state-body\" style=\"align-items:flex-end;gap:32px\">");
-    out.push_str(&paint_fab_menu(theme, fab_menu::FabMenuColor::Secondary, false));
-    out.push_str(&paint_fab_menu(theme, fab_menu::FabMenuColor::Tertiary, false));
+    out.push_str(
+        "<h3>color sets</h3><div class=\"state-body\" style=\"align-items:flex-end;gap:32px\">",
+    );
+    out.push_str(&paint_fab_menu(
+        theme,
+        fab_menu::FabMenuColor::Secondary,
+        false,
+    ));
+    out.push_str(&paint_fab_menu(
+        theme,
+        fab_menu::FabMenuColor::Tertiary,
+        false,
+    ));
     out.push_str("</div></div>");
     out
 }
@@ -2336,7 +2405,9 @@ fn paint_split(
         tbd = trail.outline_css(),
         tr = trail.corners.css(),
         th = trail.height_dp,
-        tw = trail.min_width_dp.unwrap_or(split_button::TRAILING_MIN_W_DP),
+        tw = trail
+            .min_width_dp
+            .unwrap_or(split_button::TRAILING_MIN_W_DP),
         tpad = trail.pad_start_dp,
         tfs = split_button::trailing_icon_dp(size),
         tsh = ElevationLevels::css_shadow(trail.elevation_dp),
@@ -2622,7 +2693,9 @@ fn paint_outlined_field(
 }
 
 fn text_fields(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Text fields</h2><p class=\"note\">Official overview heroes are <em>empty</em> filled + outlined with the label inside the box. Populated/focused outlined uses a <em>notched floating label</em> (4dp gap). Focus/error outline is 2dp. <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>");
+    let mut out = String::from(
+        "<h2>Text fields</h2><p class=\"note\">Official overview heroes are <em>empty</em> filled + outlined with the label inside the box. Populated/focused outlined uses a <em>notched floating label</em> (4dp gap). Focus/error outline is 2dp. <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>",
+    );
     let empty_filled = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Filled,
@@ -2872,7 +2945,11 @@ fn lists(theme: &Theme) -> String {
             InteractionState::Enabled,
         );
         let sw = switch::resolve(theme, list::SCENE_TRAILING_ON[i], InteractionState::Enabled);
-        let left = if list::SCENE_TRAILING_ON[i] { 24.0 } else { 8.0 };
+        let left = if list::SCENE_TRAILING_ON[i] {
+            24.0
+        } else {
+            8.0
+        };
         let outline = sw
             .track_outline
             .map(|o| format!("2px solid {}", o.css_hex()))
@@ -3322,7 +3399,13 @@ fn tooltips_section(theme: &Theme) -> String {
     )
 }
 
-fn paint_app_bar(theme: &Theme, variant: top_app_bar::AppBarVariant, subtitle: Option<&str>, collapse: f32, title: &str) -> String {
+fn paint_app_bar(
+    theme: &Theme,
+    variant: top_app_bar::AppBarVariant,
+    subtitle: Option<&str>,
+    collapse: f32,
+    title: &str,
+) -> String {
     let a = top_app_bar::resolve_variant(theme, variant, subtitle, collapse, collapse > 0.001);
     let rest = top_app_bar::resolve_variant(theme, variant, subtitle, 0.0, false);
     let scrolled = top_app_bar::resolve_variant(theme, variant, subtitle, 1.0, true);
@@ -3491,12 +3574,7 @@ fn progress_section(theme: &Theme) -> String {
     let detd = progress::loading_svg_d_for_wait(lsz, progress::DEMO_WAIT);
     let wait_frames = progress::loading_svg_values_for_wait(lsz, 8);
     let wait_ms = progress::determinate_wait_ms(theme);
-    let capd = progress::ptr_arc_svg_d(
-        circ_i.size_dp,
-        circ_i.stroke_dp,
-        circ_i.arc_deg,
-        0.0,
-    );
+    let capd = progress::ptr_arc_svg_d(circ_i.size_dp, circ_i.stroke_dp, circ_i.arc_deg, 0.0);
     format!(
         r#"<h2>Progress</h2>
 <p class="note">Determinate, wavy determinate, indeterminate, plus M3 Expressive morphing loading indicator (contained for PTR). HTML CSS + GPUI Animation clock. <a href="https://m3.material.io/components/loading-indicator/overview">loading</a> · <a href="https://m3.material.io/components/progress-indicators/specs">progress</a></p>
@@ -3993,15 +4071,13 @@ fn paint_range_slider(a: &slider::RangeSliderAppearance, label: &str) -> String 
 }
 
 fn sliders(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical handle, 6dp gap, 4dp stops. Overview scene is volume rows; Alarm has mid-track stops. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>");
+    let mut out = String::from(
+        "<h2>Slider</h2><p class=\"note\">M3 Expressive (current site): thick track + 4×44 vertical handle, 6dp gap, 4dp stops. Overview scene is volume rows; Alarm has mid-track stops. <a href=\"https://m3.material.io/components/sliders/specs\">spec</a></p>",
+    );
     out.push_str("<div class=\"hero-card\" data-hero=\"slider\">");
     for row in slider::OVERVIEW_ROWS {
-        let a = slider::resolve_with_stops(
-            theme,
-            row.value,
-            InteractionState::Enabled,
-            row.stop_count,
-        );
+        let a =
+            slider::resolve_with_stops(theme, row.value, InteractionState::Enabled, row.stop_count);
         out.push_str(&format!(
             r#"<div class="slider-row" data-slider-row="{label}"><div class="slider-icon" aria-hidden="true">{icon}</div><div class="slider-meta"><div class="slider-label">{label}</div>{}</div></div>"#,
             paint_expressive_slider(&a, row.label),
@@ -4200,7 +4276,10 @@ fn badges(theme: &Theme) -> String {
     )
 }
 
-fn paint_date_grid(a: &date_picker::DatePickerAppearance, cells: [(u32, date_picker::DayKind); 42]) -> String {
+fn paint_date_grid(
+    a: &date_picker::DatePickerAppearance,
+    cells: [(u32, date_picker::DayKind); 42],
+) -> String {
     let mut grid = String::new();
     for (day, kind) in cells {
         let radius = if kind == date_picker::DayKind::InRange {
@@ -4404,7 +4483,11 @@ fn time_picker_section(theme: &Theme) -> String {
                 a.time_style.weight,
             )
         } else {
-            ("transparent".into(), a.number.css_hex(), a.number_style.weight)
+            (
+                "transparent".into(),
+                a.number.css_hex(),
+                a.number_style.weight,
+            )
         };
         hours.push_str(&format!(
             r#"<div class="hour" data-hour="{h}" data-selected="{sel}" style="display:none;left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{h}</div>"#,
@@ -4429,7 +4512,11 @@ fn time_picker_section(theme: &Theme) -> String {
                 a.time_style.weight,
             )
         } else {
-            ("transparent".into(), a.number.css_hex(), a.number_style.weight)
+            (
+                "transparent".into(),
+                a.number.css_hex(),
+                a.number_style.weight,
+            )
         };
         minutes.push_str(&format!(
             r#"<div class="minute" data-minute="{m}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
@@ -4447,21 +4534,23 @@ fn time_picker_section(theme: &Theme) -> String {
     let am = time_picker::DayPeriod::Am;
     let pm = time_picker::DayPeriod::Pm;
     let (am_bg, am_fg) = if time_picker::DEMO_PERIOD == am {
-        (a.period_selected_container.css_hex(), a.period_selected.css_hex())
+        (
+            a.period_selected_container.css_hex(),
+            a.period_selected.css_hex(),
+        )
     } else {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
     let (pm_bg, pm_fg) = if time_picker::DEMO_PERIOD == pm {
-        (a.period_selected_container.css_hex(), a.period_selected.css_hex())
+        (
+            a.period_selected_container.css_hex(),
+            a.period_selected.css_hex(),
+        )
     } else {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
     let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
-    let second_d = time_picker::second_hand_svg_d(
-        a.clock_dp,
-        0.0,
-        a.number_dp,
-    );
+    let second_d = time_picker::second_hand_svg_d(a.clock_dp, 0.0, a.number_dp);
     let hand_deg = time_picker::hand_angle_deg(
         time_picker::DEMO_DIAL,
         time_picker::DEMO_HOUR,

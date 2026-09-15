@@ -805,6 +805,19 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-icon-width-w=\"52\""));
     assert!(html.contains("data-icon-width-w=\"48\""));
     assert!(html.contains("data-icon-width-w=\"72\""));
+    assert!(html.contains("data-hero=\"icon-buttons-toggle\""));
+    assert!(html.contains("data-icon-toggle=\"unselected\""));
+    assert!(html.contains("data-icon-toggle=\"selected\""));
+    assert!(html.contains("data-icon-toggle-rest=\"round\""));
+    assert!(html.contains("data-icon-toggle-rest=\"square\""));
+    assert!(html.contains("data-icon-toggle-variant=\"filled\""));
+    assert!(html.contains("data-icon-toggle-variant=\"tonal\""));
+    assert!(html.contains("data-icon-toggle-variant=\"outlined\""));
+    assert!(html.contains("data-icon-toggle-variant=\"standard\""));
+    assert!(html.contains("data-icon-toggle-shape=\"round\""));
+    assert!(html.contains("data-icon-toggle-shape=\"square\""));
+    assert!(html.contains("data-icon-toggle-r=\"20\""));
+    assert!(html.contains("data-icon-toggle-r=\"12\""));
     assert!(html.contains("Filled tonal"));
     assert!(html.contains("data-tabs=\"primary\""));
     assert!(html.contains("data-badge=\"large\""));
@@ -883,7 +896,11 @@ fn inventory_covers_claimed_and_followups() {
         e.name == "Tooltip" && e.notes.contains("long-press")
     }));
     assert!(INVENTORY.iter().any(|e| {
-        e.name == "Icon button" && e.notes.contains("narrow") && e.notes.contains("wide")
+        e.name == "Icon button"
+            && e.notes.contains("narrow")
+            && e.notes.contains("wide")
+            && e.notes.contains("toggle")
+            && e.notes.contains("IconToggleButton")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1411,6 +1428,105 @@ fn icon_button_expressive_width_axis() {
     assert_eq!(wide_m.height_dp, 56.0);
     assert_eq!(wide_m.pad_start_dp, 24.0);
     assert_eq!(wide_m.corners.top_left, 28.0);
+}
+
+#[test]
+fn icon_button_expressive_toggle_selection() {
+    use icon_button::IconButtonSelection;
+    let theme = Theme::light();
+    let size = icon_button::TOGGLE_HERO_SIZE;
+    let filled_off = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        size,
+        button::ButtonShape::Round,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(filled_off.container, theme.color.surface_container);
+    assert_eq!(filled_off.content, theme.color.on_surface_variant);
+    assert_eq!(filled_off.corners.top_left, 20.0);
+    assert_eq!(filled_off.outline, None);
+    assert_eq!(IconButtonSelection::Unselected.glyph(), "☆");
+
+    let filled_on = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        size,
+        button::ButtonShape::Round,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(filled_on.container, theme.color.primary);
+    assert_eq!(filled_on.content, theme.color.on_primary);
+    assert_eq!(filled_on.corners.top_left, 12.0);
+    assert_eq!(IconButtonSelection::Selected.glyph(), "★");
+    assert_eq!(
+        icon_button::resting_shape(button::ButtonShape::Round, IconButtonSelection::Selected),
+        button::ButtonShape::Square
+    );
+
+    let square_on = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        size,
+        button::ButtonShape::Square,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(square_on.corners.top_left, 20.0);
+
+    let pressed = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        size,
+        button::ButtonShape::Round,
+        true,
+        InteractionState::Pressed,
+    );
+    assert_eq!(pressed.corners.top_left, 8.0);
+
+    let tonal_on = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Tonal,
+        size,
+        button::ButtonShape::Round,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(tonal_on.container, theme.color.secondary);
+    assert_eq!(tonal_on.content, theme.color.on_secondary);
+
+    let outlined_on = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Outlined,
+        size,
+        button::ButtonShape::Round,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(outlined_on.container, theme.color.inverse_surface);
+    assert_eq!(outlined_on.content, theme.color.inverse_on_surface);
+    assert_eq!(outlined_on.outline, None);
+
+    let standard_on = icon_button::resolve_toggle(
+        &theme,
+        icon_button::IconButtonVariant::Standard,
+        size,
+        button::ButtonShape::Round,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(standard_on.content, theme.color.primary);
+    assert_eq!(standard_on.container, theme.color.surface);
+
+    let default_filled = icon_button::resolve(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        InteractionState::Enabled,
+    );
+    assert_eq!(default_filled.container, theme.color.primary);
+    assert_eq!(default_filled.corners.top_left, 20.0);
 }
 
 #[test]

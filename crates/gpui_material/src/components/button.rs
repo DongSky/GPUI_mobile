@@ -8,7 +8,7 @@ use crate::argb::Argb;
 use crate::components::Appearance;
 use crate::shape::Corners;
 use crate::state::{
-    apply_state_layer, resolve_content, InteractionState, DISABLED_CONTAINER_OPACITY,
+    DISABLED_CONTAINER_OPACITY, InteractionState, apply_state_layer, resolve_content,
 };
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -164,6 +164,14 @@ impl ButtonShape {
         match self {
             Self::Round => "round",
             Self::Square => "square",
+        }
+    }
+
+    /// Toggle selected resting shape (Compose `IconToggleButton` round↔square).
+    pub const fn opposite(self) -> Self {
+        match self {
+            Self::Round => Self::Square,
+            Self::Square => Self::Round,
         }
     }
 }

@@ -88,7 +88,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Icon buttons",
         docs: "https://m3.material.io/components/icon-buttons/specs",
         parity: Parity::Done,
-        notes: "Expressive XS–XL (32/40/56/96/136), narrow/default/wide (Compose IconButtonWidthOption; S 32/40/52), round/square, press morph; default S 40×24",
+        notes: "Expressive XS–XL (32/40/56/96/136), narrow/default/wide (Compose IconButtonWidthOption; S 32/40/52), round/square, press morph; toggle selected colors + round↔square (Compose IconToggleButton); default S 40×24",
     },
     ComponentEntry {
         name: "FAB",

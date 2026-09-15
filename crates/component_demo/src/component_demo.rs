@@ -706,6 +706,7 @@ fn catalog_body(
         ))
         .child(section_title(theme, "Icon buttons"))
         .child(android_icon_button_widths(theme))
+        .child(android_icon_button_toggles(theme))
         .child(section_title(theme, "Split button"))
         .child(android_split_button(this, theme, cx))
         .child(section_title(theme, "Text fields"))
@@ -4172,19 +4173,73 @@ fn android_icon_button_widths(theme: &Theme) -> impl IntoElement {
                             *width,
                             InteractionState::Enabled,
                         );
-                        let w = a.width_dp.unwrap_or(a.height_dp);
-                        div()
-                            .w(px(w))
-                            .h(px(a.height_dp))
-                            .rounded(px(a.corners.top_left))
-                            .bg(paint(a.container))
-                            .text_color(paint(a.content))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child("★")
+                        android_paint_icon_button(&a, "★")
                     }))
             }),
+        )
+}
+
+fn android_paint_icon_button(a: &Appearance, glyph: &'static str) -> impl IntoElement + use<> {
+    let w = a.width_dp.unwrap_or(a.height_dp);
+    div()
+        .w(px(w))
+        .h(px(a.height_dp))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.content))
+        .flex()
+        .items_center()
+        .justify_center()
+        .when(a.outline.is_some(), |el| {
+            el.border_1().border_color(paint(a.outline.unwrap().0))
+        })
+        .child(glyph)
+}
+
+fn android_icon_button_toggles(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .gap(px(8.))
+                .items_center()
+                .children(
+                    icon_button::IconButtonVariant::TOGGLE_OVERVIEW.iter().flat_map(|variant| {
+                        icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
+                            let a = icon_button::resolve_selection(
+                                theme,
+                                *variant,
+                                icon_button::TOGGLE_HERO_SIZE,
+                                button::ButtonShape::Round,
+                                icon_button::IconButtonWidth::Default,
+                                *selection,
+                                InteractionState::Enabled,
+                            );
+                            android_paint_icon_button(&a, selection.glyph())
+                        })
+                    }),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .gap(px(8.))
+                .items_center()
+                .children(icon_button::IconButtonSelection::TOGGLE.iter().map(|selection| {
+                    let a = icon_button::resolve_selection(
+                        theme,
+                        icon_button::IconButtonVariant::Filled,
+                        icon_button::TOGGLE_HERO_SIZE,
+                        button::ButtonShape::Square,
+                        icon_button::IconButtonWidth::Default,
+                        *selection,
+                        InteractionState::Enabled,
+                    );
+                    android_paint_icon_button(&a, selection.glyph())
+                })),
         )
 }
 
