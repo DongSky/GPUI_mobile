@@ -499,6 +499,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-rail-selected"));
     assert!(html.contains("data-search-morph"));
     assert!(html.contains("data-search-shared"));
+    assert!(html.contains("data-search-lead"));
+    assert!(html.contains("data-search-avatar"));
     assert!(html.contains("data-rail-scrim"));
     assert!(html.contains("data-notch-evenodd"));
     assert!(html.contains("data-notch-cpath"));
@@ -906,10 +908,14 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(navigation_rail::is_modal(navigation_rail::RailMode::Expanded));
     assert!((search::morph_list_opacity(1.0) - 1.0).abs() < 1e-5);
+    assert!((search::morph_back_opacity(1.0) - 1.0).abs() < 1e-5);
+    assert!(search::morph_avatar_opacity(1.0).abs() < 1e-5);
     let grown = search::morph_frame_eased(1.0);
     assert!((grown.height_dp - search::ACTIVITY_MIN_H_DP).abs() < 0.01);
     assert!(grown.inset_h_dp.abs() < 0.01);
     assert!((grown.scale - 1.0).abs() < 0.01);
+    assert!((grown.leading_activity_opacity - 1.0).abs() < 1e-5);
+    assert!(grown.leading_docked_opacity.abs() < 1e-5);
     assert_eq!(search::morph_container(&theme, 1.0), theme.color.surface);
     assert!(navigation_rail::focus_trapped(navigation_rail::RailMode::Expanded));
     assert!(navigation_rail::dismiss_on_scrim());

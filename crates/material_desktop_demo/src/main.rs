@@ -1733,88 +1733,153 @@ fn search_bar_hero(
     let morph_ms = search::morph_ms(theme) as u64;
     let docked_bg = a.bar.container;
     let activity_bg = view.container;
-    let header = if open {
-        div()
-            .id("search-activity")
-            .h(px(view.header_h_dp))
-            .px(px(16.))
-            .flex()
-            .items_center()
-            .gap(px(16.))
-            .child(
-                div()
-                    .id("search-back")
-                    .text_color(paint(view.header))
-                    .child(search::VIEW_BACK)
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.search_open = false;
-                        this.search.set_value("");
-                        this.search.set_focus(false);
-                        cx.notify();
-                    })),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .text_color(paint(if this.search.value().is_empty() {
-                        view.placeholder
-                    } else {
-                        view.input
-                    }))
-                    .child(query_label),
-            )
-            .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC))
-            .into_any_element()
+    let query_color = paint(if open && !this.search.value().is_empty() {
+        view.input
+    } else if open {
+        view.placeholder
     } else {
-        div()
-            .id("search-bar")
-            .h(px(a.bar.height_dp))
-            .px(px(a.bar.pad_start_dp))
-            .flex()
-            .items_center()
-            .gap(px(search::GAP_DP))
-            .child(
-                div()
-                    .w(px(search::ICON_DP))
-                    .h(px(search::ICON_DP))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .text_color(paint(a.leading_icon))
-                    .child(search::LEADING_ICON),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .text_size(px(a.placeholder_style.size_sp))
-                    .text_color(paint(a.placeholder))
-                    .child(search::PLACEHOLDER),
-            )
-            .child(
-                div()
-                    .w(px(search::ICON_DP))
-                    .text_color(paint(a.trailing_icon))
-                    .child(search::TRAILING_MIC),
-            )
-            .child(
-                div()
-                    .w(px(search::AVATAR_DP))
-                    .h(px(search::AVATAR_DP))
-                    .rounded(px(search::AVATAR_DP / 2.0))
-                    .bg(paint(a.avatar))
-                    .text_color(paint(a.avatar_label))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child("A"),
-            )
-            .on_click(cx.listener(|this, _, _, cx| {
+        a.placeholder
+    });
+    let lead_color = paint(a.leading_icon);
+    let back_color = paint(view.header);
+    let avatar_bg = paint(a.avatar);
+    let avatar_fg = paint(a.avatar_label);
+    let mic_color = paint(if open { view.header } else { a.trailing_icon });
+    let header = div()
+        .id(if open { "search-activity" } else { "search-bar" })
+        .w_full()
+        .px(px(16.))
+        .flex()
+        .items_center()
+        .gap(px(search::GAP_DP))
+        .when(!open, |el| {
+            el.on_click(cx.listener(|this, _, _, cx| {
                 this.search_open = true;
                 this.search.set_focus(true);
                 cx.notify();
             }))
-            .into_any_element()
-    };
+        })
+        .with_animation(
+            if open {
+                "search-header-in"
+            } else {
+                "search-header-out"
+            },
+            Animation::new(Duration::from_millis(morph_ms)),
+            move |this, delta| {
+                let linear = if open { delta } else { 1.0 - delta };
+                let frame = search::morph_frame_eased(linear);
+                this.h(px(frame.header_h_dp))
+            },
+        )
+        .child(
+            div()
+                .relative()
+                .w(px(search::ICON_DP))
+                .h(px(search::ICON_DP))
+                .child(
+                    div()
+                        .id("search-lead-docked")
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(search::ICON_DP))
+                        .h(px(search::ICON_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(lead_color)
+                        .child(search::LEADING_ICON)
+                        .with_animation(
+                            if open {
+                                "search-lead-out"
+                            } else {
+                                "search-lead-in"
+                            },
+                            Animation::new(Duration::from_millis(morph_ms)),
+                            move |this, delta| {
+                                let linear = if open { delta } else { 1.0 - delta };
+                                this.opacity(search::morph_avatar_opacity(
+                                    search::morph_eased_t(linear),
+                                ))
+                            },
+                        ),
+                )
+                .child(
+                    div()
+                        .id("search-back")
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(search::ICON_DP))
+                        .h(px(search::ICON_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(back_color)
+                        .child(search::VIEW_BACK)
+                        .when(open, |el| {
+                            el.on_click(cx.listener(|this, _, _, cx| {
+                                this.search_open = false;
+                                this.search.set_value("");
+                                this.search.set_focus(false);
+                                cx.notify();
+                            }))
+                        })
+                        .with_animation(
+                            if open {
+                                "search-back-in"
+                            } else {
+                                "search-back-out"
+                            },
+                            Animation::new(Duration::from_millis(morph_ms)),
+                            move |this, delta| {
+                                let linear = if open { delta } else { 1.0 - delta };
+                                this.opacity(search::morph_back_opacity(
+                                    search::morph_eased_t(linear),
+                                ))
+                            },
+                        ),
+                ),
+        )
+        .child(
+            div()
+                .flex_1()
+                .text_size(px(a.placeholder_style.size_sp))
+                .text_color(query_color)
+                .child(query_label),
+        )
+        .child(
+            div()
+                .w(px(search::ICON_DP))
+                .text_color(mic_color)
+                .child(search::TRAILING_MIC),
+        )
+        .child(
+            div()
+                .w(px(search::AVATAR_DP))
+                .h(px(search::AVATAR_DP))
+                .rounded(px(search::AVATAR_DP / 2.0))
+                .bg(avatar_bg)
+                .text_color(avatar_fg)
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("A")
+                .with_animation(
+                    if open {
+                        "search-avatar-out"
+                    } else {
+                        "search-avatar-in"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let linear = if open { delta } else { 1.0 - delta };
+                        this.opacity(search::morph_avatar_opacity(search::morph_eased_t(linear)))
+                    },
+                ),
+        )
+        .into_any_element();
     let rows: Vec<_> = if suggestions.is_empty() {
         vec![search::EMPTY_SUGGESTIONS]
     } else {

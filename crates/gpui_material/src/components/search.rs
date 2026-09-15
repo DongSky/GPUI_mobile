@@ -186,9 +186,14 @@ pub fn morph_list_opacity(t: f32) -> f32 {
     t.clamp(0.0, 1.0)
 }
 
-/// Docked avatar fades out as the activity header takes over.
+/// Docked avatar / leading search icon fades out as the activity header takes over.
 pub fn morph_avatar_opacity(t: f32) -> f32 {
     (1.0 - t.clamp(0.0, 1.0)).max(0.0)
+}
+
+/// Activity back chevron fades in as the docked leading chrome fades out.
+pub fn morph_back_opacity(t: f32) -> f32 {
+    t.clamp(0.0, 1.0)
 }
 
 /// Compose SearchBar-style shared-element frame (one container, not a swap).
@@ -203,6 +208,10 @@ pub struct MorphFrame {
     pub inset_h_dp: f32,
     /// Subtle shared-element scale (docked 0.94 → activity 1.0).
     pub scale: f32,
+    /// Docked leading icon + avatar (1 at t=0).
+    pub leading_docked_opacity: f32,
+    /// Activity back chevron (1 at t=1).
+    pub leading_activity_opacity: f32,
 }
 
 /// How far the docked bar sits inset from the activity edges (shared-element).
@@ -225,6 +234,8 @@ pub fn morph_frame_at(t: f32) -> MorphFrame {
         suggestion_opacity: t,
         inset_h_dp: SHARED_INSET_DOCKED_DP * (1.0 - t),
         scale: SHARED_SCALE_DOCKED + (1.0 - SHARED_SCALE_DOCKED) * t,
+        leading_docked_opacity: morph_avatar_opacity(t),
+        leading_activity_opacity: morph_back_opacity(t),
     }
 }
 

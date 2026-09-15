@@ -3,7 +3,7 @@
 Start here if continuous Material / Expressive work continues. Land on `main` (no iteration PR).
 
 1. **JNI InputConnection** — `ImeSession` mirrors `commitText` / compose / delete / cursor-anchor and `update_ime_position` fills it. NativeActivity still has no JNI `InputMethodManager`.
-2. **Search header chrome** — container lerp + inset/scale shared-element is in. Header still swaps avatar vs back (no crossfade of leading chrome).
+2. **Search pixel-perfect** — leading icon/back + avatar now crossfade with `MorphFrame`. Remaining: Compose SearchBar container transform is still an approximation (scale is not applied as a GPUI layer transform).
 3. **Outlined notch** — GPUI/HTML share the explicit C-path even-odd polygon. Remaining: lyon `LineCap` if hosts want a stroked centerline; label width vs glyph metrics can leave a sliver under wide letters. `RoundedPolygon` cubics exist in `shape` but are not the live notch path.
 4. **Loading determinate** — `loading_polygon_for_progress` is shown at 65%. Hosts do not yet drive morph-by-progress from a real download / determinate wait.
 5. **Circular / PTR stroke** — disc-stamped round caps (gpui does not re-export `LineCap::Round`).

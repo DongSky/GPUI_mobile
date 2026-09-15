@@ -174,6 +174,22 @@ a {{ color: var(--primary); }}
   margin: 0 16px; transform: scale(0.94);
 }}
 .search-morph[data-open="0"] .sv-list {{ max-height: 0; opacity: 0; }}
+.search-morph .lead {{
+  position: relative; width: 24px; height: 24px; flex: 0 0 24px;
+}}
+.search-morph .lead-docked, .search-morph .lead-activity {{
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  transition: opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.search-morph[data-open="1"] .lead-docked, .search-morph[data-open="1"] .avatar {{
+  opacity: 0; pointer-events: none;
+}}
+.search-morph[data-open="0"] .lead-activity {{
+  opacity: 0; pointer-events: none;
+}}
+.search-morph .avatar {{
+  transition: opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
 .search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
 .search-bar .hint {{ flex: 1; font-size: 16px; line-height: 24px; }}
 .search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
@@ -2413,6 +2429,7 @@ fn date_pickers(theme: &Theme) -> String {
 }
 
 fn search_section(theme: &Theme) -> String {
+    let bar = search::resolve(theme);
     let view = search::resolve_activity(theme);
     let mut rows = String::new();
     for (i, label) in search::SUGGESTIONS.iter().enumerate() {
@@ -2429,9 +2446,13 @@ fn search_section(theme: &Theme) -> String {
 <p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
 <div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
-    <div class="ico" aria-hidden="true">{back}</div>
+    <div class="lead" data-search-lead="1">
+      <span class="lead-docked" aria-hidden="true">{lead}</span>
+      <span class="lead-activity" aria-hidden="true">{back}</span>
+    </div>
     <input class="hint" data-search-input="1" placeholder="{placeholder}" style="color:{vph}"/>
     <div class="ico">{mic}</div>
+    <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
   <div style="height:1px;background:{vdiv}"></div>
   <div class="sv-list">{rows}</div>
@@ -2443,6 +2464,9 @@ fn search_section(theme: &Theme) -> String {
         vfg = view.header.css_hex(),
         vph = view.placeholder.css_hex(),
         back = search::VIEW_BACK,
+        lead = search::LEADING_ICON,
+        abg = bar.avatar.css_hex(),
+        afg = bar.avatar_label.css_hex(),
         vdiv = view.divider.css_hex(),
         placeholder = search::PLACEHOLDER,
         mic = search::TRAILING_MIC,

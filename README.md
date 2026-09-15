@@ -48,7 +48,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Tabs | Tabs | done | Primary 48dp + 3dp primary indicator; secondary 2dp full-width | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
 | Date picker | Date pickers | done | Modal calendar; docked popup with month nav + outside-click dismiss | [spec](https://m3.material.io/components/date-pickers/specs) |
-| Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity | [spec](https://m3.material.io/components/search/specs) |
+| Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade) | [spec](https://m3.material.io/components/search/specs) |
 | Time picker | Time pickers (dial) | done | Hour + minute dial, analog selector hand + 60s ticking second hand | [spec](https://m3.material.io/components/time-pickers/specs) |
 
 `done` means tokens, metrics, and catalog **heroes** match the current
