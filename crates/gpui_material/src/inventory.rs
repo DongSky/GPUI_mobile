@@ -183,10 +183,10 @@ pub const INVENTORY: &[ComponentEntry] = &[
     },
     ComponentEntry {
         name: "Top app bar",
-        material: "Small top app bar",
-        docs: "https://m3.material.io/components/top-app-bar/specs",
+        material: "Small + medium/large flexible + search",
+        docs: "https://m3.material.io/components/app-bars/specs",
         parity: Parity::Done,
-        notes: "64dp surface bar; no medium/large collapsing",
+        notes: "Expressive flexible: small 64; medium 112/136; large 120/152 compress to 64; scrolled surface-container elev 2; Bloom album hero + search bar",
     },
     ComponentEntry {
         name: "Snackbar",
@@ -222,6 +222,13 @@ pub const INVENTORY: &[ComponentEntry] = &[
         docs: "https://m3.material.io/components/bottom-sheets/specs",
         parity: Parity::Done,
         notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; share sheet over decoded album JPEG with Send people row + horizontal Share/Add to/Trash actions",
+    },
+    ComponentEntry {
+        name: "Side sheet",
+        material: "Standard / modal / detached side sheets",
+        docs: "https://m3.material.io/components/side-sheets/specs",
+        parity: Parity::Done,
+        notes: "256dp; standard surface elev 0; modal surface-container-low elev 1 + 16dp start corners + 32% scrim; detached 16dp margin; Filters hero over Bloom/Egret grid. Nav drawer is Expressive-deprecated (use expanded rail)",
     },
     ComponentEntry {
         name: "Menu",

@@ -17,7 +17,7 @@ use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider, fab,
     fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, slider,
-    snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar, Appearance,
+    side_sheet, snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -319,6 +319,7 @@ struct CatalogView {
     snack_at: Instant,
     fab_menu_open: bool,
     split_open: bool,
+    app_bar_collapse: f32,
     last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
@@ -940,6 +941,10 @@ fn catalog_body(
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
         .child(tab_row(theme, &tabs_s, this.tab_secondary, "s", cx))
         .child(android_media_scene(this, theme, cx))
+        .child(section_title(theme, "Top app bar"))
+        .child(android_app_bar_scene(this, theme, cx))
+        .child(section_title(theme, "Side sheet"))
+        .child(android_side_sheet(theme))
         .child(section_title(theme, "Navigation rail"))
         .child(android_nav_rail(this, theme, cx))
         .child(section_title(theme, "Badge"))
@@ -1921,6 +1926,216 @@ fn android_mail_snack(
                         .child(dest.label)
                 }))
         })
+}
+
+fn android_app_bar_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = top_app_bar::resolve_scene(theme, this.app_bar_collapse);
+    let search_a = top_app_bar::resolve_search(theme);
+    let search = search::resolve(theme);
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .id("appbar-scene")
+                .w_full()
+                .rounded(px(top_app_bar::PHONE_CORNER_DP))
+                .p(px(12.))
+                .overflow_hidden()
+                .bg(paint(theme.color.surface))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .h(px(top_app_bar::STATUS_H_DP))
+                        .px(px(20.))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .text_size(px(12.))
+                        .text_color(paint(theme.color.on_surface))
+                        .child(top_app_bar::STATUS_TIME)
+                        .child("5G · 100%"),
+                )
+                .child(
+                    div()
+                        .id("appbar-large")
+                        .w_full()
+                        .h(px(a.height_dp))
+                        .bg(paint(a.container))
+                        .flex()
+                        .flex_col()
+                        .child(
+                            div()
+                                .h(px(64.))
+                                .px(px(8.))
+                                .flex()
+                                .items_center()
+                                .gap(px(8.))
+                                .text_color(paint(a.icon))
+                                .child(top_app_bar::SCENE_LEADING)
+                                .when(this.app_bar_collapse >= 0.999, |el| {
+                                    el.child(div().flex_1().child(top_app_bar::SCENE_TITLE))
+                                })
+                                .when(this.app_bar_collapse < 0.999, |el| el.child(div().flex_1()))
+                                .children(top_app_bar::SCENE_TRAILING.iter().copied()),
+                        )
+                        .when(this.app_bar_collapse < 0.999, |el| {
+                            el.child(
+                                div()
+                                    .px(px(16.))
+                                    .pb(px(12.))
+                                    .flex()
+                                    .flex_col()
+                                    .text_color(paint(a.title))
+                                    .text_size(px(a.title_style.size_sp))
+                                    .child(top_app_bar::SCENE_TITLE)
+                                    .child(
+                                        div()
+                                            .text_size(px(a.subtitle_style.size_sp))
+                                            .text_color(paint(a.subtitle))
+                                            .child(top_app_bar::SCENE_SUBTITLE),
+                                    ),
+                            )
+                        })
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.app_bar_collapse =
+                                top_app_bar::next_collapse(this.app_bar_collapse);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .h(px(top_app_bar::PHOTO_H_DP))
+                        .overflow_hidden()
+                        .child(photo_fill(top_app_bar::SCENE_PHOTO)),
+                ),
+        )
+        .child(
+            div()
+                .w_full()
+                .h(px(search_a.height_dp))
+                .bg(paint(search_a.container))
+                .flex()
+                .items_center()
+                .px(px(8.))
+                .child(
+                    div()
+                        .flex_1()
+                        .h(px(search_a.search_field_h_dp))
+                        .rounded(px(search_a.search_field_h_dp / 2.0))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .gap(px(12.))
+                        .bg(paint(search.bar.container))
+                        .text_color(paint(search.placeholder))
+                        .child(search::LEADING_ICON)
+                        .child(div().flex_1().child(top_app_bar::SEARCH_PLACEHOLDER)),
+                ),
+        )
+}
+
+fn android_side_sheet(theme: &Theme) -> impl IntoElement {
+    let a = side_sheet::resolve_scene(theme);
+    div()
+        .id("side-scene")
+        .w_full()
+        .h(px(side_sheet::PHONE_H_DP))
+        .rounded(px(side_sheet::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(side_sheet::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(side_sheet::STATUS_TIME)
+                .child("5G · 100%"),
+        )
+        .child(
+            div()
+                .p(px(8.))
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .children(side_sheet::SCENE_PHOTOS.iter().map(|kind| {
+                    div()
+                        .w(px(140.))
+                        .h(px(side_sheet::PHOTO_TILE_H_DP))
+                        .overflow_hidden()
+                        .child(photo_fill(*kind))
+                })),
+        )
+        .child(
+            div()
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(paint(a.scrim)),
+        )
+        .child(
+            div()
+                .absolute()
+                .top(px(0.))
+                .right(px(0.))
+                .h_full()
+                .w(px(a.width_dp))
+                .bg(paint(a.container))
+                .rounded_tl(px(a.corners.top_left))
+                .rounded_bl(px(a.corners.bottom_left))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .px(px(side_sheet::PAD_H_DP))
+                        .pt(px(16.))
+                        .pb(px(12.))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .text_color(paint(a.headline))
+                        .child(side_sheet::HEADLINE)
+                        .child(side_sheet::CLOSE_GLYPH),
+                )
+                .children(side_sheet::FILTERS.iter().map(|(label, value)| {
+                    div()
+                        .h(px(56.))
+                        .px(px(side_sheet::PAD_H_DP))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .child(*label)
+                        .child(
+                            div()
+                                .text_color(paint(a.supporting))
+                                .child(*value),
+                        )
+                }))
+                .child(
+                    div()
+                        .h(px(side_sheet::ACTIONS_H_DP))
+                        .px(px(side_sheet::PAD_H_DP))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(a.action))
+                        .child(side_sheet::APPLY_LABEL),
+                ),
+        )
 }
 
 fn android_media_scene(
@@ -4325,6 +4540,7 @@ fn android_main(app: AndroidApp) {
                 snack_at: Instant::now(),
                 fab_menu_open: fab_menu::DEMO_EXPANDED,
                 split_open: split_button::DEMO_OPEN,
+                app_bar_collapse: 0.0,
                 last_catalog_ime: None,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,

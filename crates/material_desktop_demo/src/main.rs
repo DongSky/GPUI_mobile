@@ -25,7 +25,7 @@ use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, fab_menu, icon_button, menu, navigation_bar, navigation_rail,
-    photo_stub, progress, radio, search, slider, snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar,
+    photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -341,6 +341,7 @@ struct CatalogView {
     snack_at: Instant,
     fab_menu_open: bool,
     split_open: bool,
+    app_bar_collapse: f32,
     last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
@@ -756,8 +757,12 @@ fn catalog_body(
         .child(desktop_media_scene(this, theme, cx))
         .child(section_title(theme, "Snackbar"))
         .child(desktop_mail_snack(this, theme, cx))
+        .child(section_title(theme, "Top app bar"))
+        .child(desktop_app_bar_scene(this, theme, cx))
         .child(section_title(theme, "Bottom sheet"))
         .child(desktop_share_sheet(theme))
+        .child(section_title(theme, "Side sheet"))
+        .child(desktop_side_sheet(theme))
         .child(section_title(theme, "Navigation rail"))
         .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
@@ -2610,6 +2615,238 @@ fn desktop_media_scene(
         )
 }
 
+fn desktop_app_bar_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = top_app_bar::resolve_scene(theme, this.app_bar_collapse);
+    let search_a = top_app_bar::resolve_search(theme);
+    let search = search::resolve(theme);
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(16.))
+        .child(
+            div()
+                .id("appbar-scene")
+                .w(px(top_app_bar::PHONE_W_DP))
+                .rounded(px(top_app_bar::PHONE_CORNER_DP))
+                .p(px(12.))
+                .overflow_hidden()
+                .bg(paint(theme.color.surface))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .h(px(top_app_bar::STATUS_H_DP))
+                        .px(px(20.))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .text_size(px(12.))
+                        .text_color(paint(theme.color.on_surface))
+                        .child(top_app_bar::STATUS_TIME)
+                        .child("5G · 100%"),
+                )
+                .child(
+                    div()
+                        .id("appbar-large")
+                        .w_full()
+                        .h(px(a.height_dp))
+                        .bg(paint(a.container))
+                        .flex()
+                        .flex_col()
+                        .child(
+                            div()
+                                .h(px(64.))
+                                .px(px(8.))
+                                .flex()
+                                .items_center()
+                                .gap(px(8.))
+                                .child(spaced_line(
+                                    top_app_bar::SCENE_LEADING,
+                                    18.0,
+                                    paint(a.icon),
+                                ))
+                                .when(this.app_bar_collapse >= 0.999, |el| {
+                                    el.child(
+                                        div().flex_1().child(spaced_line(
+                                            top_app_bar::SCENE_TITLE,
+                                            a.title_style.size_sp,
+                                            paint(a.title),
+                                        )),
+                                    )
+                                })
+                                .when(this.app_bar_collapse < 0.999, |el| el.child(div().flex_1()))
+                                .children(top_app_bar::SCENE_TRAILING.iter().map(|g| {
+                                    spaced_line(*g, 16.0, paint(a.icon))
+                                })),
+                        )
+                        .when(this.app_bar_collapse < 0.999, |el| {
+                            el.child(
+                                div()
+                                    .px(px(16.))
+                                    .pb(px(12.))
+                                    .flex()
+                                    .flex_col()
+                                    .child(spaced_line(
+                                        top_app_bar::SCENE_TITLE,
+                                        a.title_style.size_sp,
+                                        paint(a.title),
+                                    ))
+                                    .child(spaced_line(
+                                        top_app_bar::SCENE_SUBTITLE,
+                                        a.subtitle_style.size_sp,
+                                        paint(a.subtitle),
+                                    )),
+                            )
+                        })
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.app_bar_collapse = top_app_bar::next_collapse(this.app_bar_collapse);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .h(px(top_app_bar::PHOTO_H_DP))
+                        .overflow_hidden()
+                        .child(photo_fill(top_app_bar::SCENE_PHOTO)),
+                ),
+        )
+        .child(
+            div()
+                .w(px(top_app_bar::PHONE_W_DP))
+                .h(px(search_a.height_dp))
+                .bg(paint(search_a.container))
+                .flex()
+                .items_center()
+                .px(px(8.))
+                .child(
+                    div()
+                        .flex_1()
+                        .h(px(search_a.search_field_h_dp))
+                        .rounded(px(search_a.search_field_h_dp / 2.0))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .gap(px(12.))
+                        .bg(paint(search.bar.container))
+                        .child(spaced_line(
+                            search::LEADING_ICON,
+                            16.0,
+                            paint(search.leading_icon),
+                        ))
+                        .child(div().flex_1().child(spaced_line(
+                            top_app_bar::SEARCH_PLACEHOLDER,
+                            search.placeholder_style.size_sp,
+                            paint(search.placeholder),
+                        ))),
+                ),
+        )
+}
+
+fn desktop_side_sheet(theme: &Theme) -> impl IntoElement {
+    let a = side_sheet::resolve_scene(theme);
+    div()
+        .id("side-scene")
+        .w(px(side_sheet::PHONE_W_DP))
+        .h(px(side_sheet::PHONE_H_DP))
+        .rounded(px(side_sheet::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(side_sheet::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(side_sheet::STATUS_TIME)
+                .child("5G · 100%"),
+        )
+        .child(
+            div()
+                .p(px(8.))
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .children(side_sheet::SCENE_PHOTOS.iter().map(|kind| {
+                    div()
+                        .w(px(160.))
+                        .h(px(side_sheet::PHOTO_TILE_H_DP))
+                        .overflow_hidden()
+                        .child(photo_fill(*kind))
+                })),
+        )
+        .child(
+            div()
+                .id("side-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(paint(a.scrim)),
+        )
+        .child(
+            div()
+                .id("side-sheet")
+                .absolute()
+                .top(px(0.))
+                .right(px(0.))
+                .h_full()
+                .w(px(a.width_dp))
+                .bg(paint(a.container))
+                .rounded_tl(px(a.corners.top_left))
+                .rounded_bl(px(a.corners.bottom_left))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .px(px(side_sheet::PAD_H_DP))
+                        .pt(px(16.))
+                        .pb(px(12.))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .child(spaced_line(
+                            side_sheet::HEADLINE,
+                            a.headline_style.size_sp,
+                            paint(a.headline),
+                        ))
+                        .child(spaced_line(side_sheet::CLOSE_GLYPH, 16.0, paint(a.close))),
+                )
+                .children(side_sheet::FILTERS.iter().map(|(label, value)| {
+                    div()
+                        .h(px(56.))
+                        .px(px(side_sheet::PAD_H_DP))
+                        .flex()
+                        .justify_between()
+                        .items_center()
+                        .child(spaced_line(*label, 16.0, paint(a.content)))
+                        .child(spaced_line(*value, 14.0, paint(a.supporting)))
+                }))
+                .child(
+                    div()
+                        .h(px(side_sheet::ACTIONS_H_DP))
+                        .px(px(side_sheet::PAD_H_DP))
+                        .flex()
+                        .items_center()
+                        .child(spaced_line(
+                            side_sheet::APPLY_LABEL,
+                            14.0,
+                            paint(a.action),
+                        )),
+                ),
+        )
+}
+
 fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
     let a = bottom_sheet::resolve(theme, true);
     div()
@@ -4266,6 +4503,7 @@ fn main() {
                     snack_at: Instant::now(),
                     fab_menu_open: fab_menu::DEMO_EXPANDED,
                     split_open: split_button::DEMO_OPEN,
+                    app_bar_collapse: 0.0,
                     last_catalog_ime: None,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
@@ -4289,8 +4527,8 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, fab_menu, navigation_rail, progress, search, slider,
-                split_button, text_field, time_picker, toolbar,
+                button, button_group, carousel, dialog, fab_menu, navigation_rail, progress, search, side_sheet, slider,
+                split_button, text_field, time_picker, toolbar, top_app_bar,
     };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
@@ -4416,5 +4654,12 @@ mod tests {
             .height_dp,
             64.0
         );
+        assert_eq!(
+            top_app_bar::resolve_scene(&theme, 0.0).expanded_height_dp,
+            152.0
+        );
+        assert_eq!(top_app_bar::resolve_scene(&theme, 1.0).height_dp, 64.0);
+        assert_eq!(side_sheet::resolve_scene(&theme).width_dp, 256.0);
+        assert_eq!(side_sheet::HEADLINE, "Filters");
     }
 }

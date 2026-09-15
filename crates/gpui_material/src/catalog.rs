@@ -2,7 +2,7 @@
 
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, slider, snackbar, split_button, switch,
+    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
     tabs, text_field, time_picker, toolbar, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
@@ -70,9 +70,11 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&chips(theme));
     body.push_str(&cards(theme));
     body.push_str(&chrome(theme));
+    body.push_str(&app_bars(theme));
     body.push_str(&progress_section(theme));
     body.push_str(&dialogs(theme));
     body.push_str(&sheets(theme));
+    body.push_str(&side_sheets(theme));
     body.push_str(&menus(theme));
     body.push_str(&sliders(theme));
     body.push_str(&tabs_section(theme));
@@ -592,6 +594,49 @@ table.inv th {{ font-weight: 500; }}
   min-height: 96px; border-radius: 16px; padding: 12px;
   display: flex; align-items: flex-end; font-weight: 700;
 }}
+.appbar {{
+  display: flex; flex-direction: column; width: 100%;
+  transition: height 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
+    background 200ms ease, box-shadow 200ms ease;
+  overflow: hidden;
+}}
+.appbar-row {{
+  height: 64px; display: flex; align-items: center; gap: 8px;
+  padding: 0 4px 0 8px; flex: 0 0 64px;
+}}
+.appbar-row .ico {{
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex: 0 0 48px;
+}}
+.appbar-titles {{
+  padding: 0 16px 16px; display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+}}
+.appbar[data-collapse="1"] .appbar-titles {{ display: none; }}
+.appbar[data-collapse="1"] .appbar-inline {{ display: flex; flex-direction: column; flex: 1; min-width: 0; }}
+.appbar-inline {{ display: none; min-width: 0; }}
+.appbar-search {{
+  flex: 1; height: 56px; border-radius: 28px; display: flex; align-items: center;
+  gap: 12px; padding: 0 16px; margin: 4px 8px;
+}}
+.side-stage {{ position: relative; overflow: hidden; }}
+.side-scrim {{ position: absolute; inset: 0; z-index: 1; }}
+.side-sheet {{
+  position: absolute; top: 0; bottom: 0; right: 0; z-index: 2;
+  display: flex; flex-direction: column;
+}}
+.side-head {{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 12px 24px;
+}}
+.side-filters {{ display: flex; flex-direction: column; padding: 0 8px; flex: 1; }}
+.side-filter {{
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 56px; padding: 8px 16px;
+}}
+.side-actions {{
+  height: 72px; display: flex; align-items: center; padding: 16px 24px 24px;
+}}
 .share-stage {{ position: relative; min-height: 360px; justify-content: flex-end; }}
 .share-grid {{
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; padding: 8px;
@@ -813,6 +858,32 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
       btn.style.border = "none";
       btn.style.fontWeight = "700";
     }});
+  }});
+}});
+document.querySelectorAll("[data-appbar-scene]").forEach(function (scene) {{
+  var bar = scene.querySelector("[data-appbar]");
+  if (!bar) return;
+  scene.addEventListener("click", function () {{
+    var cur = Number(bar.getAttribute("data-collapse") || "0");
+    var next = cur < 0.25 ? 0.5 : cur < 0.75 ? 1 : 0;
+    bar.setAttribute("data-collapse", String(next));
+    var exp = Number(bar.getAttribute("data-expanded-h") || "152");
+    var col = Number(bar.getAttribute("data-collapsed-h") || "64");
+    var h = exp + (col - exp) * next;
+    bar.style.height = h + "px";
+    var fill = next > 0.001;
+    bar.style.background = fill
+      ? (bar.getAttribute("data-scrolled-bg") || bar.style.background)
+      : (bar.getAttribute("data-rest-bg") || bar.style.background);
+    bar.style.boxShadow = fill
+      ? (bar.getAttribute("data-scrolled-sh") || "none")
+      : "none";
+    var title = bar.querySelector("[data-appbar-title]");
+    var sub = bar.querySelector("[data-appbar-sub]");
+    var t0 = Number(bar.getAttribute("data-title-exp") || "36");
+    var t1 = Number(bar.getAttribute("data-title-col") || "22");
+    if (title) title.style.fontSize = (t0 + (t1 - t0) * next) + "px";
+    if (sub) sub.style.opacity = String(1 - next);
   }});
 }});
 document.querySelectorAll("[data-media-scene]").forEach(function (scene) {{
@@ -2733,6 +2804,160 @@ fn chrome(theme: &Theme) -> String {
     )
 }
 
+fn paint_app_bar(theme: &Theme, variant: top_app_bar::AppBarVariant, subtitle: Option<&str>, collapse: f32, title: &str) -> String {
+    let a = top_app_bar::resolve_variant(theme, variant, subtitle, collapse, collapse > 0.001);
+    let rest = top_app_bar::resolve_variant(theme, variant, subtitle, 0.0, false);
+    let scrolled = top_app_bar::resolve_variant(theme, variant, subtitle, 1.0, true);
+    let (row_mid, below) = if variant == top_app_bar::AppBarVariant::Search {
+        let search = search::resolve(theme);
+        (
+            format!(
+                r#"<div class="appbar-search" data-appbar-search="1" style="background:{bg};color:{fg};height:{h}px">
+  <span>{lead}</span><span style="flex:1;color:{hint}">{ph}</span>
+  <span class="avatar" style="width:30px;height:30px;border-radius:15px;background:{av};color:{avon};display:flex;align-items:center;justify-content:center">A</span>
+</div>"#,
+                bg = search.bar.container.css_hex(),
+                fg = search.bar.content.css_hex(),
+                h = a.search_field_h_dp,
+                lead = search::LEADING_ICON,
+                hint = search.placeholder.css_hex(),
+                ph = top_app_bar::SEARCH_PLACEHOLDER,
+                av = search.avatar.css_hex(),
+                avon = search.avatar_label.css_hex(),
+            ),
+            String::new(),
+        )
+    } else {
+        let sub = subtitle
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                format!(
+                    r#"<div class="appbar-sub" data-appbar-sub="1" style="color:{c};font-size:{sz}px;line-height:{lh}px;font-weight:{w}">{s}</div>"#,
+                    c = a.subtitle.css_hex(),
+                    sz = a.subtitle_style.size_sp,
+                    lh = a.subtitle_style.line_height_sp,
+                    w = a.subtitle_style.weight,
+                    s = esc(s),
+                )
+            })
+            .unwrap_or_default();
+        (
+            format!(
+                r#"<div class="appbar-inline" data-appbar-inline="1">
+  <div data-appbar-title="1" style="color:{c};font-size:{sz}px;line-height:{lh}px;font-weight:{w}">{title}</div>
+</div>"#,
+                c = a.title.css_hex(),
+                sz = a.title_style.size_sp,
+                lh = a.title_style.line_height_sp,
+                w = a.title_style.weight,
+                title = esc(title),
+            ),
+            format!(
+                r#"<div class="appbar-titles">
+  <div data-appbar-title="1" style="color:{c};font-size:{sz}px;line-height:{lh}px;font-weight:{w}">{title}</div>
+  {sub}
+</div>"#,
+                c = a.title.css_hex(),
+                sz = a.title_style.size_sp,
+                lh = a.title_style.line_height_sp,
+                w = a.title_style.weight,
+                title = esc(title),
+                sub = sub,
+            ),
+        )
+    };
+    let trailing = if variant == top_app_bar::AppBarVariant::Search {
+        String::new()
+    } else {
+        top_app_bar::SCENE_TRAILING
+            .iter()
+            .map(|g| format!(r#"<span class="ico" data-appbar-action="{g}">{g}</span>"#))
+            .collect()
+    };
+    format!(
+        r#"<div class="appbar" data-appbar="{v}" data-collapse="{col}" data-expanded-h="{eh}" data-collapsed-h="{ch}" data-title-exp="{texp}" data-title-col="{tcol}" data-rest-bg="{rbg}" data-scrolled-bg="{sbg}" data-scrolled-sh="{ssh}" style="height:{h}px;background:{bg};color:{fg};box-shadow:{sh}">
+  <div class="appbar-row">
+    <span class="ico" data-appbar-back="1">{back}</span>
+    {row_mid}
+    {trailing}
+  </div>
+  {below}
+</div>"#,
+        v = variant.label(),
+        col = top_app_bar::collapse_attr(collapse),
+        eh = a.expanded_height_dp,
+        ch = a.collapsed_height_dp,
+        texp = rest.title_style.size_sp,
+        tcol = scrolled.title_style.size_sp,
+        rbg = rest.container.css_hex(),
+        sbg = scrolled.container.css_hex(),
+        ssh = ElevationLevels::css_shadow(scrolled.elevation_dp),
+        h = a.height_dp,
+        bg = a.container.css_hex(),
+        fg = a.title.css_hex(),
+        sh = ElevationLevels::css_shadow(a.elevation_dp),
+        back = top_app_bar::SCENE_LEADING,
+        row_mid = row_mid,
+        trailing = trailing,
+        below = below,
+    )
+}
+
+fn app_bars(theme: &Theme) -> String {
+    let large = paint_app_bar(
+        theme,
+        top_app_bar::AppBarVariant::LargeFlexible,
+        Some(top_app_bar::SCENE_SUBTITLE),
+        0.0,
+        top_app_bar::SCENE_TITLE,
+    );
+    let medium = paint_app_bar(
+        theme,
+        top_app_bar::AppBarVariant::MediumFlexible,
+        Some(top_app_bar::MEDIUM_SCENE_SUBTITLE),
+        0.0,
+        top_app_bar::MEDIUM_SCENE_TITLE,
+    );
+    let search_bar = paint_app_bar(
+        theme,
+        top_app_bar::AppBarVariant::Search,
+        None,
+        0.0,
+        top_app_bar::SEARCH_PLACEHOLDER,
+    );
+    let collapsed = paint_app_bar(
+        theme,
+        top_app_bar::AppBarVariant::LargeFlexible,
+        Some(top_app_bar::SCENE_SUBTITLE),
+        1.0,
+        top_app_bar::SCENE_TITLE,
+    );
+    format!(
+        r#"<h2>Top app bar</h2>
+<p class="note">Expressive flexible bars compress into the 64dp small bar. Medium 112/136 · large 120/152 · search 56-in-64. Scrolled fill is surface-container at elevation 2. Click the Bloom phone to cycle collapse. <a href="https://m3.material.io/components/app-bars/specs">spec</a></p>
+<div class="phone" data-appbar-scene="1" data-hero="app-bar" style="height:{ph}px">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
+  {large}
+  <div class="photo-hero photo-stub" data-appbar-photo="1" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css};height:{ih}px"></div>
+</div>
+<h3>medium flexible</h3>
+<div data-hero="app-bar-medium">{medium}</div>
+<h3>search app bar</h3>
+<div data-hero="app-bar-search">{search}</div>
+<h3>collapsed</h3>
+<div data-hero="app-bar-collapsed">{collapsed}</div>"#,
+        ph = top_app_bar::PHONE_H_DP,
+        stime = top_app_bar::STATUS_TIME,
+        large = large,
+        photo = top_app_bar::SCENE_PHOTO.label(),
+        css = top_app_bar::SCENE_PHOTO.css_background(),
+        ih = top_app_bar::PHOTO_H_DP,
+        medium = medium,
+        search = search_bar,
+        collapsed = collapsed,
+    )
+}
+
 fn progress_section(theme: &Theme) -> String {
     let lin = progress::linear(theme, 0.6);
     let circ = progress::circular(theme, 0.6);
@@ -3046,6 +3271,81 @@ fn sheets(theme: &Theme) -> String {
         ssh = ElevationLevels::css_shadow(standard.elevation_dp),
         sfg = standard.content.css_hex(),
         shandle = standard.handle.css_hex(),
+    )
+}
+
+fn side_sheets(theme: &Theme) -> String {
+    let modal = side_sheet::resolve_scene(theme);
+    let standard = side_sheet::resolve(theme, side_sheet::SideSheetVariant::Standard);
+    let detached = side_sheet::resolve(theme, side_sheet::SideSheetVariant::Detached);
+    let mut filters = String::new();
+    for (label, value) in side_sheet::FILTERS {
+        filters.push_str(&format!(
+            r#"<div class="side-filter" data-side-filter="{label}">
+  <span style="color:{fg}">{label}</span>
+  <span style="color:{sec}">{value}</span>
+</div>"#,
+            fg = modal.content.css_hex(),
+            sec = modal.supporting.css_hex(),
+        ));
+    }
+    let mut tiles = String::new();
+    for (i, kind) in side_sheet::SCENE_PHOTOS.iter().enumerate() {
+        tiles.push_str(&format!(
+            r#"<div class="media-tile photo-stub" data-side-photo="{i}" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css};height:{h}px"></div>"#,
+            photo = kind.label(),
+            css = kind.css_background(),
+            h = side_sheet::PHOTO_TILE_H_DP,
+        ));
+    }
+    format!(
+        r#"<h2>Side sheet</h2>
+<p class="note">Expressive keeps side sheets; navigation drawers are deprecated in favor of the expanded rail. Modal 256 · surface-container-low · 16dp start corners · elev 1 · 32% scrim. Official-style Filters pane over a photo grid. <a href="https://m3.material.io/components/side-sheets/specs">spec</a></p>
+<div class="phone side-stage" data-side-scene="1" data-hero="side-sheet" style="height:{ph}px;background:{surface}">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
+  <div class="media-grid">{tiles}</div>
+  <div class="side-scrim" data-side-scrim="1" style="background:{scrim}"></div>
+  <div class="side-sheet" data-side-sheet="modal" data-side-filters="1" style="width:{w}px;background:{bg};border-radius:{css};box-shadow:{sh};color:{fg}">
+    <div class="side-head">
+      <div data-side-headline="1" style="color:{hl};font-size:{hsz}px;line-height:{hlh}px;font-weight:{hw}">{headline}</div>
+      <span data-side-close="1" style="color:{close}">{x}</span>
+    </div>
+    <div class="side-filters">{filters}</div>
+    <div class="side-actions"><span data-side-apply="1" style="color:{act};font-weight:500">{apply}</span></div>
+  </div>
+</div>
+<div class="state-body" style="margin-top:16px">
+  <div class="side-sheet" data-side-sheet="standard" style="position:relative;width:{sw}px;height:160px;background:{sbg};border-radius:{scss}">standard 256</div>
+  <div class="side-sheet" data-side-sheet="detached" style="position:relative;width:{dw}px;height:160px;background:{dbg};border-radius:{dcss};margin:{dm}px;box-shadow:{dsh}">detached 16</div>
+</div>"#,
+        ph = side_sheet::PHONE_H_DP,
+        surface = theme.color.surface.css_hex(),
+        stime = side_sheet::STATUS_TIME,
+        tiles = tiles,
+        scrim = modal.scrim.css_hex(),
+        w = modal.width_dp,
+        bg = modal.container.css_hex(),
+        css = modal.corners.css(),
+        sh = ElevationLevels::css_shadow(modal.elevation_dp),
+        fg = modal.content.css_hex(),
+        hl = modal.headline.css_hex(),
+        hsz = modal.headline_style.size_sp,
+        hlh = modal.headline_style.line_height_sp,
+        hw = modal.headline_style.weight,
+        headline = side_sheet::HEADLINE,
+        close = modal.close.css_hex(),
+        x = side_sheet::CLOSE_GLYPH,
+        filters = filters,
+        act = modal.action.css_hex(),
+        apply = side_sheet::APPLY_LABEL,
+        sw = standard.width_dp,
+        sbg = standard.container.css_hex(),
+        scss = standard.corners.css(),
+        dw = detached.width_dp,
+        dbg = detached.container.css_hex(),
+        dcss = detached.corners.css(),
+        dm = detached.margin_dp,
+        dsh = ElevationLevels::css_shadow(detached.elevation_dp),
     )
 }
 

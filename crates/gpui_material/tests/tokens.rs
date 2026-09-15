@@ -2,7 +2,7 @@
 
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, split_button, switch,
+    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
     tabs, text_field, time_picker, toolbar, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
@@ -404,6 +404,42 @@ fn card_chip_fab_chrome_tokens() {
     let bar = top_app_bar::resolve(&theme);
     assert_eq!(bar.height_dp, 64.0);
     assert_eq!(bar.container, theme.color.surface);
+    let large = top_app_bar::resolve_scene(&theme, 0.0);
+    assert_eq!(large.variant, top_app_bar::AppBarVariant::LargeFlexible);
+    assert_eq!(large.expanded_height_dp, 152.0);
+    assert_eq!(large.height_dp, 152.0);
+    assert_eq!(large.title_style.name, "displaySmall");
+    assert_eq!(large.subtitle_style.name, "titleMedium");
+    assert_eq!(large.elevation_dp, 0.0);
+    let collapsed = top_app_bar::resolve_scene(&theme, 1.0);
+    assert_eq!(collapsed.height_dp, 64.0);
+    assert_eq!(collapsed.container, theme.color.surface_container);
+    assert_eq!(collapsed.elevation_dp, 3.0);
+    assert_eq!(collapsed.title_style.name, "titleLarge");
+    let mid = top_app_bar::resolve_scene(&theme, 0.5);
+    assert!((mid.height_dp - 108.0).abs() < 0.01);
+    let medium = top_app_bar::resolve_medium_scene(&theme, 0.0);
+    assert_eq!(medium.expanded_height_dp, 136.0);
+    assert_eq!(medium.title_style.name, "headlineMedium");
+    let search_bar = top_app_bar::resolve_search(&theme);
+    assert_eq!(search_bar.height_dp, 64.0);
+    assert_eq!(search_bar.search_field_h_dp, 56.0);
+    assert_eq!(top_app_bar::next_collapse(0.0), 0.5);
+    assert_eq!(top_app_bar::next_collapse(0.5), 1.0);
+    assert_eq!(top_app_bar::next_collapse(1.0), 0.0);
+    let sheet = side_sheet::resolve_scene(&theme);
+    assert_eq!(sheet.width_dp, 256.0);
+    assert_eq!(sheet.container, theme.color.surface_container_low);
+    assert_eq!(sheet.elevation_dp, 1.0);
+    assert_eq!(sheet.corners.top_left, 16.0);
+    assert_eq!(sheet.corners.top_right, 0.0);
+    assert_eq!(side_sheet::FILTERS[0].0, "Date");
+    let std_sheet = side_sheet::resolve(&theme, side_sheet::SideSheetVariant::Standard);
+    assert_eq!(std_sheet.container, theme.color.surface);
+    assert_eq!(std_sheet.elevation_dp, 0.0);
+    let det = side_sheet::resolve(&theme, side_sheet::SideSheetVariant::Detached);
+    assert_eq!(det.margin_dp, 16.0);
+    assert_eq!(det.corners.top_left, 16.0);
 
     let snack = snackbar::resolve(&theme);
     assert_eq!(snack.container, theme.color.inverse_surface);
@@ -515,6 +551,21 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-mail-peek=\"1\""));
     assert!(html.contains("data-carousel-lists"));
     assert!(html.contains("Your lists"));
+    assert!(html.contains("data-appbar=\"large-flexible\""));
+    assert!(html.contains("data-appbar=\"medium-flexible\""));
+    assert!(html.contains("data-appbar=\"search\""));
+    assert!(html.contains("data-appbar-scene"));
+    assert!(html.contains("data-hero=\"app-bar\""));
+    assert!(html.contains("data-appbar-photo"));
+    assert!(html.contains("April 12 – 16") || html.contains("April 12"));
+    assert!(html.contains("12 albums"));
+    assert!(html.contains("data-side-sheet=\"modal\""));
+    assert!(html.contains("data-side-sheet=\"standard\""));
+    assert!(html.contains("data-side-sheet=\"detached\""));
+    assert!(html.contains("data-side-filters"));
+    assert!(html.contains("data-side-filter=\"Date\""));
+    assert!(html.contains("data-hero=\"side-sheet\""));
+    assert!(html.contains("Filters"));
     assert!(html.contains("Starred places"));
     assert!(html.contains("class=\"nav-ico\""));
     assert!(html.contains("data-carousel-layout=\"uncontained-multi\""));
@@ -691,6 +742,7 @@ fn inventory_covers_claimed_and_followups() {
         "FAB menu",
         "Split button",
         "Toolbar",
+        "Side sheet",
     ] {
         assert!(
             INVENTORY

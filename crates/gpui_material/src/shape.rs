@@ -60,6 +60,16 @@ impl Corners {
         }
     }
 
+    /// LTR start-edge corners (modal side sheet `corner-large.start`).
+    pub const fn start(radius: f32) -> Self {
+        Self {
+            top_left: radius,
+            top_right: 0.0,
+            bottom_right: 0.0,
+            bottom_left: radius,
+        }
+    }
+
     pub fn css(self) -> String {
         format!(
             "{:.0}px {:.0}px {:.0}px {:.0}px",

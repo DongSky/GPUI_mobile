@@ -21,6 +21,7 @@ pub mod progress;
 pub mod radio;
 pub mod slider;
 pub mod search;
+pub mod side_sheet;
 pub mod snackbar;
 pub mod split_button;
 pub mod switch;
