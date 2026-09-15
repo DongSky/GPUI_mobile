@@ -454,6 +454,7 @@ fn card_chip_fab_chrome_tokens() {
         InteractionState::Enabled,
     );
     assert_eq!(icon.height_dp, 40.0);
+    assert_eq!(icon.width_dp, Some(40.0));
     let icon_xl = icon_button::resolve_expressive(
         &theme,
         icon_button::IconButtonVariant::Filled,
@@ -794,6 +795,16 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-button-shape=\"square\""));
     assert!(html.contains("data-icon-size=\"xl\""));
     assert!(html.contains("data-hero=\"icon-buttons\""));
+    assert!(html.contains("data-hero=\"icon-buttons-width\""));
+    assert!(html.contains("data-icon-width=\"narrow\""));
+    assert!(html.contains("data-icon-width=\"default\""));
+    assert!(html.contains("data-icon-width=\"wide\""));
+    assert!(html.contains("data-icon-width-size=\"s\""));
+    assert!(html.contains("data-icon-width-size=\"m\""));
+    assert!(html.contains("data-icon-width-w=\"32\""));
+    assert!(html.contains("data-icon-width-w=\"52\""));
+    assert!(html.contains("data-icon-width-w=\"48\""));
+    assert!(html.contains("data-icon-width-w=\"72\""));
     assert!(html.contains("Filled tonal"));
     assert!(html.contains("data-tabs=\"primary\""));
     assert!(html.contains("data-badge=\"large\""));
@@ -870,6 +881,9 @@ fn inventory_covers_claimed_and_followups() {
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Tooltip" && e.notes.contains("long-press")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Icon button" && e.notes.contains("narrow") && e.notes.contains("wide")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1307,6 +1321,96 @@ fn connected_button_group_tokens() {
     let std_idle = button_group::resolve_standard(&theme, 0, 3, false, false, Some(1));
     assert_eq!(std_idle.container, theme.color.secondary_container);
     assert_eq!(std_idle.corners.top_left, 20.0);
+}
+
+#[test]
+fn icon_button_expressive_width_axis() {
+    use icon_button::IconButtonWidth;
+    let theme = Theme::light();
+    let expected = [
+        (
+            button::ButtonSize::ExtraSmall,
+            [
+                (IconButtonWidth::Narrow, 28.0),
+                (IconButtonWidth::Default, 32.0),
+                (IconButtonWidth::Wide, 40.0),
+            ],
+        ),
+        (
+            button::ButtonSize::Small,
+            [
+                (IconButtonWidth::Narrow, 32.0),
+                (IconButtonWidth::Default, 40.0),
+                (IconButtonWidth::Wide, 52.0),
+            ],
+        ),
+        (
+            button::ButtonSize::Medium,
+            [
+                (IconButtonWidth::Narrow, 48.0),
+                (IconButtonWidth::Default, 56.0),
+                (IconButtonWidth::Wide, 72.0),
+            ],
+        ),
+        (
+            button::ButtonSize::Large,
+            [
+                (IconButtonWidth::Narrow, 64.0),
+                (IconButtonWidth::Default, 96.0),
+                (IconButtonWidth::Wide, 128.0),
+            ],
+        ),
+        (
+            button::ButtonSize::ExtraLarge,
+            [
+                (IconButtonWidth::Narrow, 104.0),
+                (IconButtonWidth::Default, 136.0),
+                (IconButtonWidth::Wide, 184.0),
+            ],
+        ),
+    ];
+    for (size, widths) in expected {
+        for (width, want) in widths {
+            assert_eq!(icon_button::container_width_dp(size, width), want);
+            let a = icon_button::resolve_width(
+                &theme,
+                icon_button::IconButtonVariant::Filled,
+                size,
+                button::ButtonShape::Round,
+                width,
+                InteractionState::Enabled,
+            );
+            assert_eq!(a.width_dp, Some(want));
+            assert_eq!(a.height_dp, size.height_dp());
+            assert_eq!(a.pad_start_dp, icon_button::pad_h_dp(size, width));
+            assert_eq!(a.pad_end_dp, a.pad_start_dp);
+            assert_eq!(a.min_width_dp, Some(icon_button::TARGET_DP.max(want)));
+        }
+    }
+    let narrow_s = icon_button::resolve_width(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        icon_button::WIDTH_HERO_SIZE,
+        button::ButtonShape::Round,
+        IconButtonWidth::Narrow,
+        InteractionState::Enabled,
+    );
+    assert_eq!(narrow_s.width_dp, Some(32.0));
+    assert_eq!(narrow_s.height_dp, 40.0);
+    assert_eq!(narrow_s.pad_start_dp, 4.0);
+    assert_eq!(narrow_s.min_width_dp, Some(48.0));
+    let wide_m = icon_button::resolve_width(
+        &theme,
+        icon_button::IconButtonVariant::Filled,
+        icon_button::WIDTH_HERO_SIZE_MEDIUM,
+        button::ButtonShape::Round,
+        IconButtonWidth::Wide,
+        InteractionState::Enabled,
+    );
+    assert_eq!(wide_m.width_dp, Some(72.0));
+    assert_eq!(wide_m.height_dp, 56.0);
+    assert_eq!(wide_m.pad_start_dp, 24.0);
+    assert_eq!(wide_m.corners.top_left, 28.0);
 }
 
 #[test]

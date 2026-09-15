@@ -3,7 +3,7 @@
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
     fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
-    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
+    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar, Appearance,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -2070,20 +2070,57 @@ fn buttons(theme: &Theme) -> String {
     out
 }
 
+fn paint_icon_btn(a: &Appearance, attrs: &str, press_r: f32, font_px: f32) -> String {
+    format!(
+        "<div class=\"icon-btn\" {attrs} style=\"--press-r:{press_r}px;width:{w}px;height:{h}px;background:{bg};color:{fg};border:{bd};border-radius:{r}px;font-size:{font_px}px\">★</div>",
+        w = a.width_dp.unwrap_or(a.height_dp),
+        h = a.height_dp,
+        bg = a.container.css_hex(),
+        fg = a.content.css_hex(),
+        bd = a.outline_css(),
+        r = a.corners.top_left,
+    )
+}
+
+fn paint_icon_width_row(theme: &Theme, size: button::ButtonSize) -> String {
+    let mut out = format!(
+        "<div class=\"state-body\" data-icon-width-size=\"{}\">",
+        size.label()
+    );
+    for width in icon_button::IconButtonWidth::ALL {
+        let a = icon_button::resolve_width(
+            theme,
+            icon_button::IconButtonVariant::Filled,
+            size,
+            button::ButtonShape::Round,
+            width,
+            InteractionState::Enabled,
+        );
+        out.push_str(&paint_icon_btn(
+            &a,
+            &format!(
+                "data-icon-width=\"{w}\" data-icon-width-w=\"{px}\"",
+                w = width.label(),
+                px = a.width_dp.unwrap_or(a.height_dp)
+            ),
+            size.pressed_corner_dp(),
+            icon_button::icon_dp(size) * 0.75,
+        ));
+    }
+    out.push_str("</div>");
+    out
+}
+
 fn icon_buttons(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Icon buttons</h2><p class=\"note\">Expressive: filled / tonal / outlined / standard, XS–XL, round/square, press morph. Default S is 40×24. <a href=\"https://m3.material.io/components/icon-buttons/specs\">spec</a></p>");
+    let mut out = String::from("<h2>Icon buttons</h2><p class=\"note\">Expressive: filled / tonal / outlined / standard, XS–XL, round/square, press morph, narrow/default/wide. Default S is 40×24. <a href=\"https://m3.material.io/components/icon-buttons/specs\">spec</a></p>");
     out.push_str("<div class=\"hero-card\" data-hero=\"icon-buttons\"><div class=\"state-body\">");
     for variant in icon_button::IconButtonVariant::ALL {
         let a = icon_button::resolve(theme, variant, InteractionState::Enabled);
-        out.push_str(&format!(
-            "<div class=\"icon-btn\" data-icon-button=\"{v}\" style=\"--press-r:8px;width:{w}px;height:{h}px;background:{bg};color:{fg};border:{bd};border-radius:{r}px;font-size:18px\">★</div>",
-            v = variant.label(),
-            w = a.width_dp.unwrap_or(a.height_dp),
-            h = a.height_dp,
-            bg = a.container.css_hex(),
-            fg = a.content.css_hex(),
-            bd = a.outline_css(),
-            r = a.corners.top_left,
+        out.push_str(&paint_icon_btn(
+            &a,
+            &format!("data-icon-button=\"{}\"", variant.label()),
+            8.0,
+            18.0,
         ));
     }
     out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
@@ -2095,20 +2132,22 @@ fn icon_buttons(theme: &Theme) -> String {
             button::ButtonShape::Round,
             InteractionState::Enabled,
         );
-        let fs = icon_button::icon_dp(size);
-        out.push_str(&format!(
-            "<div class=\"icon-btn\" data-icon-size=\"{s}\" style=\"--press-r:{pr}px;width:{w}px;height:{h}px;background:{bg};color:{fg};border-radius:{r}px;font-size:{fs}px\">★</div>",
-            s = size.label(),
-            pr = size.pressed_corner_dp(),
-            w = a.width_dp.unwrap_or(a.height_dp),
-            h = a.height_dp,
-            bg = a.container.css_hex(),
-            fg = a.content.css_hex(),
-            r = a.corners.top_left,
-            fs = fs * 0.75,
+        out.push_str(&paint_icon_btn(
+            &a,
+            &format!("data-icon-size=\"{}\"", size.label()),
+            size.pressed_corner_dp(),
+            icon_button::icon_dp(size) * 0.75,
         ));
     }
     out.push_str("</div></div>");
+    out.push_str("<h3>widths</h3><p class=\"note\">MDC leading/trailing: S 4/8/14 · M 12/16/24. Narrow S is 32×40; wide S is 52×40. Extra-small and small keep a 48dp target.</p>");
+    out.push_str("<div class=\"hero-card\" data-hero=\"icon-buttons-width\">");
+    out.push_str(&paint_icon_width_row(theme, icon_button::WIDTH_HERO_SIZE));
+    out.push_str(&paint_icon_width_row(
+        theme,
+        icon_button::WIDTH_HERO_SIZE_MEDIUM,
+    ));
+    out.push_str("</div>");
     for variant in icon_button::IconButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in [

@@ -26,6 +26,7 @@ use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail,
     photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, tooltip, top_app_bar,
+    Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -605,22 +606,10 @@ fn catalog_body(
                 .items_center()
                 .children(icon_button::IconButtonVariant::ALL.iter().map(|variant| {
                     let a = icon_button::resolve(theme, *variant, InteractionState::Enabled);
-                    div()
-                        .w(px(a.height_dp))
-                        .h(px(a.height_dp))
-                        .rounded(px(a.corners.top_left))
-                        .bg(paint(a.container))
-                        .text_color(paint(a.content))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .when(a.outline.is_some(), |el| {
-                            el.border_1()
-                                .border_color(paint(a.outline.unwrap().0))
-                        })
-                        .child("★")
+                    paint_icon_button(&a)
                 })),
         )
+        .child(desktop_icon_button_widths(theme))
         .child(section_title(theme, "FAB menu"))
         .child(desktop_fab_menu(this, theme, cx))
         .child(section_title(theme, "Toolbars"))
@@ -827,6 +816,55 @@ fn catalog_body(
         .child(date_range_hero(theme, &pick))
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
+}
+
+fn paint_icon_button(a: &Appearance) -> impl IntoElement + use<> {
+    let w = a.width_dp.unwrap_or(a.height_dp);
+    div()
+        .w(px(w))
+        .h(px(a.height_dp))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.content))
+        .flex()
+        .items_center()
+        .justify_center()
+        .when(a.outline.is_some(), |el| {
+            el.border_1()
+                .border_color(paint(a.outline.unwrap().0))
+        })
+        .child("★")
+}
+
+fn desktop_icon_button_widths(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .children(
+            [
+                icon_button::WIDTH_HERO_SIZE,
+                icon_button::WIDTH_HERO_SIZE_MEDIUM,
+            ]
+            .iter()
+            .map(|size| {
+                div()
+                    .flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .children(icon_button::IconButtonWidth::ALL.iter().map(|width| {
+                        let a = icon_button::resolve_width(
+                            theme,
+                            icon_button::IconButtonVariant::Filled,
+                            *size,
+                            button::ButtonShape::Round,
+                            *width,
+                            InteractionState::Enabled,
+                        );
+                        paint_icon_button(&a)
+                    }))
+            }),
+        )
 }
 
 fn standard_button_group(
@@ -5046,7 +5084,7 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, fab_menu, list, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
+                button, button_group, carousel, dialog, fab_menu, icon_button, list, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
                 split_button, text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
@@ -5201,5 +5239,26 @@ mod tests {
         assert_eq!(list::SWIPE_REVEAL_DP, 80.0);
         assert_eq!(list::DRAG_HANDLE_DP, 24.0);
         assert_eq!(list::SWIPE_LEADING_LABEL, "Archive");
+        assert_eq!(
+            icon_button::container_width_dp(
+                icon_button::WIDTH_HERO_SIZE,
+                icon_button::IconButtonWidth::Wide
+            ),
+            52.0
+        );
+        assert_eq!(
+            icon_button::container_width_dp(
+                icon_button::WIDTH_HERO_SIZE,
+                icon_button::IconButtonWidth::Narrow
+            ),
+            32.0
+        );
+        assert_eq!(
+            icon_button::pad_h_dp(
+                button::ButtonSize::Medium,
+                icon_button::IconButtonWidth::Wide
+            ),
+            24.0
+        );
     }
 }

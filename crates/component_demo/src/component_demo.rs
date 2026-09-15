@@ -704,6 +704,8 @@ fn catalog_body(
             this.overflow_open,
             cx,
         ))
+        .child(section_title(theme, "Icon buttons"))
+        .child(android_icon_button_widths(theme))
         .child(section_title(theme, "Split button"))
         .child(android_split_button(this, theme, cx))
         .child(section_title(theme, "Text fields"))
@@ -896,7 +898,7 @@ fn catalog_body(
                 )
                 .child(
                     div()
-                        .w(px(icon.height_dp))
+                        .w(px(icon.width_dp.unwrap_or(icon.height_dp)))
                         .h(px(icon.height_dp))
                         .rounded(px(icon.corners.top_left))
                         .bg(paint(icon.container))
@@ -4142,6 +4144,47 @@ fn android_time_picker(
                             cx.notify();
                         }))
                 })),
+        )
+}
+
+fn android_icon_button_widths(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .children(
+            [
+                icon_button::WIDTH_HERO_SIZE,
+                icon_button::WIDTH_HERO_SIZE_MEDIUM,
+            ]
+            .iter()
+            .map(|size| {
+                div()
+                    .flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .children(icon_button::IconButtonWidth::ALL.iter().map(|width| {
+                        let a = icon_button::resolve_width(
+                            theme,
+                            icon_button::IconButtonVariant::Filled,
+                            *size,
+                            button::ButtonShape::Round,
+                            *width,
+                            InteractionState::Enabled,
+                        );
+                        let w = a.width_dp.unwrap_or(a.height_dp);
+                        div()
+                            .w(px(w))
+                            .h(px(a.height_dp))
+                            .rounded(px(a.corners.top_left))
+                            .bg(paint(a.container))
+                            .text_color(paint(a.content))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child("★")
+                    }))
+            }),
         )
 }
 
