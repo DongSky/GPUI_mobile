@@ -325,6 +325,11 @@ a {{ color: var(--primary); }}
   margin-left: auto; flex: 0 0 24px; width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
 }}
+.search-morph .sv-empty {{
+  display: none; align-items: center; height: 56px; padding: 0 16px;
+  font-size: 16px; line-height: 24px;
+}}
+.search-morph[data-search-empty="1"] .sv-empty {{ display: flex; }}
 .timepicker {{
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
 }}
@@ -2172,7 +2177,7 @@ function syncSearchStatus(view, input) {{
     }});
     group.style.display = any ? "flex" : "none";
   }});
-  if (live) {{
+    if (live) {{
     if (status === "suggestions") {{
       live.textContent = "";
       live.removeAttribute("aria-label");
@@ -2184,6 +2189,7 @@ function syncSearchStatus(view, input) {{
       live.setAttribute("aria-label", visible === 1 ? "1 result" : visible + " results");
     }}
   }}
+  view.setAttribute("data-search-empty", (q && visible === 0) ? "1" : "0");
   syncSearchTrailing(view, input);
 }}
 function syncSearchTrailing(view, input) {{
@@ -6287,6 +6293,12 @@ fn paint_contained_search_state(
         }
         rows.push_str("</div>");
     }
+    rows.push_str(&format!(
+        r#"<div class="sv-empty" data-search-empty="1" role="status" style="height:{h}px;color:{fg}">{msg}</div>"#,
+        h = search::EMPTY_H_DP,
+        fg = search::empty_content(theme).css_hex(),
+        msg = search::EMPTY_SUGGESTIONS,
+    ));
     let status_row = format!(
         r#"<div class="sv-status" data-search-status-label="1" role="status" aria-live="polite" aria-label="{live}" style="color:{ico}">{heading}</div>"#,
         live = esc(&live),
@@ -6299,7 +6311,7 @@ fn paint_contained_search_state(
         format!(r#" value="{}""#, esc(query))
     };
     format!(
-        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
+        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-empty="{empty}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -6315,7 +6327,14 @@ fn paint_contained_search_state(
         layout = layout.label(),
         status = status.attr(),
         q = esc(query),
-        hero_attr = if hero { r#" data-hero="search""# } else { "" },
+        empty = search::shows_empty(query) as u8,
+        hero_attr = if hero {
+            r#" data-hero="search""#
+        } else if search::shows_empty(query) {
+            r#" data-hero="search-empty""#
+        } else {
+            ""
+        },
         cbg = search::contained_container(theme).css_hex(),
         cr = frame.corner_dp,
         mh = if query.is_empty() {
@@ -6395,9 +6414,16 @@ fn search_section(theme: &Theme) -> String {
         submitted,
         false,
     );
+    let empty = paint_contained_search_state(
+        theme,
+        search::WindowWidthClass::Compact,
+        false,
+        search::DEMO_EMPTY_QUERY,
+        false,
+    );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A query with no matches shows a no-results line and a live <code>0 results</code> region. A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
@@ -6406,6 +6432,9 @@ fn search_section(theme: &Theme) -> String {
 <p class="note">Focused typing uses a Quick results status, two-line rows (40dp avatar / 20dp icon), and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
 {quick}
 {results}
+<h3>no results</h3>
+<p class="note">A query that matches nothing keeps the Results status, a live <code>0 results</code> region, the trailing clear-X, and a one-line empty state.</p>
+{empty}
 <h3>divided (baseline)</h3>
 <p class="note">Not recommended. Divider + full-screen activity flatten (0dp corners).</p>
 <div class="search-morph" data-search-style="divided" data-search-view="1" data-search-activity="1" data-open="1" style="background:{abg2};border-radius:{ar}px;min-height:{amh}px">
@@ -6419,6 +6448,7 @@ fn search_section(theme: &Theme) -> String {
         docked = docked,
         quick = quick,
         results = results,
+        empty = empty,
         back = search::VIEW_BACK,
         placeholder = search::PLACEHOLDER,
         abg2 = activity.container.css_hex(),

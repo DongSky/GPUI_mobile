@@ -148,6 +148,8 @@ pub const RESULTS_LABEL: &str = "Results";
 pub const STATUS_H_DP: f32 = 32.0;
 /// Catalog queried sibling types this so Visual QA sees Quick results.
 pub const DEMO_QUERY: &str = "app";
+/// Catalog no-results sibling: matches none of the demo suggestions.
+pub const DEMO_EMPTY_QUERY: &str = "zzz";
 
 /// Catalog starts expanded so Visual QA can see the sheet + caret after the grow morph.
 pub const VIEW_OPEN_BY_DEFAULT: bool = true;
@@ -451,11 +453,10 @@ pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
     let n = filter_suggestions(query).len();
     if status.shows_suggestion_groups() {
         grouped_suggestion_list_h_dp(query)
+    } else if n == 0 {
+        status_chrome_h_dp(status) + EMPTY_H_DP
     } else {
-        let rows = n.max(1);
-        status_chrome_h_dp(status)
-            + row_height_dp(status) * rows as f32
-            + segmented_row_gaps_h_dp(rows)
+        status_chrome_h_dp(status) + row_height_dp(status) * n as f32 + segmented_row_gaps_h_dp(n)
     }
 }
 
@@ -486,6 +487,16 @@ pub fn query_display(query: &str) -> &str {
 }
 
 pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
+/// One-line empty-state row (bodyLarge), not a two-line result.
+pub const EMPTY_H_DP: f32 = SUGGESTION_H_DP;
+
+pub fn shows_empty(query: &str) -> bool {
+    !query.trim().is_empty() && filter_suggestions(query).is_empty()
+}
+
+pub fn empty_content(theme: &Theme) -> Argb {
+    theme.color.on_surface_variant
+}
 
 /// Guidelines: focused search can show an optional clear icon to remove input.
 pub fn shows_clear(query: &str) -> bool {

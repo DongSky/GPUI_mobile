@@ -5462,11 +5462,12 @@ fn android_search_bar(
     if grouped.is_empty() {
         list_children.push(
             div()
-                .h(px(view.suggestion_h_dp))
+                .id("search-empty")
+                .h(px(search::EMPTY_H_DP))
                 .px(px(16.))
                 .flex()
                 .items_center()
-                .text_color(paint(view.suggestion))
+                .text_color(paint(search::empty_content(theme)))
                 .child(search::EMPTY_SUGGESTIONS)
                 .into_any_element(),
         );

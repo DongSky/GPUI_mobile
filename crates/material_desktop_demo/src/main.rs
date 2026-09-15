@@ -4692,11 +4692,12 @@ fn search_bar_hero(
     if grouped.is_empty() {
         list_children.push(
             div()
-                .h(px(view.suggestion_h_dp))
+                .id("search-empty")
+                .h(px(search::EMPTY_H_DP))
                 .px(px(16.))
                 .flex()
                 .items_center()
-                .text_color(paint(view.suggestion))
+                .text_color(paint(search::empty_content(theme)))
                 .child(search::EMPTY_SUGGESTIONS)
                 .into_any_element(),
         );
@@ -7521,6 +7522,8 @@ mod tests {
         assert_eq!(search::RESULT_H_DP, 72.0);
         assert_eq!(search::supporting_for("App"), "Installed application");
         assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
+        assert!(search::shows_empty(search::DEMO_EMPTY_QUERY));
+        assert_eq!(search::EMPTY_H_DP, 56.0);
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),
             search::RowLeadingKind::Avatar

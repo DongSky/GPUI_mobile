@@ -895,6 +895,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-clear="1""#));
     assert!(html.contains(r#"data-search-trailing="1""#));
     assert!(html.contains(search::TRAILING_CLEAR));
+    assert!(html.contains(r#"data-hero="search-empty""#));
+    assert!(html.contains(r#"data-search-empty="1""#));
+    assert!(html.contains(search::EMPTY_SUGGESTIONS));
+    assert!(html.contains("0 results"));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains(r#"data-time-layout="vertical""#));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
@@ -1187,6 +1191,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("40dp")
             && e.notes.contains("20dp")
             && e.notes.contains("clear-X")
+            && e.notes.contains("no-results")
     }));
     assert!(INVENTORY
         .iter()
@@ -2825,6 +2830,20 @@ fn search_bar_and_time_picker_tokens() {
             < 0.01
     );
     assert_eq!(search::RESULT_H_DP, 72.0);
+    assert!(search::filter_suggestions(search::DEMO_EMPTY_QUERY).is_empty());
+    assert!(search::shows_empty(search::DEMO_EMPTY_QUERY));
+    assert!(!search::shows_empty(search::DEMO_QUERY));
+    assert_eq!(search::EMPTY_H_DP, 56.0);
+    assert_eq!(
+        search::status_live_text(search::SearchListStatus::Results, 0),
+        "0 results"
+    );
+    assert!(
+        (search::expanded_list_h_dp(search::DEMO_EMPTY_QUERY, false)
+            - (search::STATUS_H_DP + search::EMPTY_H_DP))
+            .abs()
+            < 0.01
+    );
     assert_eq!(search::supporting_for("App"), "Installed application");
     assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
     assert_eq!(search::ROW_LEADING_ICON_DP, 20.0);
