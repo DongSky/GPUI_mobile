@@ -5276,7 +5276,7 @@ fn android_search_bar(
 ) -> impl IntoElement {
     let a = search::resolve(theme);
     let view = search::resolve_view(theme);
-    let suggestions = search::filter_suggestions(this.search.value());
+    let grouped = search::filter_grouped_suggestions(this.search.value());
     let suggestion_count = search::contained_suggestion_count();
     let query_label = if this.search.focused {
         this.search.display_with_caret()
@@ -5422,23 +5422,43 @@ fn android_search_bar(
                 ),
         )
         .into_any_element();
+    let mut flat = 0usize;
     let list = div()
         .flex()
         .flex_col()
-        .children(suggestions.into_iter().enumerate().map(|(i, label)| {
+        .children(grouped.into_iter().enumerate().map(|(gi, (title, items))| {
             div()
-                .id(SharedString::from(format!("search-sug-{i}")))
-                .h(px(view.suggestion_h_dp))
-                .px(px(16.))
+                .id(SharedString::from(format!("search-group-{gi}")))
                 .flex()
-                .items_center()
-                .text_color(paint(view.suggestion))
-                .child(label)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
-                        this.search.set_value(picked);
-                        cx.notify();
-                    }
+                .flex_col()
+                .when(gi > 0, |el| el.mt(px(search::SUGGESTION_GROUP_GAP_DP)))
+                .child(
+                    div()
+                        .h(px(search::SUGGESTION_GROUP_TITLE_H_DP))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_size(px(12.))
+                        .text_color(paint(view.suggestion_icon))
+                        .child(title),
+                )
+                .children(items.into_iter().map(|label| {
+                    let i = flat;
+                    flat += 1;
+                    div()
+                        .id(SharedString::from(format!("search-sug-{i}")))
+                        .h(px(view.suggestion_h_dp))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(view.suggestion))
+                        .child(label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
+                                this.search.set_value(picked);
+                                cx.notify();
+                            }
+                        }))
                 }))
         }))
         .into_any_element();

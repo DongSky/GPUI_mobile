@@ -873,6 +873,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-width-class="medium""#));
     assert!(html.contains(r#"data-search-expanded="fullscreen""#));
     assert!(html.contains(r#"data-search-expanded="docked""#));
+    assert!(html.contains(r#"data-search-group="Recent""#));
+    assert!(html.contains(r#"data-search-group="Suggestions""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
@@ -2744,6 +2746,13 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search::contained_margin_dp(false), 24.0);
     assert_eq!(search::contained_margin_dp(true), 12.0);
     assert_eq!(search::contained_corner_dp(true), 28.0);
+    assert_eq!(search::SUGGESTION_GROUPS.len(), 2);
+    assert_eq!(search::SUGGESTION_GROUPS[0].title, "Recent");
+    assert_eq!(search::SUGGESTION_GROUP_GAP_DP, 8.0);
+    assert_eq!(search::filter_grouped_suggestions("").len(), 2);
+    assert_eq!(search::filter_grouped_suggestions("set").len(), 1);
+    assert_eq!(search::suggestion_group_chrome_h_dp(2), 72.0);
+    assert_eq!(search::filter_suggestions(""), search::SUGGESTIONS.to_vec());
     let contained = search::contained_frame_at(1.0, search::contained_suggestion_count());
     assert!((contained.corner_dp - 28.0).abs() < 0.01);
     assert!((contained.margin_dp - 12.0).abs() < 0.01);

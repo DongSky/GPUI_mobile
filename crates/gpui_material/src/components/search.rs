@@ -27,6 +27,28 @@ pub const VIEW_CORNER_DP: f32 = 28.0;
 pub const VIEW_HEADER_DP: f32 = 72.0;
 pub const SUGGESTION_H_DP: f32 = 56.0;
 pub const SUGGESTIONS: [&str; 4] = ["App", "Shortcut", "Recent search", "Setting"];
+/// Expressive search: gaps separate suggestion/result groups.
+pub const SUGGESTION_GROUP_GAP_DP: f32 = 8.0;
+pub const SUGGESTION_GROUP_TITLE_H_DP: f32 = 32.0;
+pub const SUGGESTION_GROUP_RECENT: [&str; 3] = ["App", "Shortcut", "Recent search"];
+pub const SUGGESTION_GROUP_MORE: [&str; 1] = ["Setting"];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SuggestionGroup {
+    pub title: &'static str,
+    pub items: &'static [&'static str],
+}
+
+pub const SUGGESTION_GROUPS: [SuggestionGroup; 2] = [
+    SuggestionGroup {
+        title: "Recent",
+        items: &SUGGESTION_GROUP_RECENT,
+    },
+    SuggestionGroup {
+        title: "Suggestions",
+        items: &SUGGESTION_GROUP_MORE,
+    },
+];
 /// Catalog starts expanded so Visual QA can see the sheet + caret after the grow morph.
 pub const VIEW_OPEN_BY_DEFAULT: bool = true;
 /// Expanded view uses 0dp corners + surface (full-screen search activity).
@@ -118,16 +140,50 @@ pub fn resolve_activity(theme: &Theme) -> SearchViewAppearance {
 }
 
 pub fn filter_suggestions(query: &str) -> Vec<&'static str> {
+    filter_grouped_suggestions(query)
+        .into_iter()
+        .flat_map(|(_, items)| items)
+        .collect()
+}
+
+pub fn filter_grouped_suggestions(query: &str) -> Vec<(&'static str, Vec<&'static str>)> {
     let q = query.trim().to_ascii_lowercase();
-    if q.is_empty() {
-        SUGGESTIONS.to_vec()
+    SUGGESTION_GROUPS
+        .iter()
+        .filter_map(|group| {
+            let items: Vec<&'static str> = group
+                .items
+                .iter()
+                .copied()
+                .filter(|s| q.is_empty() || s.to_ascii_lowercase().contains(&q))
+                .collect();
+            if items.is_empty() {
+                None
+            } else {
+                Some((group.title, items))
+            }
+        })
+        .collect()
+}
+
+/// Title + inter-group gap chrome for the visible groups.
+pub fn suggestion_group_chrome_h_dp(group_count: usize) -> f32 {
+    if group_count == 0 {
+        0.0
     } else {
-        SUGGESTIONS
-            .iter()
-            .copied()
-            .filter(|s| s.to_ascii_lowercase().contains(&q))
-            .collect()
+        SUGGESTION_GROUP_TITLE_H_DP * group_count as f32
+            + SUGGESTION_GROUP_GAP_DP * group_count.saturating_sub(1) as f32
     }
+}
+
+pub fn suggestion_list_h_dp(suggestion_count: usize, group_count: usize) -> f32 {
+    SUGGESTION_H_DP * suggestion_count as f32 + suggestion_group_chrome_h_dp(group_count)
+}
+
+pub fn grouped_suggestion_list_h_dp(query: &str) -> f32 {
+    let groups = filter_grouped_suggestions(query);
+    let n: usize = groups.iter().map(|(_, items)| items.len()).sum();
+    suggestion_list_h_dp(n, groups.len())
 }
 
 pub fn apply_search_key(query: &str, key: &str) -> String {
@@ -519,7 +575,8 @@ pub fn contained_height_dp_layout(
     if !focused {
         return HEIGHT_DP;
     }
-    let list = CONTAINED_HEADER_DP + SUGGESTION_H_DP * suggestion_count as f32;
+    let list =
+        CONTAINED_HEADER_DP + suggestion_list_h_dp(suggestion_count, SUGGESTION_GROUPS.len());
     match layout {
         SearchExpandedLayout::Docked => list,
         SearchExpandedLayout::FullScreen => list.max(ACTIVITY_MIN_H_DP),
