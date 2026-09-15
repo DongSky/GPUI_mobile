@@ -34,6 +34,51 @@ pub const CORNER_DP: f32 = 28.0;
 pub const PERIOD_W_DP: f32 = 52.0;
 pub const PERIOD_H_DP: f32 = 36.0;
 pub const PERIOD_GAP_DP: f32 = 8.0;
+/// Specs: period selector in horizontal (landscape) layout.
+pub const PERIOD_HORIZONTAL_W_DP: f32 = 216.0;
+pub const PERIOD_HORIZONTAL_H_DP: f32 = 38.0;
+/// Gap between the selector column and the 256dp ClockFace (horizontal).
+pub const HORIZONTAL_GAP_DP: f32 = 24.0;
+
+/// Compose `TimePickerLayoutType` — vertical (portrait) vs horizontal (landscape).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimePickerLayoutType {
+    Vertical,
+    Horizontal,
+}
+
+impl TimePickerLayoutType {
+    pub const ALL: [Self; 2] = [Self::Vertical, Self::Horizontal];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Vertical => "vertical",
+            Self::Horizontal => "horizontal",
+        }
+    }
+
+    pub const fn is_horizontal(self) -> bool {
+        matches!(self, Self::Horizontal)
+    }
+}
+
+/// Catalog / Android compact dial stays vertical. Desktop uses horizontal.
+pub const DEMO_LAYOUT: TimePickerLayoutType = TimePickerLayoutType::Vertical;
+pub const DEMO_DESKTOP_LAYOUT: TimePickerLayoutType = TimePickerLayoutType::Horizontal;
+
+pub fn period_w_dp(layout: TimePickerLayoutType) -> f32 {
+    match layout {
+        TimePickerLayoutType::Vertical => PERIOD_W_DP,
+        TimePickerLayoutType::Horizontal => PERIOD_HORIZONTAL_W_DP,
+    }
+}
+
+pub fn period_h_dp(layout: TimePickerLayoutType) -> f32 {
+    match layout {
+        TimePickerLayoutType::Vertical => PERIOD_H_DP,
+        TimePickerLayoutType::Horizontal => PERIOD_HORIZONTAL_H_DP,
+    }
+}
 pub const TITLE: &str = "Select time";
 pub const DEMO_HOUR: u8 = 6;
 /// 6:30 PM in 24-hour (`is24Hour`) — catalog / host TimeInput hero.

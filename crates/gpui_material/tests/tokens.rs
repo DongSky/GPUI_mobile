@@ -885,6 +885,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-scrim-layer="1""#));
     assert!(html.contains(r#"data-docked-min-h="240""#));
     assert!(html.contains("data-timepicker=\"1\""));
+    assert!(html.contains(r#"data-time-layout="vertical""#));
+    assert!(html.contains(r#"data-time-layout="horizontal""#));
+    assert!(html.contains(r#"data-hero="timepicker-horizontal""#));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
     assert!(html.contains(r#"data-time-picker-style="input""#));
@@ -1152,6 +1155,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("200dp")
             && e.notes.contains("TimeInput")
             && e.notes.contains("ScrollDisplayModeToggle")
+            && e.notes.contains("TimePickerLayoutType")
+            && e.notes.contains("Horizontal")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -2810,6 +2815,23 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::DayPeriod::Am
     );
     assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Hour);
+    assert_eq!(
+        time_picker::DEMO_LAYOUT,
+        time_picker::TimePickerLayoutType::Vertical
+    );
+    assert_eq!(
+        time_picker::DEMO_DESKTOP_LAYOUT,
+        time_picker::TimePickerLayoutType::Horizontal
+    );
+    assert_eq!(
+        time_picker::period_w_dp(time_picker::TimePickerLayoutType::Horizontal),
+        216.0
+    );
+    assert_eq!(
+        time_picker::period_h_dp(time_picker::TimePickerLayoutType::Horizontal),
+        38.0
+    );
+    assert_eq!(time_picker::HORIZONTAL_GAP_DP, 24.0);
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll

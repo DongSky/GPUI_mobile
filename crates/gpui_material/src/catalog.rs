@@ -295,6 +295,18 @@ a {{ color: var(--primary); }}
 .timepicker {{
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
 }}
+.timepicker[data-time-layout="horizontal"] {{
+  flex-direction: row; align-items: flex-start; max-width: 720px; gap: 24px;
+}}
+.timepicker[data-time-layout="horizontal"] .time-col {{
+  display: flex; flex-direction: column; gap: 16px; flex: 0 0 auto;
+}}
+.timepicker[data-time-layout="horizontal"] .period {{
+  flex-direction: row; width: 216px;
+}}
+.timepicker[data-time-layout="horizontal"] .period button {{
+  width: 108px; height: 38px;
+}}
 .timepicker .time-row {{ display: flex; align-items: center; gap: 12px; }}
 .timepicker .time-fields {{ display: flex; align-items: center; gap: 4px; }}
 .timepicker .time-field {{
@@ -6577,22 +6589,8 @@ fn time_picker_section(theme: &Theme) -> String {
         1.0
     };
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
-    out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Header fields toggle the face; format toggle above remaps 12/24.</p>
-<div class="timepicker dialog" data-timepicker="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
-  <div style="color:{hy};font-size:{ys}px">{title}</div>
-  <div class="time-row">
-    <div class="time-fields">
-      <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
-      <div style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
-      <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{mm}</div>
-    </div>
-    <div class="period">
-      <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
-      <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
-    </div>
-  </div>
-  <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
+    let clock_html = format!(
+        r#"<div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
     <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg) scale({hscale});--hand-base:{hdeg}deg;--hand-scale:{hscale}">
       <path d="{handd}" fill="{hand}"/>
     </svg>
@@ -6601,7 +6599,59 @@ fn time_picker_section(theme: &Theme) -> String {
     </svg>
     <div class="hub" style="background:{hand}"></div>
     {hours}{minutes}
+  </div>"#,
+        clock = a.clock_dp,
+        clk = a.clock.css_hex(),
+        hours = hours,
+        minutes = minutes,
+        hand = a.hand.css_hex(),
+        handd = hand_d,
+        secondd = second_d,
+        hdeg = hand_deg,
+        hscale = hand_scale,
+    );
+    let selectors = format!(
+        r#"<div class="time-fields">
+      <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
+      <div style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
+      <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{mm}</div>
+    </div>
+    <div class="period">
+      <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
+      <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
+    </div>"#,
+        hd = a.header.css_hex(),
+        ds = a.time_style.size_sp,
+        dw = a.time_style.weight,
+        hh = time_picker::format_hour_field_for(dial_hour, format),
+        mm = time_picker::format_minute_field(time_picker::DEMO_MINUTE),
+        ha = hour_active as u8,
+        ma = (!hour_active) as u8,
+        clk = a.clock.css_hex(),
+        amb = am_bg,
+        amf = am_fg,
+        pmb = pm_bg,
+        pmf = pm_fg,
+        am = am.label(),
+        pm = pm.label(),
+    );
+    out.push_str(&format!(
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div style="color:{hy};font-size:{ys}px">{title}</div>
+  <div class="time-row">
+    {selectors}
   </div>
+  {clock}
+</div>
+<h3>horizontal (landscape)</h3>
+<p class="note">Compose <code>TimePickerLayoutType.Horizontal</code>: time selectors + 216×38 period sit beside the 256dp ClockFace (24dp gap). Used on medium+ / landscape so the dial is not cropped.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div class="time-col">
+    <div style="color:{hy};font-size:{ys}px">{title}</div>
+    {selectors}
+  </div>
+  {clock}
 </div>"#,
         hour = dial_hour,
         minute = time_picker::DEMO_MINUTE,
@@ -6614,28 +6664,8 @@ fn time_picker_section(theme: &Theme) -> String {
         hy = a.header.css_hex(),
         ys = a.title_style.size_sp,
         title = time_picker::TITLE,
-        hd = a.header.css_hex(),
-        ds = a.time_style.size_sp,
-        dw = a.time_style.weight,
-        hh = time_picker::format_hour_field_for(dial_hour, format),
-        mm = time_picker::format_minute_field(time_picker::DEMO_MINUTE),
-        ha = hour_active as u8,
-        ma = (!hour_active) as u8,
-        amb = am_bg,
-        amf = am_fg,
-        pmb = pm_bg,
-        pmf = pm_fg,
-        am = am.label(),
-        pm = pm.label(),
-        clock = a.clock_dp,
-        clk = a.clock.css_hex(),
-        hours = hours,
-        minutes = minutes,
-        hand = a.hand.css_hex(),
-        handd = hand_d,
-        secondd = second_d,
-        hdeg = hand_deg,
-        hscale = hand_scale,
+        selectors = selectors,
+        clock = clock_html,
     ));
     out
 }
