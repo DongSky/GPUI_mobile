@@ -1,7 +1,8 @@
 //! Carousel. Specs: https://m3.material.io/components/carousel/specs
 //!
 //! Catalog stub: hero large item + smaller neighbors (multi-browse peek).
-//! Click / wheel snap the selected index; fling is a 1-item step.
+//! Click / wheel snap the selected index; fling uses velocity/decay so a
+//! large delta can skip more than one item.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -16,6 +17,10 @@ pub const CORNER_DP: f32 = 28.0;
 pub const ITEMS: [&str; 4] = ["One", "Two", "Three", "Four"];
 pub const DEMO_INDEX: usize = 0;
 pub const HERO_TITLE: &str = "Hero carousel";
+/// Wheel/fling distance that maps to one item. Larger deltas skip further.
+pub const FLING_UNIT: f32 = 24.0;
+/// Exponential decay per second for a one-shot velocity model (`v * e^{-k t}`).
+pub const FLING_DECAY: f32 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarouselAppearance {
@@ -72,14 +77,23 @@ pub fn advance(selected: usize, delta: i32) -> usize {
     wrap_index(selected as isize + delta as isize)
 }
 
-/// Convert a scroll delta into a ±1 item step (0 if below the stub threshold).
-pub fn fling_step(dx: f32, dy: f32) -> i32 {
+/// Convert a scroll delta into a signed item step. Magnitude can exceed ±1.
+pub fn fling_steps(dx: f32, dy: f32) -> i32 {
     let dominant = if dx.abs() >= dy.abs() { dx } else { dy };
     if dominant.abs() < 0.5 {
-        0
-    } else if dominant > 0.0 {
-        1
-    } else {
-        -1
+        return 0;
     }
+    let mag = (dominant.abs() / FLING_UNIT).round() as i32;
+    let mag = mag.clamp(1, ITEMS.len() as i32 - 1);
+    if dominant > 0.0 { mag } else { -mag }
+}
+
+/// Convert a scroll delta into an item step (0 if below the stub threshold).
+pub fn fling_step(dx: f32, dy: f32) -> i32 {
+    fling_steps(dx, dy)
+}
+
+/// Decay leftover fling velocity (`dt_s` in seconds).
+pub fn decay_velocity(v: f32, dt_s: f32) -> f32 {
+    v * (-FLING_DECAY * dt_s.max(0.0)).exp()
 }

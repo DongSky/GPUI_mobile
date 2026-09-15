@@ -24,7 +24,7 @@ pub const VIEW_CORNER_DP: f32 = 28.0;
 pub const VIEW_HEADER_DP: f32 = 72.0;
 pub const SUGGESTION_H_DP: f32 = 56.0;
 pub const SUGGESTIONS: [&str; 4] = ["App", "Shortcut", "Recent search", "Setting"];
-/// Catalog starts expanded so Visual QA can see the sheet without a tap.
+/// Catalog starts expanded so Visual QA can see the sheet + caret after the grow morph.
 pub const VIEW_OPEN_BY_DEFAULT: bool = true;
 /// Expanded view uses 0dp corners + surface (full-screen search activity).
 pub const ACTIVITY_CORNER_DP: f32 = 0.0;
@@ -155,13 +155,30 @@ pub fn query_display(query: &str) -> &str {
 
 pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
 
+/// Docked bar (`0`) vs full-screen search activity (`1`) morph parameter.
+pub fn morph_t(open: bool) -> f32 {
+    if open { 1.0 } else { 0.0 }
+}
+
+/// Interpolated container height for the docked→activity growing-bar.
+pub fn morph_height_dp(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    HEIGHT_DP + (ACTIVITY_MIN_H_DP - HEIGHT_DP) * t
+}
+
+/// Interpolated corner radius (28dp docked → 0dp activity).
+pub fn morph_corner_dp_at(t: f32) -> f32 {
+    (HEIGHT_DP / 2.0) * (1.0 - t.clamp(0.0, 1.0))
+}
+
 /// Docked bar (28dp) vs activity (0dp) corner for the morph.
 pub fn morph_corner_dp(open: bool) -> f32 {
-    if open {
-        ACTIVITY_CORNER_DP
-    } else {
-        HEIGHT_DP / 2.0
-    }
+    morph_corner_dp_at(morph_t(open))
+}
+
+/// Spatial-fast duration for the growing-bar layout animation.
+pub fn morph_ms(theme: &Theme) -> u16 {
+    theme.motion.spatial_fast_ms
 }
 
 pub fn pick_suggestion(query: &str, index: usize) -> Option<&'static str> {

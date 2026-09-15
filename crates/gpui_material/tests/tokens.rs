@@ -497,7 +497,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-notch-hole=\"1\""));
     assert!(html.contains("data-carousel-selected"));
     assert!(html.contains("data-rail-selected"));
-    assert!(html.contains("data-ptr-spin") || html.contains("data-progress=\"ptr\""));
+    assert!(html.contains("data-search-morph"));
+    assert!(html.contains("data-rail-scrim"));
+    assert!(html.contains("data-notch-evenodd"));
+    assert!(html.contains("data-carousel-fling"));
+    assert!(html.contains("Loading"));
+    assert!(html.contains("min span 5%") || html.contains("Price range"));
+    assert!(html.contains("stroke-linecap=\"round\""));
     assert!(html.contains("data-nav-rail-expanded=\"1\""));
     assert!(html.contains("data-rail-fab=\"1\""));
     assert!(html.contains("data-docked-grid=\"1\""));
@@ -827,6 +833,9 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search::apply_search_key("ab", "backspace"), "a");
     assert_eq!(search::pick_suggestion("app", 0), Some("App"));
     assert_eq!(search::morph_corner_dp(true), 0.0);
+    assert!((search::morph_height_dp(0.0) - search::HEIGHT_DP).abs() < 0.01);
+    assert!((search::morph_height_dp(1.0) - search::ACTIVITY_MIN_H_DP).abs() < 0.01);
+    assert!((search::morph_corner_dp_at(0.5) - 14.0).abs() < 0.01);
     let mut ed = text_field::TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
     search::apply_key_to_editor(&mut ed, "a");
     search::apply_key_to_editor(&mut ed, "p");
@@ -836,6 +845,9 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(ed.value(), "App");
     let (ix, iy) = text_field::ime_cursor_origin_dp(3, 16.0);
     assert!(ix > 16.0 && iy > 0.0);
+    let rect = text_field::ime_caret_rect_dp(3, 16.0);
+    assert_eq!(rect.2, text_field::IME_CARET_W_DP);
+    assert_eq!(rect.3, text_field::IME_CARET_H_DP);
     assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
@@ -861,9 +873,11 @@ fn search_bar_and_time_picker_tokens() {
     let quad = time_picker::hand_quad(256.0, time_picker::DialFace::Minute, 6, 30, 48.0);
     assert_eq!(quad.len(), 4);
     assert!(time_picker::hand_svg_d(256.0, time_picker::DialFace::Minute, 6, 30, 48.0).starts_with('M'));
-    let (s, e) = slider::drag_thumb(0.2, 0.75, slider::RangeThumb::Start, 0.4);
-    assert!((s - 0.4).abs() < 1e-5);
-    assert_eq!(e, 0.75);
+    let (s, _e) = slider::drag_thumb_snapped(0.2, 0.75, slider::RangeThumb::Start, 0.33);
+    assert!((s - 0.35).abs() < 1e-5);
+    assert!(slider::RANGE_SNAP_WHILE_DRAG);
+    assert!((slider::snap_to_step(0.22) - 0.20).abs() < 1e-5);
+    assert!(slider::range_value_label(0.2, 0.75).contains("min span"));
     let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::End, "left").unwrap();
     assert!((e - 0.70).abs() < 1e-5);
     assert_eq!(s, 0.2);
@@ -888,11 +902,17 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(carousel::advance(0, 1), 1);
     assert_eq!(carousel::advance(0, -1), 3);
     assert_eq!(carousel::fling_step(12.0, 0.0), 1);
+    assert_eq!(carousel::fling_steps(80.0, 0.0), 3);
+    assert!(carousel::decay_velocity(10.0, 0.25) < 10.0);
     let paint = slider::range_paint(0.20, 0.75, 280.0, 4.0);
     assert!(paint.left < paint.end_handle);
     assert!((paint.left + paint.handle_w + paint.active + paint.handle_w + paint.right - 280.0).abs() < 1.0);
     let pts = progress::ptr_arc_polyline(40.0, 4.0, 90.0, 0.25);
     assert!(pts.len() > 4);
+    let caps = progress::ptr_cap_centers(40.0, 4.0, 90.0, 0.25);
+    assert_eq!(caps.len(), 2);
+    assert_eq!(progress::clock_ms(&theme), theme.motion.effects_default_ms * 6);
+    assert_eq!(progress::LOADING_LABEL, "Loading");
     assert_eq!(navigation_rail::select_destination(0, 2), 2);
     assert_eq!(
         navigation_rail::toggle_mode(navigation_rail::RailMode::Expanded),
@@ -909,4 +929,7 @@ fn search_bar_and_time_picker_tokens() {
     );
     let hole = frame.hole_rect(280.0);
     assert!(hole.2 > 200.0);
+    assert!(frame.evenodd_svg_d(280.0).contains('Z'));
+    let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
+    assert!(lerped.abs() > 80.0);
 }

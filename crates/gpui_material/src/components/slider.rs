@@ -245,7 +245,16 @@ pub const RANGE_DEMO_START: f32 = 0.20;
 pub const RANGE_DEMO_END: f32 = 0.75;
 pub const RANGE_HERO_LABEL: &str = "Price range";
 pub const RANGE_STEP: f32 = 0.05;
+/// Thumbs cannot cross closer than this (5% of the track). Documented in the
+/// range label and inventory; click/keyboard steps use the same 5% grid.
 pub const RANGE_MIN_SPAN: f32 = 0.05;
+/// When true, pointer-drag snaps to `RANGE_STEP` ticks (M3 discrete dual-thumb).
+pub const RANGE_SNAP_WHILE_DRAG: bool = true;
+
+/// Snap `v` onto the 5% tick grid used by click/keyboard.
+pub fn snap_to_step(v: f32) -> f32 {
+    ((v / RANGE_STEP).round() * RANGE_STEP).clamp(0.0, 1.0)
+}
 
 pub fn clamp_range(start: f32, end: f32) -> (f32, f32) {
     let start = start.clamp(0.0, 1.0 - RANGE_MIN_SPAN);
@@ -273,10 +282,11 @@ pub fn move_nearest(start: f32, end: f32, value: f32) -> (f32, f32) {
 
 pub fn range_value_label(start: f32, end: f32) -> String {
     format!(
-        "{} · {:.0}–{:.0}%",
+        "{} · {:.0}–{:.0}% · min span {:.0}%",
         RANGE_HERO_LABEL,
         start * 100.0,
-        end * 100.0
+        end * 100.0,
+        RANGE_MIN_SPAN * 100.0
     )
 }
 
@@ -315,6 +325,21 @@ pub fn drag_thumb(start: f32, end: f32, thumb: RangeThumb, fraction: f32) -> (f3
         RangeThumb::Start => clamp_range(fraction, end),
         RangeThumb::End => clamp_range(start, fraction),
     }
+}
+
+/// Pointer-drag with optional tick-snap (`RANGE_SNAP_WHILE_DRAG`).
+pub fn drag_thumb_snapped(
+    start: f32,
+    end: f32,
+    thumb: RangeThumb,
+    fraction: f32,
+) -> (f32, f32) {
+    let fraction = if RANGE_SNAP_WHILE_DRAG {
+        snap_to_step(fraction)
+    } else {
+        fraction
+    };
+    drag_thumb(start, end, thumb, fraction)
 }
 
 pub fn nudge_thumb(start: f32, end: f32, thumb: RangeThumb, delta: f32) -> (f32, f32) {

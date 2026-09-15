@@ -14,7 +14,7 @@ use gpui::{
 };
 use gpui_wgpu::{GpuContext, WgpuRenderer, WgpuSurfaceConfig, wgpu};
 use ndk::native_window::NativeWindow;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -75,6 +75,8 @@ pub(crate) struct AndroidWindowInner {
     pub(crate) callbacks: RefCell<WindowCallbacks>,
     display: Rc<AndroidDisplay>,
     gpu_context: GpuContext,
+    /// Last caret bounds from `update_ime_position` (NativeActivity has no IME).
+    pub last_ime_bounds: Cell<Option<crate::ime::ImeBoundsDp>>,
 }
 
 impl AndroidWindowInner {
@@ -111,6 +113,7 @@ impl AndroidWindowInner {
             callbacks: RefCell::new(WindowCallbacks::default()),
             display,
             gpu_context: gpu_context.clone(),
+            last_ime_bounds: Cell::new(None),
         }))
     }
 
@@ -367,8 +370,15 @@ impl PlatformWindow for AndroidWindow {
     fn gpu_specs(&self) -> Option<GpuSpecs> {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
-    fn update_ime_position(&self, _bounds: Bounds<Pixels>) {
-        // NativeActivity has no InputConnection. Text fields edit via
-        // `gpui_material::text_field::TextFieldEditor` + the demo on-screen keys.
+    fn update_ime_position(&self, bounds: Bounds<Pixels>) {
+        // NativeActivity has no InputConnection. Record the caret rect so a
+        // later InputConnection can consume `gpui_material::text_field::ime_caret_rect_dp`.
+        crate::ime::record_ime_position(
+            &self.inner.last_ime_bounds,
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
     }
 }

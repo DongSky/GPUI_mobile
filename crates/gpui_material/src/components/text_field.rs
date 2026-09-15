@@ -333,22 +333,124 @@ impl NotchFrame {
     }
 
     pub fn outline_svg_d(self, width_dp: f32) -> String {
-        let mut d = String::new();
-        for v in self.outline_verbs(width_dp) {
-            match v {
-                OutlineVerb::Move(x, y) => d.push_str(&format!("M{x:.2},{y:.2}")),
-                OutlineVerb::Line(x, y) => d.push_str(&format!(" L{x:.2},{y:.2}")),
-                OutlineVerb::Arc {
-                    to_x,
-                    to_y,
-                    radius,
-                } => d.push_str(&format!(
-                    " A{radius:.2},{radius:.2} 0 0 1 {to_x:.2},{to_y:.2}"
-                )),
-            }
-        }
-        d
+        outline_verbs_svg_d(&self.outline_verbs(width_dp))
     }
+
+    /// Even-odd subpaths: outer rounded rect, inner hole, legend gap.
+    /// Compose OutlinedTextField is a filled ring with a hole; even-odd matches that.
+    pub fn evenodd_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
+        let s = self.stroke_dp.max(1.0);
+        let r = self.radius_dp.max(s);
+        let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
+        let h = self.field_h_dp.max(r * 2.0);
+        let mut verbs = Vec::new();
+        verbs.extend(rounded_rect_verbs(0.0, 0.0, w, h, r, true));
+        let inner_r = (r - s).max(0.0);
+        verbs.extend(rounded_rect_verbs(s, s, (w - s * 2.0).max(1.0), (h - s * 2.0).max(1.0), inner_r, true));
+        let (gx, gy, gw, gh) = self.notch_gap_rect();
+        verbs.extend([
+            OutlineVerb::Move(gx, gy),
+            OutlineVerb::Line(gx + gw, gy),
+            OutlineVerb::Line(gx + gw, gy + gh),
+            OutlineVerb::Line(gx, gy + gh),
+            OutlineVerb::Close,
+        ]);
+        verbs
+    }
+
+    pub fn evenodd_svg_d(self, width_dp: f32) -> String {
+        outline_verbs_svg_d(&self.evenodd_verbs(width_dp))
+    }
+}
+
+fn rounded_rect_verbs(x: f32, y: f32, w: f32, h: f32, r: f32, clockwise: bool) -> Vec<OutlineVerb> {
+    let r = r.min(w / 2.0).min(h / 2.0).max(0.0);
+    if r < 0.5 {
+        return vec![
+            OutlineVerb::Move(x, y),
+            OutlineVerb::Line(x + w, y),
+            OutlineVerb::Line(x + w, y + h),
+            OutlineVerb::Line(x, y + h),
+            OutlineVerb::Close,
+        ];
+    }
+    if clockwise {
+        vec![
+            OutlineVerb::Move(x + r, y),
+            OutlineVerb::Line(x + w - r, y),
+            OutlineVerb::Arc {
+                to_x: x + w,
+                to_y: y + r,
+                radius: r,
+            },
+            OutlineVerb::Line(x + w, y + h - r),
+            OutlineVerb::Arc {
+                to_x: x + w - r,
+                to_y: y + h,
+                radius: r,
+            },
+            OutlineVerb::Line(x + r, y + h),
+            OutlineVerb::Arc {
+                to_x: x,
+                to_y: y + h - r,
+                radius: r,
+            },
+            OutlineVerb::Line(x, y + r),
+            OutlineVerb::Arc {
+                to_x: x + r,
+                to_y: y,
+                radius: r,
+            },
+            OutlineVerb::Close,
+        ]
+    } else {
+        vec![
+            OutlineVerb::Move(x + r, y),
+            OutlineVerb::Arc {
+                to_x: x,
+                to_y: y + r,
+                radius: r,
+            },
+            OutlineVerb::Line(x, y + h - r),
+            OutlineVerb::Arc {
+                to_x: x + r,
+                to_y: y + h,
+                radius: r,
+            },
+            OutlineVerb::Line(x + w - r, y + h),
+            OutlineVerb::Arc {
+                to_x: x + w,
+                to_y: y + h - r,
+                radius: r,
+            },
+            OutlineVerb::Line(x + w, y + r),
+            OutlineVerb::Arc {
+                to_x: x + w - r,
+                to_y: y,
+                radius: r,
+            },
+            OutlineVerb::Close,
+        ]
+    }
+}
+
+fn outline_verbs_svg_d(verbs: &[OutlineVerb]) -> String {
+    let mut d = String::new();
+    for v in verbs {
+        match v {
+            OutlineVerb::Move(x, y) => d.push_str(&format!("M{x:.2},{y:.2}")),
+            OutlineVerb::Line(x, y) => d.push_str(&format!(" L{x:.2},{y:.2}")),
+            OutlineVerb::Arc {
+                to_x,
+                to_y,
+                radius,
+            } => d.push_str(&format!(
+                " A{radius:.2},{radius:.2} 0 0 1 {to_x:.2},{to_y:.2}"
+            )),
+            OutlineVerb::Close => d.push_str(" Z"),
+        }
+    }
+    d
 }
 
 /// One step of a notched outline path.
@@ -357,6 +459,7 @@ pub enum OutlineVerb {
     Move(f32, f32),
     Line(f32, f32),
     Arc { to_x: f32, to_y: f32, radius: f32 },
+    Close,
 }
 
 pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {
@@ -511,11 +614,25 @@ impl TextFieldEditor {
     }
 }
 
+pub const IME_CARET_W_DP: f32 = 2.0;
+pub const IME_CARET_H_DP: f32 = 24.0;
+
 /// Logical caret origin inside a 56dp field, for NativeActivity IME stubs.
 pub fn ime_cursor_origin_dp(caret_chars: usize, size_sp: f32) -> (f32, f32) {
     (
         PAD_H_DP + caret_chars as f32 * size_sp * 0.52,
         HEIGHT_DP / 2.0,
+    )
+}
+
+/// Caret rectangle (`x, y, w, h`) consumed by `gpui_android::ime` / `update_ime_position`.
+pub fn ime_caret_rect_dp(caret_chars: usize, size_sp: f32) -> (f32, f32, f32, f32) {
+    let (x, y) = ime_cursor_origin_dp(caret_chars, size_sp);
+    (
+        x,
+        y - IME_CARET_H_DP / 2.0,
+        IME_CARET_W_DP,
+        IME_CARET_H_DP,
     )
 }
 

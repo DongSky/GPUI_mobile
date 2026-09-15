@@ -73,13 +73,18 @@ pub fn circular(theme: &Theme, progress: f32) -> CircularProgress {
     }
 }
 
+/// Shared repeating-clock duration for wavy / indeterminate / PTR / loading.
+pub fn clock_ms(theme: &Theme) -> u16 {
+    theme.motion.effects_default_ms.saturating_mul(6)
+}
+
 pub fn linear_indeterminate(theme: &Theme) -> IndeterminateLinear {
     IndeterminateLinear {
         height_dp: LINEAR_HEIGHT_DP,
         track: theme.color.secondary_container,
         indicator: theme.color.primary,
         head_span: INDETERMINATE_SPAN,
-        duration_ms: theme.motion.spatial_fast_ms.saturating_mul(4),
+        duration_ms: clock_ms(theme),
         easing: theme.motion.effects_default,
     }
 }
@@ -91,9 +96,17 @@ pub fn circular_indeterminate(theme: &Theme) -> IndeterminateCircular {
         track: theme.color.secondary_container,
         indicator: theme.color.primary,
         arc_deg: 90.0,
-        duration_ms: theme.motion.effects_default_ms.saturating_mul(6),
+        duration_ms: clock_ms(theme),
         easing: theme.motion.effects_default,
     }
+}
+
+pub const LOADING_LABEL: &str = "Loading";
+pub const LOADING_PROGRESS: f32 = 0.65;
+
+/// Determinate circular used as the loading-indicator hero (round-capped arc).
+pub fn loading_circular(theme: &Theme) -> CircularProgress {
+    circular(theme, LOADING_PROGRESS)
 }
 
 /// Pull-to-refresh style circular at the top of a scroll surface.
@@ -131,7 +144,7 @@ pub fn wavy(theme: &Theme, progress: f32) -> WavyProgress {
         track: theme.color.secondary_container,
         indicator: theme.color.primary,
         progress: progress.clamp(0.0, 1.0),
-        duration_ms: theme.motion.effects_default_ms.saturating_mul(6),
+        duration_ms: clock_ms(theme),
     }
 }
 
@@ -164,6 +177,19 @@ pub fn ptr_arc_polyline(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> Vec
             (cx + r * a.cos(), cy + r * a.sin())
         })
         .collect()
+}
+
+/// Endpoints of the PTR / circular arc, used as round-cap disc centers.
+pub fn ptr_cap_centers(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> [(f32, f32); 2] {
+    let pts = ptr_arc_polyline(size, stroke, arc_deg, phase);
+    let first = pts.first().copied().unwrap_or((size / 2.0, stroke));
+    let last = pts.last().copied().unwrap_or(first);
+    [first, last]
+}
+
+/// Determinate circular arc from 12 o'clock (`progress` 0..=1, `phase` unused).
+pub fn determinate_arc_polyline(size: f32, stroke: f32, progress: f32, phase: f32) -> Vec<(f32, f32)> {
+    ptr_arc_polyline(size, stroke, 360.0 * progress.clamp(0.05, 1.0), phase)
 }
 
 pub fn ptr_arc_svg_d(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> String {
