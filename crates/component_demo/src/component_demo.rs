@@ -5452,20 +5452,30 @@ fn android_search_bar(
                 .into_any_element(),
         );
     } else {
+        let flatten = !show_groups;
+        let flat_count: usize = grouped.iter().map(|(_, items)| items.len()).sum();
+        let query = this.search.value().to_string();
         for (gi, (title, items)) in grouped.into_iter().enumerate() {
+            let group_len = items.len();
             list_children.push(
                 div()
                     .id(SharedString::from(format!("search-group-{gi}")))
                     .flex()
                     .flex_col()
-                    .when(show_groups && gi > 0, |el| {
-                        el.mt(px(search::SUGGESTION_GROUP_GAP_DP))
+                    .gap(px(search::ROW_GAP_DP))
+                    .px(px(8.))
+                    .when(gi > 0, |el| {
+                        el.mt(px(if show_groups {
+                            search::SUGGESTION_GROUP_GAP_DP
+                        } else {
+                            search::ROW_GAP_DP
+                        }))
                     })
                     .when(show_groups, |el| {
                         el.child(
                             div()
                                 .h(px(search::SUGGESTION_GROUP_TITLE_H_DP))
-                                .px(px(16.))
+                                .px(px(8.))
                                 .flex()
                                 .items_center()
                                 .text_size(px(12.))
@@ -5473,21 +5483,32 @@ fn android_search_bar(
                                 .child(title),
                         )
                     })
-                    .children(items.into_iter().map(|label| {
+                    .children(items.into_iter().enumerate().map(|(gi_row, label)| {
                         let i = flat;
                         flat += 1;
+                        let (index, count) = if flatten {
+                            (i, flat_count)
+                        } else {
+                            (gi_row, group_len)
+                        };
+                        let selected = !query.is_empty() && label.eq_ignore_ascii_case(&query);
+                        let corners = search::row_corners(index, count, selected);
+                        let q = query.clone();
                         div()
                             .id(SharedString::from(format!("search-sug-{i}")))
                             .h(px(view.suggestion_h_dp))
                             .px(px(16.))
                             .flex()
                             .items_center()
-                            .text_color(paint(view.suggestion))
+                            .bg(paint(search::row_container(theme, selected)))
+                            .text_color(paint(search::row_content(theme, selected)))
+                            .rounded_tl(px(corners.top_left))
+                            .rounded_tr(px(corners.top_right))
+                            .rounded_br(px(corners.bottom_right))
+                            .rounded_bl(px(corners.bottom_left))
                             .child(label)
                             .on_click(cx.listener(move |this, _, _, cx| {
-                                if let Some(picked) =
-                                    search::pick_suggestion(this.search.value(), i)
-                                {
+                                if let Some(picked) = search::pick_suggestion(&q, i) {
                                     this.search.set_value(picked);
                                     this.search.set_focus(false);
                                     cx.notify();

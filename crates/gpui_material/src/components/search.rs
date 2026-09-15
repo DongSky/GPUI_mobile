@@ -9,7 +9,7 @@
 //! hosts do not use `cx.transform` (height/margin/corner tokens only).
 
 use crate::argb::Argb;
-use crate::components::Appearance;
+use crate::components::{list, Appearance};
 use crate::shape::Corners;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -27,6 +27,10 @@ pub const VIEW_CORNER_DP: f32 = 28.0;
 pub const VIEW_HEADER_DP: f32 = 72.0;
 pub const SUGGESTION_H_DP: f32 = 56.0;
 pub const SUGGESTIONS: [&str; 4] = ["App", "Shortcut", "Recent search", "Setting"];
+/// Expressive search rows reuse list `segmentedShapes` (2dp gap, 4/16 corners).
+pub const ROW_GAP_DP: f32 = list::SEGMENTED_GAP_DP;
+pub const ROW_INNER_CORNER_DP: f32 = list::INNER_CORNER_DP;
+pub const ROW_OUTER_CORNER_DP: f32 = list::OUTER_CORNER_DP;
 /// Expressive search: gaps separate suggestion/result groups.
 pub const SUGGESTION_GROUP_GAP_DP: f32 = 8.0;
 pub const SUGGESTION_GROUP_TITLE_H_DP: f32 = 32.0;
@@ -221,14 +225,50 @@ pub fn suggestion_group_chrome_h_dp(group_count: usize) -> f32 {
     }
 }
 
+pub fn row_corners(index: usize, count: usize, selected: bool) -> Corners {
+    list::segmented_corners(index, count, selected, false)
+}
+
+pub fn row_container(theme: &Theme, selected: bool) -> Argb {
+    if selected {
+        theme.color.secondary_container
+    } else {
+        theme.color.surface
+    }
+}
+
+pub fn row_content(theme: &Theme, selected: bool) -> Argb {
+    if selected {
+        theme.color.on_secondary_container
+    } else {
+        theme.color.on_surface
+    }
+}
+
+pub fn segmented_row_gaps_h_dp(item_count: usize) -> f32 {
+    ROW_GAP_DP * item_count.saturating_sub(1) as f32
+}
+
 pub fn suggestion_list_h_dp(suggestion_count: usize, group_count: usize) -> f32 {
-    SUGGESTION_H_DP * suggestion_count as f32 + suggestion_group_chrome_h_dp(group_count)
+    let gaps = if suggestion_count == SUGGESTIONS.len() && group_count == SUGGESTION_GROUPS.len() {
+        SUGGESTION_GROUPS
+            .iter()
+            .map(|g| segmented_row_gaps_h_dp(g.items.len()))
+            .sum()
+    } else {
+        segmented_row_gaps_h_dp(suggestion_count.saturating_sub(group_count.saturating_sub(1)))
+    };
+    SUGGESTION_H_DP * suggestion_count as f32 + suggestion_group_chrome_h_dp(group_count) + gaps
 }
 
 pub fn grouped_suggestion_list_h_dp(query: &str) -> f32 {
     let groups = filter_grouped_suggestions(query);
     let n: usize = groups.iter().map(|(_, items)| items.len()).sum();
-    suggestion_list_h_dp(n, groups.len())
+    let gaps: f32 = groups
+        .iter()
+        .map(|(_, items)| segmented_row_gaps_h_dp(items.len()))
+        .sum();
+    SUGGESTION_H_DP * n as f32 + suggestion_group_chrome_h_dp(groups.len()) + gaps
 }
 
 /// Empty query → suggestions; focused non-empty → Quick results; submitted → Results.
@@ -278,7 +318,7 @@ pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
         grouped_suggestion_list_h_dp(query)
     } else {
         let rows = n.max(1);
-        status_chrome_h_dp(status) + SUGGESTION_H_DP * rows as f32
+        status_chrome_h_dp(status) + SUGGESTION_H_DP * rows as f32 + segmented_row_gaps_h_dp(rows)
     }
 }
 

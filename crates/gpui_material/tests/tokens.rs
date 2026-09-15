@@ -884,6 +884,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-scrim="1""#));
     assert!(html.contains(r#"data-search-scrim-layer="1""#));
     assert!(html.contains(r#"data-docked-min-h="240""#));
+    assert!(html.contains(r#"data-search-row="segmented""#));
+    assert!(html.contains(r#"data-search-list="segmented""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains(r#"data-time-layout="vertical""#));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
@@ -1170,6 +1172,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Results")
             && e.notes.contains("240")
             && e.notes.contains("scrim")
+            && e.notes.contains("segmented")
+            && e.notes.contains("2dp")
     }));
     assert!(INVENTORY
         .iter()
@@ -2762,6 +2766,10 @@ fn search_bar_and_time_picker_tokens() {
         true
     ));
     assert!(search::dismiss_on_scrim());
+    assert_eq!(search::ROW_GAP_DP, 2.0);
+    assert_eq!(search::row_corners(0, 3, false).top_left, 16.0);
+    assert_eq!(search::row_corners(1, 3, false).top_left, 4.0);
+    assert_eq!(search::row_corners(0, 1, true).top_left, 16.0);
     assert_eq!(
         search::SearchListStatus::QuickResults.heading(),
         Some(search::QUICK_RESULTS_LABEL)

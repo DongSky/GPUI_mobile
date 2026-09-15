@@ -273,7 +273,7 @@ a {{ color: var(--primary); }}
 .search-morph[data-search-expanded="docked"][data-open="1"] .sv-list {{
   overflow-y: auto; max-height: 424px;
 }}
-.search-morph .sv-group {{ display: flex; flex-direction: column; }}
+.search-morph .sv-group {{ display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }}
 .search-morph .sv-group + .sv-group {{ margin-top: 8px; }}
 .search-morph .sv-group-title {{
   display: flex; align-items: center; height: 32px; padding: 0 16px;
@@ -288,9 +288,20 @@ a {{ color: var(--primary); }}
 .search-morph[data-search-status="results"] .sv-group-title {{ display: none; }}
 .search-morph[data-search-status="quick-results"] .sv-group + .sv-group,
 .search-morph[data-search-status="results"] .sv-group + .sv-group {{ margin-top: 0; }}
+.search-morph[data-search-status="quick-results"] .sv-list,
+.search-morph[data-search-status="results"] .sv-list {{
+  gap: 2px;
+}}
+.search-morph[data-search-status="quick-results"] .sv-group,
+.search-morph[data-search-status="results"] .sv-group {{
+  padding: 0 8px; gap: 2px;
+}}
 .search-view .sv-row, .search-morph .sv-row {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
-  min-height: 56px; font-size: 16px;
+  min-height: 56px; font-size: 16px; box-sizing: border-box;
+}}
+.search-morph .sv-row[data-search-row="segmented"] {{
+  border-radius: 16px;
 }}
 .timepicker {{
   display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
@@ -6149,19 +6160,34 @@ fn paint_contained_search_state(
     let heading = status.heading().unwrap_or("");
     let mut rows = String::new();
     let mut flat = 0usize;
+    let flatten = !status.shows_suggestion_groups();
+    let flat_count = result_count;
     for (title, items) in grouped {
+        let group_len = items.len();
         rows.push_str(&format!(
-            r#"<div class="sv-group" data-search-group="{title}"><div class="sv-group-title" style="color:{ico}">{title}</div>"#,
+            r#"<div class="sv-group" data-search-group="{title}" data-search-list="segmented"><div class="sv-group-title" style="color:{ico}">{title}</div>"#,
             title = title,
             ico = contained.suggestion_icon.css_hex(),
         ));
-        for label in items {
+        for (gi, label) in items.into_iter().enumerate() {
+            let selected = !query.is_empty() && label.eq_ignore_ascii_case(query);
+            let (index, count) = if flatten {
+                (flat, flat_count)
+            } else {
+                (gi, group_len)
+            };
+            let corners = search::row_corners(index, count, selected);
+            let bg = search::row_container(theme, selected);
+            let fg = search::row_content(theme, selected);
             rows.push_str(&format!(
-                r#"<div class="sv-row" data-search-suggestion="{label}" style="color:{fg};height:{h}px"><span style="color:{ico}">{icon}</span><span>{label}</span></div>"#,
-                fg = contained.suggestion.css_hex(),
+                r#"<div class="sv-row" data-search-suggestion="{label}" data-search-row="segmented" data-search-selected="{sel}" style="color:{fg};height:{h}px;background:{bg};border-radius:{br}"><span style="color:{ico}">{icon}</span><span>{label}</span></div>"#,
+                fg = fg.css_hex(),
                 h = contained.suggestion_h_dp,
+                bg = bg.css_hex(),
+                br = corners.css(),
                 ico = contained.suggestion_icon.css_hex(),
                 icon = if flat == 0 { "⌕" } else { "◌" },
+                sel = selected as u8,
             ));
             flat += 1;
         }
@@ -6271,7 +6297,7 @@ fn search_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions). Queried search shows a <code>Quick results</code> status while typing and a <code>Results</code> label after submit (query stays visible, not focused). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search shows a <code>Quick results</code> status while typing and a <code>Results</code> label after submit (query stays visible, not focused). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
