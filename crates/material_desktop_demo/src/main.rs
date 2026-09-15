@@ -5474,8 +5474,7 @@ fn header_rail_column(
                                     .id("header-rail-tooltip")
                                     .absolute()
                                     .bottom(px(
-                                        navigation_rail::HEADER_BUTTON_DP
-                                            + tooltip::ANCHOR_GAP_DP
+                                        navigation_rail::HEADER_BUTTON_DP + tooltip::ANCHOR_GAP_DP
                                     ))
                                     .left(px(navigation_rail::HEADER_PAD_START_DP))
                                     .h(px(tip.min_height_dp))
@@ -5544,7 +5543,8 @@ fn hide_rail_column(
     expanded: bool,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let mut rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    rail.container = navigation_rail::hide_container_color(theme);
     let selected = this.rail_selected;
     let width_dp = rail.width_dp;
     let arrangement = navigation_rail::HIDE_DEMO_ARRANGEMENT;
@@ -5556,6 +5556,7 @@ fn hide_rail_column(
         .overflow_hidden()
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
+        .rounded(px(navigation_rail::hide_shape_dp()))
         .flex()
         .flex_col()
         .items_stretch()
@@ -5619,7 +5620,7 @@ fn nav_rail_column(
     collapsed: navigation_rail::RailCollapsedKind,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode_kind(theme, mode, collapsed);
+    let rail = navigation_rail::resolve_layout(theme, mode, collapsed, layout);
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
@@ -5670,6 +5671,7 @@ fn nav_rail_column(
         .overflow_hidden()
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
+        .rounded(px(navigation_rail::shape_dp_for(layout, expanded)))
         .flex()
         .flex_col()
         .when(position.is_start(), |el| el.items_stretch())
@@ -5680,9 +5682,12 @@ fn nav_rail_column(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
+                let morph = navigation_rail::container_morph(&theme, layout, t);
                 this.w(px(navigation_rail::morph_width_eased_kind(
                     &theme, collapsed, t,
                 )))
+                .rounded(px(morph.corner_dp))
+                .bg(paint(morph.color))
             },
         )
         .child(
@@ -7017,6 +7022,16 @@ mod tests {
         assert!((fab0.width_dp - 56.0).abs() < 0.01);
         let fab1 = navigation_rail::fab_morph(&theme, 1.0, 220.0);
         assert!((fab1.width_dp - 188.0).abs() < 0.01);
+        assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, 16.0);
+        assert_eq!(
+            navigation_rail::container_morph_for_mode(
+                &theme,
+                navigation_rail::RailExpandedLayout::Modal,
+                navigation_rail::RailMode::Expanded
+            )
+            .color,
+            theme.color.surface_container
+        );
         assert!(navigation_rail::HEADER_DEMO_ARRANGEMENT.is_bottom());
         assert_eq!(
             navigation_rail::header_menu_glyph(false),

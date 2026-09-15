@@ -4172,7 +4172,7 @@ fn android_nav_rail_column(
     width_max: f32,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode_kind(theme, mode, collapsed);
+    let rail = navigation_rail::resolve_layout(theme, mode, collapsed, layout);
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
     let position = navigation_rail::icon_position_for_mode(mode);
@@ -4227,6 +4227,7 @@ fn android_nav_rail_column(
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .bg(paint(rail.container))
+        .rounded(px(navigation_rail::shape_dp_for(layout, expanded)))
         .with_animation(
             anim,
             Animation::new(Duration::from_millis(
@@ -4236,10 +4237,13 @@ fn android_nav_rail_column(
                 let theme = *theme;
                 move |this, delta| {
                     let t = if expanded { delta } else { 1.0 - delta };
+                    let morph = navigation_rail::container_morph(&theme, layout, t);
                     this.w(px(navigation_rail::morph_width_eased_kind(
                         &theme, collapsed, t,
                     )
                     .min(width_max)))
+                        .rounded(px(morph.corner_dp))
+                        .bg(paint(morph.color))
                 }
             },
         )
@@ -4665,8 +4669,7 @@ fn android_header_rail_column(
                                     .id("header-rail-tooltip")
                                     .absolute()
                                     .bottom(px(
-                                        navigation_rail::HEADER_BUTTON_DP
-                                            + tooltip::ANCHOR_GAP_DP
+                                        navigation_rail::HEADER_BUTTON_DP + tooltip::ANCHOR_GAP_DP
                                     ))
                                     .left(px(navigation_rail::HEADER_PAD_START_DP))
                                     .h(px(tip.min_height_dp))
@@ -4703,7 +4706,9 @@ fn android_header_rail_column(
                                 })),
                         ),
                 )
-                .child(android_header_extended_fab(theme, &rail, expanded, width_max)),
+                .child(android_header_extended_fab(
+                    theme, &rail, expanded, width_max,
+                )),
         )
         .child(
             div()
@@ -4737,7 +4742,8 @@ fn android_hide_rail_column(
     width_dp: f32,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let mut rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    rail.container = navigation_rail::hide_container_color(theme);
     let selected = this.rail_selected;
     let arrangement = navigation_rail::HIDE_DEMO_ARRANGEMENT;
     div()
@@ -4747,6 +4753,7 @@ fn android_hide_rail_column(
         .h_full()
         .overflow_hidden()
         .bg(paint(rail.container))
+        .rounded(px(navigation_rail::hide_shape_dp()))
         .flex()
         .flex_col()
         .items_stretch()

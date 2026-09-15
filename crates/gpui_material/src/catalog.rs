@@ -503,7 +503,13 @@ a {{ color: var(--primary); }}
 .tooltip-rich .acts span {{ font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; }}
 .nav-rail {{
   width: 96px; display: flex; flex-direction: column; align-items: center; gap: 12px;
-  padding: 16px 0; border-radius: 0; position: relative;
+  padding: 16px 0; border-radius: 0; position: relative; overflow: hidden;
+}}
+.nav-rail[data-rail-layout="modal"].expanded,
+.nav-rail[data-rail-layout="modal"][data-nav-rail-expanded="1"],
+.nav-rail[data-rail-layout="narrow"][data-nav-rail-expanded="1"],
+.nav-rail[data-hide-on-collapse="1"] {{
+  border-radius: 16px;
 }}
 .nav-rail[data-narrow="1"] {{ width: 80px; }}
 .nav-rail .dest {{
@@ -542,7 +548,7 @@ a {{ color: var(--primary); }}
   border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
-.nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
+.nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), background-color 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
 .nav-rail[data-icon-morphing="1"] {{ transition: none; align-items: stretch; }}
 .nav-rail[data-icon-morphing="1"] .dest,
 .nav-rail[data-icon-morphing="1"].expanded .dest,
@@ -1793,11 +1799,41 @@ function hexRgba(hex, a) {{
   if (isNaN(n)) return "transparent";
   return "rgba(" + ((n >> 16) & 255) + ", " + ((n >> 8) & 255) + ", " + (n & 255) + ", " + a + ")";
 }}
+function hexMix(a, b, t) {{
+  function rgb(hex) {{
+    hex = (hex || "#000000").replace("#", "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var n = parseInt(hex, 16);
+    if (isNaN(n)) return [0, 0, 0];
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }}
+  var A = rgb(a), B = rgb(b);
+  var r = Math.round(A[0] + (B[0] - A[0]) * t);
+  var g = Math.round(A[1] + (B[1] - A[1]) * t);
+  var bl = Math.round(A[2] + (B[2] - A[2]) * t);
+  function h(n) {{ return ("0" + n.toString(16)).slice(-2); }}
+  return "#" + h(r) + h(g) + h(bl);
+}}
+function applyRailContainerMorph(rail, e) {{
+  var hide = rail.getAttribute("data-hide-on-collapse") === "1";
+  var c0 = rail.getAttribute("data-container-collapsed") || "";
+  var c1 = rail.getAttribute("data-container-expanded") || c0;
+  var r0 = Number(rail.getAttribute("data-collapsed-shape") || 0);
+  var r1 = Number(rail.getAttribute("data-expanded-shape") || 0);
+  if (hide) {{
+    if (c1) rail.style.background = c1;
+    rail.style.borderRadius = r1 + "px";
+    return;
+  }}
+  if (c0 && c1) rail.style.background = hexMix(c0, c1, e);
+  rail.style.borderRadius = (r0 + (r1 - r0) * e) + "px";
+}}
 function applyRailHideSlide(rail, t) {{
   var e = spatialFastAt(t);
   var expanded = Number(rail.getAttribute("data-expanded-width") || {rail_expanded});
   rail.style.width = expanded + "px";
   rail.style.transform = "translateX(" + (-expanded * (1 - e)) + "px)";
+  applyRailContainerMorph(rail, 1);
 }}
 function applyRailFabMorph(rail, e, railW) {{
   var fab = rail.querySelector("[data-rail-fab-extend]");
@@ -1823,6 +1859,7 @@ function applyRailIconMorph(rail, t) {{
   var expanded = {rail_expanded};
   var railW = collapsed + (expanded - collapsed) * e;
   applyRailFabMorph(rail, e, railW);
+  applyRailContainerMorph(rail, e);
   rail.style.width = railW + "px";
   var destMl = 16 * e;
   var destW = Math.max(0, railW - destMl * 2);
@@ -1865,8 +1902,11 @@ function clearRailIconMorph(rail) {{
     var shown = rail.getAttribute("data-nav-rail-expanded") === "1";
     rail.style.width = expanded + "px";
     rail.style.transform = shown ? "translateX(0)" : "translateX(-100%)";
+    applyRailContainerMorph(rail, 1);
     return;
   }}
+  var shown = rail.getAttribute("data-nav-rail-expanded") === "1";
+  applyRailContainerMorph(rail, shown ? 1 : 0);
   rail.style.width = "";
   var fab = rail.querySelector("[data-rail-fab-extend]");
   if (fab) {{
@@ -3993,25 +4033,25 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. Header slot stays top: Menu / MenuOpen + plain tooltip Above + Compose <code>ExtendedFloatingActionButton</code> (Create, 56↔188). Live <code>Arrangement.Bottom</code> packs destinations below the menu+FAB. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim, CornerNone / Surface). Modal overlay uses the same 96 collapsed width over a 32% scrim, then <code>modalExpandedShape</code> CornerLarge 16 and <code>ModalContainerColor</code> SurfaceContainer. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220 with the same modal container morph. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items, <code>Arrangement.Center</code>, and expanded modal shape. Header slot stays top: Menu / MenuOpen + plain tooltip Above + Compose <code>ExtendedFloatingActionButton</code> (Create, 56↔188). Live <code>Arrangement.Bottom</code> packs destinations below the menu+FAB. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
 </div>
 <div class="rail-stage is-standard" data-hero="wide-rail-inflow" data-rail-layout="standard">
-  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="standard" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">{inflow_fab}{top_dests}</div>
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="standard" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-container-collapsed="{rbg}" data-container-expanded="{rbg}" data-collapsed-shape="{shape0}" data-expanded-shape="{shape0}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">{inflow_fab}{top_dests}</div>
   <div class="rail-inflow-body" data-rail-inflow-body="1">{inflow_body}</div>
 </div>
 <div class="rail-stage is-modal" data-hero="nav-rail" data-rail-layout="modal">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-layout="modal" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-layout="modal" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-container-collapsed="{rbg}" data-container-expanded="{mbg}" data-collapsed-shape="{shape0}" data-expanded-shape="{shape1}" data-modal-expanded-shape="{shape_token}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{mbg};width:{ew}px;border-radius:{shape1}px">{fab}{rail_dests}</div>
   </div>
 </div>
 <div class="rail-stage" data-hero="wide-rail-narrow" data-rail-layout="narrow">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="0" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="narrow" data-narrow="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{nw}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{nw}px">{inflow_fab}{top_dests}</div>
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="narrow" data-narrow="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{nw}" data-container-collapsed="{rbg}" data-container-expanded="{mbg}" data-collapsed-shape="{shape0}" data-expanded-shape="{shape1}" data-modal-expanded-shape="{shape_token}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{nw}px">{inflow_fab}{top_dests}</div>
   </div>
 </div>
 <div class="rail-stage is-hide" data-hero="wide-rail-hide" data-rail-layout="hide" data-hide-on-collapse="1">
@@ -4019,11 +4059,11 @@ fn chrome(theme: &Theme) -> String {
   <button type="button" class="rail-menu" data-rail-menu="1" data-rail-menu-label="{hide_menu_label}" style="background:{fab_bg};color:{fab_fg}">{hide_menu}</button>
   <div class="rail-inflow-body" data-rail-inflow-body="1" data-hide-body="1">{inflow_body}</div>
   <div class="rail-window" data-rail-window="0" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="hide" data-hide-on-collapse="1" data-nav-rail-expanded="0" data-icon-position="start" data-icon-morph="0" data-icon-morph-ms="{morph_ms}" data-collapsed-width="0" data-expanded-width="{ew}" data-rail-mode="collapsed" data-rail-arrangement="{arr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ew}px;transform:translateX(-100%)">{hide_fab}<div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{arr}">{start_dests}</div></div>
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="hide" data-hide-on-collapse="1" data-nav-rail-expanded="0" data-icon-position="start" data-icon-morph="0" data-icon-morph-ms="{morph_ms}" data-collapsed-width="0" data-expanded-width="{ew}" data-container-collapsed="{mbg}" data-container-expanded="{mbg}" data-collapsed-shape="{shape1}" data-expanded-shape="{shape1}" data-modal-expanded-shape="{shape_token}" data-rail-mode="collapsed" data-rail-arrangement="{arr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{mbg};width:{ew}px;transform:translateX(-100%);border-radius:{shape1}px">{hide_fab}<div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{arr}">{start_dests}</div></div>
   </div>
 </div>
 <div class="rail-stage is-standard" data-hero="wide-rail-header" data-rail-layout="header">
-  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="header" data-rail-header="1" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="collapsed" data-rail-arrangement="{harr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="header" data-rail-header="1" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-container-collapsed="{rbg}" data-container-expanded="{rbg}" data-collapsed-shape="{shape0}" data-expanded-shape="{shape0}" data-rail-mode="collapsed" data-rail-arrangement="{harr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">
     <div class="rail-header" data-rail-header-slot="1" data-header-space="{hspace}" data-tooltip-anchor="{htip}" data-header-fab="1">
       <div class="rail-header-menu-row">
         <button type="button" class="rail-header-btn" data-rail-header-menu="1" data-rail-header-label="{hlabel}" data-rail-header-state="{hstate}" aria-label="{hlabel}" style="color:{hbtn}">{hglyph}</button>
@@ -4062,6 +4102,10 @@ fn chrome(theme: &Theme) -> String {
         hnbg = nav_h.container.css_hex(),
         horizontal = horizontal,
         rbg = rail.container.css_hex(),
+        mbg = navigation_rail::modal_container_color(theme).css_hex(),
+        shape0 = navigation_rail::SHAPE_DP,
+        shape1 = navigation_rail::MODAL_EXPANDED_SHAPE_DP,
+        shape_token = navigation_rail::MODAL_EXPANDED_SHAPE_TOKEN,
         ew = expanded.width_dp,
         ww = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
         nw = navigation_rail::WIDTH_DP,

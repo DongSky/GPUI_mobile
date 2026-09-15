@@ -5,14 +5,16 @@
 //! `ContainerWidth` 96, **default**) with a 56×32 indicator. Expanded
 //! Start-icon destinations use a 56dp full-width pill
 //! (`NavigationRailHorizontalItemTokens`). Expanded layout is either
-//! **standard** (in-flow, 96↔220, no scrim, elevation 0) or **modal**
-//! (overlay 96↔220 over a 32% scrim, elevation 2). Compose
-//! `iconPosition` follows `railExpanded` with a spatial-fast layout
-//! animation ([`item_morph`]). Modal `hideOnCollapse` slides the rail
-//! offscreen instead of leaving a collapsed 96/80 strip; items stay
-//! Start (`railExpanded = true`). `Arrangement.Vertical` is Top
-//! (default), Center (full container height), or Bottom (remaining
-//! space below the header). Optional header (Menu / MenuOpen +
+//! **standard** (in-flow, 96↔220, no scrim, elevation 0, CornerNone /
+//! Surface) or **modal** (overlay 96↔220 over a 32% scrim, elevation 2,
+//! `modalExpandedShape` CornerLarge 16 / `ModalContainerColor`
+//! SurfaceContainer). Compose `iconPosition` follows `railExpanded`
+//! with a spatial-fast layout animation ([`item_morph`]). Modal
+//! `hideOnCollapse` slides the rail offscreen instead of leaving a
+//! collapsed 96/80 strip; items stay Start (`railExpanded = true`) and
+//! the overlay keeps expanded shape + modal container. `Arrangement.Vertical`
+//! is Top (default), Center (full container height), or Bottom
+//! (remaining space below the header). Optional header (Menu / MenuOpen +
 //! Compose `ExtendedFloatingActionButton(expanded = railExpanded)`)
 //! stays at the top.
 
@@ -59,6 +61,18 @@ pub const FAB_ICON_LABEL_GAP_DP: f32 = 8.0;
 pub const FAB_PAD_EXPANDED_DP: f32 = START_LEADING_DP;
 /// 32% scrim behind the expanded modal rail (same token as dialogs).
 pub const SCRIM_OPACITY: f32 = dialog::SCRIM_OPACITY;
+/// Compose `NavigationRailCollapsedTokens.ContainerShape` /
+/// `WideNavigationRailDefaults.shape` (`CornerNone`).
+pub const SHAPE_DP: f32 = 0.0;
+/// Compose `WideNavigationRailDefaults.modalCollapsedShape` (= `shape`).
+pub const MODAL_COLLAPSED_SHAPE_DP: f32 = SHAPE_DP;
+/// Compose `NavigationRailExpandedTokens.ModalContainerShape` /
+/// `WideNavigationRailDefaults.modalExpandedShape` (`CornerLarge`).
+pub const MODAL_EXPANDED_SHAPE_DP: f32 = 16.0;
+/// Token name for catalog / inventory (`ShapeKeyTokens.CornerLarge`).
+pub const MODAL_EXPANDED_SHAPE_TOKEN: &str = "CornerLarge";
+/// Token name for collapsed / standard (`ShapeKeyTokens.CornerNone`).
+pub const SHAPE_TOKEN: &str = "CornerNone";
 
 pub const DESTINATIONS: [&str; 3] = ["Home", "Search", "Profile"];
 pub const DESTINATION_ICONS: [&str; 3] = ["⌂", "⌕", "☺"];
@@ -496,6 +510,100 @@ pub fn toggle_mode(mode: RailMode) -> RailMode {
         RailMode::Collapsed => RailMode::Expanded,
         RailMode::Expanded => RailMode::Collapsed,
     }
+}
+
+/// Compose `NavigationRailCollapsedTokens.ContainerColor` (Surface).
+pub fn collapsed_container_color(theme: &Theme) -> Argb {
+    theme.color.surface
+}
+
+/// Compose `NavigationRailExpandedTokens.ModalContainerColor` (SurfaceContainer).
+pub fn modal_container_color(theme: &Theme) -> Argb {
+    theme.color.surface_container
+}
+
+/// Standard in-flow stays Surface; modal expanded uses SurfaceContainer.
+pub fn container_color_for(theme: &Theme, layout: RailExpandedLayout, expanded: bool) -> Argb {
+    if layout.uses_scrim() && expanded {
+        modal_container_color(theme)
+    } else {
+        collapsed_container_color(theme)
+    }
+}
+
+/// Modal overlay always paints expanded shape + modal container color.
+pub fn hide_container_color(theme: &Theme) -> Argb {
+    modal_container_color(theme)
+}
+
+/// `WideNavigationRailDefaults.shape` / collapsed modal shape.
+pub fn shape_dp() -> f32 {
+    SHAPE_DP
+}
+
+/// Expanded modal container corners. Standard stays 0.
+pub fn shape_dp_for(layout: RailExpandedLayout, expanded: bool) -> f32 {
+    if layout.uses_scrim() && expanded {
+        MODAL_EXPANDED_SHAPE_DP
+    } else {
+        SHAPE_DP
+    }
+}
+
+/// `hideOnCollapse` overlay uses `modalExpandedShape` even while sliding.
+pub fn hide_shape_dp() -> f32 {
+    MODAL_EXPANDED_SHAPE_DP
+}
+
+/// Compose container color + CornerLarge lerp for a modal expand clock.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailContainerMorph {
+    pub t: f32,
+    pub color: Argb,
+    pub corner_dp: f32,
+}
+
+/// Interpolate collapsed Surface/CornerNone → modal SurfaceContainer/CornerLarge.
+/// Standard layout stays Surface / 0. `t` is linear; easing is spatial-fast.
+pub fn container_morph(theme: &Theme, layout: RailExpandedLayout, t: f32) -> RailContainerMorph {
+    let e = icon_position_eased(theme, t.clamp(0.0, 1.0));
+    if layout.uses_scrim() {
+        RailContainerMorph {
+            t: e,
+            color: collapsed_container_color(theme).lerp(modal_container_color(theme), e),
+            corner_dp: lerp(MODAL_COLLAPSED_SHAPE_DP, MODAL_EXPANDED_SHAPE_DP, e),
+        }
+    } else {
+        RailContainerMorph {
+            t: e,
+            color: collapsed_container_color(theme),
+            corner_dp: SHAPE_DP,
+        }
+    }
+}
+
+pub fn container_morph_for_mode(
+    theme: &Theme,
+    layout: RailExpandedLayout,
+    mode: RailMode,
+) -> RailContainerMorph {
+    container_morph(
+        theme,
+        layout,
+        icon_position_t(matches!(mode, RailMode::Expanded)),
+    )
+}
+
+/// Wide 96/80 + layout-aware container (modal expanded = SurfaceContainer).
+pub fn resolve_layout(
+    theme: &Theme,
+    mode: RailMode,
+    collapsed: RailCollapsedKind,
+    layout: RailExpandedLayout,
+) -> NavRailAppearance {
+    let mut a = resolve_mode_kind(theme, mode, collapsed);
+    a.container = container_color_for(theme, layout, matches!(mode, RailMode::Expanded));
+    a
 }
 
 /// Scrim fill for the expanded modal rail (composited over surface).

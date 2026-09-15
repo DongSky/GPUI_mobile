@@ -809,6 +809,12 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-rail-fab-extend=\"1\""));
     assert!(html.contains("data-rail-fab-label=\"1\""));
     assert!(html.contains("function applyRailFabMorph"));
+    assert!(html.contains("function applyRailContainerMorph"));
+    assert!(html.contains("function hexMix"));
+    assert!(html.contains("data-modal-expanded-shape=\"CornerLarge\""));
+    assert!(html.contains("data-expanded-shape=\"16\""));
+    assert!(html.contains("data-collapsed-shape=\"0\""));
+    assert!(html.contains("data-container-expanded"));
     assert!(html.contains("Expand rail"));
     assert!(html.contains(">Create<"));
     assert!(html.contains("function applyRailHideSlide"));
@@ -1054,6 +1060,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("MenuOpen")
             && e.notes.contains("Extended")
             && e.notes.contains("Create")
+            && e.notes.contains("CornerLarge")
+            && e.notes.contains("SurfaceContainer")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1831,6 +1839,68 @@ fn expressive_wide_rail_icon_position() {
     assert!((fab1.width_dp - 188.0).abs() < 0.01);
     assert!((fab1.label_alpha - 1.0).abs() < 0.01);
     assert!((fab1.margin_start_dp - 16.0).abs() < 0.01);
+    assert_eq!(navigation_rail::SHAPE_DP, 0.0);
+    assert_eq!(navigation_rail::MODAL_COLLAPSED_SHAPE_DP, 0.0);
+    assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, 16.0);
+    assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, theme.shapes.large);
+    assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_TOKEN, "CornerLarge");
+    assert_eq!(navigation_rail::SHAPE_TOKEN, "CornerNone");
+    assert_eq!(
+        navigation_rail::collapsed_container_color(&theme),
+        theme.color.surface
+    );
+    assert_eq!(
+        navigation_rail::modal_container_color(&theme),
+        theme.color.surface_container
+    );
+    assert_eq!(
+        navigation_rail::shape_dp_for(navigation_rail::RailExpandedLayout::Standard, true),
+        0.0
+    );
+    assert_eq!(
+        navigation_rail::shape_dp_for(navigation_rail::RailExpandedLayout::Modal, true),
+        16.0
+    );
+    assert_eq!(
+        navigation_rail::shape_dp_for(navigation_rail::RailExpandedLayout::Modal, false),
+        0.0
+    );
+    assert_eq!(navigation_rail::hide_shape_dp(), 16.0);
+    let std0 = navigation_rail::container_morph(
+        &theme,
+        navigation_rail::RailExpandedLayout::Standard,
+        1.0,
+    );
+    assert_eq!(std0.color, theme.color.surface);
+    assert!((std0.corner_dp).abs() < 0.01);
+    let modal0 =
+        navigation_rail::container_morph(&theme, navigation_rail::RailExpandedLayout::Modal, 0.0);
+    assert_eq!(modal0.color, theme.color.surface);
+    assert!(modal0.corner_dp.abs() < 0.01);
+    let modal1 =
+        navigation_rail::container_morph(&theme, navigation_rail::RailExpandedLayout::Modal, 1.0);
+    assert_eq!(modal1.color, theme.color.surface_container);
+    assert!((modal1.corner_dp - 16.0).abs() < 0.01);
+    assert_eq!(
+        navigation_rail::resolve_layout(
+            &theme,
+            navigation_rail::RailMode::Expanded,
+            navigation_rail::RailCollapsedKind::Wide,
+            navigation_rail::RailExpandedLayout::Modal
+        )
+        .container,
+        theme.color.surface_container
+    );
+    assert_eq!(
+        navigation_rail::resolve_layout(
+            &theme,
+            navigation_rail::RailMode::Expanded,
+            navigation_rail::RailCollapsedKind::Wide,
+            navigation_rail::RailExpandedLayout::Standard
+        )
+        .container,
+        theme.color.surface
+    );
     assert!(navigation_rail::HEADER_DEMO_ARRANGEMENT.is_bottom());
     assert_eq!(
         navigation_rail::HEADER_DEMO_ARRANGEMENT.justify_content(),
