@@ -67,7 +67,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Easing and duration",
         docs: "https://m3.material.io/styles/motion/easing-and-duration/tokens-specs",
         parity: Parity::Done,
-        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; shared FRAME_MS/FRAME_DT vsync clock for GPUI second-hand + carousel fling",
+        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; shared FRAME_MS/FRAME_DT vsync clock for GPUI second-hand + carousel fling + list swipe fling",
     },
     ComponentEntry {
         name: "Button",
@@ -130,7 +130,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Expressive segmented + baseline lists",
         docs: "https://m3.material.io/components/lists/specs",
         parity: Parity::Done,
-        notes: "Expressive segmented (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container; Wi-Fi switches; swipe Archive/Delete 80dp rails; drag-handle reorder. Baseline 56/72/88 0-corner still available",
+        notes: "Expressive segmented (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container; Wi-Fi switches; swipe Archive/Delete 80dp rails + LazyColumn fling (Closed/Open/primary, 16dp overshoot, growing reveal); drag-handle reorder. Baseline 56/72/88 0-corner still available",
     },
     ComponentEntry {
         name: "Checkbox",

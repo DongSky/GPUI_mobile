@@ -1,21 +1,21 @@
 //! Golden tests against androidx Material 3 token values (v0_210 palette / type scale).
 
-use gpui_material::Argb;
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
     divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress,
     radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
     time_picker, toolbar, tooltip, top_app_bar,
 };
-use gpui_material::inventory::{INVENTORY, Parity};
+use gpui_material::inventory::{Parity, INVENTORY};
 use gpui_material::motion;
 use gpui_material::palette;
 use gpui_material::state::{
-    DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY, HOVER_OPACITY,
-    InteractionState, PRESSED_OPACITY,
+    InteractionState, DISABLED_CONTAINER_OPACITY, DISABLED_CONTENT_OPACITY, FOCUS_OPACITY,
+    HOVER_OPACITY, PRESSED_OPACITY,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
+use gpui_material::Argb;
 
 fn hex(c: Argb) -> String {
     c.css_hex()
@@ -380,16 +380,37 @@ fn list_heights_match_m3() {
     assert_eq!(press.top_left, 16.0);
     assert_eq!(list::SWIPE_REVEAL_DP, 80.0);
     assert_eq!(list::SWIPE_THRESHOLD_DP, 56.0);
+    assert_eq!(list::SWIPE_OVERSHOOT_DP, 16.0);
+    assert_eq!(list::SWIPE_PRIMARY_ACTION_DP, 360.0);
+    assert_eq!(list::SWIPE_PRIMARY_THRESHOLD_DP, 180.0);
+    assert_eq!(list::SWIPE_FLING_DECAY, 2.0);
+    assert_eq!(list::SWIPE_FRAME_DT, gpui_material::motion::FRAME_DT);
     assert_eq!(list::SWIPE_HEADLINES[0], "Team sync notes");
     assert_eq!(list::DRAG_HANDLE_DP, 24.0);
+    assert_eq!(list::leading_rail_width_dp(80.0), 80.0);
+    assert_eq!(list::leading_rail_width_dp(200.0), 200.0);
+    assert_eq!(list::trailing_rail_width_dp(-200.0), 200.0);
     let mut swipe = list::ListSwipeState::settled();
     swipe.swipe(80.0);
     assert!(swipe.leading_revealed());
     swipe.settle();
     assert_eq!(swipe.offset_x_dp, 80.0);
+    assert_eq!(swipe.phase, list::SwipePhase::Open);
     let mut back = list::ListSwipeState::settled();
     back.swipe(-80.0);
     assert!(back.trailing_revealed());
+    let mut fling = list::ListSwipeState::settled();
+    fling.impulse(960.0);
+    fling.step_until_rest(list::SWIPE_FRAME_DT, 180);
+    assert!(fling.primary_action());
+    assert_eq!(fling.phase, list::SwipePhase::SwipePrimaryAction);
+    assert_eq!(fling.offset_x_dp, 360.0);
+    let mut open_fling = list::ListSwipeState::settled();
+    open_fling.impulse(160.0);
+    open_fling.step_until_rest(list::SWIPE_FRAME_DT, 180);
+    assert!(open_fling.leading_revealed());
+    assert!(!open_fling.primary_action());
+    assert_eq!(open_fling.phase, list::SwipePhase::Open);
     let mut order = list::REORDER_DEMO;
     list::move_item(&mut order, 0, 2);
     assert_eq!(order, [1, 2, 0]);
@@ -644,6 +665,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Airplane mode"));
     assert!(html.contains("data-hero=\"list-swipe\""));
     assert!(html.contains("data-list-swipe=\"1\""));
+    assert!(html.contains("data-swipe-fling=\"1\""));
+    assert!(html.contains("data-swipe-overshoot=\"16\""));
+    assert!(html.contains("data-swipe-primary-dp=\"360\""));
+    assert!(html.contains("data-swipe-state=\"open\""));
     assert!(html.contains("data-swipe-action=\"archive\""));
     assert!(html.contains("data-swipe-action=\"delete\""));
     assert!(html.contains("Team sync notes"));
@@ -1015,11 +1040,12 @@ fn inventory_covers_claimed_and_followups() {
     assert!(INVENTORY.iter().any(|e| {
         e.name == "List" && e.parity == Parity::Done && e.notes.contains("segmented")
     }));
-    assert!(
-        INVENTORY.iter().any(|e| {
-            e.name == "List" && e.notes.contains("swipe") && e.notes.contains("reorder")
-        })
-    );
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "List"
+            && e.notes.contains("swipe")
+            && e.notes.contains("LazyColumn")
+            && e.notes.contains("reorder")
+    }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Button group"
             && e.notes.contains("Standard")
@@ -1027,11 +1053,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("OverflowIndicator")
             && e.notes.contains("More")
     }));
-    assert!(
-        INVENTORY
-            .iter()
-            .any(|e| { e.name == "Tooltip" && e.notes.contains("long-press") })
-    );
+    assert!(INVENTORY
+        .iter()
+        .any(|e| { e.name == "Tooltip" && e.notes.contains("long-press") }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Icon button"
             && e.notes.contains("narrow")
@@ -1090,21 +1114,15 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("autofocus")
             && e.notes.contains("in-page")
     }));
-    assert!(
-        !INVENTORY
-            .iter()
-            .any(|e| e.notes.contains("intentionally not") || e.notes.contains("skip Expressive"))
-    );
-    assert!(
-        INVENTORY
-            .iter()
-            .any(|e| e.name == "Button" && e.parity == Parity::Done)
-    );
-    assert!(
-        INVENTORY
-            .iter()
-            .any(|e| e.name == "Text field" && e.parity == Parity::Done)
-    );
+    assert!(!INVENTORY
+        .iter()
+        .any(|e| e.notes.contains("intentionally not") || e.notes.contains("skip Expressive")));
+    assert!(INVENTORY
+        .iter()
+        .any(|e| e.name == "Button" && e.parity == Parity::Done));
+    assert!(INVENTORY
+        .iter()
+        .any(|e| e.name == "Text field" && e.parity == Parity::Done));
     for required in [
         "Dialog",
         "Bottom sheet",
@@ -1731,11 +1749,9 @@ fn expressive_wide_rail_icon_position() {
         "Top→Start lerp should pass through interior icon widths, got {:?}",
         samples.map(|m| m.icon_box_w_dp)
     );
-    assert!(
-        samples
-            .iter()
-            .any(|m| m.dest_indicator_alpha > 0.0 && m.dest_indicator_alpha < 1.0)
-    );
+    assert!(samples
+        .iter()
+        .any(|m| m.dest_indicator_alpha > 0.0 && m.dest_indicator_alpha < 1.0));
     assert!((navigation_rail::morph_width_eased(&theme, 0.0) - 96.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_eased(&theme, 1.0) - 220.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_narrow_dp(0.0) - 80.0).abs() < 0.01);
@@ -2132,16 +2148,12 @@ fn date_picker_grid_and_weekday() {
         date_picker::RANGE_DEMO_END,
         today,
     );
-    assert!(
-        range
-            .iter()
-            .any(|(d, k)| *d == 18 && *k == date_picker::DayKind::InRange)
-    );
-    assert!(
-        range
-            .iter()
-            .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected)
-    );
+    assert!(range
+        .iter()
+        .any(|(d, k)| *d == 18 && *k == date_picker::DayKind::InRange));
+    assert!(range
+        .iter()
+        .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected));
 }
 
 #[test]
@@ -2981,11 +2993,9 @@ fn catalog_jpeg_decodes_for_scene_photos() {
     assert!(uri.starts_with("data:image/jpeg;base64,"));
     let mosaic = PhotoKind::Bloom.mosaic(8, 6);
     assert_eq!(mosaic.len(), 48);
-    assert!(
-        PhotoKind::Mugs
-            .css_background()
-            .contains("url('data:image/jpeg")
-    );
+    assert!(PhotoKind::Mugs
+        .css_background()
+        .contains("url('data:image/jpeg"));
     for kind in PhotoKind::ALL {
         assert!(kind.is_licensed_camera(), "{}", kind.label());
         assert!(!kind.credit().license.is_empty());

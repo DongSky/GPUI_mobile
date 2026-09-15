@@ -332,6 +332,7 @@ struct CatalogView {
     standard_selected: usize,
     list_selected: usize,
     list_swipe: list::ListSwipeState,
+    list_swipe_at: Option<Instant>,
     list_order: [usize; 3],
     tooltip_plain_open: bool,
     tooltip_rich_open: bool,
@@ -453,6 +454,23 @@ impl CatalogView {
         }
     }
 
+    fn tick_list_swipe(&mut self, cx: &mut Context<Self>) {
+        if self.list_swipe.resting() {
+            self.list_swipe_at = None;
+            return;
+        }
+        let now = Instant::now();
+        let dt = self
+            .list_swipe_at
+            .map(|t| now.duration_since(t).as_secs_f32())
+            .unwrap_or(list::SWIPE_FRAME_DT);
+        self.list_swipe_at = Some(now);
+        self.list_swipe.step_live(dt);
+        if self.list_swipe.needs_frame() {
+            cx.notify();
+        }
+    }
+
     fn tick_carousel_fling(&mut self, cx: &mut Context<Self>) {
         if self.carousel_fling.resting() {
             self.carousel_fling.selected = self.carousel_index;
@@ -517,6 +535,7 @@ impl CatalogView {
 impl Render for CatalogView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_carousel_fling(cx);
+        self.tick_list_swipe(cx);
         self.tick_snack(cx);
         self.ensure_in_page_typeahead(window, cx);
         let theme = self.theme();
@@ -2904,6 +2923,8 @@ fn android_list_swipe(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let off = this.list_swipe.offset_x_dp;
+    let lead_w = list::leading_rail_width_dp(off);
+    let trail_w = list::trailing_rail_width_dp(off);
     div()
         .w_full()
         .overflow_hidden()
@@ -2917,7 +2938,7 @@ fn android_list_swipe(
                 .flex()
                 .child(
                     div()
-                        .w(px(list::SWIPE_REVEAL_DP))
+                        .w(px(lead_w))
                         .h_full()
                         .bg(paint(list::leading_action_container(theme)))
                         .text_color(paint(list::leading_action_content(theme)))
@@ -2929,7 +2950,7 @@ fn android_list_swipe(
                 .child(div().flex_1())
                 .child(
                     div()
-                        .w(px(list::SWIPE_REVEAL_DP))
+                        .w(px(trail_w))
                         .h_full()
                         .bg(paint(list::trailing_action_container(theme)))
                         .text_color(paint(list::trailing_action_content(theme)))
@@ -2973,8 +2994,8 @@ fn android_list_swipe(
                         ScrollDelta::Pixels(p) => f32::from(p.x),
                         ScrollDelta::Lines(p) => p.x * 16.0,
                     };
-                    this.list_swipe.swipe(dx);
-                    this.list_swipe.settle();
+                    list::apply_wheel(&mut this.list_swipe, dx);
+                    this.list_swipe_at = None;
                     cx.notify();
                 })),
         )
@@ -4582,8 +4603,8 @@ fn android_rail_extended_fab(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
-                let rail_w = navigation_rail::morph_width_eased_kind(&theme_a, collapsed, t)
-                    .min(width_max);
+                let rail_w =
+                    navigation_rail::morph_width_eased_kind(&theme_a, collapsed, t).min(width_max);
                 let morph = navigation_rail::fab_morph_kind(&theme_a, t, rail_w, collapsed);
                 this.w(px(morph.width_dp)).ml(px(morph.margin_start_dp))
             },
@@ -6740,6 +6761,7 @@ fn android_main(app: AndroidApp) {
                 standard_selected: button_group::STANDARD_SELECTED,
                 list_selected: list::SCENE_SELECTED,
                 list_swipe: list::ListSwipeState::revealed(),
+                list_swipe_at: None,
                 list_order: list::REORDER_DEMO,
                 tooltip_plain_open: false,
                 tooltip_rich_open: false,

@@ -79,8 +79,7 @@ pub const LEADING_AVATAR_DP: f32 = 40.0;
 pub const SCENE_COUNT: usize = 3;
 pub const SCENE_SELECTED: usize = 0;
 pub const SCENE_HEADLINES: [&str; SCENE_COUNT] = ["Wi-Fi", "Bluetooth", "Airplane mode"];
-pub const SCENE_SUPPORTING: [&str; SCENE_COUNT] =
-    ["Home network", "Not connected", "Radios off"];
+pub const SCENE_SUPPORTING: [&str; SCENE_COUNT] = ["Home network", "Not connected", "Radios off"];
 pub const SCENE_ICONS: [&str; SCENE_COUNT] = ["⌁", "◉", "✈"];
 pub const SCENE_TRAILING_ON: [bool; SCENE_COUNT] = [true, false, false];
 pub const SCENE_KEYS: [&str; SCENE_COUNT] = ["wifi", "bluetooth", "airplane"];
@@ -89,9 +88,27 @@ pub const SCENE_KEYS: [&str; SCENE_COUNT] = ["wifi", "bluetooth", "airplane"];
 pub const DRAG_HANDLE_DP: f32 = 24.0;
 pub const DRAG_HANDLE_GLYPH: &str = "⋮⋮";
 
-/// Swipe-to-reveal rail (Compose `SwipeToDismissBox` around a list item).
+/// Swipe-to-reveal rail (Compose `SwipeToDismissBox` / MDC `SwipeableListItem`).
+/// Drag + LazyColumn-style inertial fling (`v e^{-kt}`) settles to Closed / Open
+/// (±80) / `STATE_SWIPE_PRIMARY_ACTION` (±row) with overshoot past the anchors.
 pub const SWIPE_THRESHOLD_DP: f32 = 56.0;
 pub const SWIPE_REVEAL_DP: f32 = 80.0;
+/// Catalog / desktop swipe row width (`ListItemLayout` full-swipe distance).
+pub const SWIPE_ROW_WIDTH_DP: f32 = 360.0;
+/// MDC `STATE_SWIPE_PRIMARY_ACTION` — sheet fully off the row.
+pub const SWIPE_PRIMARY_ACTION_DP: f32 = SWIPE_ROW_WIDTH_DP;
+/// Compose `SwipeToDismissBox` default positional threshold (50% of row).
+pub const SWIPE_PRIMARY_THRESHOLD_DP: f32 = SWIPE_PRIMARY_ACTION_DP * 0.5;
+/// MDC `SwipeableListItem.getSwipeMaxOvershoot` analog (dp past Open / Primary).
+pub const SWIPE_OVERSHOOT_DP: f32 = 16.0;
+/// Same exponential decay as `carousel::FLING_DECAY` (LazyColumn analog).
+pub const SWIPE_FLING_DECAY: f32 = 2.0;
+/// Rest when leftover velocity drops below this (dp/s).
+pub const SWIPE_FLING_REST_DP: f32 = 24.0;
+/// Flick this fast (dp/s) to commit the next anchor in that direction.
+pub const SWIPE_FLING_VELOCITY_DP: f32 = 800.0;
+/// Shared vsync step (`motion::FRAME_DT`).
+pub const SWIPE_FRAME_DT: f32 = crate::motion::FRAME_DT;
 pub const SWIPE_COUNT: usize = 3;
 pub const SWIPE_DEMO_INDEX: usize = 0;
 pub const SWIPE_DEMO_OFFSET_DP: f32 = 80.0;
@@ -107,8 +124,7 @@ pub const SWIPE_TRAILING_LABEL: &str = "Delete";
 pub const REORDER_COUNT: usize = 3;
 pub const REORDER_HEADLINES: [&str; REORDER_COUNT] =
     ["Morning briefing", "Design critique", "Ship checklist"];
-pub const REORDER_SUPPORTING: [&str; REORDER_COUNT] =
-    ["Calendar", "Figma file", "Release notes"];
+pub const REORDER_SUPPORTING: [&str; REORDER_COUNT] = ["Calendar", "Figma file", "Release notes"];
 pub const REORDER_KEYS: [&str; REORDER_COUNT] = ["morning", "critique", "ship"];
 pub const REORDER_DEMO: [usize; REORDER_COUNT] = [0, 1, 2];
 
@@ -249,44 +265,161 @@ pub fn resolve_reorder_item(
     )
 }
 
+/// MDC `SwipeableListItem` swipe states (values match the Android constants).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SwipePhase {
+    /// `STATE_DRAGGING` = 1
+    Dragging,
+    /// `STATE_SETTLING` = 2
+    Settling,
+    /// `STATE_CLOSED` = 3
+    Closed,
+    /// `STATE_OPEN` = 4 (revealed to intrinsic rail width)
+    Open,
+    /// `STATE_SWIPE_PRIMARY_ACTION` = 5 (full-width dismiss)
+    SwipePrimaryAction,
+}
+
+impl SwipePhase {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Dragging => "dragging",
+            Self::Settling => "settling",
+            Self::Closed => "closed",
+            Self::Open => "open",
+            Self::SwipePrimaryAction => "primary",
+        }
+    }
+}
+
 /// Horizontal swipe offset for one list row. Positive = start-to-end (Archive).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ListSwipeState {
     pub offset_x_dp: f32,
+    pub velocity_dp_s: f32,
     pub dismissed: bool,
+    pub phase: SwipePhase,
 }
 
 impl ListSwipeState {
     pub fn revealed() -> Self {
         Self {
             offset_x_dp: SWIPE_DEMO_OFFSET_DP,
+            velocity_dp_s: 0.0,
             dismissed: false,
+            phase: SwipePhase::Open,
         }
     }
 
     pub fn settled() -> Self {
         Self {
             offset_x_dp: 0.0,
+            velocity_dp_s: 0.0,
             dismissed: false,
+            phase: SwipePhase::Closed,
         }
+    }
+
+    fn clamp_offset(offset: f32) -> f32 {
+        let max = SWIPE_PRIMARY_ACTION_DP + SWIPE_OVERSHOOT_DP;
+        offset.clamp(-max, max)
     }
 
     pub fn swipe(&mut self, dx_dp: f32) {
         if self.dismissed {
             return;
         }
-        self.offset_x_dp = (self.offset_x_dp + dx_dp).clamp(-SWIPE_REVEAL_DP, SWIPE_REVEAL_DP);
+        self.phase = SwipePhase::Dragging;
+        self.offset_x_dp = Self::clamp_offset(self.offset_x_dp + dx_dp);
+    }
+
+    /// Add leftover velocity (wheel / pointer release). Same units as carousel fling.
+    pub fn impulse(&mut self, dx_dp: f32) {
+        if self.dismissed {
+            return;
+        }
+        self.velocity_dp_s += dx_dp;
+        self.phase = SwipePhase::Settling;
     }
 
     pub fn settle(&mut self) {
         if self.dismissed {
             return;
         }
-        if self.offset_x_dp.abs() >= SWIPE_THRESHOLD_DP {
-            self.offset_x_dp = self.offset_x_dp.signum() * SWIPE_REVEAL_DP;
+        self.velocity_dp_s = 0.0;
+        let x = self.offset_x_dp;
+        if x.abs() >= SWIPE_PRIMARY_THRESHOLD_DP {
+            self.commit_primary(x.signum());
+        } else if x.abs() >= SWIPE_THRESHOLD_DP {
+            self.offset_x_dp = x.signum() * SWIPE_REVEAL_DP;
+            self.phase = SwipePhase::Open;
         } else {
             self.offset_x_dp = 0.0;
+            self.phase = SwipePhase::Closed;
         }
+    }
+
+    fn commit_primary(&mut self, sign: f32) {
+        self.offset_x_dp = sign * SWIPE_PRIMARY_ACTION_DP;
+        self.velocity_dp_s = 0.0;
+        self.dismissed = true;
+        self.phase = SwipePhase::SwipePrimaryAction;
+    }
+
+    /// Integrate one LazyColumn-style frame. Returns the new offset.
+    pub fn step(&mut self, dt_s: f32) -> f32 {
+        if self.dismissed {
+            return self.offset_x_dp;
+        }
+        let dt = dt_s.max(0.0);
+        if self.velocity_dp_s.abs() < SWIPE_FLING_REST_DP {
+            self.velocity_dp_s = 0.0;
+            self.settle();
+            return self.offset_x_dp;
+        }
+        self.phase = SwipePhase::Settling;
+        self.offset_x_dp = Self::clamp_offset(self.offset_x_dp + self.velocity_dp_s * dt);
+        self.velocity_dp_s *= (-SWIPE_FLING_DECAY * dt).exp();
+        if self.velocity_dp_s.abs() >= SWIPE_FLING_VELOCITY_DP
+            && self.offset_x_dp.abs() >= SWIPE_PRIMARY_THRESHOLD_DP
+        {
+            self.commit_primary(self.offset_x_dp.signum());
+            return self.offset_x_dp;
+        }
+        if self.offset_x_dp.abs() >= SWIPE_PRIMARY_ACTION_DP {
+            self.commit_primary(self.offset_x_dp.signum());
+        }
+        self.offset_x_dp
+    }
+
+    pub fn step_live(&mut self, dt_s: f32) -> f32 {
+        self.step(dt_s.clamp(0.0, 0.05).max(0.0))
+    }
+
+    pub fn step_until_rest(&mut self, dt_s: f32, max_frames: usize) -> f32 {
+        for _ in 0..max_frames {
+            if self.resting() {
+                break;
+            }
+            self.step(dt_s);
+        }
+        if !self.resting() {
+            self.settle();
+        }
+        self.offset_x_dp
+    }
+
+    pub fn resting(&self) -> bool {
+        self.dismissed
+            || (self.velocity_dp_s.abs() < SWIPE_FLING_REST_DP
+                && matches!(
+                    self.phase,
+                    SwipePhase::Closed | SwipePhase::Open | SwipePhase::SwipePrimaryAction
+                ))
+    }
+
+    pub fn needs_frame(&self) -> bool {
+        !self.resting()
     }
 
     pub fn leading_revealed(&self) -> bool {
@@ -296,6 +429,29 @@ impl ListSwipeState {
     pub fn trailing_revealed(&self) -> bool {
         self.offset_x_dp <= -SWIPE_THRESHOLD_DP
     }
+
+    pub fn primary_action(&self) -> bool {
+        self.phase == SwipePhase::SwipePrimaryAction || self.dismissed
+    }
+}
+
+/// Wheel / trackpad: add leftover velocity (host ticks `step_live`).
+pub fn apply_wheel(state: &mut ListSwipeState, dx: f32) {
+    state.impulse(dx);
+}
+
+/// Growing `ListItemRevealLayout` rail: 80dp at Open, stretches toward the row
+/// width once the sheet passes the intrinsic reveal (primary-action visual).
+pub fn leading_rail_width_dp(offset_x_dp: f32) -> f32 {
+    if offset_x_dp > SWIPE_REVEAL_DP {
+        offset_x_dp.clamp(SWIPE_REVEAL_DP, SWIPE_PRIMARY_ACTION_DP)
+    } else {
+        SWIPE_REVEAL_DP
+    }
+}
+
+pub fn trailing_rail_width_dp(offset_x_dp: f32) -> f32 {
+    leading_rail_width_dp(-offset_x_dp)
 }
 
 /// Move `from` to `to` in a reorder permutation (drag-handle restack).

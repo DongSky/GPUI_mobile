@@ -1,10 +1,10 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip,
-    date_picker, dialog, divider, fab, fab_menu, icon_button, list, menu, navigation_bar,
-    navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar,
-    split_button, switch, tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
+    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
+    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
+    time_picker, toolbar, tooltip, top_app_bar, Appearance,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -365,7 +365,7 @@ a {{ color: var(--primary); }}
 }}
 .list-swipe .rail {{
   width: 80px; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 500; flex: 0 0 80px;
+  font-size: 12px; font-weight: 500; flex: 0 0 auto;
 }}
 .list-swipe .rail.trail {{ margin-left: auto; }}
 .list-swipe .sheet {{
@@ -1260,31 +1260,107 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
 }});
 document.querySelectorAll("[data-list-swipe]").forEach(function (wrap) {{
   var sheet = wrap.querySelector(".sheet");
-  var max = Number(wrap.getAttribute("data-swipe-reveal") || "80");
+  var lead = wrap.querySelector(".rail.lead");
+  var trail = wrap.querySelector(".rail.trail");
+  var reveal = Number(wrap.getAttribute("data-swipe-reveal") || "80");
   var thresh = Number(wrap.getAttribute("data-swipe-threshold") || "56");
-  var x0 = 0, cur = Number(wrap.getAttribute("data-swipe-offset") || "0"), dragging = false;
-  function setOff(x) {{
+  var primary = Number(wrap.getAttribute("data-swipe-primary-dp") || "360");
+  var overshoot = Number(wrap.getAttribute("data-swipe-overshoot") || "16");
+  var pthresh = Number(wrap.getAttribute("data-swipe-primary-threshold") || "180");
+  var decay = Number(wrap.getAttribute("data-swipe-fling-decay") || "2");
+  var rest = Number(wrap.getAttribute("data-swipe-fling-rest") || "24");
+  var max = primary + overshoot;
+  var x0 = 0, cur = Number(wrap.getAttribute("data-swipe-offset") || "0");
+  var vel = 0, dragging = false, raf = 0, last = 0, lastMove = 0;
+  function snapTarget() {{
+    if (Math.abs(cur) >= pthresh) return cur > 0 ? primary : -primary;
+    if (Math.abs(cur) >= thresh) return cur > 0 ? reveal : -reveal;
+    return 0;
+  }}
+  function snapState(t) {{
+    if (Math.abs(t) >= primary) return "primary";
+    if (Math.abs(t) >= thresh) return "open";
+    return "closed";
+  }}
+  function growRails() {{
+    if (lead) {{
+      var lw = cur > reveal ? Math.min(primary, cur) : reveal;
+      lead.style.width = lw + "px";
+      lead.style.flexBasis = lw + "px";
+    }}
+    if (trail) {{
+      var tw = cur < -reveal ? Math.min(primary, -cur) : reveal;
+      trail.style.width = tw + "px";
+      trail.style.flexBasis = tw + "px";
+    }}
+  }}
+  function setOff(x, state) {{
     cur = Math.max(-max, Math.min(max, x));
     if (sheet) sheet.style.transform = "translateX(" + cur + "px)";
     wrap.setAttribute("data-swipe-offset", String(cur));
     wrap.setAttribute("data-swipe-leading", cur >= thresh ? "1" : "0");
     wrap.setAttribute("data-swipe-trailing", cur <= -thresh ? "1" : "0");
+    wrap.setAttribute("data-swipe-dismissed", Math.abs(cur) >= primary ? "1" : "0");
+    growRails();
+    if (state) wrap.setAttribute("data-swipe-state", state);
+  }}
+  function loop(now) {{
+    if (last) {{
+      var dt = Math.min(0.05, (now - last) / 1000);
+      cur += vel * dt;
+      vel *= Math.exp(-decay * dt);
+      if (Math.abs(cur) >= primary) {{
+        vel = 0;
+        setOff(cur > 0 ? primary : -primary, "primary");
+        raf = 0; last = 0;
+        return;
+      }}
+      if (Math.abs(vel) < rest) {{
+        vel = 0;
+        var t = snapTarget();
+        setOff(t, snapState(t));
+        raf = 0; last = 0;
+        return;
+      }}
+      setOff(cur, "settling");
+    }}
+    last = now;
+    raf = requestAnimationFrame(loop);
+  }}
+  function startFling() {{
+    if (!raf) raf = requestAnimationFrame(loop);
   }}
   wrap.addEventListener("pointerdown", function (ev) {{
-    dragging = true; x0 = ev.clientX; wrap.setPointerCapture(ev.pointerId);
+    dragging = true; vel = 0; x0 = ev.clientX; lastMove = ev.timeStamp;
+    if (raf) {{ cancelAnimationFrame(raf); raf = 0; last = 0; }}
+    wrap.setPointerCapture(ev.pointerId);
+    wrap.setAttribute("data-swipe-state", "dragging");
   }});
   wrap.addEventListener("pointermove", function (ev) {{
     if (!dragging) return;
-    setOff(cur + (ev.clientX - x0));
+    var dx = ev.clientX - x0;
+    var dt = Math.max(0.001, (ev.timeStamp - lastMove) / 1000);
+    vel = dx / dt;
+    lastMove = ev.timeStamp;
     x0 = ev.clientX;
+    setOff(cur + dx, "dragging");
   }});
   function end() {{
     if (!dragging) return;
     dragging = false;
-    if (Math.abs(cur) >= thresh) setOff(cur > 0 ? max : -max); else setOff(0);
+    wrap.setAttribute("data-swipe-state", "settling");
+    startFling();
   }}
   wrap.addEventListener("pointerup", end);
   wrap.addEventListener("pointercancel", end);
+  wrap.addEventListener("wheel", function (ev) {{
+    var dx = ev.deltaX;
+    if (Math.abs(dx) < 0.5) return;
+    ev.preventDefault();
+    vel += dx;
+    wrap.setAttribute("data-swipe-state", "settling");
+    startFling();
+  }}, {{ passive: false }});
   setOff(cur);
 }});
 document.querySelectorAll("[data-list-reorder]").forEach(function (group) {{
@@ -3545,7 +3621,7 @@ fn selection(theme: &Theme) -> String {
 
 fn lists(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Lists</h2><p class=\"note\">Expressive segmented lists (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container. Swipe Archive/Delete rails; drag-handle reorder. Baseline 56/72/88 still available. <a href=\"https://m3.material.io/components/lists/specs\">spec</a></p>",
+        "<h2>Lists</h2><p class=\"note\">Expressive segmented lists (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container. Swipe Archive/Delete rails with LazyColumn fling (Closed / Open / primary action, 16dp overshoot, growing reveal). Drag-handle reorder. Baseline 56/72/88 still available. <a href=\"https://m3.material.io/components/lists/specs\">spec</a></p>",
     );
     out.push_str(&format!(
         r#"<div class="list-group" data-hero="list" data-list-style="segmented" data-list-gap="{gap}">"#,
@@ -3676,7 +3752,7 @@ fn paint_list_swipe(theme: &Theme) -> String {
         ));
     }
     format!(
-        r#"<div class="list-swipe" data-hero="list-swipe" data-list-swipe="1" data-swipe-reveal="{reveal}" data-swipe-threshold="{thresh}" data-swipe-offset="{off}" data-swipe-leading="1">
+        r#"<div class="list-swipe" data-hero="list-swipe" data-list-swipe="1" data-swipe-fling="1" data-swipe-reveal="{reveal}" data-swipe-threshold="{thresh}" data-swipe-offset="{off}" data-swipe-overshoot="{over}" data-swipe-primary-dp="{primary}" data-swipe-primary-threshold="{pthresh}" data-swipe-fling-decay="{decay}" data-swipe-fling-rest="{rest}" data-swipe-state="open" data-swipe-leading="1">
   <div class="rails">
     <div class="rail lead" data-swipe-action="archive" style="background:{lbg};color:{lfg}">{archive}</div>
     <div class="rail trail" data-swipe-action="delete" style="background:{tbg};color:{tfg}">{delete}</div>
@@ -3686,6 +3762,11 @@ fn paint_list_swipe(theme: &Theme) -> String {
         reveal = list::SWIPE_REVEAL_DP,
         thresh = list::SWIPE_THRESHOLD_DP,
         off = list::SWIPE_DEMO_OFFSET_DP,
+        over = list::SWIPE_OVERSHOOT_DP,
+        primary = list::SWIPE_PRIMARY_ACTION_DP,
+        pthresh = list::SWIPE_PRIMARY_THRESHOLD_DP,
+        decay = list::SWIPE_FLING_DECAY,
+        rest = list::SWIPE_FLING_REST_DP,
         lbg = lead_bg,
         lfg = lead_fg,
         archive = list::SWIPE_LEADING_LABEL,

@@ -4,7 +4,7 @@
 //! Hosts without a GPUI animation clock can still evaluate the same curves
 //! (`emphasized_at`, `lerp`) and reuse the CSS strings in catalogs.
 //! Shared vsync tokens (`FRAME_MS` / `FRAME_DT`) drive the time-picker second
-//! hand and carousel fling integrator.
+//! hand, carousel fling integrator, and list swipe LazyColumn fling.
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MotionTokens {
@@ -106,7 +106,7 @@ impl MotionTokens {
 
 /// GPUI / HTML rAF period for live clocks (second hand, carousel fling).
 pub const FRAME_MS: u16 = 16;
-/// 60 Hz integrator step used by `carousel::FlingState`.
+/// 60 Hz integrator step used by `carousel::FlingState` and list swipe fling.
 pub const FRAME_HZ: u16 = 60;
 pub const FRAME_DT: f32 = 1.0 / FRAME_HZ as f32;
 
