@@ -351,6 +351,7 @@ struct CatalogView {
     rail_mode: navigation_rail::RailMode,
     wide_rail_mode: navigation_rail::RailMode,
     narrow_rail_mode: navigation_rail::RailMode,
+    hide_rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -1057,6 +1058,7 @@ fn catalog_body(
         .child(android_wide_rail_in_flow(this, theme, cx))
         .child(android_nav_rail(this, theme, cx))
         .child(android_narrow_rail(this, theme, cx))
+        .child(android_hide_rail(this, theme, cx))
         .child(section_title(theme, "Navigation bar"))
         .child(android_nav_bars(theme))
         .child(section_title(theme, "Tooltip"))
@@ -4402,6 +4404,187 @@ fn android_narrow_rail(
         )
 }
 
+fn android_hide_rail(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let expanded = this.hide_rail_mode == navigation_rail::RailMode::Expanded;
+    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let scrim_c = paint(navigation_rail::scrim(theme));
+    let body_fg = paint(theme.color.on_surface);
+    let theme_anim = *theme;
+    let width_max = 200.0;
+    let width_dp = navigation_rail::EXPANDED_WIDTH_DP.min(width_max);
+    div()
+        .id("wide-rail-hide")
+        .relative()
+        .w_full()
+        .min_h(px(240.))
+        .overflow_hidden()
+        .child(
+            div()
+                .id("hide-rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        this.hide_rail_mode = navigation_rail::RailMode::Collapsed;
+                        cx.notify();
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "android-hide-rail-scrim-in"
+                    } else {
+                        "android-hide-rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(t)
+                    },
+                ),
+        )
+        .child(
+            div()
+                .id("wide-rail-hide-body")
+                .flex()
+                .flex_row()
+                .items_start()
+                .child(
+                    div()
+                        .id("hide-rail-menu")
+                        .w(px(navigation_rail::FAB_SLOT_DP))
+                        .h(px(navigation_rail::FAB_SLOT_DP))
+                        .ml(px(16.))
+                        .rounded(px(16.))
+                        .bg(paint(rail.fab))
+                        .text_color(paint(rail.fab_icon))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(navigation_rail::HIDE_MENU_GLYPH)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .id("wide-rail-hide-inbox")
+                        .flex_1()
+                        .p(px(16.))
+                        .text_color(body_fg)
+                        .child(navigation_rail::IN_FLOW_BODY),
+                ),
+        )
+        .child(
+            div()
+                .id("hide-rail-window")
+                .absolute()
+                .top(px(0.))
+                .h_full()
+                .w(px(width_dp))
+                .when(expanded, |el| el.shadow_lg())
+                .with_animation(
+                    if expanded {
+                        "android-hide-rail-slide-in"
+                    } else {
+                        "android-hide-rail-slide-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.left(px(navigation_rail::hide_slide_offset_for(
+                            width_dp,
+                            navigation_rail::icon_position_eased(&theme_anim, t),
+                        )))
+                    },
+                )
+                .child(android_hide_rail_column(
+                    this, theme, expanded, width_dp, cx,
+                )),
+        )
+}
+
+fn android_hide_rail_column(
+    this: &CatalogView,
+    theme: &Theme,
+    expanded: bool,
+    width_dp: f32,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let selected = this.rail_selected;
+    let arrangement = navigation_rail::HIDE_DEMO_ARRANGEMENT;
+    div()
+        .id("hide-rail")
+        .relative()
+        .w(px(width_dp))
+        .h_full()
+        .overflow_hidden()
+        .bg(paint(rail.container))
+        .flex()
+        .flex_col()
+        .items_stretch()
+        .child(
+            div()
+                .id("hide-rail-fab")
+                .w(px(navigation_rail::FAB_SLOT_DP))
+                .h(px(navigation_rail::FAB_SLOT_DP))
+                .rounded(px(16.))
+                .bg(paint(rail.fab))
+                .text_color(paint(rail.fab_icon))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("←")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .id("hide-rail-dests")
+                .when(arrangement.is_center(), |el| {
+                    el.absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .size_full()
+                        .flex()
+                        .flex_col()
+                        .justify_center()
+                        .items_stretch()
+                        .gap(px(navigation_rail::DEST_GAP_DP))
+                })
+                .when(!arrangement.is_center(), |el| {
+                    el.flex()
+                        .flex_col()
+                        .items_stretch()
+                        .gap(px(navigation_rail::DEST_GAP_DP))
+                })
+                .children(android_rail_dest_views(
+                    theme,
+                    &rail,
+                    width_dp,
+                    navigation_rail::IconPosition::Start,
+                    selected,
+                    false,
+                    expanded,
+                    width_dp,
+                    "hide-rail",
+                    navigation_rail::RailCollapsedKind::Wide,
+                    cx,
+                )),
+        )
+}
+
 fn android_rail_indicator_bg(
     rail: &navigation_rail::NavRailAppearance,
     active: bool,
@@ -6254,6 +6437,7 @@ fn android_main(app: AndroidApp) {
                 rail_mode: navigation_rail::DEMO_MODE,
                 wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
                 narrow_rail_mode: navigation_rail::NARROW_DEMO_MODE,
+                hide_rail_mode: navigation_rail::HIDE_DEMO_MODE,
                 carousel_index: carousel::DEMO_INDEX,
                 carousel_layout: carousel::CarouselLayout::Hero,
                 carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),

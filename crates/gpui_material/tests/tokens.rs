@@ -793,8 +793,14 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"wide-rail\""));
     assert!(html.contains("data-hero=\"wide-rail-inflow\""));
     assert!(html.contains("data-hero=\"wide-rail-narrow\""));
+    assert!(html.contains("data-hero=\"wide-rail-hide\""));
     assert!(html.contains("data-rail-layout=\"standard\""));
     assert!(html.contains("data-rail-layout=\"narrow\""));
+    assert!(html.contains("data-rail-layout=\"hide\""));
+    assert!(html.contains("data-hide-on-collapse=\"1\""));
+    assert!(html.contains("data-rail-arrangement=\"center\""));
+    assert!(html.contains("function applyRailHideSlide"));
+    assert!(html.contains("data-rail-menu=\"1\""));
     assert!(html.contains("data-narrow=\"1\""));
     assert!(html.contains("data-collapsed-width=\"80\""));
     assert!(html.contains("data-rail-inflow-body=\"1\""));
@@ -1030,6 +1036,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("96")
             && e.notes.contains("narrow")
             && e.notes.contains("80")
+            && e.notes.contains("hideOnCollapse")
+            && e.notes.contains("Arrangement.Center")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1757,6 +1765,42 @@ fn expressive_wide_rail_icon_position() {
             < 0.01
     );
     assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
+    assert_eq!(navigation_rail::HIDE_COLLAPSED_WIDTH_DP, 0.0);
+    assert!(navigation_rail::HIDE_DEMO_HIDE_ON_COLLAPSE);
+    assert!(navigation_rail::hide_on_collapse_for(
+        navigation_rail::RailExpandedLayout::Modal,
+        true
+    ));
+    assert!(!navigation_rail::hide_on_collapse_for(
+        navigation_rail::RailExpandedLayout::Standard,
+        true
+    ));
+    assert!(!navigation_rail::collapsed_visible(true));
+    assert!(navigation_rail::collapsed_visible(false));
+    assert_eq!(
+        navigation_rail::icon_position_for_hide(false, true),
+        navigation_rail::IconPosition::Start
+    );
+    assert_eq!(
+        navigation_rail::icon_position_for_hide(false, false),
+        navigation_rail::IconPosition::Top
+    );
+    assert!((navigation_rail::hide_slide_offset_dp(0.0) + 220.0).abs() < 0.01);
+    assert!(navigation_rail::hide_slide_offset_dp(1.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_hide_dp(0.0)).abs() < 0.01);
+    assert!((navigation_rail::morph_width_hide_dp(1.0) - 220.0).abs() < 0.01);
+    assert_eq!(navigation_rail::RailArrangement::Top.label(), "top");
+    assert_eq!(navigation_rail::RailArrangement::Center.label(), "center");
+    assert_eq!(
+        navigation_rail::DEFAULT_ARRANGEMENT,
+        navigation_rail::RailArrangement::Top
+    );
+    assert!(navigation_rail::HIDE_DEMO_ARRANGEMENT.is_center());
+    assert_eq!(
+        navigation_rail::HIDE_DEMO_ARRANGEMENT.justify_content(),
+        "center"
+    );
+    assert_eq!(navigation_rail::HIDE_MENU_LABEL, "Menu");
     assert_eq!(
         navigation_rail::WIDE_DEMO_MODE,
         navigation_rail::RailMode::Collapsed

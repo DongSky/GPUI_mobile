@@ -8,7 +8,10 @@
 //! **standard** (in-flow, 96↔220, no scrim, elevation 0) or **modal**
 //! (overlay 96↔220 over a 32% scrim, elevation 2). Compose
 //! `iconPosition` follows `railExpanded` with a spatial-fast layout
-//! animation ([`item_morph`]).
+//! animation ([`item_morph`]). Modal `hideOnCollapse` slides the rail
+//! offscreen instead of leaving a collapsed 96/80 strip; items stay
+//! Start (`railExpanded = true`). `Arrangement.Vertical` is Top
+//! (default) or Center (full container height).
 
 use super::dialog;
 use crate::argb::Argb;
@@ -154,6 +157,102 @@ impl RailCollapsedKind {
 
 pub const WIDE_DEMO_KIND: RailCollapsedKind = RailCollapsedKind::Wide;
 pub const NARROW_DEMO_KIND: RailCollapsedKind = RailCollapsedKind::Narrow;
+
+/// Compose `ModalWideNavigationRail.hideOnCollapse` — slide offscreen
+/// when collapsed instead of staying as a collapsed wide rail.
+pub const HIDE_ON_COLLAPSE_DEFAULT: bool = false;
+/// Offscreen collapsed width when `hideOnCollapse` is true.
+pub const HIDE_COLLAPSED_WIDTH_DP: f32 = 0.0;
+/// Scaffold menu that expands a hidden modal rail.
+pub const HIDE_MENU_GLYPH: &str = "☰";
+pub const HIDE_MENU_LABEL: &str = "Menu";
+
+/// Live dismissible modal (`hideOnCollapse = true`).
+pub const HIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
+pub const HIDE_DEMO_MODE: RailMode = RailMode::Collapsed;
+pub const HIDE_DEMO_HIDE_ON_COLLAPSE: bool = true;
+pub const HIDE_DEMO_ARRANGEMENT: RailArrangement = RailArrangement::Center;
+
+/// Compose `Arrangement.Vertical` / `WideNavigationRailDefaults.arrangement`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RailArrangement {
+    /// Default. Header stays at the top; items pack below it.
+    Top,
+    /// Items are centered in the full container height; header stays top.
+    Center,
+}
+
+impl RailArrangement {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Center => "center",
+        }
+    }
+
+    pub const fn justify_content(self) -> &'static str {
+        match self {
+            Self::Top => "flex-start",
+            Self::Center => "center",
+        }
+    }
+
+    pub const fn is_center(self) -> bool {
+        matches!(self, Self::Center)
+    }
+}
+
+/// Compose `WideNavigationRailDefaults.arrangement` = `Arrangement.Top`.
+pub const DEFAULT_ARRANGEMENT: RailArrangement = RailArrangement::Top;
+
+pub fn hide_on_collapse_for(layout: RailExpandedLayout, hide: bool) -> bool {
+    hide && layout == RailExpandedLayout::Modal
+}
+
+/// Collapsed rail stays on screen unless `hideOnCollapse`.
+pub fn collapsed_visible(hide_on_collapse: bool) -> bool {
+    !hide_on_collapse
+}
+
+/// Compose sample sets `railExpanded = true` for hide-on-collapse items.
+pub fn icon_position_for_hide(expanded: bool, hide_on_collapse: bool) -> IconPosition {
+    if hide_on_collapse {
+        IconPosition::Start
+    } else {
+        icon_position_for(expanded)
+    }
+}
+
+pub fn icon_position_for_hide_mode(mode: RailMode, hide_on_collapse: bool) -> IconPosition {
+    icon_position_for_hide(matches!(mode, RailMode::Expanded), hide_on_collapse)
+}
+
+/// Width 0↔220 when the modal rail hides on collapse.
+pub fn morph_width_hide_dp(t: f32) -> f32 {
+    morph_width_between(HIDE_COLLAPSED_WIDTH_DP, EXPANDED_WIDTH_DP, t)
+}
+
+/// `translateX`: −width when hidden, 0 when shown.
+pub fn hide_slide_offset_for(width_dp: f32, t: f32) -> f32 {
+    -width_dp * (1.0 - t.clamp(0.0, 1.0))
+}
+
+/// `translateX`: −220 when hidden, 0 when shown.
+pub fn hide_slide_offset_dp(t: f32) -> f32 {
+    hide_slide_offset_for(EXPANDED_WIDTH_DP, t)
+}
+
+pub fn hide_slide_offset_eased(theme: &Theme, t: f32) -> f32 {
+    hide_slide_offset_dp(icon_position_eased(theme, t))
+}
+
+pub fn morph_width_eased_hide(theme: &Theme, t: f32) -> f32 {
+    morph_width_between(
+        HIDE_COLLAPSED_WIDTH_DP,
+        EXPANDED_WIDTH_DP,
+        icon_position_eased(theme, t),
+    )
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavRailAppearance {

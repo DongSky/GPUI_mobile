@@ -607,6 +607,41 @@ a {{ color: var(--primary); }}
 .rail-stage.is-modal .rail-scrim, .rail-scrim[data-visible="1"] {{
   opacity: 1; pointer-events: auto;
 }}
+.rail-stage.is-hide {{
+  position: relative; overflow: hidden; min-height: 280px;
+  display: flex; flex-direction: row; align-items: stretch;
+}}
+.rail-stage.is-hide .rail-inflow-body {{
+  flex: 1 1 auto; min-width: 0; padding: 16px; font-size: 14px; line-height: 20px;
+}}
+.rail-menu {{
+  width: 56px; height: 56px; border-radius: 16px; border: 0; margin: 16px 0 0 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  cursor: pointer; flex: 0 0 auto; z-index: 1;
+}}
+.nav-rail[data-hide-on-collapse="1"] {{
+  width: 220px; align-items: stretch;
+  transform: translateX(-100%);
+  transition: transform 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.nav-rail[data-hide-on-collapse="1"][data-nav-rail-expanded="1"],
+.nav-rail[data-hide-on-collapse="1"].expanded {{
+  transform: translateX(0);
+}}
+.nav-rail[data-hide-sliding="1"] {{ transition: none; }}
+.nav-rail .rail-dests {{
+  display: flex; flex-direction: column; align-items: inherit; gap: 12px;
+}}
+.nav-rail[data-rail-arrangement="center"] {{
+  position: relative;
+}}
+.nav-rail[data-rail-arrangement="center"] .fab-slot {{
+  position: relative; z-index: 1;
+}}
+.nav-rail[data-rail-arrangement="center"] .rail-dests {{
+  position: absolute; inset: 0;
+  justify-content: center; align-items: stretch;
+}}
 .carousel {{ display: flex; gap: 8px; overflow: hidden; max-width: 720px; }}
 .carousel .tile {{
   height: 168px; border-radius: 28px; display: flex; align-items: flex-end;
@@ -1711,7 +1746,17 @@ function hexRgba(hex, a) {{
   if (isNaN(n)) return "transparent";
   return "rgba(" + ((n >> 16) & 255) + ", " + ((n >> 8) & 255) + ", " + (n & 255) + ", " + a + ")";
 }}
+function applyRailHideSlide(rail, t) {{
+  var e = spatialFastAt(t);
+  var expanded = Number(rail.getAttribute("data-expanded-width") || {rail_expanded});
+  rail.style.width = expanded + "px";
+  rail.style.transform = "translateX(" + (-expanded * (1 - e)) + "px)";
+}}
 function applyRailIconMorph(rail, t) {{
+  if (rail.getAttribute("data-hide-on-collapse") === "1") {{
+    applyRailHideSlide(rail, t);
+    return;
+  }}
   var e = spatialFastAt(t);
   var collapsed = Number(rail.getAttribute("data-collapsed-width") || {rail_collapsed});
   var expanded = {rail_expanded};
@@ -1753,6 +1798,13 @@ function applyRailIconMorph(rail, t) {{
   }});
 }}
 function clearRailIconMorph(rail) {{
+  if (rail.getAttribute("data-hide-on-collapse") === "1") {{
+    var expanded = Number(rail.getAttribute("data-expanded-width") || {rail_expanded});
+    var shown = rail.getAttribute("data-nav-rail-expanded") === "1";
+    rail.style.width = expanded + "px";
+    rail.style.transform = shown ? "translateX(0)" : "translateX(-100%)";
+    return;
+  }}
   rail.style.width = "";
   rail.querySelectorAll(".dest").forEach(function (dest) {{
     ["--dest-w","--dest-h","--dest-ml","--dest-r","--dest-bg","--icon-left","--icon-top","--icon-w","--icon-h","--icon-bg","--lbl-left","--lbl-top","--lbl-w","--lbl-size","--lbl-line","--lbl-align"].forEach(function (k) {{
@@ -1779,8 +1831,10 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       var ms = Number(rail.getAttribute("data-icon-morph-ms") || "{morph_ms}");
       var from = exp ? 0 : 1;
       var to = exp ? 1 : 0;
-      rail.setAttribute("data-icon-morphing", "1");
-      rail.setAttribute("data-icon-morph", "1");
+      var hide = rail.getAttribute("data-hide-on-collapse") === "1";
+      if (hide) rail.setAttribute("data-hide-sliding", "1");
+      rail.setAttribute("data-icon-morphing", hide ? "0" : "1");
+      rail.setAttribute("data-icon-morph", hide ? "0" : "1");
       var t0 = performance.now();
       function tick(now) {{
         var p = Math.min(1, (now - t0) / ms);
@@ -1793,15 +1847,16 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         rail.classList.toggle("expanded", exp);
         rail.setAttribute("data-nav-rail-expanded", exp ? "1" : "0");
         rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
-        rail.setAttribute("data-icon-position", exp ? "start" : "top");
+        rail.setAttribute("data-icon-position", hide || exp ? "start" : "top");
         rail.removeAttribute("data-icon-morphing");
+        rail.removeAttribute("data-hide-sliding");
         clearRailIconMorph(rail);
         var layout = rail.getAttribute("data-rail-layout") || "modal";
-        rail.setAttribute("data-wide-collapsed", !exp && layout !== "narrow" ? "1" : "0");
+        rail.setAttribute("data-wide-collapsed", !hide && !exp && layout !== "narrow" ? "1" : "0");
         if (layout === "narrow") {{
           rail.setAttribute("data-narrow", "1");
         }}
-        if (fab) fab.textContent = exp ? "←" : "+";
+        if (fab) fab.textContent = hide || exp ? "←" : "+";
         var stage = rail.closest(".rail-stage");
         if (stage && layout === "standard") {{
           stage.classList.remove("is-modal");
@@ -1818,6 +1873,15 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       rail._iconMorphRaf = requestAnimationFrame(tick);
     }});
   }}
+}});
+document.querySelectorAll("[data-rail-menu]").forEach(function (btn) {{
+  btn.style.cursor = "pointer";
+  btn.addEventListener("click", function () {{
+    var stage = btn.closest(".rail-stage");
+    var rail = stage && stage.querySelector("[data-hide-on-collapse]");
+    var fab = rail && rail.querySelector("[data-rail-fab]");
+    if (fab) fab.click();
+  }});
 }});
 document.querySelectorAll("[data-fab-menu]").forEach(function (menu) {{
   var btn = menu.querySelector("[data-fab-close]");
@@ -3835,7 +3899,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220 (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast). <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -3854,6 +3918,14 @@ fn chrome(theme: &Theme) -> String {
   <div class="rail-scrim" data-rail-scrim="1" data-visible="0" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
   <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="narrow" data-narrow="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{nw}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{nw}px">{inflow_fab}{top_dests}</div>
+  </div>
+</div>
+<div class="rail-stage is-hide" data-hero="wide-rail-hide" data-rail-layout="hide" data-hide-on-collapse="1">
+  <div class="rail-scrim" data-rail-scrim="1" data-visible="0" style="background:{scrim}"></div>
+  <button type="button" class="rail-menu" data-rail-menu="1" data-rail-menu-label="{hide_menu_label}" style="background:{fab_bg};color:{fab_fg}">{hide_menu}</button>
+  <div class="rail-inflow-body" data-rail-inflow-body="1" data-hide-body="1">{inflow_body}</div>
+  <div class="rail-window" data-rail-window="0" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="hide" data-hide-on-collapse="1" data-nav-rail-expanded="0" data-icon-position="start" data-icon-morph="0" data-icon-morph-ms="{morph_ms}" data-collapsed-width="0" data-expanded-width="{ew}" data-rail-mode="collapsed" data-rail-arrangement="{arr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ew}px;transform:translateX(-100%)">{hide_fab}<div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{arr}">{start_dests}</div></div>
   </div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -3892,6 +3964,16 @@ fn chrome(theme: &Theme) -> String {
         fab = fab,
         inflow_fab = inflow_fab,
         inflow_body = navigation_rail::IN_FLOW_BODY,
+        hide_menu = navigation_rail::HIDE_MENU_GLYPH,
+        hide_menu_label = navigation_rail::HIDE_MENU_LABEL,
+        hide_fab = format!(
+            r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">←</div>"#,
+            bg = rail.fab.css_hex(),
+            fg = rail.fab_icon.css_hex(),
+        ),
+        fab_bg = rail.fab.css_hex(),
+        fab_fg = rail.fab_icon.css_hex(),
+        arr = navigation_rail::HIDE_DEMO_ARRANGEMENT.label(),
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,
         morph_ms = navigation_rail::morph_ms(theme),

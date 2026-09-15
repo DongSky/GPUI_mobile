@@ -376,6 +376,7 @@ struct CatalogView {
     rail_mode: navigation_rail::RailMode,
     wide_rail_mode: navigation_rail::RailMode,
     narrow_rail_mode: navigation_rail::RailMode,
+    hide_rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -886,6 +887,7 @@ fn catalog_body(
         .child(wide_rail_in_flow_hero(this, theme, cx))
         .child(nav_rail_hero(this, theme, cx))
         .child(narrow_rail_hero(this, theme, cx))
+        .child(hide_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
             div()
@@ -5217,6 +5219,186 @@ fn narrow_rail_hero(
         )
 }
 
+fn hide_rail_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let expanded = this.hide_rail_mode == navigation_rail::RailMode::Expanded;
+    let scrim_c = paint(navigation_rail::scrim(theme));
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let body_fg = paint(theme.color.on_surface);
+    let theme_anim = *theme;
+    let width_dp = navigation_rail::EXPANDED_WIDTH_DP;
+    div()
+        .id("wide-rail-hide")
+        .relative()
+        .w_full()
+        .min_h(px(280.))
+        .overflow_hidden()
+        .child(
+            div()
+                .id("hide-rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        this.hide_rail_mode = navigation_rail::RailMode::Collapsed;
+                        cx.notify();
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "hide-rail-scrim-in"
+                    } else {
+                        "hide-rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(
+                            navigation_rail::scrim_opacity_for(
+                                navigation_rail::HIDE_DEMO_LAYOUT,
+                                t,
+                            ) / navigation_rail::SCRIM_OPACITY,
+                        )
+                    },
+                ),
+        )
+        .child(
+            div()
+                .id("wide-rail-hide-body")
+                .flex()
+                .flex_row()
+                .items_start()
+                .child(
+                    div()
+                        .id("hide-rail-menu")
+                        .w(px(navigation_rail::FAB_SLOT_DP))
+                        .h(px(navigation_rail::FAB_SLOT_DP))
+                        .ml(px(16.))
+                        .rounded(px(16.))
+                        .bg(paint(rail.fab))
+                        .text_color(paint(rail.fab_icon))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(navigation_rail::HIDE_MENU_GLYPH)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .id("wide-rail-hide-inbox")
+                        .flex_1()
+                        .p(px(16.))
+                        .text_color(body_fg)
+                        .child(navigation_rail::IN_FLOW_BODY),
+                ),
+        )
+        .child(
+            div()
+                .id("hide-rail-window")
+                .absolute()
+                .top(px(0.))
+                .h_full()
+                .w(px(width_dp))
+                .when(expanded, |el| el.shadow_lg())
+                .with_animation(
+                    if expanded {
+                        "hide-rail-slide-in"
+                    } else {
+                        "hide-rail-slide-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.left(px(navigation_rail::hide_slide_offset_eased(&theme_anim, t)))
+                    },
+                )
+                .child(hide_rail_column(this, theme, expanded, cx)),
+        )
+}
+
+fn hide_rail_column(
+    this: &CatalogView,
+    theme: &Theme,
+    expanded: bool,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let rail = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let selected = this.rail_selected;
+    let width_dp = rail.width_dp;
+    let arrangement = navigation_rail::HIDE_DEMO_ARRANGEMENT;
+    div()
+        .id("hide-rail")
+        .relative()
+        .w(px(width_dp))
+        .h_full()
+        .overflow_hidden()
+        .pt(px(navigation_rail::PAD_TOP_DP))
+        .bg(paint(rail.container))
+        .flex()
+        .flex_col()
+        .items_stretch()
+        .child(
+            div()
+                .id("hide-rail-fab")
+                .w(px(navigation_rail::FAB_SLOT_DP))
+                .h(px(navigation_rail::FAB_SLOT_DP))
+                .rounded(px(16.))
+                .bg(paint(rail.fab))
+                .text_color(paint(rail.fab_icon))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("←")
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .id("hide-rail-dests")
+                .when(arrangement.is_center(), |el| {
+                    el.absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .size_full()
+                        .flex()
+                        .flex_col()
+                        .justify_center()
+                        .items_stretch()
+                        .gap(px(navigation_rail::DEST_GAP_DP))
+                })
+                .when(!arrangement.is_center(), |el| {
+                    el.flex()
+                        .flex_col()
+                        .items_stretch()
+                        .gap(px(navigation_rail::DEST_GAP_DP))
+                })
+                .children(nav_rail_dest_views(
+                    theme,
+                    &rail,
+                    width_dp,
+                    navigation_rail::IconPosition::Start,
+                    selected,
+                    false,
+                    expanded,
+                    "hide-rail",
+                    navigation_rail::RailCollapsedKind::Wide,
+                    cx,
+                )),
+        )
+}
+
 fn nav_rail_column(
     this: &CatalogView,
     theme: &Theme,
@@ -6211,6 +6393,7 @@ fn main() {
                     rail_mode: navigation_rail::DEMO_MODE,
                     wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
                     narrow_rail_mode: navigation_rail::NARROW_DEMO_MODE,
+                    hide_rail_mode: navigation_rail::HIDE_DEMO_MODE,
                     carousel_index: carousel::DEMO_INDEX,
                     carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
@@ -6611,6 +6794,16 @@ mod tests {
             80.0
         );
         assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
+        assert!(navigation_rail::HIDE_DEMO_HIDE_ON_COLLAPSE);
+        assert!(navigation_rail::HIDE_DEMO_ARRANGEMENT.is_center());
+        assert!((navigation_rail::hide_slide_offset_dp(0.0) + 220.0).abs() < 0.01);
+        assert_eq!(
+            navigation_rail::icon_position_for_hide_mode(
+                navigation_rail::RailMode::Collapsed,
+                true
+            ),
+            navigation_rail::IconPosition::Start
+        );
         let morph = navigation_rail::item_morph(&theme, 0.2, 150.0);
         assert!(morph.icon_box_w_dp > 24.0 && morph.icon_box_w_dp < 56.0);
         assert!(morph.dest_indicator_alpha > 0.0 && morph.dest_indicator_alpha < 1.0);
