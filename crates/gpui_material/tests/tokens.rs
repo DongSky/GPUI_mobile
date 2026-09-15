@@ -861,6 +861,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-range-month-nav="1""#));
     assert!(html.contains(r#"data-range-month-delta="-1""#));
     assert!(html.contains(r#"data-range-month-label="1""#));
+    assert!(html.contains(r#"data-range-year-toggle="1""#));
+    assert!(html.contains(r#"data-range-years="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-range""#));
+    assert!(html.contains(r#"data-date-pane="calendar""#));
     assert!(html.contains("Depart – Return dates"));
     assert!(html.contains("data-handle-visual=\"28\""));
     assert!(html.contains("September 2026 ▾"));
@@ -2465,7 +2469,13 @@ fn date_picker_grid_and_weekday() {
         .iter()
         .any(|(_, k)| *k == date_picker::DayKind::InRange));
     assert!(date_picker::RANGE_MONTH_NAV);
+    assert!(date_picker::RANGE_YEAR_PANE);
     assert_eq!(date_picker::apply_range_month(2026, 9, 1), (2026, 10));
+    assert_eq!(date_picker::apply_range_year(2026, 9, 2027), (2027, 9));
+    assert_eq!(
+        date_picker::apply_range_year(2026, 9, 1890),
+        (date_picker::YEAR_RANGE_START, 9)
+    );
     assert_eq!(date_picker::apply_range_month(2026, 1, -1), (2025, 12));
     assert_eq!(
         date_picker::apply_range_month(date_picker::YEAR_RANGE_START, 1, -1),

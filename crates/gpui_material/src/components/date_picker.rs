@@ -220,6 +220,8 @@ pub const RANGE_LIVE: bool = true;
 pub const RANGE_MONTH_NAV: bool = true;
 pub const RANGE_PREV_MONTH: &str = "Previous month";
 pub const RANGE_NEXT_MONTH: &str = "Next month";
+/// Range-hero month ▾ opens Compose `YearPicker` (independent of the single-date modal).
+pub const RANGE_YEAR_PANE: bool = true;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -284,6 +286,11 @@ pub fn apply_range_tap(sel: DateRangeSelection, day: CivilDate) -> DateRangeSele
             end: None,
         },
     }
+}
+
+/// Jump the range-hero calendar to a YearPicker year; keep the displayed month.
+pub fn apply_range_year(_year: i32, month: u32, picked: i32) -> (i32, u32) {
+    (clamp_year(picked), month)
 }
 
 /// Page the range-hero calendar; clamp to Compose `YearRange` 1900–2100.

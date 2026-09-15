@@ -1273,6 +1273,7 @@ table.inv th {{ font-weight: 500; }}
 .cal[data-date-display="picker"] .dp-input {{ display: none; }}
 .cal[data-date-display="picker"] .dp-supporting {{ display: none; }}
 .cal[data-date-pane="year"] .week, .cal[data-date-pane="year"] .grid {{ display: none; }}
+.cal[data-date-pane="year"] [data-range-month-delta] {{ visibility: hidden; }}
 .cal[data-date-pane="calendar"] .dp-years {{ display: none; }}
 .cal[data-date-display="input"] .dp-years {{ display: none; }}
 .dp-years {{
@@ -2232,6 +2233,7 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
   host.querySelectorAll("[data-range-month-delta]").forEach(function (btn) {{
     btn.addEventListener("click", function (ev) {{
       ev.stopPropagation();
+      if (host.getAttribute("data-date-pane") === "year") return;
       var delta = parseInt(btn.getAttribute("data-range-month-delta") || "0", 10);
       var y = parseInt(host.getAttribute("data-range-year") || "2026", 10);
       var m = parseInt(host.getAttribute("data-range-month") || "9", 10);
@@ -2241,6 +2243,54 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
       paintMonthLabel();
       paintRangeGrid();
     }});
+  }});
+  function yearWindow(center) {{
+    var start = Math.max(1900, Math.min(2100, center) - 4);
+    if (start + 8 > 2100) start = 2100 - 8;
+    if (start < 1900) start = 1900;
+    var out = [];
+    for (var i = 0; i < 9; i++) out.push(start + i);
+    return out;
+  }}
+  function paintYearGrid() {{
+    var box = host.querySelector("[data-range-years]");
+    if (!box) return;
+    var displayed = parseInt(host.getAttribute("data-range-year") || "2026", 10);
+    var todayY = parseInt(host.getAttribute("data-today-year") || "2026", 10);
+    var selBg = host.getAttribute("data-year-sel-bg") || host.getAttribute("data-day-sel-bg") || "#6750A4";
+    var selFg = host.getAttribute("data-year-sel-fg") || host.getAttribute("data-day-sel-fg") || "#fff";
+    var idle = host.getAttribute("data-year-idle-fg") || host.getAttribute("data-day-in") || "#1C1B1F";
+    var todayBd = host.getAttribute("data-year-today-bd") || host.getAttribute("data-day-today") || "#6750A4";
+    var html = "";
+    yearWindow(displayed).forEach(function (year) {{
+      var kind = year === displayed ? "Selected" : year === todayY ? "Today" : "Default";
+      var bg = kind === "Selected" ? selBg : "transparent";
+      var fg = kind === "Selected" ? selFg : idle;
+      var border = kind === "Today" ? ("1px solid " + todayBd) : "none";
+      html += '<div class="dp-year" data-range-year-cell="'+year+'" data-year-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+border+'">'+year+'</div>';
+    }});
+    box.innerHTML = html;
+  }}
+  var yearToggle = host.querySelector("[data-range-year-toggle]");
+  if (yearToggle) {{
+    yearToggle.style.cursor = "pointer";
+    yearToggle.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      var pane = host.getAttribute("data-date-pane") === "year" ? "calendar" : "year";
+      host.setAttribute("data-date-pane", pane);
+      if (pane === "year") paintYearGrid();
+    }});
+  }}
+  host.addEventListener("click", function (ev) {{
+    var cell = ev.target.closest("[data-range-year-cell]");
+    if (!cell || !host.contains(cell)) return;
+    ev.stopPropagation();
+    var picked = parseInt(cell.getAttribute("data-range-year-cell") || "0", 10);
+    if (!picked) return;
+    host.setAttribute("data-range-year", String(Math.max(1900, Math.min(2100, picked))));
+    host.setAttribute("data-date-pane", "calendar");
+    paintMonthLabel();
+    paintRangeGrid();
   }});
 }});
 document.querySelectorAll("[data-date-display-live] [data-date-display-toggle]").forEach(function (btn) {{
@@ -6401,19 +6451,20 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange). Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
-<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
     <div data-range-headline="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
   </div>
   <div class="month-nav" data-range-month-nav="1">
     <button type="button" data-range-month-delta="-1" aria-label="{range_prev}">&lt;</button>
-    <div data-range-month-label="1">{range_month}</div>
+    <div data-range-month-label="1" data-range-year-toggle="1">{range_month}</div>
     <button type="button" data-range-month-delta="1" aria-label="{range_next}">&gt;</button>
   </div>
   <div class="week">{week}</div>
   <div class="grid" data-range-grid="1">{range_grid}</div>
+  <div class="dp-years" data-range-years="1">{years}</div>
 </div>
 <div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" data-date-pane="calendar" data-year="2026" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
