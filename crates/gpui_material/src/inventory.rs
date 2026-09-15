@@ -123,7 +123,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined C-path even-odd + lyon centerline; IME JNI-mangled Java_dev_gpui_… exports + RegisterNatives fnPtr + session handle + CursorAnchorInfo",
+        notes: "Expressive roundedShape CornerMedium 12 + tonalColors (filled SurfaceContainer / outlined OnPrimary, Inside label, no indicator / OutlineVariant); baseline extra-small + Cutout notch still available; outlined C-path even-odd + lyon centerline; IME JNI-mangled Java_dev_gpui_… exports + RegisterNatives fnPtr + session handle + CursorAnchorInfo",
     },
     ComponentEntry {
         name: "List",

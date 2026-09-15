@@ -1,6 +1,10 @@
 //! Filled and outlined text fields.
 //! Specs: https://m3.material.io/components/text-fields/specs
 //!
+//! Baseline extra-small + Cutout remains available. Expressive (recommended)
+//! uses Compose `TextFieldDefaults.roundedShape` (CornerMedium 12) +
+//! `tonalColors()` with `TextFieldLabelPosition.Inside`.
+//!
 //! Visual tokens plus a host-testable editor (`TextFieldEditor`). Android
 //! NativeActivity still stubs `update_ime_position`; the catalog and demo edit
 //! through this editor (HTML `<input>` / on-screen keys).
@@ -102,9 +106,56 @@ impl TextFieldVariant {
     }
 }
 
+/// Compose `TextFieldDefaults` / `OutlinedTextFieldDefaults` visual style.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TextFieldStyle {
+    /// Baseline filled (extra-small top + indicator) / outlined (4dp + Cutout).
+    Baseline,
+    /// Expressive: `roundedShape` CornerMedium 12 + `tonalColors()` + Inside label.
+    Expressive,
+}
+
+impl TextFieldStyle {
+    pub const ALL: [Self; 2] = [Self::Baseline, Self::Expressive];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Baseline => "baseline",
+            Self::Expressive => "expressive",
+        }
+    }
+}
+
+/// Compose `TextFieldLabelPosition`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LabelPosition {
+    /// Floats inside the container (Expressive `tonalColors()` pairing).
+    Inside,
+    /// Notched Cutout on the outlined stroke (baseline outlined).
+    Cutout,
+}
+
+impl LabelPosition {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Inside => "inside",
+            Self::Cutout => "cutout",
+        }
+    }
+}
+
+/// Compose `TextFieldDefaults.roundedShape` / `ShapeKeyTokens.CornerMedium`.
+pub const ROUNDED_SHAPE_DP: f32 = 12.0;
+pub const ROUNDED_SHAPE_TOKEN: &str = "CornerMedium";
+/// Compose `TextFieldDefaults.MinWidth`.
+pub const TONAL_MIN_WIDTH_DP: f32 = 280.0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextFieldAppearance {
     pub field: Appearance,
+    pub variant: TextFieldVariant,
+    pub style: TextFieldStyle,
+    pub label_position: LabelPosition,
     pub label: Argb,
     pub input: Argb,
     pub supporting: Argb,
@@ -114,7 +165,7 @@ pub struct TextFieldAppearance {
     pub populated: bool,
     /// Label is floated (populated or focused).
     pub floating: bool,
-    /// Outlined + floating: cut a 4dp-padded notch in the top outline.
+    /// Outlined + floating + Cutout: cut a 4dp-padded notch in the top outline.
     pub notched: bool,
     pub leading_icon: Argb,
     pub trailing_icon: Argb,
@@ -123,9 +174,61 @@ pub struct TextFieldAppearance {
     pub cutout_fill: Argb,
 }
 
+impl TextFieldAppearance {
+    pub fn is_outlined(&self) -> bool {
+        self.variant == TextFieldVariant::Outlined
+    }
+
+    pub fn shows_indicator(&self) -> bool {
+        self.variant == TextFieldVariant::Filled
+            && self
+                .field
+                .outline
+                .is_some_and(|(c, w)| w > 0.0 && c.a() > 0)
+    }
+
+    pub fn catalog_style_attrs(&self) -> String {
+        format!(
+            r#"data-field-style="{}" data-rounded-shape="{}" data-tonal="{}" data-label-position="{}""#,
+            self.style.label(),
+            if self.style == TextFieldStyle::Expressive {
+                ROUNDED_SHAPE_TOKEN
+            } else {
+                "none"
+            },
+            if self.style == TextFieldStyle::Expressive {
+                "1"
+            } else {
+                "0"
+            },
+            self.label_position.label(),
+        )
+    }
+}
+
 pub fn resolve(
     theme: &Theme,
     variant: TextFieldVariant,
+    state: InteractionState,
+    populated: bool,
+) -> TextFieldAppearance {
+    resolve_style(theme, variant, TextFieldStyle::Baseline, state, populated)
+}
+
+/// Compose `TextFieldDefaults.roundedShape` + `tonalColors()` (Inside label).
+pub fn resolve_expressive(
+    theme: &Theme,
+    variant: TextFieldVariant,
+    state: InteractionState,
+    populated: bool,
+) -> TextFieldAppearance {
+    resolve_style(theme, variant, TextFieldStyle::Expressive, state, populated)
+}
+
+pub fn resolve_style(
+    theme: &Theme,
+    variant: TextFieldVariant,
+    style: TextFieldStyle,
     state: InteractionState,
     populated: bool,
 ) -> TextFieldAppearance {
@@ -136,85 +239,165 @@ pub fn resolve(
     );
     let error = state.is_error();
     let disabled = state.is_disabled();
+    let floating = populated || focused;
 
-    let (label, input, supporting, indicator) = if disabled {
-        let muted = c
-            .on_surface
-            .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
-            .composite_over(c.surface);
-        (muted, muted, muted, muted)
-    } else if error && focused {
-        (c.error, c.on_surface, c.error, c.error)
-    } else if error && state == InteractionState::Hovered {
-        (
-            c.on_error_container,
-            c.on_surface,
-            c.error,
-            c.on_error_container,
-        )
-    } else if error {
-        (c.error, c.on_surface, c.error, c.error)
-    } else if focused {
-        (c.primary, c.on_surface, c.on_surface_variant, c.primary)
-    } else if state == InteractionState::Hovered {
-        (
-            c.on_surface_variant,
-            c.on_surface,
-            c.on_surface_variant,
-            c.on_surface,
-        )
-    } else {
-        (
-            c.on_surface_variant,
-            c.on_surface,
-            c.on_surface_variant,
-            c.on_surface_variant,
-        )
-    };
+    let (label, input, supporting, _indicator, container, corners, outline, label_position) =
+        match style {
+            TextFieldStyle::Baseline => {
+                let (label, input, supporting, indicator) = if disabled {
+                    let muted = c
+                        .on_surface
+                        .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
+                        .composite_over(c.surface);
+                    (muted, muted, muted, muted)
+                } else if error && focused {
+                    (c.error, c.on_surface, c.error, c.error)
+                } else if error && state == InteractionState::Hovered {
+                    (
+                        c.on_error_container,
+                        c.on_surface,
+                        c.error,
+                        c.on_error_container,
+                    )
+                } else if error {
+                    (c.error, c.on_surface, c.error, c.error)
+                } else if focused {
+                    (c.primary, c.on_surface, c.on_surface_variant, c.primary)
+                } else if state == InteractionState::Hovered {
+                    (
+                        c.on_surface_variant,
+                        c.on_surface,
+                        c.on_surface_variant,
+                        c.on_surface,
+                    )
+                } else {
+                    (
+                        c.on_surface_variant,
+                        c.on_surface,
+                        c.on_surface_variant,
+                        c.on_surface_variant,
+                    )
+                };
+                let (container, corners, outline) = match variant {
+                    TextFieldVariant::Filled => {
+                        let base = if disabled {
+                            c.on_surface.with_alpha(0.04).composite_over(c.surface)
+                        } else {
+                            c.surface_container_highest
+                        };
+                        let width = if focused {
+                            INDICATOR_FOCUSED_DP
+                        } else {
+                            INDICATOR_DP
+                        };
+                        (
+                            base,
+                            Corners::extra_small_top(theme.shapes.extra_small),
+                            Some((indicator, width)),
+                        )
+                    }
+                    TextFieldVariant::Outlined => {
+                        let width = if focused {
+                            OUTLINE_FOCUSED_DP
+                        } else {
+                            OUTLINE_DP
+                        };
+                        (
+                            c.surface,
+                            Corners::all(theme.shapes.extra_small),
+                            Some((indicator, width)),
+                        )
+                    }
+                };
+                (
+                    label,
+                    input,
+                    supporting,
+                    indicator,
+                    container,
+                    corners,
+                    outline,
+                    if matches!(variant, TextFieldVariant::Outlined) && floating {
+                        LabelPosition::Cutout
+                    } else {
+                        LabelPosition::Inside
+                    },
+                )
+            }
+            TextFieldStyle::Expressive => {
+                // Compose `tonalTextFieldColors` / `tonalOutlinedTextFieldColors`.
+                let (label, input, supporting, outline_color) = if disabled {
+                    let muted = c
+                        .on_surface
+                        .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
+                        .composite_over(c.surface);
+                    let support = c
+                        .on_background
+                        .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
+                        .composite_over(c.surface);
+                    (muted, muted, support, c.outline_variant)
+                } else if error {
+                    (c.error, c.on_background, c.error, c.error)
+                } else {
+                    (
+                        c.on_surface_variant,
+                        if focused {
+                            c.on_background
+                        } else {
+                            c.on_surface
+                        },
+                        c.on_background,
+                        c.outline_variant,
+                    )
+                };
+                let container = if error {
+                    c.error_container
+                } else if disabled {
+                    let base = match variant {
+                        TextFieldVariant::Filled => c.surface_container,
+                        TextFieldVariant::Outlined => c.on_primary,
+                    };
+                    base.with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
+                        .composite_over(c.surface)
+                } else {
+                    match variant {
+                        TextFieldVariant::Filled => c.surface_container,
+                        TextFieldVariant::Outlined => c.on_primary,
+                    }
+                };
+                let outline = match variant {
+                    TextFieldVariant::Filled => None,
+                    TextFieldVariant::Outlined => Some((outline_color, OUTLINE_DP)),
+                };
+                (
+                    label,
+                    input,
+                    supporting,
+                    outline_color,
+                    container,
+                    Corners::all(ROUNDED_SHAPE_DP),
+                    outline,
+                    LabelPosition::Inside,
+                )
+            }
+        };
 
-    let (container, corners, outline) = match variant {
-        TextFieldVariant::Filled => {
-            let base = if disabled {
-                c.on_surface.with_alpha(0.04).composite_over(c.surface)
-            } else {
-                c.surface_container_highest
-            };
-            let width = if focused {
-                INDICATOR_FOCUSED_DP
-            } else {
-                INDICATOR_DP
-            };
-            (
-                base,
-                Corners::extra_small_top(theme.shapes.extra_small),
-                Some((indicator, width)),
-            )
-        }
-        TextFieldVariant::Outlined => {
-            let width = if focused {
-                OUTLINE_FOCUSED_DP
-            } else {
-                OUTLINE_DP
-            };
-            (
-                c.surface,
-                Corners::all(theme.shapes.extra_small),
-                Some((indicator, width)),
-            )
-        }
-    };
-
-    let label_style = if populated || focused {
+    let label_style = if floating {
         theme.typography.body_small
     } else {
         theme.typography.body_large
+    };
+    let min_width = if style == TextFieldStyle::Expressive {
+        TONAL_MIN_WIDTH_DP
+    } else {
+        210.0
     };
 
     TextFieldAppearance {
         field: Appearance {
             width_dp: None,
             height_dp: HEIGHT_DP,
-            min_width_dp: Some(210.0),
+            min_width_dp: Some(min_width),
             corners,
             container,
             content: input,
@@ -228,6 +411,9 @@ pub fn resolve(
             label_style,
             supporting_style: Some(theme.typography.body_small),
         },
+        variant,
+        style,
+        label_position,
         label,
         input,
         supporting,
@@ -235,8 +421,8 @@ pub fn resolve(
         input_style: theme.typography.body_large,
         supporting_style: theme.typography.body_small,
         populated,
-        floating: populated || focused,
-        notched: matches!(variant, TextFieldVariant::Outlined) && (populated || focused),
+        floating,
+        notched: label_position == LabelPosition::Cutout,
         leading_icon: if disabled {
             muted_icon(theme)
         } else {
@@ -335,12 +521,7 @@ impl NotchFrame {
 
     /// Top-edge gap that breaks the ring for the floating legend.
     pub fn notch_gap_rect(self) -> (f32, f32, f32, f32) {
-        (
-            self.start_dp,
-            0.0,
-            self.width_dp,
-            self.stroke_dp.max(1.0),
-        )
+        (self.start_dp, 0.0, self.width_dp, self.stroke_dp.max(1.0))
     }
 
     /// Centerline verbs for a notched rounded-rect stroke (clockwise, open at
@@ -393,13 +574,33 @@ impl NotchFrame {
         let mut v = Vec::with_capacity(24);
         v.push(OutlineVerb::Move(notch_r, 0.0));
         v.push(OutlineVerb::Line(w - r, 0.0));
-        v.push(OutlineVerb::cubic_quarter((w - r, 0.0), (w, 0.0), (w, r), k));
+        v.push(OutlineVerb::cubic_quarter(
+            (w - r, 0.0),
+            (w, 0.0),
+            (w, r),
+            k,
+        ));
         v.push(OutlineVerb::Line(w, h - r));
-        v.push(OutlineVerb::cubic_quarter((w, h - r), (w, h), (w - r, h), k));
+        v.push(OutlineVerb::cubic_quarter(
+            (w, h - r),
+            (w, h),
+            (w - r, h),
+            k,
+        ));
         v.push(OutlineVerb::Line(r, h));
-        v.push(OutlineVerb::cubic_quarter((r, h), (0.0, h), (0.0, h - r), k));
+        v.push(OutlineVerb::cubic_quarter(
+            (r, h),
+            (0.0, h),
+            (0.0, h - r),
+            k,
+        ));
         v.push(OutlineVerb::Line(0.0, r));
-        v.push(OutlineVerb::cubic_quarter((0.0, r), (0.0, 0.0), (r, 0.0), k));
+        v.push(OutlineVerb::cubic_quarter(
+            (0.0, r),
+            (0.0, 0.0),
+            (r, 0.0),
+            k,
+        ));
         v.push(OutlineVerb::Line(notch_l, 0.0));
         v.push(OutlineVerb::Line(notch_l_i, iy));
         if ir < 0.5 {
@@ -690,12 +891,7 @@ impl OutlineVerb {
         }
     }
 
-    pub fn cubic_quarter(
-        from: (f32, f32),
-        corner: (f32, f32),
-        to: (f32, f32),
-        kappa: f32,
-    ) -> Self {
+    pub fn cubic_quarter(from: (f32, f32), corner: (f32, f32), to: (f32, f32), kappa: f32) -> Self {
         let [c1, c2, end] = crate::shape::rounded_polygon_quarter(from, corner, to, kappa);
         Self::Cubic {
             c1_x: c1.0,
@@ -725,6 +921,7 @@ fn muted_icon(theme: &Theme) -> Argb {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextFieldEditor {
     pub variant: TextFieldVariant,
+    pub style: TextFieldStyle,
     value: String,
     caret: usize,
     pub focused: bool,
@@ -738,12 +935,22 @@ impl TextFieldEditor {
         let caret = value.chars().count();
         Self {
             variant,
+            style: TextFieldStyle::Baseline,
             value,
             caret,
             focused: false,
             error: false,
             disabled: false,
         }
+    }
+
+    pub fn new_expressive(variant: TextFieldVariant, initial: impl Into<String>) -> Self {
+        Self::new(variant, initial).with_style(TextFieldStyle::Expressive)
+    }
+
+    pub fn with_style(mut self, style: TextFieldStyle) -> Self {
+        self.style = style;
+        self
     }
 
     pub fn value(&self) -> &str {
@@ -818,9 +1025,10 @@ impl TextFieldEditor {
     }
 
     pub fn appearance(&self, theme: &Theme) -> TextFieldAppearance {
-        resolve(
+        resolve_style(
             theme,
             self.variant,
+            self.style,
             self.interaction_state(),
             self.populated(),
         )
@@ -866,12 +1074,7 @@ pub fn ime_cursor_origin_dp(caret_chars: usize, size_sp: f32) -> (f32, f32) {
 /// Caret rectangle (`x, y, w, h`) consumed by `gpui_android::ime` / `update_ime_position`.
 pub fn ime_caret_rect_dp(caret_chars: usize, size_sp: f32) -> (f32, f32, f32, f32) {
     let (x, y) = ime_cursor_origin_dp(caret_chars, size_sp);
-    (
-        x,
-        y - IME_CARET_H_DP / 2.0,
-        IME_CARET_W_DP,
-        IME_CARET_H_DP,
-    )
+    (x, y - IME_CARET_H_DP / 2.0, IME_CARET_W_DP, IME_CARET_H_DP)
 }
 
 /// Window-space caret rect for `update_ime_position` (`field` origin + local caret).
@@ -907,7 +1110,10 @@ pub fn catalog_ime_from_editor(
 }
 
 /// Same as [`catalog_ime_from_editor`] using [`CATALOG_FIELD_ORIGIN_DP`].
-pub fn catalog_ime_from_focused(editor: &TextFieldEditor, size_sp: f32) -> Option<(f32, f32, f32, f32)> {
+pub fn catalog_ime_from_focused(
+    editor: &TextFieldEditor,
+    size_sp: f32,
+) -> Option<(f32, f32, f32, f32)> {
     catalog_ime_from_editor(
         editor,
         CATALOG_FIELD_ORIGIN_DP.0,

@@ -286,6 +286,17 @@ a {{ color: var(--primary); }}
   display: flex; align-items: center; gap: 12px; background: transparent;
   position: relative; border: none;
 }}
+.ol[data-label-position="inside"] {{
+  flex-direction: column; justify-content: flex-end; align-items: stretch;
+  padding: 6px 16px 8px; box-sizing: border-box; gap: 0;
+}}
+.ol[data-label-position="inside"][data-floating="0"] {{ justify-content: center; }}
+.ol[data-label-position="inside"][data-floating="1"] .lab {{
+  font-size: 12px; line-height: 16px;
+}}
+.filled-hero[data-field-style="expressive"] {{
+  box-shadow: none;
+}}
 .ol legend {{
   padding: 0 4px; margin-left: 8px; font-size: 12px; line-height: 16px;
   position: relative; z-index: 1; background: transparent;
@@ -1147,7 +1158,7 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
     var lab = wrap.querySelector(".lab");
     if (lab) lab.style.fontSize = (input.value || document.activeElement === input) ? "12px" : "16px";
     var box = wrap.querySelector("[data-field='outlined-edit']");
-    if (box && box.tagName !== "FIELDSET" && (input.value || document.activeElement === input)) {{
+    if (box && box.tagName !== "FIELDSET" && box.getAttribute("data-label-position") !== "inside" && (input.value || document.activeElement === input)) {{
       var fs = document.createElement("fieldset");
       fs.className = box.className;
       fs.setAttribute("data-field", "outlined-edit");
@@ -3324,30 +3335,34 @@ fn paint_filled_field(
         .field
         .outline
         .map(|(c, w)| (c.css_hex(), w))
-        .unwrap_or_else(|| ("transparent".into(), 1.0));
-    if !a.floating {
-        return format!(
-            r#"<div class="filled-hero empty" {attrs} data-floating="0" style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{lab}">
-  <div class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</div>
-</div>"#,
-            bg = a.field.container.css_hex(),
-            r = a.field.corners.top_left,
-            lab = a.label.css_hex(),
-            ls = a.label_style.size_sp,
-            lh = a.label_style.line_height_sp,
-        );
-    }
+        .unwrap_or_else(|| ("transparent".into(), 0.0));
+    let shadow = if a.shows_indicator() {
+        format!("inset 0 -{ow}px 0 {oc}")
+    } else {
+        "none".into()
+    };
+    let empty = if a.floating { "" } else { " empty" };
+    let style_attrs = a.catalog_style_attrs();
     format!(
-        r#"<div class="filled-hero" {attrs} data-floating="1" style="background:{bg};border-radius:{r}px {r}px 0 0;box-shadow:inset 0 -{ow}px 0 {oc};color:{inp}">
+        r#"<div class="filled-hero{empty}" {attrs} {style_attrs} data-floating="{float}" style="background:{bg};border-radius:{rad};box-shadow:{shadow};color:{fg}">
   <div class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</div>
-  {value_html}
+  {value}
 </div>"#,
+        empty = empty,
+        style_attrs = style_attrs,
+        float = if a.floating { "1" } else { "0" },
         bg = a.field.container.css_hex(),
-        r = a.field.corners.top_left,
-        inp = a.input.css_hex(),
+        rad = a.field.corners.css(),
+        shadow = shadow,
+        fg = if a.floating {
+            a.input.css_hex()
+        } else {
+            a.label.css_hex()
+        },
         lab = a.label.css_hex(),
         ls = a.label_style.size_sp,
         lh = a.label_style.line_height_sp,
+        value = if a.floating { value_html } else { "" },
     )
 }
 
@@ -3362,12 +3377,13 @@ fn paint_outlined_field(
         .outline
         .map(|(c, w)| (c.css_hex(), w))
         .unwrap_or_else(|| ("transparent".into(), 1.0));
+    let style_attrs = a.catalog_style_attrs();
     if a.notched {
         let frame = text_field::notch_frame(label, a);
         let d = frame.outline_svg_d(280.0);
         let even = frame.evenodd_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-rounded-polygon="1" data-notch-centerline="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-rounded-polygon="1" data-notch-centerline="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} {style_attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
   <svg class="ol-evenodd" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" fill="{oc}" d="{even}"/><path data-notch-centerline-path="1" fill="none" stroke="{oc}" stroke-width="{ow}" stroke-linecap="round" d="{center}"/></svg>
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
   {inner_html}
@@ -3382,11 +3398,18 @@ fn paint_outlined_field(
     } else {
         let even = text_field::notch_frame(label, a).evenodd_svg_d(280.0);
         format!(
-            r#"<div class="ol" data-notched="0" data-evenodd-d="{even}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{lab};min-height:56px">
-  <span class="lab" style="font-size:{ls}px;line-height:{lh}px">{label}</span>
+            r#"<div class="ol" data-notched="0" data-floating="{float}" data-evenodd-d="{even}" {attrs} {style_attrs} style="border:{ow}px solid {oc};border-radius:{r}px;background:{bg};color:{fg};min-height:56px">
+  <span class="lab" style="color:{lab};font-size:{ls}px;line-height:{lh}px">{label}</span>
   {inner_html}
 </div>"#,
+            float = if a.floating { "1" } else { "0" },
             r = a.field.corners.top_left,
+            bg = a.field.container.css_hex(),
+            fg = if a.floating {
+                a.input.css_hex()
+            } else {
+                a.label.css_hex()
+            },
             lab = a.label.css_hex(),
             ls = a.label_style.size_sp,
             lh = a.label_style.line_height_sp,
@@ -3396,27 +3419,27 @@ fn paint_outlined_field(
 
 fn text_fields(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Text fields</h2><p class=\"note\">Official overview heroes are <em>empty</em> filled + outlined with the label inside the box. Populated/focused outlined uses a <em>notched floating label</em> (4dp gap). Focus/error outline is 2dp. <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>",
+        "<h2>Text fields</h2><p class=\"note\">Expressive (recommended): Compose <code>roundedShape</code> CornerMedium 12 + <code>tonalColors()</code> + <code>TextFieldLabelPosition.Inside</code>. Filled tonal is SurfaceContainer with no indicator; outlined tonal is OnPrimary + OutlineVariant. Baseline extra-small + Cutout notch still available. <a href=\"https://m3.material.io/components/text-fields/specs\">spec</a></p>",
     );
-    let empty_filled = text_field::resolve(
+    let empty_filled = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Filled,
         InteractionState::Enabled,
         false,
     );
-    let empty_outlined = text_field::resolve(
+    let empty_outlined = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Outlined,
         InteractionState::Enabled,
         false,
     );
-    let filled = text_field::resolve(
+    let filled = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Filled,
         InteractionState::Focused,
         true,
     );
-    let outlined = text_field::resolve(
+    let outlined = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Outlined,
         InteractionState::Focused,
@@ -3457,15 +3480,15 @@ fn text_fields(theme: &Theme) -> String {
             filled.input.css_hex()
         ),
     ));
-    out.push_str("<p class=\"note\">Empty pair matches the official overview; Email is the populated/notched example. System IME remains a NativeActivity stub.</p></div>");
+    out.push_str("<p class=\"note\">Empty pair + populated Email use Expressive Inside (no Cutout). System IME remains a NativeActivity stub.</p></div>");
 
-    let filled_edit = text_field::resolve(
+    let filled_edit = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Filled,
         InteractionState::Enabled,
         true,
     );
-    let outlined_empty = text_field::resolve(
+    let outlined_empty = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Outlined,
         InteractionState::Enabled,

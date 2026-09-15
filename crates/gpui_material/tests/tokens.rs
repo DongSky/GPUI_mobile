@@ -315,6 +315,64 @@ fn text_field_metrics_and_error_focus() {
     );
     assert_eq!(error.field.outline.unwrap().0, theme.color.error);
     assert_eq!(error.supporting, theme.color.error);
+
+    let tonal_empty = text_field::resolve_expressive(
+        &theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        false,
+    );
+    assert_eq!(tonal_empty.style, text_field::TextFieldStyle::Expressive);
+    assert_eq!(
+        tonal_empty.field.corners.top_left,
+        text_field::ROUNDED_SHAPE_DP
+    );
+    assert_eq!(
+        tonal_empty.field.corners.bottom_left,
+        text_field::ROUNDED_SHAPE_DP
+    );
+    assert_eq!(text_field::ROUNDED_SHAPE_TOKEN, "CornerMedium");
+    assert_eq!(tonal_empty.field.container, theme.color.surface_container);
+    assert!(tonal_empty.field.outline.is_none());
+    assert!(!tonal_empty.notched);
+    assert_eq!(
+        tonal_empty.label_position,
+        text_field::LabelPosition::Inside
+    );
+    assert_eq!(
+        tonal_empty.field.min_width_dp,
+        Some(text_field::TONAL_MIN_WIDTH_DP)
+    );
+
+    let tonal_outlined = text_field::resolve_expressive(
+        &theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    assert!(tonal_outlined.floating);
+    assert!(!tonal_outlined.notched);
+    assert_eq!(tonal_outlined.field.corners.top_left, 12.0);
+    assert_eq!(tonal_outlined.field.container, theme.color.on_primary);
+    assert_eq!(
+        tonal_outlined.field.outline,
+        Some((theme.color.outline_variant, 1.0))
+    );
+    assert_eq!(tonal_outlined.label, theme.color.on_surface_variant);
+    assert_eq!(tonal_outlined.input, theme.color.on_background);
+    assert_eq!(
+        tonal_outlined.label_position,
+        text_field::LabelPosition::Inside
+    );
+
+    let tonal_error = text_field::resolve_expressive(
+        &theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Error,
+        true,
+    );
+    assert_eq!(tonal_error.field.container, theme.color.error_container);
+    assert_eq!(tonal_error.label, theme.color.error);
 }
 
 #[test]
@@ -907,6 +965,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"buttons\""));
     assert!(html.contains("data-field-hero=\"outlined\""));
     assert!(html.contains("data-notched=\"1\""));
+    assert!(html.contains("data-field-style=\"expressive\""));
+    assert!(html.contains("data-rounded-shape=\"CornerMedium\""));
+    assert!(html.contains("data-tonal=\"1\""));
+    assert!(html.contains("data-label-position=\"inside\""));
     assert!(html.contains("<legend"));
     assert!(html.contains("data-button-size=\"xl\""));
     assert!(html.contains("data-button-shape=\"square\""));
@@ -1045,6 +1107,13 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("swipe")
             && e.notes.contains("LazyColumn")
             && e.notes.contains("reorder")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Text field"
+            && e.notes.contains("roundedShape")
+            && e.notes.contains("CornerMedium")
+            && e.notes.contains("tonalColors")
+            && e.notes.contains("Inside")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Button group"

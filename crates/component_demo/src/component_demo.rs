@@ -642,13 +642,13 @@ fn catalog_body(
     let three = list::resolve(theme, list::ListLines::Three, InteractionState::Enabled);
     let filled_a = this.filled.appearance(theme);
     let outlined_a = this.outlined.appearance(theme);
-    let empty_filled = text_field::resolve(
+    let empty_filled = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Filled,
         InteractionState::Enabled,
         false,
     );
-    let empty_outlined = text_field::resolve(
+    let empty_outlined = text_field::resolve_expressive(
         theme,
         text_field::TextFieldVariant::Outlined,
         InteractionState::Enabled,
@@ -6446,7 +6446,7 @@ fn field_block(
     on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     let outline = field.field.outline.unwrap_or((field.label, 1.0));
-    let outlined = field.field.corners.bottom_left > 0.0;
+    let outlined = field.is_outlined();
     let label = label.into();
     let value = value.into();
     let box_el = if outlined && field.notched {
@@ -6544,6 +6544,33 @@ fn field_block(
             )
             .into_any_element()
             .into_any_element()
+    } else if outlined && field.floating {
+        div()
+            .id(id)
+            .h(px(field.field.height_dp))
+            .px(px(16.))
+            .rounded(px(field.field.corners.top_left))
+            .bg(paint(field.field.container))
+            .border_1()
+            .border_color(paint(outline.0))
+            .flex()
+            .flex_col()
+            .justify_end()
+            .pb(px(8.))
+            .on_click(on_click)
+            .child(
+                div()
+                    .text_size(px(field.label_style.size_sp))
+                    .text_color(paint(field.label))
+                    .child(label),
+            )
+            .child(
+                div()
+                    .text_size(px(field.input_style.size_sp))
+                    .text_color(paint(field.input))
+                    .child(value),
+            )
+            .into_any_element()
     } else if outlined {
         div()
             .id(id)
@@ -6587,12 +6614,14 @@ fn field_block(
                     .text_color(paint(field.input))
                     .child(value),
             )
-            .child(
-                div()
-                    .h(px(outline.1.max(1.0)))
-                    .w_full()
-                    .bg(paint(outline.0)),
-            )
+            .when(field.shows_indicator(), |el| {
+                el.child(
+                    div()
+                        .h(px(outline.1.max(1.0)))
+                        .w_full()
+                        .bg(paint(outline.0)),
+                )
+            })
             .into_any_element()
     } else {
         div()
@@ -6612,12 +6641,14 @@ fn field_block(
                         .child(label),
                 ),
             )
-            .child(
-                div()
-                    .h(px(outline.1.max(1.0)))
-                    .w_full()
-                    .bg(paint(outline.0)),
-            )
+            .when(field.shows_indicator(), |el| {
+                el.child(
+                    div()
+                        .h(px(outline.1.max(1.0)))
+                        .w_full()
+                        .bg(paint(outline.0)),
+                )
+            })
             .into_any_element()
     };
     div().flex().flex_col().gap(px(4.)).child(box_el).child(
@@ -6747,9 +6778,12 @@ fn android_main(app: AndroidApp) {
                     month: 9,
                     day: 11,
                 },
-                filled: TextFieldEditor::new(text_field::TextFieldVariant::Filled, "hello"),
+                filled: TextFieldEditor::new_expressive(
+                    text_field::TextFieldVariant::Filled,
+                    "hello",
+                ),
                 outlined: {
-                    let mut ed = TextFieldEditor::new(
+                    let mut ed = TextFieldEditor::new_expressive(
                         text_field::TextFieldVariant::Outlined,
                         "not-an-email",
                     );
