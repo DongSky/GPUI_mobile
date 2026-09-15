@@ -496,8 +496,16 @@ a {{ color: var(--primary); }}
   width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
   padding: 16px 0; border-radius: 0; position: relative;
 }}
-.nav-rail .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; width: 80px; position: relative; }}
-.nav-rail .ind {{ width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.nav-rail .dest {{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 500; width: 80px; position: relative;
+  box-sizing: border-box;
+}}
+.nav-rail .ind {{
+  width: 56px; height: 32px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}}
+.nav-rail .dest[data-active="1"] .ind {{ background: var(--ind); }}
 .nav-rail .fab-slot {{
   width: 56px; height: 56px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; font-size: 24px;
@@ -508,10 +516,31 @@ a {{ color: var(--primary); }}
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
 .nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
-.nav-rail.expanded {{ width: 220px; align-items: stretch; }}
-.nav-rail.expanded .dest {{
-  width: auto; flex-direction: row; justify-content: flex-start;
-  padding: 0 12px; gap: 8px;
+.nav-rail.expanded, .nav-rail[data-icon-position="start"] {{ width: 220px; align-items: stretch; }}
+.nav-rail[data-wide-collapsed="1"] {{ width: 96px; }}
+.nav-rail[data-wide-collapsed="1"] .dest {{ width: 96px; }}
+.nav-rail.expanded .dest, .nav-rail[data-icon-position="start"] .dest {{
+  width: auto; flex-direction: row; justify-content: flex-start; align-items: center;
+  margin: 0 16px; padding: 0 16px; gap: 8px; height: 56px; border-radius: 28px;
+  font-size: 14px; line-height: 20px;
+}}
+.nav-rail.expanded .dest[data-active="1"],
+.nav-rail[data-icon-position="start"] .dest[data-active="1"] {{
+  background: var(--ind);
+}}
+.nav-rail.expanded .ind, .nav-rail[data-icon-position="start"] .ind {{
+  width: 24px; height: 24px; background: transparent; border-radius: 0;
+}}
+.nav-rail.expanded .dest[data-active="1"] .ind,
+.nav-rail[data-icon-position="start"] .dest[data-active="1"] .ind {{
+  background: transparent;
+}}
+.wide-rail-pair {{
+  display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; max-width: 720px;
+}}
+.wide-rail-pair .nav-rail {{
+  box-shadow: 0 1px 2px rgba(0,0,0,.12);
+  min-height: 280px;
 }}
 .rail-stage {{ position: relative; min-height: 280px; max-width: 720px; }}
 .rail-window {{
@@ -1573,6 +1602,7 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       var exp = rail.classList.toggle("expanded");
       rail.setAttribute("data-nav-rail-expanded", exp ? "1" : "0");
       rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
+      rail.setAttribute("data-icon-position", exp ? "start" : "top");
       var stage = rail.closest(".rail-stage");
       if (stage) {{
         stage.classList.toggle("is-modal", exp);
@@ -3274,11 +3304,14 @@ fn cards(theme: &Theme) -> String {
     out
 }
 
-fn chrome(theme: &Theme) -> String {
-    let snack = snackbar::resolve(theme);
-    let nav = navigation_bar::resolve(theme);
-    let rail = navigation_rail::resolve(theme);
-    let mut rail_dests = String::new();
+fn rail_dests_html(
+    theme: &Theme,
+    rail: &navigation_rail::NavRailAppearance,
+    position: navigation_rail::IconPosition,
+    selected: usize,
+) -> String {
+    let metrics = navigation_rail::item_metrics(theme, position);
+    let mut out = String::new();
     for (i, ((label, icon), badge)) in navigation_rail::DESTINATIONS
         .iter()
         .zip(navigation_rail::DESTINATION_ICONS.iter())
@@ -3297,21 +3330,38 @@ fn chrome(theme: &Theme) -> String {
             ),
             None => String::new(),
         };
-        if i == 0 {
-            rail_dests.push_str(&format!(
-                r#"<div class="dest" style="color:{fg}"><div class="ind" style="background:{ind}">{icon}</div>{label}{badge}</div>"#,
-                fg = rail.active_label.css_hex(),
-                ind = rail.active_indicator.css_hex(),
-                badge = badge_html,
-            ));
+        let active = navigation_rail::is_active(selected, i);
+        let fg = if active {
+            rail.active_label
         } else {
-            rail_dests.push_str(&format!(
-                r#"<div class="dest" style="color:{fg}"><div class="ind">{icon}{badge}</div><span>{label}</span></div>"#,
-                fg = rail.inactive_label.css_hex(),
-                badge = badge_html,
-            ));
-        }
+            rail.inactive_label
+        };
+        let icon_fg = if active {
+            rail.active_icon
+        } else {
+            rail.inactive_icon
+        };
+        out.push_str(&format!(
+            r#"<div class="dest" data-icon-position="{pos}" data-active="{on}" style="color:{fg};--ind:{ind}"><div class="ind" style="color:{icon_fg}">{icon}{badge}</div><span class="lbl" style="font-size:{fs}px">{label}</span></div>"#,
+            pos = position.label(),
+            on = if active { "1" } else { "0" },
+            fg = fg.css_hex(),
+            ind = rail.active_indicator.css_hex(),
+            icon_fg = icon_fg.css_hex(),
+            fs = metrics.label_style.size_sp,
+            badge = badge_html,
+        ));
     }
+    out
+}
+
+fn chrome(theme: &Theme) -> String {
+    let snack = snackbar::resolve(theme);
+    let nav = navigation_bar::resolve(theme);
+    let rail = navigation_rail::resolve(theme);
+    let rail_dests = rail_dests_html(theme, &rail, navigation_rail::IconPosition::Start, 0);
+    let top_dests = rail_dests_html(theme, &rail, navigation_rail::IconPosition::Top, 0);
+    let start_dests = rail_dests_html(theme, &rail, navigation_rail::IconPosition::Start, 0);
     let fab = format!(
         r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">+</div>"#,
         bg = rail.fab.css_hex(),
@@ -3418,11 +3468,15 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive modal rail still toggles 80↔220 over a 32% scrim. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<div class="wide-rail-pair" data-hero="wide-rail">
+  <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
+  <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
+</div>
 <div class="rail-stage is-modal" data-hero="nav-rail">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-icon-position="start" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
   </div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -3453,7 +3507,10 @@ fn chrome(theme: &Theme) -> String {
         horizontal = horizontal,
         rbg = rail.container.css_hex(),
         ew = expanded.width_dp,
+        ww = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
         rail_dests = rail_dests,
+        top_dests = top_dests,
+        start_dests = start_dests,
         fab = fab,
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,

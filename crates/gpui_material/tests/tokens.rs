@@ -782,6 +782,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-progress=\"indeterminate\""));
     assert!(html.contains("data-progress=\"ptr\""));
     assert!(html.contains("data-nav-rail=\"1\""));
+    assert!(html.contains("data-hero=\"wide-rail\""));
+    assert!(html.contains("data-icon-position=\"top\""));
+    assert!(html.contains("data-icon-position=\"start\""));
+    assert!(html.contains("data-wide-collapsed=\"1\""));
     assert!(html.contains("data-range-interactive=\"1\""));
     assert!(html.contains("data-dismiss-outside=\"1\""));
     assert!(html.contains("data-docked-month"));
@@ -942,6 +946,13 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ChipShapes")
             && e.notes.contains("12/16/8")
             && e.notes.contains("check")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Navigation rail"
+            && e.notes.contains("WideNavigationRailItem")
+            && e.notes.contains("Top")
+            && e.notes.contains("Start")
+            && e.notes.contains("secondary")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1220,6 +1231,66 @@ fn expressive_chip_tokens() {
         InteractionState::Enabled,
     );
     assert_eq!(suggestion.corners.top_left, 16.0);
+}
+
+#[test]
+fn expressive_wide_rail_icon_position() {
+    let theme = Theme::light();
+    assert_eq!(
+        navigation_rail::icon_position_for(false),
+        navigation_rail::IconPosition::Top
+    );
+    assert_eq!(
+        navigation_rail::icon_position_for(true),
+        navigation_rail::IconPosition::Start
+    );
+    assert_eq!(
+        navigation_rail::icon_position_for_mode(navigation_rail::RailMode::Collapsed),
+        navigation_rail::IconPosition::Top
+    );
+    assert_eq!(
+        navigation_rail::icon_position_for_mode(navigation_rail::RailMode::Expanded),
+        navigation_rail::IconPosition::Start
+    );
+    assert_eq!(navigation_rail::IconPosition::Top.label(), "top");
+    assert_eq!(navigation_rail::IconPosition::Start.label(), "start");
+    assert!(navigation_rail::IconPosition::Start.is_start());
+    assert!(!navigation_rail::IconPosition::Top.is_start());
+
+    assert_eq!(navigation_rail::WIDE_COLLAPSED_WIDTH_DP, 96.0);
+    assert_eq!(navigation_rail::EXPANDED_WIDTH_MAX_DP, 360.0);
+    assert_eq!(navigation_rail::START_INDICATOR_H_DP, 56.0);
+    assert_eq!(navigation_rail::START_LEADING_DP, 16.0);
+    assert_eq!(navigation_rail::START_TRAILING_DP, 16.0);
+    assert_eq!(navigation_rail::START_ICON_LABEL_GAP_DP, 8.0);
+    assert_eq!(navigation_rail::TOP_ICON_LABEL_GAP_DP, 4.0);
+    assert_eq!(navigation_rail::ITEM_VERTICAL_SPACE_DP, 4.0);
+    assert_eq!(navigation_rail::WIDE_TOP_SPACE_DP, 44.0);
+    assert!((navigation_rail::start_indicator_width_dp(220.0) - 188.0).abs() < 0.01);
+    assert_eq!(
+        navigation_rail::resolve_wide_collapsed(&theme).width_dp,
+        96.0
+    );
+
+    let top = navigation_rail::item_metrics(&theme, navigation_rail::IconPosition::Top);
+    assert_eq!(top.indicator_w_dp, 56.0);
+    assert_eq!(top.indicator_h_dp, 32.0);
+    assert!(!top.indicator_full_width);
+    assert_eq!(top.icon_label_gap_dp, 4.0);
+    assert_eq!(top.label_style.name, "labelMedium");
+
+    let start = navigation_rail::item_metrics(&theme, navigation_rail::IconPosition::Start);
+    assert_eq!(start.indicator_h_dp, 56.0);
+    assert!(start.indicator_full_width);
+    assert_eq!(start.icon_label_gap_dp, 8.0);
+    assert_eq!(start.pad_start_dp, 16.0);
+    assert_eq!(start.pad_end_dp, 16.0);
+    assert_eq!(start.label_style.name, "labelLarge");
+
+    let rail = navigation_rail::resolve(&theme);
+    assert_eq!(rail.active_label, theme.color.secondary);
+    assert_eq!(rail.active_indicator, theme.color.secondary_container);
+    assert_eq!(rail.inactive_label, theme.color.on_surface_variant);
 }
 
 #[test]

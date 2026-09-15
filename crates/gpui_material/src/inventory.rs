@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim; OsPopupSpec (PopUp, 880dp, titled, focus, not movable) + WindowOptions helper (not opened: Linux ignores kind, NativeActivity is single-window); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; wide collapsed 96 / narrow 80; expanded 220–360 modal overlay + 32% scrim; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
     },
     ComponentEntry {
         name: "Dialog",

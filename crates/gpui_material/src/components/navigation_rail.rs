@@ -1,18 +1,38 @@
 //! Navigation rail. Specs: https://m3.material.io/components/navigation-rail/specs
 //!
-//! Collapsed 80dp destinations with a 56×32 active indicator. Expanded mode is
-//! a 220dp modal column over a 32% scrim (M3 collapsed→modal pattern), with a
-//! FAB slot and destination badges.
+//! Expressive WideNavigationRail: collapsed Top-icon destinations
+//! (`NavigationRailCollapsedTokens.NarrowContainerWidth` 80 /
+//! `ContainerWidth` 96) with a 56×32 indicator. Expanded Start-icon
+//! destinations use a 56dp full-width pill (`NavigationRailHorizontalItemTokens`).
+//! Modal expanded is a 220–360dp overlay over a 32% scrim.
 
 use super::dialog;
 use crate::argb::Argb;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
 
+/// Compose `NavigationRailCollapsedTokens.NarrowContainerWidth`.
 pub const WIDTH_DP: f32 = 80.0;
+/// Compose `NavigationRailCollapsedTokens.ContainerWidth` (WideNavigationRail).
+pub const WIDE_COLLAPSED_WIDTH_DP: f32 = 96.0;
+/// Compose `NavigationRailExpandedTokens.ContainerWidthMinimum`.
 pub const EXPANDED_WIDTH_DP: f32 = 220.0;
+/// Compose `NavigationRailExpandedTokens.ContainerWidthMaximum`.
+pub const EXPANDED_WIDTH_MAX_DP: f32 = 360.0;
+/// Vertical / Top-icon indicator (`NavigationRailVerticalItemTokens`).
 pub const INDICATOR_W_DP: f32 = 56.0;
 pub const INDICATOR_H_DP: f32 = 32.0;
+/// Horizontal / Start-icon indicator (`NavigationRailHorizontalItemTokens`).
+pub const START_INDICATOR_H_DP: f32 = 56.0;
+pub const START_LEADING_DP: f32 = 16.0;
+pub const START_TRAILING_DP: f32 = 16.0;
+pub const START_ICON_LABEL_GAP_DP: f32 = 8.0;
+/// `NavigationRailVerticalItemTokens.IconLabelSpace`.
+pub const TOP_ICON_LABEL_GAP_DP: f32 = 4.0;
+/// `NavigationRailCollapsedTokens.ItemVerticalSpace`.
+pub const ITEM_VERTICAL_SPACE_DP: f32 = 4.0;
+/// `NavigationRailCollapsedTokens.TopSpace` / expanded `TopSpace`.
+pub const WIDE_TOP_SPACE_DP: f32 = 44.0;
 pub const ICON_DP: f32 = 24.0;
 pub const DEST_GAP_DP: f32 = 12.0;
 pub const PAD_TOP_DP: f32 = 16.0;
@@ -75,7 +95,9 @@ pub fn resolve(theme: &Theme) -> NavRailAppearance {
         container: c.surface,
         active_indicator: c.secondary_container,
         active_icon: c.on_secondary_container,
-        active_label: c.on_surface,
+        // `NavigationRailColorTokens.ItemActiveLabelText` = Secondary
+        // (Expressive May 2025: vertical active label is secondary).
+        active_label: c.secondary,
         inactive_icon: c.on_surface_variant,
         inactive_label: c.on_surface_variant,
         fab: c.primary_container,
@@ -222,6 +244,94 @@ pub fn os_popup_window_options(mode: RailMode) -> (&'static str, f32, bool) {
 
 pub fn is_active(selected: usize, index: usize) -> bool {
     selected == index
+}
+
+/// Compose `NavigationItemIconPosition` for `WideNavigationRailItem`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IconPosition {
+    /// Icon above the label. Use with collapsed wide rails.
+    Top,
+    /// Icon at the start of the label. Use with expanded wide rails.
+    Start,
+}
+
+impl IconPosition {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Start => "start",
+        }
+    }
+
+    pub const fn is_start(self) -> bool {
+        matches!(self, Self::Start)
+    }
+}
+
+/// Compose `WideNavigationRailItemDefaults.iconPositionFor`.
+pub const fn icon_position_for(rail_expanded: bool) -> IconPosition {
+    if rail_expanded {
+        IconPosition::Start
+    } else {
+        IconPosition::Top
+    }
+}
+
+pub const fn icon_position_for_mode(mode: RailMode) -> IconPosition {
+    icon_position_for(matches!(mode, RailMode::Expanded))
+}
+
+/// `NavigationRailVerticalItemTokens` / `NavigationRailHorizontalItemTokens`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailItemMetrics {
+    pub icon_position: IconPosition,
+    pub indicator_w_dp: f32,
+    pub indicator_h_dp: f32,
+    pub indicator_full_width: bool,
+    pub icon_label_gap_dp: f32,
+    pub pad_start_dp: f32,
+    pub pad_end_dp: f32,
+    pub label_style: TypeStyle,
+}
+
+pub fn item_metrics(theme: &Theme, position: IconPosition) -> RailItemMetrics {
+    match position {
+        IconPosition::Top => RailItemMetrics {
+            icon_position: position,
+            indicator_w_dp: INDICATOR_W_DP,
+            indicator_h_dp: INDICATOR_H_DP,
+            indicator_full_width: false,
+            icon_label_gap_dp: TOP_ICON_LABEL_GAP_DP,
+            pad_start_dp: 0.0,
+            pad_end_dp: 0.0,
+            label_style: theme.typography.label_medium,
+        },
+        IconPosition::Start => RailItemMetrics {
+            icon_position: position,
+            indicator_w_dp: 0.0,
+            indicator_h_dp: START_INDICATOR_H_DP,
+            indicator_full_width: true,
+            icon_label_gap_dp: START_ICON_LABEL_GAP_DP,
+            pad_start_dp: START_LEADING_DP,
+            pad_end_dp: START_TRAILING_DP,
+            label_style: theme.typography.label_large,
+        },
+    }
+}
+
+pub fn item_metrics_for_mode(theme: &Theme, mode: RailMode) -> RailItemMetrics {
+    item_metrics(theme, icon_position_for_mode(mode))
+}
+
+/// Start-icon pill width: rail minus FullWidthLeading/Trailing 16+16.
+pub fn start_indicator_width_dp(rail_width_dp: f32) -> f32 {
+    (rail_width_dp - START_LEADING_DP - START_TRAILING_DP).max(0.0)
+}
+
+pub fn resolve_wide_collapsed(theme: &Theme) -> NavRailAppearance {
+    let mut a = resolve(theme);
+    a.width_dp = WIDE_COLLAPSED_WIDTH_DP;
+    a
 }
 
 /// 0 = collapsed, 1 = expanded modal.

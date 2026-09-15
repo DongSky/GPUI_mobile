@@ -779,6 +779,7 @@ fn catalog_body(
         .child(section_title(theme, "Side sheet"))
         .child(desktop_side_sheet(theme))
         .child(section_title(theme, "Navigation rail"))
+        .child(wide_rail_icon_hero(this, theme, cx))
         .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
@@ -4473,6 +4474,57 @@ fn time_picker_hero(
         )
 }
 
+fn wide_rail_icon_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let collapsed = navigation_rail::resolve_wide_collapsed(theme);
+    let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    div()
+        .id("wide-rail-pair")
+        .flex()
+        .flex_row()
+        .gap(px(24.))
+        .child(nav_rail_static_column(
+            this,
+            theme,
+            collapsed.width_dp,
+            navigation_rail::IconPosition::Top,
+            cx,
+        ))
+        .child(nav_rail_static_column(
+            this,
+            theme,
+            expanded.width_dp,
+            navigation_rail::IconPosition::Start,
+            cx,
+        ))
+}
+
+fn nav_rail_static_column(
+    this: &CatalogView,
+    theme: &Theme,
+    width_dp: f32,
+    position: navigation_rail::IconPosition,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let rail = navigation_rail::resolve(theme);
+    let selected = this.rail_selected;
+    div()
+        .id(SharedString::from(format!("wide-rail-{}", position.label())))
+        .w(px(width_dp))
+        .min_h(px(280.))
+        .pt(px(navigation_rail::PAD_TOP_DP))
+        .bg(paint(rail.container))
+        .flex()
+        .flex_col()
+        .when(position.is_start(), |el| el.items_stretch())
+        .when(!position.is_start(), |el| el.items_center())
+        .gap(px(navigation_rail::DEST_GAP_DP))
+        .children(nav_rail_dest_views(theme, &rail, width_dp, position, selected, cx))
+}
+
 fn nav_rail_hero(
     this: &CatalogView,
     theme: &Theme,
@@ -4536,6 +4588,7 @@ fn nav_rail_column(
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let position = navigation_rail::icon_position_for_mode(mode);
     div()
         .id("nav-rail")
         .overflow_hidden()
@@ -4543,7 +4596,8 @@ fn nav_rail_column(
         .bg(paint(rail.container))
         .flex()
         .flex_col()
-        .items_center()
+        .when(position.is_start(), |el| el.items_stretch())
+        .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .with_animation(
             if expanded { "rail-expand" } else { "rail-collapse" },
@@ -4570,38 +4624,96 @@ fn nav_rail_column(
                     cx.notify();
                 })),
         )
-        .children(
-            navigation_rail::DESTINATIONS
-                .iter()
-                .zip(navigation_rail::DESTINATION_ICONS.iter())
-                .zip(navigation_rail::DESTINATION_BADGES.iter())
-                .enumerate()
-                .map(|(i, ((label, icon), badge))| {
-                    let active = navigation_rail::is_active(selected, i);
-                    let mut dest = div()
-                        .id(SharedString::from(format!("rail-dest-{i}")))
-                        .w(px(rail.width_dp))
-                        .relative()
-                        .flex()
-                        .gap(px(4.))
-                        .items_center()
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.rail_selected = navigation_rail::select_destination(
-                                this.rail_selected,
-                                i,
-                            );
-                            cx.notify();
-                        }));
-                    dest = if expanded {
-                        dest.flex_row().justify_start().px(px(12.))
+        .children(nav_rail_dest_views(
+            theme,
+            &rail,
+            rail.width_dp,
+            position,
+            selected,
+            cx,
+        ))
+}
+
+fn nav_rail_dest_views(
+    theme: &Theme,
+    rail: &navigation_rail::NavRailAppearance,
+    width_dp: f32,
+    position: navigation_rail::IconPosition,
+    selected: usize,
+    cx: &mut Context<CatalogView>,
+) -> Vec<gpui::AnyElement> {
+    let metrics = navigation_rail::item_metrics(theme, position);
+    navigation_rail::DESTINATIONS
+        .iter()
+        .zip(navigation_rail::DESTINATION_ICONS.iter())
+        .zip(navigation_rail::DESTINATION_BADGES.iter())
+        .enumerate()
+        .map(|(i, ((label, icon), badge))| {
+            let active = navigation_rail::is_active(selected, i);
+            let mut dest = div()
+                .id(SharedString::from(format!(
+                    "rail-dest-{}-{i}",
+                    position.label()
+                )))
+                .relative()
+                .flex()
+                .items_center()
+                .gap(px(metrics.icon_label_gap_dp))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.rail_selected = navigation_rail::select_destination(this.rail_selected, i);
+                    cx.notify();
+                }));
+            dest = if position.is_start() {
+                dest.flex_row()
+                    .justify_start()
+                    .w(px(navigation_rail::start_indicator_width_dp(width_dp)))
+                    .h(px(metrics.indicator_h_dp))
+                    .px(px(metrics.pad_start_dp))
+                    .ml(px(navigation_rail::START_LEADING_DP))
+                    .rounded(px(metrics.indicator_h_dp / 2.0))
+                    .bg(paint(if active {
+                        rail.active_indicator
                     } else {
-                        dest.flex_col().justify_center()
-                    };
-                    dest = dest.child(
+                        rail.container
+                    }))
+            } else {
+                dest.flex_col()
+                    .justify_center()
+                    .w(px(width_dp))
+            };
+            if position.is_start() {
+                dest = dest
+                    .child(
                         div()
-                            .w(px(navigation_rail::INDICATOR_W_DP))
-                            .h(px(navigation_rail::INDICATOR_H_DP))
-                            .rounded(px(navigation_rail::INDICATOR_H_DP / 2.0))
+                            .w(px(navigation_rail::ICON_DP))
+                            .h(px(navigation_rail::ICON_DP))
+                            .text_color(paint(if active {
+                                rail.active_icon
+                            } else {
+                                rail.inactive_icon
+                            }))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(*icon),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(metrics.label_style.size_sp))
+                            .text_color(paint(if active {
+                                rail.active_label
+                            } else {
+                                rail.inactive_label
+                            }))
+                            .child(*label),
+                    );
+            } else {
+                dest = dest
+                    .child(
+                        div()
+                            .w(px(metrics.indicator_w_dp))
+                            .h(px(metrics.indicator_h_dp))
+                            .rounded(px(metrics.indicator_h_dp / 2.0))
                             .bg(paint(if active {
                                 rail.active_indicator
                             } else {
@@ -4616,10 +4728,10 @@ fn nav_rail_column(
                             .items_center()
                             .justify_center()
                             .child(*icon),
-                    );
-                    dest = dest.child(
+                    )
+                    .child(
                         div()
-                            .text_size(px(rail.label_style.size_sp))
+                            .text_size(px(metrics.label_style.size_sp))
                             .text_color(paint(if active {
                                 rail.active_label
                             } else {
@@ -4627,38 +4739,40 @@ fn nav_rail_column(
                             }))
                             .child(*label),
                     );
-                    match badge {
-                        Some(0) => dest.child(
-                            div()
-                                .absolute()
-                                .top(px(2.))
-                                .right(px(18.))
-                                .w(px(6.))
-                                .h(px(6.))
-                                .rounded(px(3.))
-                                .bg(paint(rail.badge)),
-                        ),
-                        Some(n) => dest.child(
-                            div()
-                                .absolute()
-                                .top(px(2.))
-                                .right(px(12.))
-                                .min_w(px(16.))
-                                .h(px(16.))
-                                .px(px(4.))
-                                .rounded(px(8.))
-                                .bg(paint(rail.badge))
-                                .text_color(paint(rail.badge_label))
-                                .text_size(px(10.))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(badge::label_for_count(*n)),
-                        ),
-                        None => dest,
-                    }
-                }),
-        )
+            }
+            dest = match badge {
+                Some(0) => dest.child(
+                    div()
+                        .absolute()
+                        .top(px(2.))
+                        .right(px(if position.is_start() { 8. } else { 18. }))
+                        .w(px(6.))
+                        .h(px(6.))
+                        .rounded(px(3.))
+                        .bg(paint(rail.badge)),
+                ),
+                Some(n) => dest.child(
+                    div()
+                        .absolute()
+                        .top(px(2.))
+                        .right(px(if position.is_start() { 8. } else { 12. }))
+                        .min_w(px(16.))
+                        .h(px(16.))
+                        .px(px(4.))
+                        .rounded(px(8.))
+                        .bg(paint(rail.badge))
+                        .text_color(paint(rail.badge_label))
+                        .text_size(px(10.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(badge::label_for_count(*n)),
+                ),
+                None => dest,
+            };
+            dest.into_any_element()
+        })
+        .collect()
 }
 
 fn progress_heroes(theme: &Theme) -> impl IntoElement {
@@ -5675,5 +5789,24 @@ mod tests {
             InteractionState::Pressed,
         );
         assert_eq!(pets.corners.top_left, 8.0);
+        assert_eq!(
+            navigation_rail::icon_position_for(false),
+            navigation_rail::IconPosition::Top
+        );
+        assert_eq!(
+            navigation_rail::icon_position_for(true),
+            navigation_rail::IconPosition::Start
+        );
+        let start = navigation_rail::item_metrics(
+            &theme,
+            navigation_rail::IconPosition::Start,
+        );
+        assert_eq!(start.indicator_h_dp, 56.0);
+        assert_eq!(start.label_style.name, "labelLarge");
+        assert_eq!(navigation_rail::WIDE_COLLAPSED_WIDTH_DP, 96.0);
+        assert_eq!(
+            navigation_rail::resolve(&theme).active_label,
+            theme.color.secondary
+        );
     }
 }
