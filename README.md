@@ -28,7 +28,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Button | Common buttons (filled, tonal, elevated, outlined, text) | done | Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant | [spec](https://m3.material.io/components/buttons/specs) |
 | Icon button | Icon buttons | done | Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24 | [spec](https://m3.material.io/components/icon-buttons/specs) |
 | FAB | Floating action button | done | Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated | [spec](https://m3.material.io/components/floating-action-button/specs) |
-| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd notch (RoundedPolygon cubics live); GPUI layout_line notch; IME NativeActivity JavaVM + toggleSoftInput vtable | [spec](https://m3.material.io/components/text-fields/specs) |
+| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd notch (RoundedPolygon cubics live); GPUI layout_line notch; IME NativeActivity JavaVM + toggleSoftInput + dummy View/BaseInputConnection | [spec](https://m3.material.io/components/text-fields/specs) |
 | List | Lists | done | One / two / three line; 56 / 72 / 88dp | [spec](https://m3.material.io/components/lists/specs) |
 | Checkbox | Checkbox | done | 18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate | [spec](https://m3.material.io/components/checkbox/specs) |
 | Radio | Radio button | done | 20dp / 48dp target | [spec](https://m3.material.io/components/radio-button/specs) |
@@ -48,8 +48,8 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Tabs | Tabs | done | Primary 48dp + 3dp primary indicator; secondary 2dp full-width | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
 | Date picker | Date pickers | done | Modal calendar; docked popup with month nav + outside-click dismiss | [spec](https://m3.material.io/components/date-pickers/specs) |
-| Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade; MorphLayerTransform top-center; PathBuilder::scale fill) | [spec](https://m3.material.io/components/search/specs) |
-| Time picker | Time pickers (dial) | done | Hour + minute dial, analog selector hand + wall-clock second hand | [spec](https://m3.material.io/components/time-pickers/specs) |
+| Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade; MorphLayerTransform top-center; PathBuilder::scale fill; morph_layer_box layout) | [spec](https://m3.material.io/components/search/specs) |
+| Time picker | Time pickers (dial) | done | Hour + minute dial, analog selector hand + wall-clock second hand (16ms GPUI frames) | [spec](https://m3.material.io/components/time-pickers/specs) |
 
 `done` means tokens, metrics, and catalog **heroes** match the current
 [m3.material.io](https://m3.material.io) Expressive language (not the older

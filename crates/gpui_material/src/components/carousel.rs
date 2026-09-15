@@ -167,6 +167,11 @@ impl FlingState {
         self.velocity.abs() < 0.5 && self.leftover.abs() < FLING_UNIT
     }
 
+    /// True while a live host should keep requesting frames.
+    pub fn needs_frame(&self) -> bool {
+        !self.resting()
+    }
+
     /// Seed velocity so integrating to rest advances about `steps` items.
     pub fn impulse_items(&mut self, steps: i32) {
         if steps == 0 {

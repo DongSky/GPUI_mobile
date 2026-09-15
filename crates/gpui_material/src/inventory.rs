@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (RoundedPolygon cubics via PathBuilder cubic_bezier_to); GPUI layout_line notch width with Roboto-advance fallback; IME caret + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput vtable (no View-backed InputConnection)",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (RoundedPolygon cubics via PathBuilder cubic_bezier_to); GPUI layout_line notch width with Roboto-advance fallback; IME caret + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput vtable + dummy View/BaseInputConnection NewObject (hasCode=false, no RegisterNatives peer)",
     },
     ComponentEntry {
         name: "List",
@@ -242,21 +242,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, PathBuilder::scale container fill, morph_scaled_margin_dp layout, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale, MorphLayerTransform top-center origin, PathBuilder::scale container fill, morph_layer_box layout beyond inset, container lerp, leading icon/back + avatar crossfade); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a wall-clock ticking second hand; displaySmallEmphasized header; AM/PM",
+        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a wall-clock ticking second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay) + apply_wheel 60 Hz integrator (can skip more than one item)",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay, hosts notify while needs_frame) + apply_wheel 60 Hz integrator (can skip more than one item)",
     },
 ];
 

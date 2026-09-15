@@ -314,7 +314,7 @@ impl CatalogView {
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
     }
 
-    fn tick_carousel_fling(&mut self) {
+    fn tick_carousel_fling(&mut self, cx: &mut Context<Self>) {
         if self.carousel_fling.resting() {
             self.carousel_fling.selected = self.carousel_index;
             self.carousel_fling_at = None;
@@ -327,12 +327,15 @@ impl CatalogView {
             .unwrap_or(carousel::FLING_FRAME_DT);
         self.carousel_fling_at = Some(now);
         self.carousel_index = self.carousel_fling.step_live(dt);
+        if self.carousel_fling.needs_frame() {
+            cx.notify();
+        }
     }
 }
 
 impl Render for CatalogView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.tick_carousel_fling();
+        self.tick_carousel_fling(cx);
         let theme = self.theme();
         let c = theme.color;
         let bar = top_app_bar::resolve(&theme);
@@ -2048,10 +2051,16 @@ fn search_bar_hero(
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
                 let frame = search::morph_frame_eased(linear);
-                this.min_h(px(frame.height_dp))
+                let layer = search::morph_layer_transform(frame);
+                let box_ = search::morph_layer_box(
+                    search::MORPH_STAGE_W_DP,
+                    frame.height_dp,
+                    layer,
+                );
+                this.min_h(px(box_.height_dp))
                     .rounded(px(frame.corner_dp))
-                    .ml(px(frame.inset_h_dp))
-                    .mr(px(frame.inset_h_dp))
+                    .ml(px(box_.x_dp.max(frame.inset_h_dp)))
+                    .mr(px(box_.x_dp.max(frame.inset_h_dp)))
             },
         )
         .child({
@@ -2323,7 +2332,7 @@ fn time_picker_hero(
                 )
                 .child({
                     let second_color = hand_color;
-                    let period = 1_000u64;
+                    let period = time_picker::SECOND_HAND_FRAME_MS as u64;
                     div()
                         .absolute()
                         .top(px(0.))

@@ -3,8 +3,9 @@
 //! `ImeSession` mirrors Android `InputConnection` (`commitText`, compose,
 //! delete, cursor-anchor). `update_ime_position` fills the session and emits a
 //! host-testable JNI call plan for `InputMethodManager` (`toggleSoftInput` is
-//! the NativeActivity-safe show/hide; there is still no `View`-backed
-//! `InputConnection` registered with the system IME).
+//! the NativeActivity-safe show/hide). A live flush also constructs a dummy
+//! `android.view.View` + `BaseInputConnection` (`hasCode=false` still cannot
+//! `RegisterNatives` a Java peer).
 
 use std::cell::Cell;
 use std::os::raw::c_void;
@@ -233,6 +234,18 @@ pub const JNI_IMM_UPDATE_CURSOR_ANCHOR: JniMethod = JniMethod {
     sig: "(Landroid/view/View;Landroid/view/inputmethod/CursorAnchorInfo;)V",
 };
 
+pub const JNI_VIEW_CTOR: JniMethod = JniMethod {
+    class: "android/view/View",
+    name: "<init>",
+    sig: "(Landroid/content/Context;)V",
+};
+
+pub const JNI_BASE_IC_CTOR: JniMethod = JniMethod {
+    class: "android/view/inputmethod/BaseInputConnection",
+    name: "<init>",
+    sig: "(Landroid/view/View;Z)V",
+};
+
 pub const JNI_IC_COMMIT_TEXT: JniMethod = JniMethod {
     class: "android/view/inputmethod/InputConnection",
     name: "commitText",
@@ -311,6 +324,8 @@ pub enum JniImmCall {
         show_flags: i32,
         hide_flags: i32,
     },
+    NewView,
+    NewBaseInputConnection,
     UpdateCursorAnchorInfo {
         payload: CursorAnchorInfoPayload,
     },
@@ -348,6 +363,8 @@ impl ImeSession {
                     show_flags: IMM_SHOW_FORCED,
                     hide_flags: 0,
                 });
+                calls.push(JniImmCall::NewView);
+                calls.push(JniImmCall::NewBaseInputConnection);
                 if self.bounds.is_some() {
                     calls.push(JniImmCall::UpdateCursorAnchorInfo {
                         payload: self.cursor_anchor_payload(),
@@ -418,6 +435,8 @@ pub fn jni_imm_call_name(call: &JniImmCall) -> &'static str {
     match call {
         JniImmCall::GetSystemService { .. } => "getSystemService",
         JniImmCall::ToggleSoftInput { .. } => "toggleSoftInput",
+        JniImmCall::NewView => "<init>",
+        JniImmCall::NewBaseInputConnection => "<init>",
         JniImmCall::UpdateCursorAnchorInfo { .. } => "updateCursorAnchorInfo",
     }
 }
@@ -475,6 +494,11 @@ pub trait JniEnvSink {
     fn find_class(&mut self, class: &str);
     fn get_method_id(&mut self, class: &str, name: &str, sig: &str);
     fn call_void(&mut self, name: &str);
+    fn new_object(&mut self, class: &str, sig: &str) {
+        self.find_class(class);
+        self.get_method_id(class, "<init>", sig);
+        self.call_void("<init>");
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -494,7 +518,7 @@ impl JniEnvSink for RecordingJniSink {
     }
 }
 
-/// Walk `queue` as a NativeActivity `JNIEnv` would (`getSystemService` + IMM).
+/// Walk `queue` as a NativeActivity `JNIEnv` would (`getSystemService` + IMM + View IC).
 pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> usize {
     let mut n = 0usize;
     for call in queue.pending() {
@@ -517,6 +541,14 @@ pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> us
                     JNI_IMM_TOGGLE_SOFT_INPUT.sig,
                 );
                 sink.call_void(JNI_IMM_TOGGLE_SOFT_INPUT.name);
+                n += 1;
+            }
+            JniImmCall::NewView => {
+                sink.new_object(JNI_VIEW_CTOR.class, JNI_VIEW_CTOR.sig);
+                n += 1;
+            }
+            JniImmCall::NewBaseInputConnection => {
+                sink.new_object(JNI_BASE_IC_CTOR.class, JNI_BASE_IC_CTOR.sig);
                 n += 1;
             }
             JniImmCall::UpdateCursorAnchorInfo { .. } => {
@@ -605,23 +637,29 @@ unsafe fn flush_toggle_soft_input_jni(
     queue: &ImeJniQueue,
 ) -> Result<usize, &'static str> {
     use jni_sys::{
-        jvalue, JNIEnv, JavaVM, JNI_OK, JNI_VERSION_1_6, jobject,
+        jboolean, jvalue, JNIEnv, JavaVM, JNI_OK, JNI_TRUE, JNI_VERSION_1_6, jobject,
     };
     let mut show_flags = 0i32;
     let mut hide_flags = 0i32;
     let mut saw_toggle = false;
+    let mut want_view = false;
+    let mut want_ic = false;
     for call in queue.pending() {
-        if let JniImmCall::ToggleSoftInput {
-            show_flags: s,
-            hide_flags: h,
-        } = call
-        {
-            show_flags = *s;
-            hide_flags = *h;
-            saw_toggle = true;
+        match call {
+            JniImmCall::ToggleSoftInput {
+                show_flags: s,
+                hide_flags: h,
+            } => {
+                show_flags = *s;
+                hide_flags = *h;
+                saw_toggle = true;
+            }
+            JniImmCall::NewView => want_view = true,
+            JniImmCall::NewBaseInputConnection => want_ic = true,
+            _ => {}
         }
     }
-    if !saw_toggle {
+    if !saw_toggle && !want_view && !want_ic {
         return Ok(queue.pending().len());
     }
     let vm = vm as *mut JavaVM;
@@ -695,8 +733,65 @@ unsafe fn flush_toggle_soft_input_jni(
         return Err("toggleSoftInput");
     }
     let args_toggle = [jvalue { i: show_flags }, jvalue { i: hide_flags }];
-    (jni.CallVoidMethodA)(env, imm, toggle, args_toggle.as_ptr());
-    jni_ok(env)?;
+    if saw_toggle {
+        (jni.CallVoidMethodA)(env, imm, toggle, args_toggle.as_ptr());
+        jni_ok(env)?;
+    }
+
+    if want_view {
+        let view_cls = (jni.FindClass)(env, b"android/view/View\0".as_ptr().cast());
+        jni_ok(env)?;
+        if view_cls.is_null() {
+            return Err("FindClass View");
+        }
+        let view_ctor = (jni.GetMethodID)(
+            env,
+            view_cls,
+            b"<init>\0".as_ptr().cast(),
+            b"(Landroid/content/Context;)V\0".as_ptr().cast(),
+        );
+        jni_ok(env)?;
+        if view_ctor.is_null() {
+            return Err("View.<init>");
+        }
+        let args_view = [jvalue {
+            l: activity as jobject,
+        }];
+        let view = (jni.NewObjectA)(env, view_cls, view_ctor, args_view.as_ptr());
+        jni_ok(env)?;
+        if view.is_null() {
+            return Err("new View");
+        }
+        if want_ic {
+            let ic_cls = (jni.FindClass)(
+                env,
+                b"android/view/inputmethod/BaseInputConnection\0".as_ptr().cast(),
+            );
+            jni_ok(env)?;
+            if ic_cls.is_null() {
+                return Err("FindClass BaseInputConnection");
+            }
+            let ic_ctor = (jni.GetMethodID)(
+                env,
+                ic_cls,
+                b"<init>\0".as_ptr().cast(),
+                b"(Landroid/view/View;Z)V\0".as_ptr().cast(),
+            );
+            jni_ok(env)?;
+            if ic_ctor.is_null() {
+                return Err("BaseInputConnection.<init>");
+            }
+            let args_ic = [
+                jvalue { l: view },
+                jvalue {
+                    z: JNI_TRUE as jboolean,
+                },
+            ];
+            let _ic = (jni.NewObjectA)(env, ic_cls, ic_ctor, args_ic.as_ptr());
+            jni_ok(env)?;
+        }
+    }
+
     Ok(queue.pending().len())
 }
 
@@ -830,7 +925,9 @@ mod tests {
                 hide_flags: 0
             }
         ));
-        match &calls[2] {
+        assert!(matches!(calls[2], JniImmCall::NewView));
+        assert!(matches!(calls[3], JniImmCall::NewBaseInputConnection));
+        match &calls[4] {
             JniImmCall::UpdateCursorAnchorInfo { payload } => {
                 assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
                 assert_eq!(payload.selection_end, 2);
@@ -856,6 +953,8 @@ mod tests {
             [
                 "getSystemService",
                 "toggleSoftInput",
+                "<init>",
+                "<init>",
                 "updateCursorAnchorInfo"
             ]
         );
@@ -877,8 +976,14 @@ mod tests {
         );
         let mut sink = RecordingJniSink::default();
         let n = flush_ime_jni_queue(&mut sink, &queue.borrow());
-        assert_eq!(n, 3);
+        assert_eq!(n, 5);
         assert!(sink.log.iter().any(|s| s.contains("toggleSoftInput")));
+        assert!(sink.log.iter().any(|s| s.contains("android/view/View")));
+        assert!(
+            sink.log
+                .iter()
+                .any(|s| s.contains("android/view/inputmethod/BaseInputConnection"))
+        );
         assert!(
             jni_native_method_descriptors()
                 .iter()
@@ -887,7 +992,7 @@ mod tests {
         assert_eq!(flush_if_attached(&queue.borrow()), Err("no JNIEnv"));
         unsafe { attach_jni_env(0x1 as *mut _) };
         let _clear = scopeguard_clear_env();
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(3));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(5));
     }
 
     #[test]
@@ -902,8 +1007,8 @@ mod tests {
         apply_update_ime_position_queued(&slot, &session, &queue, 8.0, 16.0, 2.0, 24.0);
         unsafe { attach_native_activity(0x1 as *mut _, 0x2 as *mut _) };
         let _clear = scopeguard_clear_native();
-        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(3));
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(3));
+        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(5));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(5));
     }
 
     fn scopeguard_clear_native() -> impl Drop {

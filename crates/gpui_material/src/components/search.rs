@@ -260,8 +260,8 @@ pub fn morph_scale_attr(frame: MorphFrame) -> String {
 
 /// CSS / GPUI layer transform for the shared-element search container.
 /// GPUI `div` still has no element transform; hosts paint the container fill
-/// with `PathBuilder::scale` about [`TRANSFORM_ORIGIN`] and keep
-/// `morph_scaled_margin_dp` / inset for layout. HTML uses CSS `transform`.
+/// with `PathBuilder::scale` about [`TRANSFORM_ORIGIN`] and apply
+/// [`morph_layer_box`] for layout. HTML uses CSS `transform`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MorphLayerTransform {
     pub scale: f32,
@@ -281,6 +281,58 @@ pub fn morph_layer_transform(frame: MorphFrame) -> MorphLayerTransform {
 
 pub fn morph_layer_css(frame: MorphFrame) -> String {
     format!("scale({:.2})", frame.scale)
+}
+
+/// Axis-aligned box after applying `transform` around its origin (top-center).
+/// GPUI `div` has no element scale; hosts apply this to height + x inset so
+/// layout matches CSS `transform-origin: top center` beyond `inset_h_dp`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MorphLayerBox {
+    pub x_dp: f32,
+    pub y_dp: f32,
+    pub width_dp: f32,
+    pub height_dp: f32,
+}
+
+pub fn morph_layer_box(
+    stage_w_dp: f32,
+    unscaled_h_dp: f32,
+    transform: MorphLayerTransform,
+) -> MorphLayerBox {
+    let w = stage_w_dp * transform.scale;
+    let h = unscaled_h_dp * transform.scale;
+    MorphLayerBox {
+        x_dp: (stage_w_dp - w) * transform.origin_x_frac,
+        y_dp: (unscaled_h_dp - h) * transform.origin_y_frac,
+        width_dp: w,
+        height_dp: h,
+    }
+}
+
+/// Shared-element height after top-center scale (GPUI stand-in for CSS scale).
+pub fn morph_layer_height_dp(frame: MorphFrame) -> f32 {
+    morph_layer_box(
+        MORPH_STAGE_W_DP,
+        frame.height_dp,
+        morph_layer_transform(frame),
+    )
+    .height_dp
+}
+
+/// Map a local point through the layer transform (origin at top-center of `w×h`).
+pub fn morph_layer_map_point(
+    x: f32,
+    y: f32,
+    stage_w_dp: f32,
+    unscaled_h_dp: f32,
+    transform: MorphLayerTransform,
+) -> (f32, f32) {
+    let ox = stage_w_dp * transform.origin_x_frac;
+    let oy = unscaled_h_dp * transform.origin_y_frac;
+    (
+        ox + (x - ox) * transform.scale,
+        oy + (y - oy) * transform.scale,
+    )
 }
 
 /// CSS `top center` origin in the same space as a GPUI `bounds`.

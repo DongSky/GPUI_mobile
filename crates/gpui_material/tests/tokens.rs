@@ -520,6 +520,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-scale"));
     assert!(html.contains("data-search-transform-origin"));
     assert!(html.contains("data-search-path-scale=\"1\""));
+    assert!(html.contains("data-search-layer-box"));
     assert!(html.contains("data-stroke-cap=\"round\""));
     assert!(html.contains("data-rail-chrome=\"popup\""));
     assert!(html.contains("data-rail-os-popup=\"0\""));
@@ -956,6 +957,17 @@ fn search_bar_and_time_picker_tokens() {
     let [pre, post] = search::top_center_scale_translates(0.0, 0.0, 100.0);
     assert!((pre.0 + 50.0).abs() < 1e-5);
     assert_eq!(post.0, 50.0);
+    let layer_box = search::morph_layer_box(
+        search::MORPH_STAGE_W_DP,
+        docked.height_dp,
+        layer,
+    );
+    assert!((layer_box.height_dp - docked.height_dp * search::SHARED_SCALE_DOCKED).abs() < 0.02);
+    assert!(layer_box.x_dp > 0.0);
+    assert!((search::morph_layer_height_dp(grown) - grown.height_dp).abs() < 0.02);
+    let (mx, my) = search::morph_layer_map_point(0.0, 10.0, 640.0, 56.0, layer);
+    assert!(mx > 0.0);
+    assert!((my - 10.0 * search::SHARED_SCALE_DOCKED).abs() < 0.05);
     assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
     assert!(progress::STROKE_CAP.is_round());
     assert_eq!(progress::STROKE_CAP.css(), progress::LINE_CAP);
@@ -1112,8 +1124,10 @@ fn search_bar_and_time_picker_tokens() {
     assert!(sec <= 59);
     assert!(tick >= 0.0 && tick < 1.0);
     let _ = time_picker::second_hand_angle_wall_clock();
+    assert_eq!(time_picker::SECOND_HAND_FRAME_MS, 16);
     let mut live = carousel::FlingState::new(0);
     live.impulse(80.0, 0.0);
+    assert!(live.needs_frame());
     let _ = live.step_live(1.0 / 60.0);
     assert!(progress::loading_svg_values_for_wait(38.0, 4).contains(';'));
     let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
