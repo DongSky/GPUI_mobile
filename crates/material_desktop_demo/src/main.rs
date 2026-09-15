@@ -375,6 +375,8 @@ struct CatalogView {
     date_display: date_picker::DatePickerDisplayMode,
     date_pane: date_picker::DatePickerPane,
     date_range: date_picker::DateRangeSelection,
+    range_year: i32,
+    range_month: u32,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -594,6 +596,12 @@ impl CatalogView {
 
     fn tap_date_range(&mut self, day: CivilDate) {
         self.date_range = date_picker::apply_range_tap(self.date_range, day);
+    }
+
+    fn shift_range_month(&mut self, delta: i32) {
+        let (y, m) = date_picker::apply_range_month(self.range_year, self.range_month, delta);
+        self.range_year = y;
+        self.range_month = m;
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -3201,8 +3209,8 @@ fn date_range_hero(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let today = this.today;
-    let year = date_picker::RANGE_DEMO_START.year;
-    let month = date_picker::RANGE_DEMO_START.month;
+    let year = this.range_year;
+    let month = this.range_month;
     let cells = date_picker::month_grid_range_selection(year, month, this.date_range, today);
     let cal_w = pick.day_dp * 7.0;
     div()
@@ -3227,42 +3235,64 @@ fn date_range_hero(
                     paint(pick.header_date),
                 )),
         )
-        .child(spaced_line(
-            date_picker::month_nav_label(year, month),
-            pick.year_style.size_sp,
-            paint(pick.header_year),
-        ))
-        .child(weekday_row(pick, cal_w))
         .child(
             div()
-                .w(px(cal_w))
                 .flex()
-                .flex_wrap()
-                .children(cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                    let (bg, fg, radius) = day_colors(pick, kind);
-                    let in_month = kind != DayKind::OutOfMonth;
+                .items_center()
+                .justify_between()
+                .child(
                     div()
-                        .id(SharedString::from(format!("range-day-{i}")))
-                        .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
-                        .rounded(px(radius))
-                        .bg(bg)
-                        .text_color(fg)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .when(kind == DayKind::Today, |el| {
-                            el.border_1().border_color(paint(pick.day_today_outline))
-                        })
-                        .child(day.to_string())
-                        .when(in_month, |el| {
-                            el.on_click(cx.listener(move |this, _, _, cx| {
-                                this.tap_date_range(CivilDate { year, month, day });
-                                cx.notify();
-                            }))
-                        })
-                })),
+                        .id("range-month-prev")
+                        .p(px(8.))
+                        .child("<")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.shift_range_month(-1);
+                            cx.notify();
+                        })),
+                )
+                .child(spaced_line(
+                    date_picker::month_nav_label(year, month),
+                    pick.year_style.size_sp,
+                    paint(pick.header_year),
+                ))
+                .child(
+                    div()
+                        .id("range-month-next")
+                        .p(px(8.))
+                        .child(">")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.shift_range_month(1);
+                            cx.notify();
+                        })),
+                ),
         )
+        .child(weekday_row(pick, cal_w))
+        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+            cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                let (bg, fg, radius) = day_colors(pick, kind);
+                let in_month = kind != DayKind::OutOfMonth;
+                div()
+                    .id(SharedString::from(format!("range-day-{i}")))
+                    .w(px(pick.day_dp))
+                    .h(px(pick.day_dp))
+                    .rounded(px(radius))
+                    .bg(bg)
+                    .text_color(fg)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(kind == DayKind::Today, |el| {
+                        el.border_1().border_color(paint(pick.day_today_outline))
+                    })
+                    .child(day.to_string())
+                    .when(in_month, |el| {
+                        el.on_click(cx.listener(move |this, _, _, cx| {
+                            this.tap_date_range(CivilDate { year, month, day });
+                            cx.notify();
+                        }))
+                    })
+            }),
+        ))
 }
 
 fn date_input_card(
@@ -7759,6 +7789,8 @@ fn main() {
                     date_display: date_picker::LIVE_DISPLAY_MODE,
                     date_pane: date_picker::LIVE_PANE,
                     date_range: date_picker::DateRangeSelection::demo(),
+                    range_year: date_picker::RANGE_DEMO_START.year,
+                    range_month: date_picker::RANGE_DEMO_START.month,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
                     search_filter: search::SearchFilter::All,
                     search: {
@@ -8009,6 +8041,12 @@ mod tests {
         assert_eq!(
             date_picker::header_range_selection(restarted),
             "Sep 15 – End date"
+        );
+        assert!(date_picker::RANGE_MONTH_NAV);
+        assert_eq!(date_picker::apply_range_month(2026, 9, 1), (2026, 10));
+        assert_eq!(
+            date_picker::apply_range_month(date_picker::YEAR_RANGE_START, 1, -1),
+            (date_picker::YEAR_RANGE_START, 1)
         );
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),

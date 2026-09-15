@@ -858,6 +858,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-range-live="1""#));
     assert!(html.contains(r#"data-range-grid="1""#));
     assert!(html.contains(r#"data-range-headline="1""#));
+    assert!(html.contains(r#"data-range-month-nav="1""#));
+    assert!(html.contains(r#"data-range-month-delta="-1""#));
+    assert!(html.contains(r#"data-range-month-label="1""#));
     assert!(html.contains("Depart – Return dates"));
     assert!(html.contains("data-handle-visual=\"28\""));
     assert!(html.contains("September 2026 ▾"));
@@ -2411,10 +2414,7 @@ fn date_picker_grid_and_weekday() {
         .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected));
     assert!(date_picker::RANGE_LIVE);
     let demo = date_picker::DateRangeSelection::demo();
-    assert_eq!(
-        date_picker::header_range_selection(demo),
-        "Sep 15 – Sep 21"
-    );
+    assert_eq!(date_picker::header_range_selection(demo), "Sep 15 – Sep 21");
     let mid = date_picker::apply_range_tap(
         demo,
         date_picker::CivilDate {
@@ -2460,12 +2460,47 @@ fn date_picker_grid_and_weekday() {
         date_picker::DateRangeSelection::empty(),
         today,
     );
-    assert!(empty
-        .iter()
-        .any(|(_, k)| *k == date_picker::DayKind::Today));
+    assert!(empty.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
     assert!(!empty
         .iter()
         .any(|(_, k)| *k == date_picker::DayKind::InRange));
+    assert!(date_picker::RANGE_MONTH_NAV);
+    assert_eq!(date_picker::apply_range_month(2026, 9, 1), (2026, 10));
+    assert_eq!(date_picker::apply_range_month(2026, 1, -1), (2025, 12));
+    assert_eq!(
+        date_picker::apply_range_month(date_picker::YEAR_RANGE_START, 1, -1),
+        (date_picker::YEAR_RANGE_START, 1)
+    );
+    assert_eq!(
+        date_picker::apply_range_month(date_picker::YEAR_RANGE_END, 12, 1),
+        (date_picker::YEAR_RANGE_END, 12)
+    );
+    let cross = date_picker::DateRangeSelection {
+        start: Some(date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 28,
+        }),
+        end: Some(date_picker::CivilDate {
+            year: 2026,
+            month: 10,
+            day: 5,
+        }),
+    };
+    let oct = date_picker::month_grid_range_selection(2026, 10, cross, today);
+    assert!(oct
+        .iter()
+        .any(|(d, k)| *d == 3 && *k == date_picker::DayKind::InRange));
+    assert!(oct
+        .iter()
+        .any(|(d, k)| *d == 5 && *k == date_picker::DayKind::Selected));
+    let sep = date_picker::month_grid_range_selection(2026, 9, cross, today);
+    assert!(sep
+        .iter()
+        .any(|(d, k)| *d == 28 && *k == date_picker::DayKind::Selected));
+    assert!(sep
+        .iter()
+        .any(|(d, k)| *d == 30 && *k == date_picker::DayKind::InRange));
 }
 
 #[test]

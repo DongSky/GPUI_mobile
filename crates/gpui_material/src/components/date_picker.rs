@@ -216,6 +216,10 @@ pub fn header_date_short(date: CivilDate) -> String {
 pub const RANGE_HERO_TITLE: &str = "Depart – Return dates";
 /// Catalog / host range hero starts with a complete depart–return pair.
 pub const RANGE_LIVE: bool = true;
+/// Compose DateRangePicker month pager (prev / next) on the range hero.
+pub const RANGE_MONTH_NAV: bool = true;
+pub const RANGE_PREV_MONTH: &str = "Previous month";
+pub const RANGE_NEXT_MONTH: &str = "Next month";
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -279,6 +283,18 @@ pub fn apply_range_tap(sel: DateRangeSelection, day: CivilDate) -> DateRangeSele
             start: Some(day),
             end: None,
         },
+    }
+}
+
+/// Page the range-hero calendar; clamp to Compose `YearRange` 1900–2100.
+pub fn apply_range_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
+    let (y, m) = add_months(year, month, delta);
+    if y < YEAR_RANGE_START {
+        (YEAR_RANGE_START, 1)
+    } else if y > YEAR_RANGE_END {
+        (YEAR_RANGE_END, 12)
+    } else {
+        (y, m)
     }
 }
 
