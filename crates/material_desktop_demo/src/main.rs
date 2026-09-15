@@ -5593,6 +5593,41 @@ fn header_rail_column(
         )
 }
 
+fn hide_extended_fab(
+    theme: &Theme,
+    rail: &navigation_rail::NavRailAppearance,
+    rail_width_dp: f32,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let morph = navigation_rail::fab_morph_hide(theme, rail_width_dp);
+    let label = theme.typography.label_large;
+    div()
+        .id("hide-rail-fab")
+        .w(px(morph.width_dp))
+        .h(px(morph.height_dp))
+        .ml(px(morph.margin_start_dp))
+        .rounded(px(morph.radius_dp))
+        .bg(paint(rail.fab))
+        .text_color(paint(rail.fab_icon))
+        .flex()
+        .flex_row()
+        .items_center()
+        .overflow_hidden()
+        .px(px(morph.pad_h_dp))
+        .gap(px(morph.gap_dp))
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
+            cx.notify();
+        }))
+        .child(morph.glyph)
+        .child(
+            div()
+                .id("hide-rail-fab-label")
+                .text_size(px(label.size_sp))
+                .child(morph.label),
+        )
+}
+
 fn hide_rail_column(
     this: &CatalogView,
     theme: &Theme,
@@ -5617,23 +5652,7 @@ fn hide_rail_column(
         .flex()
         .flex_col()
         .items_stretch()
-        .child(
-            div()
-                .id("hide-rail-fab")
-                .w(px(navigation_rail::FAB_SLOT_DP))
-                .h(px(navigation_rail::FAB_SLOT_DP))
-                .rounded(px(16.))
-                .bg(paint(rail.fab))
-                .text_color(paint(rail.fab_icon))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child("←")
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.hide_rail_mode = navigation_rail::toggle_mode(this.hide_rail_mode);
-                    cx.notify();
-                })),
-        )
+        .child(hide_extended_fab(theme, &rail, width_dp, cx))
         .child(
             div()
                 .id("hide-rail-dests")
@@ -7091,6 +7110,10 @@ mod tests {
         assert!(navigation_rail::WIDE_DEMO_HAS_EXTENDED_FAB);
         assert!(navigation_rail::MODAL_DEMO_HAS_EXTENDED_FAB);
         assert!(navigation_rail::NARROW_DEMO_HAS_EXTENDED_FAB);
+        assert!(navigation_rail::HIDE_DEMO_HAS_EXTENDED_FAB);
+        let fabh = navigation_rail::fab_morph_hide(&theme, 220.0);
+        assert!((fabh.width_dp - 188.0).abs() < 0.01);
+        assert_eq!(fabh.label, "Create");
         assert!(navigation_rail::WIDE_DEMO_LAYOUT.in_flow());
         assert!(navigation_rail::HIDE_DEMO_HIDE_ON_COLLAPSE);
         assert!(navigation_rail::HIDE_DEMO_ARRANGEMENT.is_center());

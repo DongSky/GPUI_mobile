@@ -15,7 +15,8 @@
 //! with a spatial-fast layout animation ([`item_morph`]). Modal
 //! `hideOnCollapse` slides the rail offscreen instead of leaving a
 //! collapsed 96/80 strip; items stay Start (`railExpanded = true`) and
-//! the overlay keeps expanded shape + modal container. `Arrangement.Vertical`
+//! the overlay keeps expanded shape + modal container plus an
+//! always-extended Create FAB (~188). `Arrangement.Vertical`
 //! is Top (default), Center (full container height), or Bottom
 //! (remaining space below the header). Optional header (Menu / MenuOpen +
 //! the same Extended FAB) stays at the top.
@@ -219,6 +220,8 @@ pub const HIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
 pub const HIDE_DEMO_MODE: RailMode = RailMode::Collapsed;
 pub const HIDE_DEMO_HIDE_ON_COLLAPSE: bool = true;
 pub const HIDE_DEMO_ARRANGEMENT: RailArrangement = RailArrangement::Center;
+/// Official hide-on-collapse overlay stays expanded; FAB is always Create ~188.
+pub const HIDE_DEMO_HAS_EXTENDED_FAB: bool = true;
 
 /// Compose `Arrangement.Vertical` / `WideNavigationRailDefaults.arrangement`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -400,6 +403,11 @@ pub fn fab_morph_for_mode(
         rail_width_dp,
         collapsed,
     )
+}
+
+/// Hide-on-collapse overlay is always the expanded 220 shell; FAB stays Extended.
+pub fn fab_morph_hide(theme: &Theme, rail_width_dp: f32) -> RailFabMorph {
+    fab_morph_kind(theme, 1.0, rail_width_dp, RailCollapsedKind::Wide)
 }
 
 /// Compose `WideNavigationRailDefaults.ContentPadding`.

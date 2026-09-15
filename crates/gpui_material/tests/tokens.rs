@@ -810,6 +810,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-inflow-fab-extend=\"1\""));
     assert!(html.contains("data-modal-fab-extend=\"1\""));
     assert!(html.contains("data-narrow-fab-extend=\"1\""));
+    assert!(html.contains("data-hide-fab-extend=\"1\""));
     assert!(html.contains("data-rail-fab-label=\"1\""));
     assert!(html.contains("function applyRailFabMorph"));
     assert!(html.contains("function applyRailContainerMorph"));
@@ -1063,6 +1064,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("narrow")
             && e.notes.contains("80")
             && e.notes.contains("hideOnCollapse")
+            && e.notes.contains("always-extended")
             && e.notes.contains("Arrangement.Center")
             && e.notes.contains("Arrangement.Bottom")
             && e.notes.contains("MenuOpen")
@@ -1850,6 +1852,11 @@ fn expressive_wide_rail_icon_position() {
     assert!(navigation_rail::WIDE_DEMO_HAS_EXTENDED_FAB);
     assert!(navigation_rail::MODAL_DEMO_HAS_EXTENDED_FAB);
     assert!(navigation_rail::NARROW_DEMO_HAS_EXTENDED_FAB);
+    assert!(navigation_rail::HIDE_DEMO_HAS_EXTENDED_FAB);
+    let fabh = navigation_rail::fab_morph_hide(&theme, 220.0);
+    assert!((fabh.width_dp - 188.0).abs() < 0.01);
+    assert!((fabh.label_alpha - 1.0).abs() < 0.01);
+    assert_eq!(fabh.label, "Create");
     assert!(navigation_rail::WIDE_DEMO_LAYOUT.in_flow());
     assert_eq!(navigation_rail::FAB_LABEL, "Create");
     assert_eq!(navigation_rail::FAB_GLYPH, "+");

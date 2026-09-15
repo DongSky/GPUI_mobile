@@ -551,6 +551,14 @@ a {{ color: var(--primary); }}
 .nav-rail[data-nav-rail-expanded="1"] .fab-slot[data-rail-fab-extend="1"] .fab-label {{
   opacity: 1;
 }}
+.nav-rail[data-hide-on-collapse="1"] .fab-slot[data-rail-fab-extend="1"],
+.nav-rail[data-hide-on-collapse="1"] .fab-slot[data-hide-fab-extend="1"] {{
+  width: calc(100% - 32px); margin-left: 16px; gap: 8px;
+}}
+.nav-rail[data-hide-on-collapse="1"] .fab-slot[data-rail-fab-extend="1"] .fab-label,
+.nav-rail[data-hide-on-collapse="1"] .fab-slot[data-hide-fab-extend="1"] .fab-label {{
+  opacity: 1;
+}}
 .nav-rail .dot {{
   position: absolute; top: 2px; right: 18px; min-width: 16px; height: 16px;
   border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
@@ -1843,6 +1851,7 @@ function applyRailHideSlide(rail, t) {{
   rail.style.width = expanded + "px";
   rail.style.transform = "translateX(" + (-expanded * (1 - e)) + "px)";
   applyRailContainerMorph(rail, 1);
+  applyRailFabMorph(rail, 1, expanded);
 }}
 function applyRailFabMorph(rail, e, railW) {{
   var fab = rail.querySelector("[data-rail-fab-extend]");
@@ -1912,6 +1921,7 @@ function clearRailIconMorph(rail) {{
     rail.style.width = expanded + "px";
     rail.style.transform = shown ? "translateX(0)" : "translateX(-100%)";
     applyRailContainerMorph(rail, 1);
+    applyRailFabMorph(rail, 1, expanded);
     return;
   }}
   var shown = rail.getAttribute("data-nav-rail-expanded") === "1";
@@ -3961,6 +3971,13 @@ fn chrome(theme: &Theme) -> String {
         glyph = navigation_rail::FAB_GLYPH,
         label = navigation_rail::FAB_LABEL,
     );
+    let hide_extended_fab = format!(
+        r#"<div class="fab-slot" data-rail-fab="1" data-rail-fab-extend="1" data-hide-fab-extend="1" style="background:{bg};color:{fg}"><span class="fab-icon">{glyph}</span><span class="fab-label" data-rail-fab-label="1">{label}</span></div>"#,
+        bg = rail.fab.css_hex(),
+        fg = rail.fab_icon.css_hex(),
+        glyph = navigation_rail::FAB_GLYPH,
+        label = navigation_rail::FAB_LABEL,
+    );
     let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
     let mut mail_rows = String::new();
     for row in snackbar::MAIL_ROWS {
@@ -4062,7 +4079,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim, CornerNone / Surface) with Compose <code>ExtendedFloatingActionButton</code> (Create, 56↔188). Modal overlay uses the same 96 collapsed width over a 32% scrim, then <code>modalExpandedShape</code> CornerLarge 16 and <code>ModalContainerColor</code> SurfaceContainer, with the same header-less Extended FAB. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220 with the same modal container morph and Extended FAB (12dp collapsed inset). Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items, <code>Arrangement.Center</code>, and expanded modal shape. Header slot stays top: Menu / MenuOpen + plain tooltip Above + the same Extended FAB. Live <code>Arrangement.Bottom</code> packs destinations below the menu+FAB. Compose <code>WideNavigationRailDefaults.ContentPadding</code> is 0 / 44 / 0 / 44 (<code>WNRVerticalPadding</code> = TopSpace). <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim, CornerNone / Surface) with Compose <code>ExtendedFloatingActionButton</code> (Create, 56↔188). Modal overlay uses the same 96 collapsed width over a 32% scrim, then <code>modalExpandedShape</code> CornerLarge 16 and <code>ModalContainerColor</code> SurfaceContainer, with the same header-less Extended FAB. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220 with the same modal container morph and Extended FAB (12dp collapsed inset). Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items, <code>Arrangement.Center</code>, expanded modal shape, and an always-extended <code>ExtendedFloatingActionButton</code> Create (~188). Header slot stays top: Menu / MenuOpen + plain tooltip Above + the same Extended FAB. Live <code>Arrangement.Bottom</code> packs destinations below the menu+FAB. Compose <code>WideNavigationRailDefaults.ContentPadding</code> is 0 / 44 / 0 / 44 (<code>WNRVerticalPadding</code> = TopSpace). <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" {content_pad} style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" {content_pad} style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -4148,11 +4165,7 @@ fn chrome(theme: &Theme) -> String {
         hide_menu = navigation_rail::HIDE_MENU_GLYPH,
         hide_menu_label = navigation_rail::HIDE_MENU_LABEL,
         content_pad = content_pad_attrs,
-        hide_fab = format!(
-            r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">←</div>"#,
-            bg = rail.fab.css_hex(),
-            fg = rail.fab_icon.css_hex(),
-        ),
+        hide_fab = hide_extended_fab,
         fab_bg = rail.fab.css_hex(),
         fab_fg = rail.fab_icon.css_hex(),
         arr = navigation_rail::HIDE_DEMO_ARRANGEMENT.label(),
