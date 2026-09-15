@@ -463,7 +463,6 @@ fn catalog_body(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let c = theme.color;
-    let snack = snackbar::resolve(theme);
     let lin = progress::linear(theme, ((this.taps % 10) as f32) / 10.0);
     let one = list::resolve(theme, list::ListLines::One, InteractionState::Enabled);
     let two = list::resolve(theme, list::ListLines::Two, InteractionState::Enabled);
@@ -891,6 +890,7 @@ fn catalog_body(
         .child(section_title(theme, "Tabs"))
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
         .child(tab_row(theme, &tabs_s, this.tab_secondary, "s", cx))
+        .child(android_media_scene(this, theme, cx))
         .child(section_title(theme, "Navigation rail"))
         .child(android_nav_rail(this, theme, cx))
         .child(section_title(theme, "Badge"))
@@ -1139,35 +1139,7 @@ fn catalog_body(
         )
         .child(android_progress_indet(theme))
         .when(this.snack_state.visible, |el| {
-            el.child(
-                div()
-                    .id("snackbar")
-                    .w_full()
-                    .h(px(snack.min_height_dp))
-                    .px(px(16.))
-                    .ml(px(this.snack_state.offset_x_dp))
-                    .rounded(px(snack.corners.top_left))
-                    .bg(paint(snack.container))
-                    .text_color(paint(snack.supporting))
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .opacity(this.snack_state.opacity())
-                    .child(snackbar::DEMO_MESSAGE)
-                    .child(
-                        div()
-                            .text_color(paint(snack.action))
-                            .child(snackbar::DEMO_ACTION),
-                    )
-                    .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
-                        let dx = match ev.delta {
-                            ScrollDelta::Pixels(p) => f32::from(p.x),
-                            ScrollDelta::Lines(p) => p.x * 16.0,
-                        };
-                        this.snack_state.swipe(dx);
-                        cx.notify();
-                    })),
-            )
+            el.child(android_mail_snack(this, theme, cx))
         })
 }
 
@@ -1607,14 +1579,35 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
         .id("sheet-scrim")
         .flex_1()
         .w_full()
+        .relative()
         .bg(paint(a.scrim))
         .flex()
         .flex_col()
-        .justify_end()
         .on_click(cx.listener(|this, _, _, cx| {
             this.overlay = Overlay::None;
             cx.notify();
         }))
+        .child(
+            div()
+                .id("share-photos")
+                .w_full()
+                .flex()
+                .flex_wrap()
+                .gap(px(4.))
+                .p(px(8.))
+                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, caption)| {
+                    div()
+                        .w(px(104.))
+                        .h(px(bottom_sheet::PHOTO_TILE_H_DP * 0.7))
+                        .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
+                        .bg(paint(bottom_sheet::photo_fill(theme, i)))
+                        .text_color(paint(bottom_sheet::photo_on(theme, i)))
+                        .p(px(8.))
+                        .flex()
+                        .items_end()
+                        .child(*caption)
+                })),
+        )
         .child(
             div()
                 .id("sheet-card")
@@ -1634,20 +1627,23 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                         .rounded(px(2.))
                         .bg(paint(a.handle)),
                 )
-                .children(
-                    ["Share", "Add to favorites", "Delete"]
-                        .into_iter()
-                        .map(|label| {
-                            div()
-                                .w_full()
-                                .h(px(56.))
-                                .px(px(16.))
-                                .flex()
-                                .items_center()
-                                .text_color(paint(a.content))
-                                .child(label)
-                        }),
-                ),
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(16.))
+                        .text_color(paint(a.content))
+                        .child(bottom_sheet::SHARE_TITLE),
+                )
+                .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
+                    div()
+                        .w_full()
+                        .h(px(56.))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(a.content))
+                        .child(format!("{icon}  {label}"))
+                })),
         )
 }
 
@@ -1703,6 +1699,186 @@ fn menu_overlay(
                             this.overlay = Overlay::None;
                             cx.notify();
                         }))
+                })),
+        )
+}
+
+fn android_mail_snack(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let snack = snackbar::resolve(theme);
+    div()
+        .id("mail-scene")
+        .w_full()
+        .rounded(px(snackbar::PHONE_CORNER_DP))
+        .p(px(12.))
+        .border_color(paint(theme.color.on_surface))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(56.))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_color(paint(theme.color.on_surface))
+                .child(snackbar::SCENE_TITLE),
+        )
+        .children(snackbar::MAIL_ROWS.into_iter().map(|(from, subj)| {
+            div()
+                .h(px(64.))
+                .px(px(16.))
+                .flex()
+                .flex_col()
+                .justify_center()
+                .child(div().text_color(paint(theme.color.on_surface)).child(from))
+                .child(
+                    div()
+                        .text_color(paint(theme.color.on_surface_variant))
+                        .text_size(px(14.))
+                        .child(subj),
+                )
+        }))
+        .child(
+            div()
+                .id("snackbar")
+                .w_full()
+                .h(px(snack.min_height_dp))
+                .px(px(16.))
+                .ml(px(this.snack_state.offset_x_dp))
+                .rounded(px(snack.corners.top_left))
+                .bg(paint(snack.container))
+                .text_color(paint(snack.supporting))
+                .flex()
+                .items_center()
+                .justify_between()
+                .opacity(this.snack_state.opacity())
+                .child(snackbar::SCENE_MESSAGE)
+                .child(
+                    div()
+                        .text_color(paint(snack.action))
+                        .child(snackbar::SCENE_ACTION),
+                )
+                .child(
+                    div()
+                        .id("snack-close")
+                        .w(px(snackbar::CLOSE_DP))
+                        .h(px(snackbar::CLOSE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(snack.close))
+                        .child(snackbar::CLOSE_GLYPH)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.snack_state.close();
+                            cx.notify();
+                        })),
+                )
+                .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+                    let dx = match ev.delta {
+                        ScrollDelta::Pixels(p) => f32::from(p.x),
+                        ScrollDelta::Lines(p) => p.x * 16.0,
+                    };
+                    this.snack_state.swipe(dx);
+                    cx.notify();
+                })),
+        )
+}
+
+fn android_media_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = tabs::resolve_with_icons(theme, tabs::TabsVariant::Primary);
+    div()
+        .id("media-scene")
+        .w_full()
+        .rounded(px(tabs::PHONE_CORNER_DP))
+        .p(px(12.))
+        .border_color(paint(theme.color.on_surface))
+        .overflow_hidden()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(56.))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_color(paint(theme.color.on_surface))
+                .child(tabs::SCENE_TITLE),
+        )
+        .child(
+            div()
+                .w_full()
+                .h(px(a.height_dp))
+                .bg(paint(a.container))
+                .flex()
+                .children(
+                    tabs::SCENE_ICONS
+                        .iter()
+                        .zip(tabs::SCENE_LABELS.iter())
+                        .enumerate()
+                        .map(|(i, (icon, label))| {
+                            let active = this.tab_primary == i;
+                            div()
+                                .id(SharedString::from(format!("media-tab-{i}")))
+                                .flex_1()
+                                .h_full()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_end()
+                                .pb(px(8.))
+                                .text_color(paint(if active {
+                                    a.active_label
+                                } else {
+                                    a.inactive_label
+                                }))
+                                .child(*icon)
+                                .child(*label)
+                                .when(active, |el| {
+                                    el.child(
+                                        div()
+                                            .mt(px(4.))
+                                            .h(px(a.indicator_h))
+                                            .w(px(48.))
+                                            .rounded_tl(px(3.))
+                                            .rounded_tr(px(3.))
+                                            .bg(paint(a.indicator)),
+                                    )
+                                })
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.tab_primary = i;
+                                    cx.notify();
+                                }))
+                        }),
+                ),
+        )
+        .child(
+            div()
+                .p(px(12.))
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, caption)| {
+                    div()
+                        .w(px(140.))
+                        .h(px(tabs::SCENE_TILE_H_DP * 0.8))
+                        .rounded(px(tabs::SCENE_TILE_CORNER_DP))
+                        .bg(paint(tabs::scene_tile_fill(theme, i)))
+                        .text_color(paint(tabs::scene_tile_on(theme, i)))
+                        .p(px(12.))
+                        .flex()
+                        .items_end()
+                        .child(*caption)
                 })),
         )
 }
@@ -2326,13 +2502,7 @@ fn android_carousel(
                 .text_color(paint(theme.color.on_surface_variant))
                 .child(format!("layout · {}", layout.label()))
                 .on_click(cx.listener(|this, _, _, cx| {
-                    this.carousel_layout = match this.carousel_layout {
-                        carousel::CarouselLayout::Hero => carousel::CarouselLayout::MultiBrowse,
-                        carousel::CarouselLayout::MultiBrowse => {
-                            carousel::CarouselLayout::Uncontained
-                        }
-                        carousel::CarouselLayout::Uncontained => carousel::CarouselLayout::Hero,
-                    };
+                    this.carousel_layout = this.carousel_layout.next();
                     cx.notify();
                 })),
         )
@@ -2341,7 +2511,18 @@ fn android_carousel(
                 .id("carousel")
                 .relative()
                 .w_full()
+                .when(layout.uses_phone_frame(), |el| {
+                    el.border_color(paint(theme.color.on_surface))
+                        .p(px(12.))
+                        .rounded(px(carousel::PHONE_CORNER_DP))
+                        .overflow_hidden()
+                })
+                .when(layout.center_aligned(), |el| el.justify_center())
                 .flex()
+                .when(
+                    layout.axis() == carousel::CarouselAxis::Vertical,
+                    |el| el.flex_col(),
+                )
                 .gap(px(a.gap_dp))
                 .child(
                     div()
@@ -2369,13 +2550,23 @@ fn android_carousel(
                 }))
                 .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, label)| {
                     let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t)
-                        .min(160.0);
+                        .min(if layout.axis() == carousel::CarouselAxis::Vertical {
+                            320.0
+                        } else {
+                            160.0
+                        });
+                    let h = carousel::item_height_for(layout)
+                        * if layout.axis() == carousel::CarouselAxis::Vertical {
+                            0.45
+                        } else {
+                            0.7
+                        };
                     let bg = carousel::media_fill(theme, i);
                     let fg = carousel::media_on(theme, i);
                     div()
                         .id(SharedString::from(format!("carousel-{i}")))
                         .w(px(w))
-                        .h(px(a.height_dp * 0.7))
+                        .h(px(h))
                         .ml(px(shift))
                         .rounded(px(a.corners.top_left))
                         .bg(paint(bg))

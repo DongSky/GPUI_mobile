@@ -10,6 +10,21 @@ pub const HANDLE_W_DP: f32 = 32.0;
 pub const HANDLE_H_DP: f32 = 4.0;
 pub const HANDLE_PAD_TOP_DP: f32 = 16.0;
 pub const SCRIM_OPACITY: f32 = 0.32;
+/// Official overview: share sheet over a photo grid.
+pub const SHARE_TITLE: &str = "Share";
+pub const SHARE_ACTIONS: [(&str, &str); 4] = [
+    ("🔗", "Copy link"),
+    ("👤", "Add person"),
+    ("★", "Add to favorites"),
+    ("↗", "Share to…"),
+];
+pub const PHOTO_GRID: [&str; 6] = ["Lake", "Grove", "Dune", "Harbor", "Peak", "Cove"];
+pub const PHOTO_TILE_H_DP: f32 = 88.0;
+pub const PHOTO_TILE_CORNER_DP: f32 = 12.0;
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 560.0;
+pub const PHONE_CORNER_DP: f32 = 36.0;
+pub const PHONE_BEZEL_DP: f32 = 12.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BottomSheetAppearance {
@@ -43,5 +58,24 @@ pub fn resolve(theme: &Theme, modal: bool) -> BottomSheetAppearance {
         elevation_dp: theme.elevation.level1,
         handle_w: HANDLE_W_DP,
         handle_h: HANDLE_H_DP,
+    }
+}
+
+/// Role-color photo stub behind the share sheet.
+pub fn photo_fill(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.primary_container,
+        1 => c.secondary_container,
+        _ => c.tertiary_container,
+    }
+}
+
+pub fn photo_on(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.on_primary_container,
+        1 => c.on_secondary_container,
+        _ => c.on_tertiary_container,
     }
 }

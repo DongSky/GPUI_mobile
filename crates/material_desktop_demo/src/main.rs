@@ -24,8 +24,8 @@ use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, button, button_group, carousel, checkbox, dialog, icon_button, menu, navigation_rail,
-    progress, radio, search, slider, switch, tabs, text_field, top_app_bar,
+    badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, icon_button, menu, navigation_rail,
+    progress, radio, search, slider, snackbar, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -296,6 +296,8 @@ struct CatalogView {
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
     carousel_fling_at: Option<Instant>,
+    snack_state: snackbar::SnackbarState,
+    snack_at: Instant,
     last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
@@ -340,11 +342,25 @@ impl CatalogView {
             cx.notify();
         }
     }
+
+    fn tick_snack(&mut self, cx: &mut Context<Self>) {
+        if !self.snack_state.visible {
+            return;
+        }
+        let elapsed = self.snack_at.elapsed().as_secs_f32() * 1000.0;
+        let left = (snackbar::TIMEOUT_SHORT_MS as f32 - elapsed).max(0.0);
+        self.snack_state.remaining_ms = left;
+        if left <= 0.0 {
+            self.snack_state.visible = false;
+            cx.notify();
+        }
+    }
 }
 
 impl Render for CatalogView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_carousel_fling(cx);
+        self.tick_snack(cx);
         let theme = self.theme();
         let c = theme.color;
         let bar = top_app_bar::resolve(&theme);
@@ -688,6 +704,11 @@ fn catalog_body(
                 ),
         )
         .child(tab_row(&tabs_p, this.tab, cx))
+        .child(desktop_media_scene(this, theme, cx))
+        .child(section_title(theme, "Snackbar"))
+        .child(desktop_mail_snack(this, theme, cx))
+        .child(section_title(theme, "Bottom sheet"))
+        .child(desktop_share_sheet(theme))
         .child(section_title(theme, "Navigation rail"))
         .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
@@ -1977,6 +1998,259 @@ fn tab_row(
         }))
 }
 
+fn desktop_mail_snack(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let snack = snackbar::resolve(theme);
+    div()
+        .id("mail-scene")
+        .w(px(snackbar::PHONE_W_DP))
+        .rounded(px(snackbar::PHONE_CORNER_DP))
+        .p(px(12.))
+        .border_color(paint(theme.color.on_surface))
+        .overflow_hidden()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(56.))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .child(spaced_line(
+                    snackbar::SCENE_TITLE,
+                    theme.typography.title_large.size_sp,
+                    paint(theme.color.on_surface),
+                )),
+        )
+        .children(snackbar::MAIL_ROWS.into_iter().map(|(from, subj)| {
+            div()
+                .h(px(64.))
+                .px(px(16.))
+                .flex()
+                .flex_col()
+                .justify_center()
+                .child(spaced_line(from, 16.0, paint(theme.color.on_surface)))
+                .child(spaced_line(subj, 14.0, paint(theme.color.on_surface_variant)))
+        }))
+        .when(this.snack_state.visible, |el| {
+            el.child(
+                div()
+                    .id("snackbar")
+                    .h(px(snack.min_height_dp))
+                    .px(px(16.))
+                    .ml(px(this.snack_state.offset_x_dp))
+                    .rounded(px(snack.corners.top_left))
+                    .bg(paint(snack.container))
+                    .text_color(paint(snack.supporting))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .opacity(this.snack_state.opacity())
+                    .child(spaced_line(
+                        snackbar::SCENE_MESSAGE,
+                        snack.supporting_style.size_sp,
+                        paint(snack.supporting),
+                    ))
+                    .child(
+                        div()
+                            .text_color(paint(snack.action))
+                            .child(snackbar::SCENE_ACTION),
+                    )
+                    .child(
+                        div()
+                            .id("snack-close")
+                            .w(px(snackbar::CLOSE_DP))
+                            .h(px(snackbar::CLOSE_DP))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .text_color(paint(snack.close))
+                            .child(snackbar::CLOSE_GLYPH)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.snack_state.close();
+                                cx.notify();
+                            })),
+                    )
+                    .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+                        let dx = match ev.delta {
+                            ScrollDelta::Pixels(p) => f32::from(p.x),
+                            ScrollDelta::Lines(p) => p.x * 16.0,
+                        };
+                        this.snack_state.swipe(dx);
+                        cx.notify();
+                    })),
+            )
+        })
+}
+
+fn desktop_media_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = tabs::resolve_with_icons(theme, tabs::TabsVariant::Primary);
+    div()
+        .id("media-scene")
+        .w(px(tabs::PHONE_W_DP))
+        .rounded(px(tabs::PHONE_CORNER_DP))
+        .p(px(12.))
+        .border_color(paint(theme.color.on_surface))
+        .overflow_hidden()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(56.))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .child(spaced_line(
+                    tabs::SCENE_TITLE,
+                    theme.typography.title_large.size_sp,
+                    paint(theme.color.on_surface),
+                )),
+        )
+        .child(
+            div()
+                .w_full()
+                .h(px(a.height_dp))
+                .bg(paint(a.container))
+                .flex()
+                .children(
+                    tabs::SCENE_ICONS
+                        .iter()
+                        .zip(tabs::SCENE_LABELS.iter())
+                        .enumerate()
+                        .map(|(i, (icon, label))| {
+                            let active = this.tab == i;
+                            div()
+                                .id(SharedString::from(format!("media-tab-{i}")))
+                                .flex_1()
+                                .h_full()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_end()
+                                .pb(px(8.))
+                                .text_color(paint(if active {
+                                    a.active_label
+                                } else {
+                                    a.inactive_label
+                                }))
+                                .child(*icon)
+                                .child(*label)
+                                .when(active, |el| {
+                                    el.child(
+                                        div()
+                                            .mt(px(4.))
+                                            .h(px(a.indicator_h))
+                                            .w(px(48.))
+                                            .rounded_tl(px(3.))
+                                            .rounded_tr(px(3.))
+                                            .bg(paint(a.indicator)),
+                                    )
+                                })
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.tab = i;
+                                    cx.notify();
+                                }))
+                        }),
+                ),
+        )
+        .child(
+            div()
+                .p(px(12.))
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, caption)| {
+                    div()
+                        .w(px(150.))
+                        .h(px(tabs::SCENE_TILE_H_DP))
+                        .rounded(px(tabs::SCENE_TILE_CORNER_DP))
+                        .bg(paint(tabs::scene_tile_fill(theme, i)))
+                        .text_color(paint(tabs::scene_tile_on(theme, i)))
+                        .p(px(12.))
+                        .flex()
+                        .items_end()
+                        .child(*caption)
+                })),
+        )
+}
+
+fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
+    let a = bottom_sheet::resolve(theme, true);
+    div()
+        .id("share-scene")
+        .w(px(bottom_sheet::PHONE_W_DP))
+        .rounded(px(bottom_sheet::PHONE_CORNER_DP))
+        .p(px(12.))
+        .border_color(paint(theme.color.on_surface))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .p(px(8.))
+                .flex()
+                .flex_wrap()
+                .gap(px(4.))
+                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, caption)| {
+                    div()
+                        .w(px(108.))
+                        .h(px(bottom_sheet::PHOTO_TILE_H_DP))
+                        .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
+                        .bg(paint(bottom_sheet::photo_fill(theme, i)))
+                        .text_color(paint(bottom_sheet::photo_on(theme, i)))
+                        .p(px(8.))
+                        .flex()
+                        .items_end()
+                        .child(*caption)
+                })),
+        )
+        .child(
+            div()
+                .w_full()
+                .bg(paint(a.container))
+                .rounded_tl(px(a.corners.top_left))
+                .rounded_tr(px(a.corners.top_right))
+                .flex()
+                .flex_col()
+                .items_center()
+                .child(
+                    div()
+                        .mt(px(16.))
+                        .mb(px(8.))
+                        .w(px(a.handle_w))
+                        .h(px(a.handle_h))
+                        .rounded(px(2.))
+                        .bg(paint(a.handle)),
+                )
+                .child(spaced_line(
+                    bottom_sheet::SHARE_TITLE,
+                    theme.typography.title_medium.size_sp,
+                    paint(a.content),
+                ))
+                .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
+                    div()
+                        .w_full()
+                        .h(px(48.))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(a.content))
+                        .child(format!("{icon}  {label}"))
+                })),
+        )
+}
+
 fn m_button(
     id: &'static str,
     theme: &Theme,
@@ -3102,13 +3376,7 @@ fn carousel_hero(
                 .text_color(paint(theme.color.on_surface_variant))
                 .child(format!("layout · {}", layout.label()))
                 .on_click(cx.listener(|this, _, _, cx| {
-                    this.carousel_layout = match this.carousel_layout {
-                        carousel::CarouselLayout::Hero => carousel::CarouselLayout::MultiBrowse,
-                        carousel::CarouselLayout::MultiBrowse => {
-                            carousel::CarouselLayout::Uncontained
-                        }
-                        carousel::CarouselLayout::Uncontained => carousel::CarouselLayout::Hero,
-                    };
+                    this.carousel_layout = this.carousel_layout.next();
                     cx.notify();
                 })),
         )
@@ -3117,7 +3385,18 @@ fn carousel_hero(
                 .id("carousel")
                 .relative()
                 .w_full()
+                .when(layout.uses_phone_frame(), |el| {
+                    el.border_color(paint(theme.color.on_surface))
+                        .p(px(12.))
+                        .rounded(px(carousel::PHONE_CORNER_DP))
+                        .overflow_hidden()
+                })
+                .when(layout.center_aligned(), |el| el.justify_center())
                 .flex()
+                .when(
+                    layout.axis() == carousel::CarouselAxis::Vertical,
+                    |el| el.flex_col(),
+                )
                 .gap(px(a.gap_dp))
                 .child(
                     div()
@@ -3145,12 +3424,18 @@ fn carousel_hero(
                 }))
                 .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, label)| {
                     let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t);
+                    let h = carousel::item_height_for(layout)
+                        * if layout.axis() == carousel::CarouselAxis::Vertical {
+                            0.45
+                        } else {
+                            1.0
+                        };
                     let bg = carousel::media_fill(theme, i);
                     let fg = carousel::media_on(theme, i);
                     div()
                         .id(SharedString::from(format!("carousel-{i}")))
                         .w(px(w))
-                        .h(px(a.height_dp))
+                        .h(px(h))
                         .ml(px(shift))
                         .rounded(px(a.corners.top_left))
                         .bg(paint(bg))
@@ -3485,6 +3770,8 @@ fn main() {
                     carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
                     carousel_fling_at: None,
+                    snack_state: snackbar::SnackbarState::short(),
+                    snack_at: Instant::now(),
                     last_catalog_ime: None,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
@@ -3572,9 +3859,14 @@ mod tests {
         assert_eq!(dialog::resolve_fullscreen(&theme).header_h_dp, 64.0);
         assert_eq!(button_group::icon_group_count(), 4);
         assert_eq!(
-            carousel::item_width_for(carousel::CarouselLayout::MultiBrowse, 0, 0),
-            carousel::MULTI_LARGE_W_DP
+            carousel::item_width_for(carousel::CarouselLayout::CenteredHero, 0, 0),
+            carousel::CENTERED_LARGE_W_DP
         );
+        assert_eq!(
+            carousel::item_width_for(carousel::CarouselLayout::FullScreen, 0, 0),
+            carousel::FULLSCREEN_W_DP
+        );
+        assert!(carousel::CarouselLayout::CenteredHero.uses_phone_frame());
         assert_eq!(search::resolve(&theme).bar.height_dp, 56.0);
         assert_eq!(search::resolve_view(&theme).header_h_dp, 72.0);
         assert_eq!(search::SUGGESTIONS.len(), 4);

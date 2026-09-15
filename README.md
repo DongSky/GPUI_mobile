@@ -28,7 +28,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Button | Common buttons (filled, tonal, elevated, outlined, text) | done | Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant | [spec](https://m3.material.io/components/buttons/specs) |
 | Icon button | Icon buttons | done | Expressive XS–XL (32/40/56/96/136), round/square, press morph; default S 40×24 | [spec](https://m3.material.io/components/icon-buttons/specs) |
 | FAB | Floating action button | done | Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated | [spec](https://m3.material.io/components/floating-action-button/specs) |
-| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd + lyon centerline; IME NativeInputConnection native* RegisterNatives + session handle + CursorAnchorInfo | [spec](https://m3.material.io/components/text-fields/specs) |
+| Text field | Filled and outlined text fields | done | Floating label; outlined C-path even-odd + lyon centerline; IME JNI-mangled Java_dev_gpui_… exports + RegisterNatives fnPtr + session handle + CursorAnchorInfo | [spec](https://m3.material.io/components/text-fields/specs) |
 | List | Lists | done | One / two / three line; 56 / 72 / 88dp | [spec](https://m3.material.io/components/lists/specs) |
 | Checkbox | Checkbox | done | 18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate | [spec](https://m3.material.io/components/checkbox/specs) |
 | Radio | Radio button | done | 20dp / 48dp target | [spec](https://m3.material.io/components/radio-button/specs) |
@@ -38,14 +38,14 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Divider | Divider | done | 1dp outline-variant; full-bleed and inset | [spec](https://m3.material.io/components/divider/specs) |
 | Progress | Linear and circular progress indicators | done | Determinate + wavy + Expressive 7-shape morph loading + contained PTR + WaitProgress determinate morph + circular/PTR StrokeCap::Round | [spec](https://m3.material.io/components/progress-indicators/specs) |
 | Top app bar | Small top app bar | done | 64dp surface bar; no medium/large collapsing | [spec](https://m3.material.io/components/top-app-bar/specs) |
-| Snackbar | Snackbar | done | Inverse surface 48dp; 4s/10s timeout + 72dp swipe-to-dismiss SnackbarState | [spec](https://m3.material.io/components/snackbar/specs) |
+| Snackbar | Snackbar | done | Inverse surface 48dp; in-app Inbox scene (Email archived + Undo + close); timeout 4s/10s + swipe 72dp | [spec](https://m3.material.io/components/snackbar/specs) |
 | Navigation bar | Navigation bar | done | 80dp; active indicator 64×32; 3 destinations in catalog | [spec](https://m3.material.io/components/navigation-bar/specs) |
 | Navigation rail | Navigation rail | done | Collapsed 80dp; expanded 220dp overlay-window / popup-kind + 32% scrim; OsPopupSpec titled PopUp (not opened on Linux/NativeActivity) | [spec](https://m3.material.io/components/navigation-rail/specs) |
 | Dialog | Basic + full-screen dialogs | done | Reset-settings + ringtone list + full-screen Event editor (0dp, 64dp header, close/Save) | [spec](https://m3.material.io/components/dialogs/specs) |
-| Bottom sheet | Bottom sheets | done | surface-container-low, extra-large top 28dp, 32×4 handle, elev 1 | [spec](https://m3.material.io/components/bottom-sheets/specs) |
+| Bottom sheet | Bottom sheets | done | surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; official share sheet over photo grid + standard no-scrim sheet | [spec](https://m3.material.io/components/bottom-sheets/specs) |
 | Menu | Menus | done | surface-container, 4dp, elev 2, 48dp items; selected secondary-container | [spec](https://m3.material.io/components/menus/specs) |
 | Slider | Sliders | done | Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; dual-thumb range with 5% tick-snap + painted ticks | [spec](https://m3.material.io/components/sliders/specs) |
-| Tabs | Tabs | done | Primary 48dp + 3dp indicator; secondary 2dp full-width; icon+label primary row 64dp | [spec](https://m3.material.io/components/tabs/specs) |
+| Tabs | Tabs | done | Primary 48dp + 3dp indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone scene (Video/Photos/Audio) | [spec](https://m3.material.io/components/tabs/specs) |
 | Badge | Badges | done | Small 6dp / large 16dp; error/on-error; 999+ | [spec](https://m3.material.io/components/badges/specs) |
 | Date picker | Date pickers | done | Modal calendar; docked popup with month nav + outside-click dismiss | [spec](https://m3.material.io/components/date-pickers/specs) |
 | Search | Search bar + view | done | 56dp docked bar shared-element growing-bar into full-screen search activity (leading/back + avatar crossfade; MorphLayerTransform top-center; with_animation PathBuilder::scale fill; morph_layer_box layout) | [spec](https://m3.material.io/components/search/specs) |

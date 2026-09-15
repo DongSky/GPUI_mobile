@@ -511,6 +511,58 @@ table.inv th {{ font-weight: 500; }}
   position: relative; font-weight: 500;
 }}
 .tab-ind {{ position: absolute; bottom: 0; border-radius: 3px 3px 0 0; }}
+.phone {{
+  width: 360px; max-width: 100%; border: 12px solid {on_surface};
+  border-radius: 36px; overflow: hidden; position: relative;
+  background: {surface}; display: flex; flex-direction: column;
+}}
+.phone .phone-bar {{
+  height: 56px; display: flex; align-items: center; padding: 0 16px;
+  font-size: 22px; line-height: 28px; font-weight: 500;
+}}
+.mail-list {{ display: flex; flex-direction: column; flex: 1; }}
+.mail-row {{
+  display: flex; flex-direction: column; justify-content: center;
+  min-height: 72px; padding: 8px 16px; border-bottom: 1px solid {outline_var};
+}}
+.mail-row .from {{ font-size: 16px; line-height: 24px; }}
+.mail-row .subj {{ font-size: 14px; line-height: 20px; opacity: 0.8; }}
+.phone .snack {{
+  position: absolute; left: 16px; right: 16px; bottom: 16px;
+  min-width: 0; z-index: 2;
+}}
+.snack .snack-close {{
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px; flex: 0 0 auto;
+}}
+.media-grid {{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px;
+}}
+.media-tile {{
+  min-height: 96px; border-radius: 16px; padding: 12px;
+  display: flex; align-items: flex-end; font-weight: 700;
+}}
+.share-stage {{ position: relative; min-height: 360px; justify-content: flex-end; }}
+.share-grid {{
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; padding: 8px;
+  flex: 1;
+}}
+.share-tile {{
+  min-height: 88px; border-radius: 12px; padding: 8px;
+  display: flex; align-items: flex-end; font-size: 12px; font-weight: 500;
+}}
+.share-stage .sheet {{
+  position: relative; left: auto; right: auto; bottom: auto; max-width: none;
+}}
+.carousel[data-carousel-axis="vertical"] {{
+  flex-direction: column; max-height: 420px;
+}}
+.carousel[data-carousel-centered="1"] {{ justify-content: center; }}
+.phone-frame {{
+  width: 360px; max-width: 100%; border: 12px solid {on_surface};
+  border-radius: 36px; overflow: hidden; background: {surface};
+}}
+.phone-frame .carousel {{ max-width: none; }}
 .badge-wrap {{ position: relative; display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; }}
 .badge {{
   position: absolute; top: 2px; right: 2px;
@@ -614,6 +666,22 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
     }});
   }});
 }});
+document.querySelectorAll("[data-media-scene]").forEach(function (scene) {{
+  scene.querySelectorAll("[data-media-tab]").forEach(function (tab) {{
+    tab.addEventListener("click", function () {{
+      scene.querySelectorAll("[data-media-tab]").forEach(function (other) {{
+        other.setAttribute("data-active", "false");
+        other.style.color = other.getAttribute("data-idle-fg") || other.style.color;
+        var ind = other.querySelector(".tab-ind");
+        if (ind) ind.style.display = "none";
+      }});
+      tab.setAttribute("data-active", "true");
+      tab.style.color = tab.getAttribute("data-sel-fg") || tab.style.color;
+      var on = tab.querySelector(".tab-ind");
+      if (on) on.style.display = "block";
+    }});
+  }});
+}});
 document.querySelectorAll("[data-snackbar]").forEach(function (bar) {{
   var remain = Number(bar.getAttribute("data-timeout-ms") || "4000");
   var start = performance.now();
@@ -644,6 +712,13 @@ document.querySelectorAll("[data-snackbar]").forEach(function (bar) {{
     else {{ ox = 0; paint(); }}
     sx = null;
   }});
+  var closeBtn = bar.querySelector("[data-snackbar-close]");
+  if (closeBtn) {{
+    closeBtn.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      hide();
+    }});
+  }}
 }});
 document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
   var slider = row.querySelector(".xslider");
@@ -934,8 +1009,8 @@ document.querySelectorAll("[data-carousel]").forEach(function (car) {{
     next = ((next % n) + n) % n;
     var at = Math.min(1, Math.abs(offsetT));
     var layout = car.getAttribute("data-carousel-layout") || "hero";
-    var large = layout === "multi-browse" ? 186 : layout === "uncontained" ? 220 : 256;
-    var small = layout === "multi-browse" ? 56 : layout === "uncontained" ? 140 : 120;
+    var large = layout === "multi-browse" ? 186 : layout === "uncontained" ? 220 : layout === "centered-hero" ? 200 : layout === "full-screen" ? 336 : 256;
+    var small = layout === "multi-browse" ? 56 : layout === "uncontained" ? 140 : layout === "centered-hero" ? 72 : layout === "full-screen" ? 336 : 120;
     car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
       var i = Number(t.getAttribute("data-carousel-item"));
       t.style.transform = "translateX(" + (offsetT * 12) + "px)";
@@ -2044,10 +2119,26 @@ fn chrome(theme: &Theme) -> String {
         fg = rail.fab_icon.css_hex(),
     );
     let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
+    let mut mail_rows = String::new();
+    for (from, subj) in snackbar::MAIL_ROWS {
+        mail_rows.push_str(&format!(
+            r#"<div class="mail-row" data-mail-row="{from}"><span class="from">{from}</span><span class="subj" style="color:{sec}">{subj}</span></div>"#,
+            sec = theme.color.on_surface_variant.css_hex(),
+        ));
+    }
     format!(
         r#"<h2>Snackbar</h2>
-<p class="note">Inverse surface · 4s short timeout · swipe 72dp to dismiss. <a href="https://m3.material.io/components/snackbar/specs">spec</a></p>
-<div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-hero="snackbar" style="background:{sbg};color:{sfg};border-radius:{sr}px">
+<p class="note">Official overview is an in-app Inbox with “Email archived”, Undo, and a close affordance. Inverse surface · 4s timeout · swipe 72dp. <a href="https://m3.material.io/components/snackbar/specs">spec</a></p>
+<div class="phone" data-mail-scene="1" data-hero="snackbar" style="height:{ph}px">
+  <div class="phone-bar">{title}</div>
+  <div class="mail-list">{mail}</div>
+  <div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-snackbar-close-affordance="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
+    <span>{scene_msg}</span>
+    <span style="color:{act};font-weight:500">{scene_act}</span>
+    <span class="snack-close" data-snackbar-close="1" style="color:{close}">{x}</span>
+  </div>
+</div>
+<div class="snack" data-snackbar="token" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" style="background:{sbg};color:{sfg};border-radius:{sr}px;margin-top:16px">
   <span>{msg}</span>
   <span style="color:{act};font-weight:500">{action}</span>
 </div>
@@ -2069,10 +2160,17 @@ fn chrome(theme: &Theme) -> String {
         sfg = snack.supporting.css_hex(),
         sr = snack.corners.top_left,
         act = snack.action.css_hex(),
+        close = snack.close.css_hex(),
         timeout = snackbar::TIMEOUT_SHORT_MS,
         swipe = snackbar::SWIPE_DISMISS_DP,
         msg = snackbar::DEMO_MESSAGE,
         action = snackbar::DEMO_ACTION,
+        scene_msg = snackbar::SCENE_MESSAGE,
+        scene_act = snackbar::SCENE_ACTION,
+        title = snackbar::SCENE_TITLE,
+        x = snackbar::CLOSE_GLYPH,
+        mail = mail_rows,
+        ph = snackbar::PHONE_H_DP,
         nbg = nav.container.css_hex(),
         nact = nav.active_label.css_hex(),
         ind = nav.active_indicator.css_hex(),
@@ -2338,22 +2436,39 @@ fn fullscreen_dialog(theme: &Theme) -> String {
 fn sheets(theme: &Theme) -> String {
     let modal = bottom_sheet::resolve(theme, true);
     let standard = bottom_sheet::resolve(theme, false);
+    let mut photos = String::new();
+    for (i, caption) in bottom_sheet::PHOTO_GRID.iter().enumerate() {
+        photos.push_str(&format!(
+            r#"<div class="share-tile" data-share-photo="{i}" style="background:{bg};color:{fg};height:{h}px">{caption}</div>"#,
+            bg = bottom_sheet::photo_fill(theme, i).css_hex(),
+            fg = bottom_sheet::photo_on(theme, i).css_hex(),
+            h = bottom_sheet::PHOTO_TILE_H_DP,
+        ));
+    }
+    let mut actions = String::new();
+    for (icon, label) in bottom_sheet::SHARE_ACTIONS {
+        actions.push_str(&format!(
+            r#"<div class="list-item" data-share-action="{label}" style="width:100%"><div class="h">{icon}  {label}</div></div>"#,
+        ));
+    }
     format!(
         r#"<h2>Bottom sheet</h2>
-<p class="note">Modal sheet · extra-large top 28 · 32×4 handle · elevation 1. Standard (non-modal) sits on surface without a scrim. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
-<div class="scrim" data-sheet="scrim" data-hero="bottom-sheet" style="background:{scrim};align-items:flex-end">
-  <div class="sheet" data-sheet="modal" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg}">
+<p class="note">Official overview is a share sheet over photos. Modal extra-large top 28 · 32×4 handle · elevation 1. Standard (non-modal) sits on surface without a scrim. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
+<div class="phone share-stage" data-sheet-scene="1" data-hero="bottom-sheet" style="height:{ph}px;background:{surface}">
+  <div class="share-grid" data-share-grid="1">{photos}</div>
+  <div class="sheet" data-sheet="modal" data-sheet-share="1" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg};position:relative">
     <div class="handle" style="width:{hw}px;height:{hh}px;background:{handle}"></div>
-    <div class="list-item" style="width:100%"><div class="h">Share</div></div>
-    <div class="list-item" style="width:100%"><div class="h">Add to favorites</div></div>
-    <div class="list-item" style="width:100%"><div class="h">Delete</div></div>
+    <div class="list-item" style="width:100%"><div class="h">{share}</div></div>
+    {actions}
   </div>
 </div>
 <div class="sheet" data-sheet="standard" style="background:{sbg};border-radius:{scss};box-shadow:{ssh};color:{sfg};margin-top:16px">
   <div class="handle" style="width:{hw}px;height:{hh}px;background:{shandle}"></div>
   <div class="list-item" style="width:100%"><div class="h">Open in Maps</div></div>
 </div>"#,
-        scrim = modal.scrim.css_hex(),
+        ph = bottom_sheet::PHONE_H_DP,
+        surface = theme.color.surface.css_hex(),
+        photos = photos,
         bg = modal.container.css_hex(),
         css = modal.corners.css(),
         sh = ElevationLevels::css_shadow(modal.elevation_dp),
@@ -2361,6 +2476,8 @@ fn sheets(theme: &Theme) -> String {
         hw = modal.handle_w,
         hh = modal.handle_h,
         handle = modal.handle.css_hex(),
+        share = bottom_sheet::SHARE_TITLE,
+        actions = actions,
         sbg = standard.container.css_hex(),
         scss = standard.corners.css(),
         ssh = ElevationLevels::css_shadow(standard.elevation_dp),
@@ -2613,8 +2730,57 @@ fn tabs_section(theme: &Theme) -> String {
         ));
     }
     out.push_str(&format!(
-        "<h3>primary with icons</h3><div class=\"tabs\" data-tabs=\"primary-icons\" data-hero=\"tabs\" style=\"background:{}\">{icon_row}</div>",
+        "<h3>primary with icons</h3><div class=\"tabs\" data-tabs=\"primary-icons\" style=\"background:{}\">{icon_row}</div>",
         icons.container.css_hex(),
+    ));
+    let scene = tabs::resolve_with_icons(theme, tabs::TabsVariant::Primary);
+    let mut scene_tabs = String::new();
+    for (i, (icon, label)) in tabs::SCENE_ICONS
+        .iter()
+        .zip(tabs::SCENE_LABELS.iter())
+        .enumerate()
+    {
+        let active = i == 0;
+        let color = if active {
+            scene.active_label
+        } else {
+            scene.inactive_label
+        };
+        let ind = format!(
+            "<div class=\"tab-ind\" style=\"width:48px;height:{h}px;background:{c};display:{d}\"></div>",
+            h = scene.indicator_h,
+            c = scene.indicator.css_hex(),
+            d = if active { "block" } else { "none" },
+        );
+        scene_tabs.push_str(&format!(
+            r#"<div class="tab" data-media-tab="{i}" data-active="{active}" data-idle-fg="{idle}" data-sel-fg="{sel}" style="color:{color};height:{h}px;flex-direction:column"><span>{icon}</span><span>{label}</span>{ind}</div>"#,
+            idle = scene.inactive_label.css_hex(),
+            sel = scene.active_label.css_hex(),
+            color = color.css_hex(),
+            h = scene.height_dp,
+        ));
+    }
+    let mut tiles = String::new();
+    for (i, caption) in tabs::SCENE_TILES.iter().enumerate() {
+        tiles.push_str(&format!(
+            r#"<div class="media-tile" data-media-tile="{i}" style="background:{bg};color:{fg};height:{h}px">{caption}</div>"#,
+            bg = tabs::scene_tile_fill(theme, i).css_hex(),
+            fg = tabs::scene_tile_on(theme, i).css_hex(),
+            h = tabs::SCENE_TILE_H_DP,
+        ));
+    }
+    out.push_str(&format!(
+        r#"<h3>saved media</h3>
+<div class="phone" data-media-scene="1" data-hero="tabs" style="min-height:{ph}px">
+  <div class="phone-bar">{title}</div>
+  <div class="tabs" data-tabs="saved-media" style="background:{bg};max-width:none">{tabs}</div>
+  <div class="media-grid">{tiles}</div>
+</div>"#,
+        ph = tabs::PHONE_H_DP,
+        title = tabs::SCENE_TITLE,
+        bg = scene.container.css_hex(),
+        tabs = scene_tabs,
+        tiles = tiles,
     ));
     out
 }
@@ -2981,46 +3147,50 @@ fn motion_section(theme: &Theme) -> String {
 fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: bool) -> String {
     let a = carousel::resolve(theme);
     let mut tiles = String::new();
+    let h = carousel::item_height_for(layout);
     for (i, caption) in carousel::MEDIA_CAPTIONS.iter().enumerate() {
         let w = carousel::item_width_for(layout, i, carousel::DEMO_INDEX);
         let bg = carousel::media_fill(theme, i).css_hex();
         let fg = carousel::media_on(theme, i).css_hex();
         tiles.push_str(&format!(
-            r#"<div class="tile" data-carousel-item="{i}" data-media="1" data-parallax="{px}" style="width:{w}px;background:{bg};color:{fg};border-radius:{r}px">{caption}</div>"#,
+            r#"<div class="tile" data-carousel-item="{i}" data-media="1" data-parallax="{px}" style="width:{w}px;height:{h}px;background:{bg};color:{fg};border-radius:{r}px">{caption}</div>"#,
             px = carousel::PARALLAX_MAX_DP,
             r = a.corners.top_left,
         ));
     }
-    format!(
-        r#"<div class="carousel" data-carousel="1" data-carousel-layout="{layout}" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-carousel-media="1" data-hero="{hero}">{tiles}</div>"#,
+    let axis = match layout.axis() {
+        carousel::CarouselAxis::Vertical => "vertical",
+        carousel::CarouselAxis::Horizontal => "horizontal",
+    };
+    let centered = layout.center_aligned() as u8;
+    let row = format!(
+        r#"<div class="carousel" data-carousel="1" data-carousel-layout="{layout}" data-carousel-axis="{axis}" data-carousel-centered="{centered}" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-carousel-media="1" data-hero="{hero}">{tiles}</div>"#,
         layout = layout.label(),
         hero = if hero { "carousel" } else { layout.label() },
         tiles = tiles,
-    )
+        axis = axis,
+        centered = centered,
+    );
+    if layout.uses_phone_frame() {
+        format!(
+            r#"<div class="phone-frame" data-carousel-phone="1" data-carousel-layout="{layout}" style="height:{fh}px">{row}</div>"#,
+            layout = layout.label(),
+            fh = carousel::phone_frame_h(layout),
+            row = row,
+        )
+    } else {
+        row
+    }
 }
 
 fn carousel_section(theme: &Theme) -> String {
     let mut out = String::from(
         r#"<h2>Carousel</h2>
-<p class="note">Hero 256/120, multi-browse 186/56, uncontained 220/140. Role-color media tiles + parallax while flinging. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>"#,
+<p class="note">Hero, multi-browse, uncontained, centered-hero, and full-screen. Centered + full-screen use a phone-frame mask. Role-color media tiles + parallax while flinging. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>"#,
     );
-    out.push_str("<h3>hero</h3>");
-    out.push_str(&paint_carousel_row(
-        theme,
-        carousel::CarouselLayout::Hero,
-        true,
-    ));
-    out.push_str("<h3>multi-browse</h3>");
-    out.push_str(&paint_carousel_row(
-        theme,
-        carousel::CarouselLayout::MultiBrowse,
-        false,
-    ));
-    out.push_str("<h3>uncontained</h3>");
-    out.push_str(&paint_carousel_row(
-        theme,
-        carousel::CarouselLayout::Uncontained,
-        false,
-    ));
+    for (i, layout) in carousel::CarouselLayout::ALL.iter().enumerate() {
+        out.push_str(&format!("<h3>{}</h3>", layout.label()));
+        out.push_str(&paint_carousel_row(theme, *layout, i == 0));
+    }
     out
 }

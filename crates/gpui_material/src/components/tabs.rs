@@ -13,6 +13,17 @@ pub const INDICATOR_CORNER_DP: f32 = 3.0;
 /// Official primary-with-icon row (64dp).
 pub const DEMO_ICONS: [&str; 3] = ["●", "○", "◐"];
 pub const DEMO_ICON_LABELS: [&str; 3] = ["News", "Video", "Photos"];
+/// Official overview: phone “My saved media” (Video / Photos / Audio) over tiles.
+pub const SCENE_TITLE: &str = "My saved media";
+pub const SCENE_ICONS: [&str; 3] = ["▶", "🖼", "♪"];
+pub const SCENE_LABELS: [&str; 3] = ["Video", "Photos", "Audio"];
+pub const SCENE_TILES: [&str; 6] = ["Dawn", "Peak", "Cove", "Trail", "Bloom", "Mist"];
+pub const SCENE_TILE_H_DP: f32 = 96.0;
+pub const SCENE_TILE_CORNER_DP: f32 = 16.0;
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 520.0;
+pub const PHONE_CORNER_DP: f32 = 36.0;
+pub const PHONE_BEZEL_DP: f32 = 12.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TabsVariant {
@@ -72,4 +83,23 @@ pub fn resolve_with_icons(theme: &Theme, variant: TabsVariant) -> TabsAppearance
     let mut appearance = resolve(theme, variant);
     appearance.height_dp = HEIGHT_WITH_ICON_DP;
     appearance
+}
+
+/// Role-color photo stub for the saved-media scene.
+pub fn scene_tile_fill(theme: &Theme, index: usize) -> crate::argb::Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.primary_container,
+        1 => c.secondary_container,
+        _ => c.tertiary_container,
+    }
+}
+
+pub fn scene_tile_on(theme: &Theme, index: usize) -> crate::argb::Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.on_primary_container,
+        1 => c.on_secondary_container,
+        _ => c.on_tertiary_container,
+    }
 }

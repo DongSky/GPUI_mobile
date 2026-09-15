@@ -18,6 +18,22 @@ pub const TIMEOUT_LONG_MS: u32 = 10000;
 pub const SWIPE_DISMISS_DP: f32 = 72.0;
 pub const DEMO_MESSAGE: &str = "Can't send right now. Try again later.";
 pub const DEMO_ACTION: &str = "Retry";
+/// Official overview hero: in-app mail list + “Email archived” + Undo + close.
+pub const SCENE_TITLE: &str = "Inbox";
+pub const SCENE_MESSAGE: &str = "Email archived";
+pub const SCENE_ACTION: &str = "Undo";
+pub const CLOSE_GLYPH: &str = "✕";
+pub const HAS_CLOSE: bool = true;
+pub const MAIL_ROWS: [(&str, &str); 3] = [
+    ("Alex Rivera", "Design sync notes"),
+    ("Jordan Lee", "Q3 planning"),
+    ("Sam Chen", "Invoice #1842"),
+];
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 420.0;
+pub const PHONE_CORNER_DP: f32 = 36.0;
+pub const PHONE_BEZEL_DP: f32 = 12.0;
+pub const CLOSE_DP: f32 = 24.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SnackbarAppearance {
@@ -26,6 +42,7 @@ pub struct SnackbarAppearance {
     pub container: Argb,
     pub supporting: Argb,
     pub action: Argb,
+    pub close: Argb,
     pub supporting_style: TypeStyle,
     pub action_style: TypeStyle,
 }
@@ -37,6 +54,7 @@ pub fn resolve(theme: &Theme) -> SnackbarAppearance {
         container: theme.color.inverse_surface,
         supporting: theme.color.inverse_on_surface,
         action: theme.color.inverse_primary,
+        close: theme.color.inverse_on_surface,
         supporting_style: theme.typography.body_medium,
         action_style: theme.typography.label_large,
     }
@@ -90,6 +108,13 @@ impl SnackbarState {
             self.visible = false;
             self.remaining_ms = 0.0;
         }
+    }
+
+    /// Close affordance (official Action + close pair).
+    pub fn close(&mut self) {
+        self.visible = false;
+        self.remaining_ms = 0.0;
+        self.offset_x_dp = 0.0;
     }
 
     pub fn dismissed(&self) -> bool {

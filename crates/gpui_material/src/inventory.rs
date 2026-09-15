@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined C-path even-odd + lyon centerline; IME NativeInputConnection native* RegisterNatives + session handle (not BaseIC methods) + CursorAnchorInfo",
+        notes: "Floating label; outlined C-path even-odd + lyon centerline; IME JNI-mangled Java_dev_gpui_… exports + RegisterNatives fnPtr + session handle + CursorAnchorInfo",
     },
     ComponentEntry {
         name: "List",
@@ -172,7 +172,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Snackbar",
         docs: "https://m3.material.io/components/snackbar/specs",
         parity: Parity::Done,
-        notes: "Inverse surface 48dp; timeout 4s/10s + swipe-to-dismiss (72dp) SnackbarState; catalog ticks remaining_ms",
+        notes: "Inverse surface 48dp; in-app Inbox scene (Email archived + Undo + close); timeout 4s/10s + swipe 72dp",
     },
     ComponentEntry {
         name: "Navigation bar",
@@ -200,7 +200,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Bottom sheets",
         docs: "https://m3.material.io/components/bottom-sheets/specs",
         parity: Parity::Done,
-        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1",
+        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; official share sheet over photo grid + standard no-scrim sheet",
     },
     ComponentEntry {
         name: "Menu",
@@ -221,7 +221,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Tabs",
         docs: "https://m3.material.io/components/tabs/specs",
         parity: Parity::Done,
-        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label primary row at 64dp",
+        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone scene (Video/Photos/Audio)",
     },
     ComponentEntry {
         name: "Badge",
@@ -256,7 +256,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero 256/120 + multi-browse 186/56 + uncontained 220/140; role-color media tiles + parallax offset; click snap + live-clock FlingState leftover snap / width lerp",
+        notes: "Hero / multi-browse / uncontained / centered-hero / full-screen; phone-frame mask; role-color media + parallax; leftover snap / width lerp",
     },
 ];
 

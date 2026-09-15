@@ -1,7 +1,8 @@
 //! Carousel. Specs: https://m3.material.io/components/carousel/specs
 //!
-//! Catalog: hero / multi-browse / uncontained layouts. Media tiles use
-//! role-color fills (photo stubs) plus a parallax offset while flinging.
+//! Catalog: hero / multi-browse / uncontained / centered-hero / full-screen.
+//! Media tiles use role-color fills (photo stubs) plus a parallax offset
+//! while flinging. Centered + full-screen sit in a phone-frame mask.
 //! Click / wheel snap the selected index; fling uses velocity/decay so a
 //! large delta can skip more than one item.
 
@@ -24,23 +25,48 @@ pub const MULTI_LARGE_W_DP: f32 = 186.0;
 pub const MULTI_SMALL_W_DP: f32 = 56.0;
 pub const UNCONTAINED_W_DP: f32 = 220.0;
 pub const UNCONTAINED_SMALL_W_DP: f32 = 140.0;
+pub const CENTERED_LARGE_W_DP: f32 = 200.0;
+pub const CENTERED_SMALL_W_DP: f32 = 72.0;
+pub const FULLSCREEN_W_DP: f32 = 336.0;
+pub const FULLSCREEN_H_DP: f32 = 420.0;
 pub const PARALLAX_MAX_DP: f32 = 12.0;
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 220.0;
+pub const PHONE_FULLSCREEN_H_DP: f32 = 480.0;
+pub const PHONE_CORNER_DP: f32 = 36.0;
+pub const PHONE_BEZEL_DP: f32 = 12.0;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CarouselAxis {
+    Horizontal,
+    Vertical,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarouselLayout {
     Hero,
     MultiBrowse,
     Uncontained,
+    CenteredHero,
+    FullScreen,
 }
 
 impl CarouselLayout {
-    pub const ALL: [Self; 3] = [Self::Hero, Self::MultiBrowse, Self::Uncontained];
+    pub const ALL: [Self; 5] = [
+        Self::Hero,
+        Self::MultiBrowse,
+        Self::Uncontained,
+        Self::CenteredHero,
+        Self::FullScreen,
+    ];
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Hero => "hero",
             Self::MultiBrowse => "multi-browse",
             Self::Uncontained => "uncontained",
+            Self::CenteredHero => "centered-hero",
+            Self::FullScreen => "full-screen",
         }
     }
 
@@ -49,6 +75,8 @@ impl CarouselLayout {
             Self::Hero => LARGE_W_DP,
             Self::MultiBrowse => MULTI_LARGE_W_DP,
             Self::Uncontained => UNCONTAINED_W_DP,
+            Self::CenteredHero => CENTERED_LARGE_W_DP,
+            Self::FullScreen => FULLSCREEN_W_DP,
         }
     }
 
@@ -57,7 +85,48 @@ impl CarouselLayout {
             Self::Hero => SMALL_W_DP,
             Self::MultiBrowse => MULTI_SMALL_W_DP,
             Self::Uncontained => UNCONTAINED_SMALL_W_DP,
+            Self::CenteredHero => CENTERED_SMALL_W_DP,
+            Self::FullScreen => FULLSCREEN_W_DP,
         }
+    }
+
+    pub const fn axis(self) -> CarouselAxis {
+        match self {
+            Self::FullScreen => CarouselAxis::Vertical,
+            _ => CarouselAxis::Horizontal,
+        }
+    }
+
+    pub const fn center_aligned(self) -> bool {
+        matches!(self, Self::CenteredHero)
+    }
+
+    pub const fn uses_phone_frame(self) -> bool {
+        matches!(self, Self::CenteredHero | Self::FullScreen)
+    }
+
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Hero => Self::MultiBrowse,
+            Self::MultiBrowse => Self::Uncontained,
+            Self::Uncontained => Self::CenteredHero,
+            Self::CenteredHero => Self::FullScreen,
+            Self::FullScreen => Self::Hero,
+        }
+    }
+}
+
+pub fn item_height_for(layout: CarouselLayout) -> f32 {
+    match layout {
+        CarouselLayout::FullScreen => FULLSCREEN_H_DP,
+        _ => HEIGHT_DP,
+    }
+}
+
+pub fn phone_frame_h(layout: CarouselLayout) -> f32 {
+    match layout {
+        CarouselLayout::FullScreen => PHONE_FULLSCREEN_H_DP,
+        _ => PHONE_H_DP,
     }
 }
 /// Wheel/fling distance that maps to one item. Larger deltas skip further.

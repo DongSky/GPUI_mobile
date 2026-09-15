@@ -6,7 +6,9 @@
 //! the NativeActivity-safe show/hide). A live flush constructs a dummy
 //! `android.view.View`, prefers `dev.gpui.material.NativeInputConnection`
 //! (`hasCode=true`), and builds a real `CursorAnchorInfo` via
-//! `CallVoidMethod` / `CallObjectMethod`.
+//! `CallVoidMethod` / `CallObjectMethod`. `RegisterNatives` binds
+//! `JNINativeMethod.fnPtr` onto the JNI-mangled
+//! `Java_dev_gpui_material_NativeInputConnection_native*` exports.
 
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -625,6 +627,191 @@ pub fn jni_native_peer_descriptors() -> Vec<JniNativeMethodDesc> {
         .collect()
 }
 
+/// JNI auto-link prefix for `dev.gpui.material.NativeInputConnection`.
+pub const JNI_MANGLED_PREFIX: &str = "Java_dev_gpui_material_NativeInputConnection_";
+
+pub fn jni_mangled_name(native_method: &str) -> String {
+    format!("{JNI_MANGLED_PREFIX}{native_method}")
+}
+
+/// `JNINativeMethod` row with a live `fnPtr` (mangled export or RegisterNatives).
+#[derive(Clone, Copy, Debug)]
+pub struct JniNativeFnPtr {
+    pub name: &'static str,
+    pub signature: &'static str,
+    pub handler: &'static str,
+    pub mangled: &'static str,
+    pub fn_ptr: *const c_void,
+}
+
+unsafe impl Send for JniNativeFnPtr {}
+unsafe impl Sync for JniNativeFnPtr {}
+
+impl PartialEq for JniNativeFnPtr {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.signature == other.signature
+            && self.handler == other.handler
+            && self.mangled == other.mangled
+            && self.fn_ptr == other.fn_ptr
+    }
+}
+
+impl Eq for JniNativeFnPtr {}
+
+fn jni_text_from_arg(env: *mut c_void, text: *mut c_void) -> String {
+    #[cfg(target_os = "android")]
+    {
+        android_jstring_utf8(env, text)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = env;
+        if text.is_null() {
+            return String::new();
+        }
+        unsafe { std::ffi::CStr::from_ptr(text.cast()) }
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+fn jni_string_to_java(env: *mut c_void, text: &str) -> *mut c_void {
+    #[cfg(target_os = "android")]
+    {
+        android_new_utf8(env, text)
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (env, text);
+        std::ptr::null_mut()
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeCommitText(
+    env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+    text: *mut c_void,
+    new_cursor: i32,
+) -> u8 {
+    let s = jni_text_from_arg(env, text);
+    dispatch_native_peer(handle, "nativeCommitText", Some(&s), new_cursor, 0);
+    1
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeSetComposingText(
+    env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+    text: *mut c_void,
+    new_cursor: i32,
+) -> u8 {
+    let s = jni_text_from_arg(env, text);
+    dispatch_native_peer(handle, "nativeSetComposingText", Some(&s), new_cursor, 0);
+    1
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeFinishComposingText(
+    _env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+) -> u8 {
+    dispatch_native_peer(handle, "nativeFinishComposingText", None, 0, 0);
+    1
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeDeleteSurroundingText(
+    _env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+    before: i32,
+    after: i32,
+) -> u8 {
+    dispatch_native_peer(handle, "nativeDeleteSurroundingText", None, before, after);
+    1
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeSetSelection(
+    _env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+    start: i32,
+    end: i32,
+) -> u8 {
+    dispatch_native_peer(handle, "nativeSetSelection", None, start, end);
+    1
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn Java_dev_gpui_material_NativeInputConnection_nativeGetTextBeforeCursor(
+    env: *mut c_void,
+    _clazz: *mut c_void,
+    handle: i64,
+    n: i32,
+) -> *mut c_void {
+    let text = dispatch_native_peer(handle, "nativeGetTextBeforeCursor", None, n, 0)
+        .unwrap_or_default();
+    jni_string_to_java(env, &text)
+}
+
+/// Live `JNINativeMethod.fnPtr` table for `RegisterNatives`.
+pub fn jni_native_fn_ptr_table() -> &'static [JniNativeFnPtr] {
+    &[
+        JniNativeFnPtr {
+            name: JNI_NATIVE_COMMIT_TEXT.name,
+            signature: JNI_NATIVE_COMMIT_TEXT.sig,
+            handler: "commitText",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeCommitText",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeCommitText as *const c_void,
+        },
+        JniNativeFnPtr {
+            name: JNI_NATIVE_SET_COMPOSING.name,
+            signature: JNI_NATIVE_SET_COMPOSING.sig,
+            handler: "setComposingText",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeSetComposingText",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeSetComposingText
+                as *const c_void,
+        },
+        JniNativeFnPtr {
+            name: JNI_NATIVE_FINISH_COMPOSING.name,
+            signature: JNI_NATIVE_FINISH_COMPOSING.sig,
+            handler: "finishComposingText",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeFinishComposingText",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeFinishComposingText
+                as *const c_void,
+        },
+        JniNativeFnPtr {
+            name: JNI_NATIVE_DELETE_SURROUNDING.name,
+            signature: JNI_NATIVE_DELETE_SURROUNDING.sig,
+            handler: "deleteSurroundingText",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeDeleteSurroundingText",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeDeleteSurroundingText
+                as *const c_void,
+        },
+        JniNativeFnPtr {
+            name: JNI_NATIVE_SET_SELECTION.name,
+            signature: JNI_NATIVE_SET_SELECTION.sig,
+            handler: "setSelection",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeSetSelection",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeSetSelection as *const c_void,
+        },
+        JniNativeFnPtr {
+            name: JNI_NATIVE_GET_TEXT_BEFORE.name,
+            signature: JNI_NATIVE_GET_TEXT_BEFORE.sig,
+            handler: "getTextBeforeCursor",
+            mangled: "Java_dev_gpui_material_NativeInputConnection_nativeGetTextBeforeCursor",
+            fn_ptr: Java_dev_gpui_material_NativeInputConnection_nativeGetTextBeforeCursor
+                as *const c_void,
+        },
+    ]
+}
+
 static SESSION_REGISTRY: Mutex<Option<HashMap<i64, ImeSession>>> = Mutex::new(None);
 
 pub fn bind_session_handle(handle: i64, session: ImeSession) {
@@ -676,6 +863,9 @@ pub trait JniEnvSink {
         }
         self.call_void("RegisterNatives");
     }
+    fn bind_native_fn_ptr(&mut self, mangled: &str, ptr: *const c_void) {
+        let _ = (mangled, ptr);
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -692,6 +882,9 @@ impl JniEnvSink for RecordingJniSink {
     }
     fn call_void(&mut self, name: &str) {
         self.log.push(format!("CallVoidMethod {name}"));
+    }
+    fn bind_native_fn_ptr(&mut self, mangled: &str, _ptr: *const c_void) {
+        self.log.push(format!("fnPtr {mangled}"));
     }
 }
 
@@ -734,6 +927,9 @@ pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> us
             }
             JniImmCall::RegisterNatives { .. } => {
                 sink.register_natives(NATIVE_IC_CLASS, jni_native_peer_table());
+                for row in jni_native_fn_ptr_table() {
+                    sink.bind_native_fn_ptr(row.mangled, row.fn_ptr);
+                }
                 n += 1;
             }
             JniImmCall::NewCursorAnchorInfo { .. } => {
@@ -830,6 +1026,38 @@ pub fn flush_native_activity_imm(queue: &ImeJniQueue) -> Result<usize, &'static 
         let _ = (vm, activity);
         Ok(queue.pending().len())
     }
+}
+
+#[cfg(target_os = "android")]
+fn android_jstring_utf8(env: *mut c_void, text: *mut c_void) -> String {
+    use jni_sys::{jstring, JNIEnv};
+    if env.is_null() || text.is_null() {
+        return String::new();
+    }
+    let env = env as *mut JNIEnv;
+    let jni = unsafe { &(**env).v1_2 };
+    let mut is_copy = 0;
+    let chars = (jni.GetStringUTFChars)(env, text as jstring, &mut is_copy);
+    if chars.is_null() {
+        return String::new();
+    }
+    let s = unsafe { std::ffi::CStr::from_ptr(chars) }
+        .to_string_lossy()
+        .into_owned();
+    (jni.ReleaseStringUTFChars)(env, text as jstring, chars);
+    s
+}
+
+#[cfg(target_os = "android")]
+fn android_new_utf8(env: *mut c_void, text: &str) -> *mut c_void {
+    use jni_sys::JNIEnv;
+    if env.is_null() {
+        return std::ptr::null_mut();
+    }
+    let env = env as *mut JNIEnv;
+    let jni = unsafe { &(**env).v1_2 };
+    let c = std::ffi::CString::new(text).unwrap_or_default();
+    (jni.NewStringUTF)(env, c.as_ptr()) as *mut c_void
 }
 
 #[cfg(target_os = "android")]
@@ -998,18 +1226,29 @@ unsafe fn flush_toggle_soft_input_jni(
             }
             if want_register {
                 // Bind `native*` methods on NativeInputConnection — never BaseIC.
-                for method in jni_native_peer_table() {
-                    let name = format!("{}\0", method.name);
-                    let sig = format!("{}\0", method.sig);
-                    let mid = (jni.GetStaticMethodID)(
-                        env,
-                        ic_cls,
-                        name.as_ptr().cast(),
-                        sig.as_ptr().cast(),
-                    );
-                    if mid.is_null() {
-                        (jni.ExceptionClear)(env);
-                    }
+                let mut names = Vec::new();
+                let mut sigs = Vec::new();
+                for method in jni_native_fn_ptr_table() {
+                    names.push(std::ffi::CString::new(method.name).unwrap_or_default());
+                    sigs.push(std::ffi::CString::new(method.signature).unwrap_or_default());
+                }
+                let rows: Vec<jni_sys::JNINativeMethod> = jni_native_fn_ptr_table()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, method)| jni_sys::JNINativeMethod {
+                        name: names[i].as_ptr(),
+                        signature: sigs[i].as_ptr(),
+                        fnPtr: method.fn_ptr as *mut c_void,
+                    })
+                    .collect();
+                let _ = (jni.RegisterNatives)(
+                    env,
+                    ic_cls,
+                    rows.as_ptr(),
+                    rows.len() as jni_sys::jint,
+                );
+                if (jni.ExceptionCheck)(env) {
+                    (jni.ExceptionClear)(env);
                 }
             }
             let mut ic_ctor = (jni.GetMethodID)(
@@ -1386,6 +1625,15 @@ mod tests {
         assert_eq!(JNI_NATIVE_IC_CTOR.sig, "(Landroid/view/View;ZJ)V");
         assert_eq!(JNI_NATIVE_COMMIT_TEXT.class, NATIVE_IC_CLASS);
         assert_eq!(native_peer_handler("commitText"), None);
+        assert_eq!(
+            jni_mangled_name("nativeCommitText"),
+            "Java_dev_gpui_material_NativeInputConnection_nativeCommitText"
+        );
+        assert!(
+            jni_native_fn_ptr_table()
+                .iter()
+                .all(|m| !m.fn_ptr.is_null() && m.mangled.starts_with(JNI_MANGLED_PREFIX))
+        );
         bind_session_handle(NATIVE_IC_SESSION_HANDLE, ImeSession::new());
         dispatch_native_peer(
             NATIVE_IC_SESSION_HANDLE,
@@ -1399,8 +1647,24 @@ mod tests {
             Some("peer")
         );
         unbind_session_handle(NATIVE_IC_SESSION_HANDLE);
+        bind_session_handle(NATIVE_IC_SESSION_HANDLE, ImeSession::new());
+        let payload = b"fnPtr\0";
+        let ok = Java_dev_gpui_material_NativeInputConnection_nativeCommitText(
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            NATIVE_IC_SESSION_HANDLE,
+            payload.as_ptr() as *mut c_void,
+            1,
+        );
+        assert_eq!(ok, 1);
+        assert_eq!(
+            session_handle_text(NATIVE_IC_SESSION_HANDLE).as_deref(),
+            Some("fnPtr")
+        );
+        unbind_session_handle(NATIVE_IC_SESSION_HANDLE);
         assert!(sink.log.iter().any(|s| s.contains("RegisterNatives")));
         assert!(sink.log.iter().any(|s| s.contains("nativeCommitText")));
+        assert!(sink.log.iter().any(|s| s.contains("fnPtr Java_dev_gpui_material_NativeInputConnection_nativeCommitText")));
         assert_eq!(flush_if_attached(&queue.borrow()), Err("no JNIEnv"));
         unsafe { attach_jni_env(0x1 as *mut _) };
         let _clear = scopeguard_clear_env();
