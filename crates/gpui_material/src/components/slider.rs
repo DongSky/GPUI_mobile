@@ -245,7 +245,16 @@ pub const RANGE_DEMO_START: f32 = 0.20;
 pub const RANGE_DEMO_END: f32 = 0.75;
 pub const RANGE_HERO_LABEL: &str = "Price range";
 pub const RANGE_STEP: f32 = 0.05;
+/// Thumbs cannot cross closer than this (5% of the track). Documented in the
+/// range label and inventory; click/keyboard steps use the same 5% grid.
 pub const RANGE_MIN_SPAN: f32 = 0.05;
+/// When true, pointer-drag snaps to `RANGE_STEP` ticks (M3 discrete dual-thumb).
+pub const RANGE_SNAP_WHILE_DRAG: bool = true;
+
+/// Snap `v` onto the 5% tick grid used by click/keyboard.
+pub fn snap_to_step(v: f32) -> f32 {
+    ((v / RANGE_STEP).round() * RANGE_STEP).clamp(0.0, 1.0)
+}
 
 pub fn clamp_range(start: f32, end: f32) -> (f32, f32) {
     let start = start.clamp(0.0, 1.0 - RANGE_MIN_SPAN);
@@ -273,10 +282,11 @@ pub fn move_nearest(start: f32, end: f32, value: f32) -> (f32, f32) {
 
 pub fn range_value_label(start: f32, end: f32) -> String {
     format!(
-        "{} · {:.0}–{:.0}%",
+        "{} · {:.0}–{:.0}% · min span {:.0}%",
         RANGE_HERO_LABEL,
         start * 100.0,
-        end * 100.0
+        end * 100.0,
+        RANGE_MIN_SPAN * 100.0
     )
 }
 
@@ -317,6 +327,21 @@ pub fn drag_thumb(start: f32, end: f32, thumb: RangeThumb, fraction: f32) -> (f3
     }
 }
 
+/// Pointer-drag with optional tick-snap (`RANGE_SNAP_WHILE_DRAG`).
+pub fn drag_thumb_snapped(
+    start: f32,
+    end: f32,
+    thumb: RangeThumb,
+    fraction: f32,
+) -> (f32, f32) {
+    let fraction = if RANGE_SNAP_WHILE_DRAG {
+        snap_to_step(fraction)
+    } else {
+        fraction
+    };
+    drag_thumb(start, end, thumb, fraction)
+}
+
 pub fn nudge_thumb(start: f32, end: f32, thumb: RangeThumb, delta: f32) -> (f32, f32) {
     match thumb {
         RangeThumb::Start => nudge_start(start, end, delta),
@@ -353,6 +378,35 @@ pub fn fraction_from_local_x(x: f32, width: f32) -> f32 {
         0.0
     } else {
         (x / width).clamp(0.0, 1.0)
+    }
+}
+
+/// Absolute paint boxes for a dual-thumb track (no flex min-width quantization).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RangePaint {
+    pub left: f32,
+    pub start_handle: f32,
+    pub active: f32,
+    pub end_handle: f32,
+    pub right: f32,
+    pub handle_w: f32,
+}
+
+/// Place thumbs on `start`/`end` of a `width`-dp track.
+pub fn range_paint(start: f32, end: f32, width: f32, handle_w: f32) -> RangePaint {
+    let hw = handle_w.max(HANDLE_W_DP);
+    let width = width.max(hw * 2.0 + RANGE_MIN_SPAN);
+    let start_x = (width * start.clamp(0.0, 1.0)).clamp(hw / 2.0, width - hw);
+    let end_x = (width * end.clamp(0.0, 1.0)).clamp(start_x + hw, width - hw / 2.0);
+    let left = (start_x - hw / 2.0).max(0.0);
+    let end_left = end_x - hw / 2.0;
+    RangePaint {
+        left,
+        start_handle: left,
+        active: (end_left - (left + hw)).max(0.0),
+        end_handle: end_left,
+        right: (width - end_left - hw).max(0.0),
+        handle_w: hw,
     }
 }
 

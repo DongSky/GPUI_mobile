@@ -15,9 +15,10 @@
 
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FontWeight,
-    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
-    PathBuilder, Render, SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
+    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
+    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -55,6 +56,78 @@ fn type_weight(style: gpui_material::typography::TypeStyle) -> FontWeight {
     }
 }
 
+fn feed_outline_verbs(
+    builder: &mut PathBuilder,
+    origin: gpui::Point<gpui::Pixels>,
+    verbs: impl IntoIterator<Item = text_field::OutlineVerb>,
+) {
+    for v in verbs {
+        match v {
+            text_field::OutlineVerb::Move(x, y) => {
+                builder.move_to(point(origin.x + px(x), origin.y + px(y)));
+            }
+            text_field::OutlineVerb::Line(x, y) => {
+                builder.line_to(point(origin.x + px(x), origin.y + px(y)));
+            }
+            text_field::OutlineVerb::Arc {
+                to_x,
+                to_y,
+                radius,
+            } => {
+                builder.arc_to(
+                    point(px(radius), px(radius)),
+                    px(0.),
+                    false,
+                    true,
+                    point(origin.x + px(to_x), origin.y + px(to_y)),
+                );
+            }
+            text_field::OutlineVerb::Close => builder.close(),
+        }
+    }
+}
+
+fn paint_round_capped_polyline(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    pts: &[(f32, f32)],
+    stroke: f32,
+    color: gpui::Rgba,
+) {
+    let mut builder = PathBuilder::stroke(px(stroke));
+    for (i, (x, y)) in pts.iter().enumerate() {
+        let p = point(origin.x + px(*x), origin.y + px(*y));
+        if i == 0 {
+            builder.move_to(p);
+        } else {
+            builder.line_to(p);
+        }
+    }
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
+    let r = stroke / 2.0;
+    if let (Some(&(x0, y0)), Some(&(x1, y1))) = (pts.first(), pts.last()) {
+        for (cx, cy) in [(x0, y0), (x1, y1)] {
+            let mut cap = PathBuilder::fill();
+            let n = 12u32;
+            for i in 0..n {
+                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
+                if i == 0 {
+                    cap.move_to(p);
+                } else {
+                    cap.line_to(p);
+                }
+            }
+            cap.close();
+            if let Ok(path) = cap.build() {
+                window.paint_path(path, color);
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Overlay {
     None,
@@ -86,11 +159,16 @@ struct CatalogView {
     range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
     search_open: bool,
-    search_query: String,
+    search: TextFieldEditor,
+    rail_selected: usize,
+    rail_mode: navigation_rail::RailMode,
+    carousel_index: usize,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
     time_dial: DialFace,
+    time_hand_from: f32,
+    time_hand_gen: u32,
 }
 
 impl CatalogView {
@@ -100,6 +178,15 @@ impl CatalogView {
         } else {
             Theme::light()
         }
+    }
+
+    fn bump_time_hand(&mut self) {
+        self.time_hand_from = time_picker::hand_angle_deg(
+            self.time_dial,
+            self.time_hour,
+            self.time_minute,
+        );
+        self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
     }
 }
 
@@ -360,7 +447,7 @@ fn catalog_body(
         .child(section_title(theme, "Progress"))
         .child(progress_heroes(theme))
         .child(section_title(theme, "Carousel"))
-        .child(carousel_hero(theme))
+        .child(carousel_hero(this, theme, cx))
         .child(
             div()
                 .text_size(px(12.))
@@ -438,7 +525,7 @@ fn catalog_body(
         )
         .child(tab_row(&tabs_p, this.tab, cx))
         .child(section_title(theme, "Navigation rail"))
-        .child(nav_rail_hero(theme))
+        .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
             div()
@@ -534,8 +621,9 @@ fn range_slider_hero(
     );
     let t = range.track;
     let total = slider::RANGE_TRACK_W_DP;
-    let left = (total * range.start).max(12.0);
-    let mid = (total * (range.end - range.start)).max(16.0);
+    let paint_r = slider::range_paint(range.start, range.end, total, t.handle_w.max(4.0));
+    let y_track = ((t.target_dp - t.track_h) / 2.0).max(0.0);
+    let y_handle = ((t.target_dp - t.handle_h_visual) / 2.0).max(0.0);
     let hit = this.range_hit.clone();
     let hit_move = this.range_hit.clone();
     let hit_click = this.range_hit.clone();
@@ -596,8 +684,12 @@ fn range_slider_hero(
                             let (origin, w) = hit_move.get();
                             let frac =
                                 slider::fraction_from_local_x(f32::from(ev.position.x) - origin, w);
-                            let (s, e) =
-                                slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
+                            let (s, e) = slider::drag_thumb_snapped(
+                                this.range_start,
+                                this.range_end,
+                                thumb,
+                                frac,
+                            );
                             this.range_start = s;
                             this.range_end = e;
                             this.range_moved = true;
@@ -623,47 +715,53 @@ fn range_slider_hero(
                 }))
                 .child(
                     div()
-                        .w(px(total))
-                        .h(px(t.target_dp))
-                        .flex()
-                        .items_center()
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(left))
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(mid))
-                                .rounded(px(t.inner_corner))
-                                .bg(paint(t.active)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .flex_1()
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        ),
+                        .absolute()
+                        .left(px(0.))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.left))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.active))
+                        .rounded(px(t.inner_corner))
+                        .bg(paint(t.active)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.right))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
                 )
                 .child({
                     let hit = this.range_hit.clone();
@@ -1578,22 +1676,57 @@ fn search_bar_hero(
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
+    let open = this.search_open;
     let a = search::resolve(theme);
-    let view = if this.search_open {
+    let view = if open {
         search::resolve_activity(theme)
     } else {
         search::resolve_view(theme)
     };
-    let suggestions = search::filter_suggestions(&this.search_query);
-    let query_label = search::query_display(&this.search_query).to_string();
-    let bar = (!this.search_open).then(|| {
+    let suggestions = search::filter_suggestions(this.search.value());
+    let query_label = if this.search.focused {
+        this.search.display_with_caret()
+    } else {
+        search::query_display(this.search.value()).to_string()
+    };
+    let morph_ms = search::morph_ms(theme) as u64;
+    let header = if open {
+        div()
+            .id("search-activity")
+            .h(px(view.header_h_dp))
+            .px(px(16.))
+            .flex()
+            .items_center()
+            .gap(px(16.))
+            .child(
+                div()
+                    .id("search-back")
+                    .text_color(paint(view.header))
+                    .child(search::VIEW_BACK)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.search_open = false;
+                        this.search.set_value("");
+                        this.search.set_focus(false);
+                        cx.notify();
+                    })),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .text_color(paint(if this.search.value().is_empty() {
+                        view.placeholder
+                    } else {
+                        view.input
+                    }))
+                    .child(query_label),
+            )
+            .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC))
+            .into_any_element()
+    } else {
         div()
             .id("search-bar")
-            .w_full()
             .h(px(a.bar.height_dp))
             .px(px(a.bar.pad_start_dp))
-            .rounded(px(a.bar.corners.top_left))
-            .bg(paint(a.bar.container))
             .flex()
             .items_center()
             .gap(px(search::GAP_DP))
@@ -1634,57 +1767,22 @@ fn search_bar_hero(
             )
             .on_click(cx.listener(|this, _, _, cx| {
                 this.search_open = true;
+                this.search.set_focus(true);
                 cx.notify();
             }))
             .into_any_element()
-    });
-    let sheet = this.search_open.then(|| {
+    };
+    let rows: Vec<_> = if suggestions.is_empty() {
+        vec![search::EMPTY_SUGGESTIONS]
+    } else {
+        suggestions
+    };
+    let list = open.then(|| {
         div()
-            .id("search-activity")
-            .w_full()
-            .min_h(px(search::ACTIVITY_MIN_H_DP))
-            .rounded(px(view.corners.top_left))
-            .bg(paint(view.container))
             .flex()
             .flex_col()
-            .tab_index(0)
-            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                this.search_query =
-                    search::apply_search_key(&this.search_query, &ev.keystroke.key);
-                cx.notify();
-            }))
-            .child(
-                div()
-                    .h(px(view.header_h_dp))
-                    .px(px(16.))
-                    .flex()
-                    .items_center()
-                    .gap(px(16.))
-                    .child(
-                        div()
-                            .id("search-back")
-                            .text_color(paint(view.header))
-                            .child(search::VIEW_BACK)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.search_open = false;
-                                this.search_query.clear();
-                                cx.notify();
-                            })),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .text_color(paint(if this.search_query.is_empty() {
-                                view.placeholder
-                            } else {
-                                view.input
-                            }))
-                            .child(query_label),
-                    )
-                    .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC)),
-            )
             .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
-            .children(suggestions.into_iter().enumerate().map(|(i, label)| {
+            .children(rows.into_iter().enumerate().map(|(i, label)| {
                 div()
                     .id(SharedString::from(format!("search-sug-{i}")))
                     .h(px(view.suggestion_h_dp))
@@ -1699,15 +1797,39 @@ fn search_bar_hero(
                             .child(if i == 0 { "⌕" } else { "◌" }),
                     )
                     .child(label)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
+                            this.search.set_value(picked);
+                            cx.notify();
+                        }
+                    }))
             }))
             .into_any_element()
     });
     div()
+        .id("search-morph")
         .w_full()
         .flex()
         .flex_col()
-        .children(bar)
-        .children(sheet)
+        .bg(paint(if open { view.container } else { a.bar.container }))
+        .tab_index(0)
+        .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            if this.search_open {
+                search::apply_key_to_editor(&mut this.search, &ev.keystroke.key);
+                cx.notify();
+            }
+        }))
+        .with_animation(
+            if open { "search-grow" } else { "search-shrink" },
+            Animation::new(Duration::from_millis(morph_ms)),
+            move |this, delta| {
+                let t = if open { delta } else { 1.0 - delta };
+                this.min_h(px(search::morph_height_dp(t)))
+                    .rounded(px(search::morph_corner_dp_at(t)))
+            },
+        )
+        .child(header)
+        .children(list)
 }
 
 fn time_picker_hero(
@@ -1733,13 +1855,14 @@ fn time_picker_hero(
             })
             .collect(),
     };
-    let quad = time_picker::hand_quad(
-        clock,
+    let from_angle = this.time_hand_from;
+    let to_angle = time_picker::hand_angle_deg(
         this.time_dial,
         this.time_hour,
         this.time_minute,
-        number,
     );
+    let hand_gen = this.time_hand_gen;
+    let hand_ms = time_picker::hand_motion_ms(theme) as u64;
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -1785,6 +1908,7 @@ fn time_picker_hero(
                                 .font_weight(type_weight(a.time_style))
                                 .child(time_picker::format_hour_field(this.time_hour))
                                 .on_click(cx.listener(|this, _, _, cx| {
+                                    this.bump_time_hand();
                                     this.time_dial = DialFace::Hour;
                                     cx.notify();
                                 })),
@@ -1814,6 +1938,7 @@ fn time_picker_hero(
                                 .font_weight(type_weight(a.time_style))
                                 .child(time_picker::format_minute_field(this.time_minute))
                                 .on_click(cx.listener(|this, _, _, cx| {
+                                    this.bump_time_hand();
                                     this.time_dial = DialFace::Minute;
                                     cx.notify();
                                 })),
@@ -1861,51 +1986,65 @@ fn time_picker_hero(
                 .rounded(px(clock / 2.0))
                 .bg(paint(a.clock))
                 .child(
-                    canvas(
-                        move |_, _, _| {},
-                        move |bounds, _, window, _| {
-                            let mut builder = PathBuilder::fill();
-                            for (i, (x, y)) in quad.iter().enumerate() {
-                                let p = point(
-                                    bounds.origin.x + px(*x),
-                                    bounds.origin.y + px(*y),
-                                );
-                                if i == 0 {
-                                    builder.move_to(p);
-                                } else {
-                                    builder.line_to(p);
-                                }
-                            }
-                            builder.close();
-                            if let Ok(path) = builder.build() {
-                                window.paint_path(path, hand_color);
-                            }
-                            let mut hub_b = PathBuilder::fill();
-                            let r = time_picker::HAND_HUB_DP / 2.0;
-                            let n = 12u32;
-                            for i in 0..n {
-                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
-                                let p = point(
-                                    bounds.origin.x + px(hub.0 + r * ang.cos()),
-                                    bounds.origin.y + px(hub.1 + r * ang.sin()),
-                                );
-                                if i == 0 {
-                                    hub_b.move_to(p);
-                                } else {
-                                    hub_b.line_to(p);
-                                }
-                            }
-                            hub_b.close();
-                            if let Ok(path) = hub_b.build() {
-                                window.paint_path(path, hand_color);
-                            }
-                        },
-                    )
-                    .absolute()
-                    .top(px(0.))
-                    .left(px(0.))
-                    .w(px(clock))
-                    .h(px(clock)),
+                    div()
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(clock))
+                        .h(px(clock))
+                        .with_animation(
+                            SharedString::from(format!("time-hand-{hand_gen}")),
+                            Animation::new(Duration::from_millis(hand_ms)),
+                            move |this, delta| {
+                                let angle =
+                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta);
+                                let quad = time_picker::hand_quad_at_angle(clock, angle, number);
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let mut builder = PathBuilder::fill();
+                                            for (i, (x, y)) in quad.iter().enumerate() {
+                                                let p = point(
+                                                    bounds.origin.x + px(*x),
+                                                    bounds.origin.y + px(*y),
+                                                );
+                                                if i == 0 {
+                                                    builder.move_to(p);
+                                                } else {
+                                                    builder.line_to(p);
+                                                }
+                                            }
+                                            builder.close();
+                                            if let Ok(path) = builder.build() {
+                                                window.paint_path(path, hand_color);
+                                            }
+                                            let mut hub_b = PathBuilder::fill();
+                                            let r = time_picker::HAND_HUB_DP / 2.0;
+                                            let n = 12u32;
+                                            for i in 0..n {
+                                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                                                let p = point(
+                                                    bounds.origin.x + px(hub.0 + r * ang.cos()),
+                                                    bounds.origin.y + px(hub.1 + r * ang.sin()),
+                                                );
+                                                if i == 0 {
+                                                    hub_b.move_to(p);
+                                                } else {
+                                                    hub_b.line_to(p);
+                                                }
+                                            }
+                                            hub_b.close();
+                                            if let Ok(path) = hub_b.build() {
+                                                window.paint_path(path, hand_color);
+                                            }
+                                        },
+                                    )
+                                    .w(px(clock))
+                                    .h(px(clock)),
+                                )
+                            },
+                        ),
                 )
                 .children(labels.into_iter().map(|(value, label, x, y, selected)| {
                     let face = this.time_dial;
@@ -1932,6 +2071,7 @@ fn time_picker_hero(
                         .justify_center()
                         .child(label)
                         .on_click(cx.listener(move |this, _, _, cx| {
+                            this.bump_time_hand();
                             match face {
                                 DialFace::Hour => {
                                     this.time_hour = time_picker::select_hour(this.time_hour, value);
@@ -1948,19 +2088,51 @@ fn time_picker_hero(
         )
 }
 
-fn nav_rail_hero(theme: &Theme) -> impl IntoElement {
+fn nav_rail_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let expanded = this.rail_mode == navigation_rail::RailMode::Expanded;
+    let scrim_c = paint(navigation_rail::scrim(theme));
     div()
-        .flex()
-        .gap(px(24.))
-        .items_start()
-        .child(nav_rail_column(theme, navigation_rail::RailMode::Collapsed))
-        .child(nav_rail_column(theme, navigation_rail::RailMode::Expanded))
+        .id("nav-rail-stage")
+        .relative()
+        .w_full()
+        .min_h(px(280.))
+        .when(expanded, |el| {
+            el.child(
+                div()
+                    .id("rail-scrim")
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .size_full()
+                    .bg(scrim_c)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.rail_mode = navigation_rail::RailMode::Collapsed;
+                        cx.notify();
+                    })),
+            )
+        })
+        .child(
+            div()
+                .relative()
+                .child(nav_rail_column(this, theme, this.rail_mode, cx)),
+        )
 }
 
-fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoElement {
+fn nav_rail_column(
+    this: &CatalogView,
+    theme: &Theme,
+    mode: navigation_rail::RailMode,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let rail = navigation_rail::resolve_mode(theme, mode);
     let expanded = mode == navigation_rail::RailMode::Expanded;
+    let selected = this.rail_selected;
     div()
+        .id("nav-rail")
         .w(px(rail.width_dp))
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
@@ -1970,6 +2142,7 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
         .gap(px(navigation_rail::DEST_GAP_DP))
         .child(
             div()
+                .id("rail-fab")
                 .w(px(navigation_rail::FAB_SLOT_DP))
                 .h(px(navigation_rail::FAB_SLOT_DP))
                 .rounded(px(16.))
@@ -1978,7 +2151,11 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
                 .flex()
                 .items_center()
                 .justify_center()
-                .child("+"),
+                .child(if expanded { "←" } else { "+" })
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                    cx.notify();
+                })),
         )
         .children(
             navigation_rail::DESTINATIONS
@@ -1987,13 +2164,21 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
                 .zip(navigation_rail::DESTINATION_BADGES.iter())
                 .enumerate()
                 .map(|(i, ((label, icon), badge))| {
-                    let active = i == 0;
+                    let active = navigation_rail::is_active(selected, i);
                     let mut dest = div()
+                        .id(SharedString::from(format!("rail-dest-{i}")))
                         .w(px(rail.width_dp))
                         .relative()
                         .flex()
                         .gap(px(4.))
-                        .items_center();
+                        .items_center()
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.rail_selected = navigation_rail::select_destination(
+                                this.rail_selected,
+                                i,
+                            );
+                            cx.notify();
+                        }));
                     dest = if expanded {
                         dest.flex_row().justify_start().px(px(12.))
                     } else {
@@ -2161,46 +2346,169 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                 .flex_col()
                 .items_center()
                 .gap(px(8.))
-                .child(
+                .child({
+                    let size = ptr.size_dp;
+                    let stroke = ptr.stroke_dp;
+                    let arc = ptr.arc_deg;
+                    let ptr_color = paint(ptr.indicator);
+                    let dur = ptr.duration_ms as u64;
                     div()
-                        .w(px(ptr.size_dp))
-                        .h(px(ptr.size_dp))
-                        .rounded(px(ptr.size_dp / 2.0))
-                        .border_2()
-                        .border_color(paint(ptr.track))
-                        .flex()
-                        .items_start()
-                        .justify_center()
+                        .relative()
+                        .w(px(size))
+                        .h(px(size))
                         .child(
                             div()
-                                .w(px(ptr.stroke_dp))
-                                .h(px(ptr.size_dp * 0.28))
-                                .rounded(px(2.))
-                                .bg(paint(ptr.indicator)),
-                        ),
-                )
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .rounded(px(size / 2.0))
+                                .border_2()
+                                .border_color(paint(ptr.track)),
+                        )
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .with_animation(
+                                    "ptr-spin",
+                                    Animation::new(Duration::from_millis(dur)).repeat(),
+                                    move |this, delta| {
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let pts = progress::ptr_arc_polyline(
+                                                        size, stroke, arc, delta,
+                                                    );
+                                                    paint_round_capped_polyline(
+                                                        window,
+                                                        bounds.origin,
+                                                        &pts,
+                                                        stroke,
+                                                        ptr_color,
+                                                    );
+                                                },
+                                            )
+                                            .w(px(size))
+                                            .h(px(size)),
+                                        )
+                                    },
+                                ),
+                        )
+                })
                 .child(spaced_line(
                     progress::PTR_LABEL,
                     12.0,
                     paint(theme.color.on_surface_variant),
                 )),
         )
+        .child({
+            let load = progress::loading_circular(theme);
+            let size = load.size_dp;
+            let stroke = load.stroke_dp;
+            let prog = load.progress;
+            let load_color = paint(load.indicator);
+            let dur = progress::clock_ms(theme) as u64;
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .relative()
+                        .w(px(size))
+                        .h(px(size))
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .rounded(px(size / 2.0))
+                                .border_2()
+                                .border_color(paint(load.track)),
+                        )
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .with_animation(
+                                    "loading-spin",
+                                    Animation::new(Duration::from_millis(dur)).repeat(),
+                                    move |this, delta| {
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let pts = progress::determinate_arc_polyline(
+                                                        size, stroke, prog, delta,
+                                                    );
+                                                    paint_round_capped_polyline(
+                                                        window,
+                                                        bounds.origin,
+                                                        &pts,
+                                                        stroke,
+                                                        load_color,
+                                                    );
+                                                },
+                                            )
+                                            .w(px(size))
+                                            .h(px(size)),
+                                        )
+                                    },
+                                ),
+                        ),
+                )
+                .child(spaced_line(
+                    progress::LOADING_LABEL,
+                    12.0,
+                    paint(theme.color.on_surface_variant),
+                ))
+        })
 }
 
-fn carousel_hero(theme: &Theme) -> impl IntoElement {
+fn carousel_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let a = carousel::resolve(theme);
+    let selected = this.carousel_index;
     div()
+        .id("carousel")
         .w_full()
         .flex()
         .gap(px(a.gap_dp))
+        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+            let (dx, dy) = match ev.delta {
+                ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
+                ScrollDelta::Lines(p) => (p.x, p.y),
+            };
+            let step = carousel::fling_steps(dx, dy);
+            if step != 0 {
+                this.carousel_index = carousel::advance(this.carousel_index, step);
+                cx.notify();
+            }
+        }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
-            let (bg, fg) = if i == carousel::DEMO_INDEX {
+            let w = carousel::item_width_dp(i, selected);
+            let (bg, fg) = if i == selected {
                 (a.container, a.label)
             } else {
                 (a.neighbor, theme.color.on_secondary_container)
             };
             div()
+                .id(SharedString::from(format!("carousel-{i}")))
                 .w(px(w))
                 .h(px(a.height_dp))
                 .rounded(px(a.corners.top_left))
@@ -2211,6 +2519,10 @@ fn carousel_hero(theme: &Theme) -> impl IntoElement {
                 .text_color(paint(fg))
                 .font_weight(type_weight(a.label_style))
                 .child(*label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.carousel_index = carousel::snap_to(i);
+                    cx.notify();
+                }))
         }))
 }
 
@@ -2269,6 +2581,7 @@ fn outlined_notched_field(
     let stroke_color = paint(outline.0);
     let stroke_w = frame.stroke_dp;
     let verbs = frame.outline_verbs(280.0);
+    let evenodd = frame.evenodd_verbs(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
     div()
@@ -2291,49 +2604,33 @@ fn outlined_notched_field(
                 move |_, _, _| {},
                 move |bounds, _, window, _| {
                     let w = f32::from(bounds.size.width);
-                    let verbs = if (w - 280.0).abs() > 1.0 {
-                        text_field::NotchFrame {
-                            start_dp: frame.start_dp,
-                            width_dp: frame.width_dp,
-                            stroke_dp: frame.stroke_dp,
-                            radius_dp: frame.radius_dp,
-                            label_h_dp: frame.label_h_dp,
-                            field_h_dp: frame.field_h_dp,
-                        }
-                        .outline_verbs(w)
+                    let frame = text_field::NotchFrame {
+                        start_dp: frame.start_dp,
+                        width_dp: frame.width_dp,
+                        stroke_dp: frame.stroke_dp,
+                        radius_dp: frame.radius_dp,
+                        label_h_dp: frame.label_h_dp,
+                        field_h_dp: frame.field_h_dp,
+                    };
+                    let even = if (w - 280.0).abs() > 1.0 {
+                        frame.evenodd_verbs(w)
+                    } else {
+                        evenodd.clone()
+                    };
+                    let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
+                        FillOptions::default().with_fill_rule(FillRule::EvenOdd),
+                    ));
+                    feed_outline_verbs(&mut fill_b, bounds.origin, even);
+                    if let Ok(path) = fill_b.build() {
+                        window.paint_path(path, stroke_color);
+                    }
+                    let stroke_verbs = if (w - 280.0).abs() > 1.0 {
+                        frame.outline_verbs(w)
                     } else {
                         verbs.clone()
                     };
                     let mut builder = PathBuilder::stroke(px(stroke_w));
-                    for v in verbs {
-                        match v {
-                            text_field::OutlineVerb::Move(x, y) => {
-                                builder.move_to(point(
-                                    bounds.origin.x + px(x),
-                                    bounds.origin.y + px(y),
-                                ));
-                            }
-                            text_field::OutlineVerb::Line(x, y) => {
-                                builder.line_to(point(
-                                    bounds.origin.x + px(x),
-                                    bounds.origin.y + px(y),
-                                ));
-                            }
-                            text_field::OutlineVerb::Arc {
-                                to_x,
-                                to_y,
-                                radius,
-                            } => {
-                                builder.arc_to(
-                                    point(px(radius), px(radius)),
-                                    px(0.),
-                                    false,
-                                    true,
-                                    point(bounds.origin.x + px(to_x), bounds.origin.y + px(to_y)),
-                                );
-                            }
-                        }
-                    }
+                    feed_outline_verbs(&mut builder, bounds.origin, stroke_verbs);
                     if let Ok(path) = builder.build() {
                         window.paint_path(path, stroke_color);
                     }
@@ -2538,11 +2835,27 @@ fn main() {
                     range_hit: Rc::new(Cell::new((0.0, slider::RANGE_TRACK_W_DP))),
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
-                    search_query: String::new(),
+                    search: {
+                        let mut ed = TextFieldEditor::new(
+                            text_field::TextFieldVariant::Filled,
+                            "",
+                        );
+                        ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
+                        ed
+                    },
+                    rail_selected: navigation_rail::DEMO_SELECTED,
+                    rail_mode: navigation_rail::DEMO_MODE,
+                    carousel_index: carousel::DEMO_INDEX,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
                     time_period: time_picker::DEMO_PERIOD,
                     time_dial: time_picker::DEMO_DIAL,
+                    time_hand_from: time_picker::hand_angle_deg(
+                        time_picker::DEMO_DIAL,
+                        time_picker::DEMO_HOUR,
+                        time_picker::DEMO_MINUTE,
+                    ),
+                    time_hand_gen: 0,
                 })
             },
         )
@@ -2633,6 +2946,7 @@ mod tests {
         assert_eq!(frame.top_lead_dp(), 4.0);
         assert_eq!(frame.notch_gap_h_dp(), 2.0);
         assert!(frame.outline_svg_d(280.0).starts_with('M'));
+        assert!(frame.evenodd_svg_d(280.0).contains('Z'));
         assert_eq!(carousel::LARGE_W_DP, 256.0);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);

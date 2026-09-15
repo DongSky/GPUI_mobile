@@ -1,7 +1,7 @@
 //! Time picker (12-hour dial). Specs: https://m3.material.io/components/time-pickers/specs
 //!
-//! Hour and minute faces plus a static analog selector hand. Motion of the
-//! hand is not animated (no shared GPUI clock).
+//! Hour and minute faces plus an analog selector hand. GPUI/HTML interpolate
+//! the hand angle when the face or value changes (spatial-fast).
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -23,6 +23,23 @@ pub const HAND_THICKNESS_DP: f32 = 2.0;
 pub const HAND_HUB_DP: f32 = 8.0;
 pub const HAND_LENGTH_RATIO: f32 = 0.38;
 pub const HAND_DOTS: usize = 8;
+
+/// Spatial-fast duration for hour/minute hand motion.
+pub fn hand_motion_ms(theme: &Theme) -> u16 {
+    theme.motion.spatial_fast_ms
+}
+
+/// Shortest-path lerp between two clock angles (degrees clockwise from 12).
+pub fn lerp_angle_deg(from: f32, to: f32, t: f32) -> f32 {
+    let mut d = to - from;
+    while d > 180.0 {
+        d -= 360.0;
+    }
+    while d < -180.0 {
+        d += 360.0;
+    }
+    from + d * t.clamp(0.0, 1.0)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DayPeriod {
@@ -174,13 +191,15 @@ pub fn hand_angle_deg(face: DialFace, hour: u8, minute: u8) -> f32 {
     }
 }
 
+/// Center of the selector knob at an arbitrary clock angle.
+pub fn hand_end_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> (f32, f32) {
+    let (x, y) = polar_offset(angle_deg - 90.0, clock_dp, number_dp);
+    (x + number_dp / 2.0, y + number_dp / 2.0)
+}
+
 /// Center of the selected hour/minute cell (selector knob).
 pub fn hand_end(clock_dp: f32, face: DialFace, hour: u8, minute: u8, number_dp: f32) -> (f32, f32) {
-    let (x, y) = match face {
-        DialFace::Hour => hour_offset(hour, clock_dp, number_dp),
-        DialFace::Minute => minute_offset(minute, clock_dp, number_dp),
-    };
-    (x + number_dp / 2.0, y + number_dp / 2.0)
+    hand_end_at_angle(clock_dp, hand_angle_deg(face, hour, minute), number_dp)
 }
 
 /// Small dots from the hub toward the selected number (legacy GPUI fallback).
@@ -206,15 +225,9 @@ pub fn hand_dots(
         .collect()
 }
 
-/// Filled quadrilateral for the analog selector hand (hub → selected number).
-pub fn hand_quad(
-    clock_dp: f32,
-    face: DialFace,
-    hour: u8,
-    minute: u8,
-    number_dp: f32,
-) -> [(f32, f32); 4] {
-    let (ex, ey) = hand_end(clock_dp, face, hour, minute, number_dp);
+/// Filled quadrilateral for the analog selector hand at `angle_deg`.
+pub fn hand_quad_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> [(f32, f32); 4] {
+    let (ex, ey) = hand_end_at_angle(clock_dp, angle_deg, number_dp);
     let cx = clock_dp / 2.0;
     let cy = clock_dp / 2.0;
     let dx = ex - cx;
@@ -230,6 +243,25 @@ pub fn hand_quad(
     ]
 }
 
+/// Filled quadrilateral for the analog selector hand (hub → selected number).
+pub fn hand_quad(
+    clock_dp: f32,
+    face: DialFace,
+    hour: u8,
+    minute: u8,
+    number_dp: f32,
+) -> [(f32, f32); 4] {
+    hand_quad_at_angle(clock_dp, hand_angle_deg(face, hour, minute), number_dp)
+}
+
+pub fn hand_svg_d_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> String {
+    let q = hand_quad_at_angle(clock_dp, angle_deg, number_dp);
+    format!(
+        "M{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} Z",
+        q[0].0, q[0].1, q[1].0, q[1].1, q[2].0, q[2].1, q[3].0, q[3].1
+    )
+}
+
 pub fn hand_svg_d(
     clock_dp: f32,
     face: DialFace,
@@ -237,9 +269,5 @@ pub fn hand_svg_d(
     minute: u8,
     number_dp: f32,
 ) -> String {
-    let q = hand_quad(clock_dp, face, hour, minute, number_dp);
-    format!(
-        "M{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} Z",
-        q[0].0, q[0].1, q[1].0, q[1].1, q[2].0, q[2].1, q[3].0, q[3].1
-    )
+    hand_svg_d_at_angle(clock_dp, hand_angle_deg(face, hour, minute), number_dp)
 }

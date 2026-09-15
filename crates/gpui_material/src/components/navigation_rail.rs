@@ -1,8 +1,10 @@
 //! Navigation rail. Specs: https://m3.material.io/components/navigation-rail/specs
 //!
-//! Collapsed 80dp destinations with a 56×32 active indicator, expanded 220dp
-//! modal with a FAB slot and destination badges.
+//! Collapsed 80dp destinations with a 56×32 active indicator. Expanded mode is
+//! a 220dp modal column over a 32% scrim (M3 collapsed→modal pattern), with a
+//! FAB slot and destination badges.
 
+use super::dialog;
 use crate::argb::Argb;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -15,11 +17,14 @@ pub const ICON_DP: f32 = 24.0;
 pub const DEST_GAP_DP: f32 = 12.0;
 pub const PAD_TOP_DP: f32 = 16.0;
 pub const FAB_SLOT_DP: f32 = 56.0;
+/// 32% scrim behind the expanded modal rail (same token as dialogs).
+pub const SCRIM_OPACITY: f32 = dialog::SCRIM_OPACITY;
 
 pub const DESTINATIONS: [&str; 3] = ["Home", "Search", "Profile"];
 pub const DESTINATION_ICONS: [&str; 3] = ["⌂", "⌕", "☺"];
 /// `None` = no badge, `Some(0)` = small dot, `Some(n)` = large count.
 pub const DESTINATION_BADGES: [Option<u32>; 3] = [None, Some(3), Some(0)];
+pub const DEMO_SELECTED: usize = 0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RailMode {
@@ -42,6 +47,8 @@ impl RailMode {
         }
     }
 }
+
+pub const DEMO_MODE: RailMode = RailMode::Expanded;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavRailAppearance {
@@ -83,4 +90,36 @@ pub fn resolve_mode(theme: &Theme, mode: RailMode) -> NavRailAppearance {
     let mut a = resolve(theme);
     a.width_dp = mode.width_dp();
     a
+}
+
+pub fn clamp_destination(index: usize) -> usize {
+    index.min(DESTINATIONS.len().saturating_sub(1))
+}
+
+pub fn select_destination(_current: usize, tapped: usize) -> usize {
+    clamp_destination(tapped)
+}
+
+pub fn toggle_mode(mode: RailMode) -> RailMode {
+    match mode {
+        RailMode::Collapsed => RailMode::Expanded,
+        RailMode::Expanded => RailMode::Collapsed,
+    }
+}
+
+/// Scrim fill for the expanded modal rail (composited over surface).
+pub fn scrim(theme: &Theme) -> Argb {
+    theme
+        .color
+        .scrim
+        .with_alpha(SCRIM_OPACITY)
+        .composite_over(theme.color.surface)
+}
+
+pub fn is_modal(mode: RailMode) -> bool {
+    mode == RailMode::Expanded
+}
+
+pub fn is_active(selected: usize, index: usize) -> bool {
+    selected == index
 }

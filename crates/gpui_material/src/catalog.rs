@@ -153,29 +153,33 @@ a {{ color: var(--primary); }}
 .settings-scene h3 {{ margin: 0; }}
 .settings-block {{ display: flex; flex-direction: column; gap: 8px; }}
 .settings-block h4 {{ margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; }}
-.search-bar {{
-  display: flex; align-items: center; gap: 16px;
-  height: 56px; padding: 0 16px; border-radius: 28px; max-width: 720px;
+.search-bar[data-hidden="1"] {{ display: none; }}
+.search-morph, .search-bar, .search-view {{
+  display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
+  min-height: 56px; border-radius: 28px;
+  transition: min-height 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
+    border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
+.search-morph .sv-head, .search-bar {{
+  display: flex; align-items: center; gap: 16px;
+  height: 56px; padding: 0 16px;
+}}
+.search-morph[data-open="1"], .search-view[data-search-activity="1"] {{
+  border-radius: 0; max-width: none; min-height: 320px;
+}}
+.search-morph[data-open="0"] .sv-list {{ max-height: 0; opacity: 0; }}
 .search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
 .search-bar .hint {{ flex: 1; font-size: 16px; line-height: 24px; }}
 .search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
-.search-view {{
-  display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
-  transition: border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
-}}
-.search-view[data-search-activity="1"] {{
-  border-radius: 0; max-width: none; min-height: 320px;
-}}
-.search-view input {{
+.search-view input, .search-morph input {{
   border: none; outline: none; background: transparent; flex: 1;
   font: 400 16px/24px Roboto, sans-serif; color: inherit;
 }}
-.search-view .sv-head {{
+.search-view .sv-head, .search-morph .sv-head {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
 }}
-.search-view .sv-list {{ display: flex; flex-direction: column; }}
-.search-view .sv-row {{
+.search-view .sv-list, .search-morph .sv-list {{ display: flex; flex-direction: column; }}
+.search-view .sv-row, .search-morph .sv-row {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
   min-height: 56px; font-size: 16px;
 }}
@@ -198,6 +202,7 @@ a {{ color: var(--primary); }}
 .timepicker .hand-svg {{
   position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
   transform-origin: 50% 50%;
+  transition: transform 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
 .timepicker .hub {{
   position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
@@ -293,7 +298,7 @@ a {{ color: var(--primary); }}
 .circ {{
   width: 48px; height: 48px; border-radius: 24px;
 }}
-.circ.indet {{ animation: m3spin 1200ms linear infinite; }}
+.circ.indet, .ptr .circ {{ animation: m3spin 1200ms linear infinite; }}
 .ptr {{ display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }}
 @keyframes m3indet {{
   0% {{ transform: translateX(-120%); }}
@@ -327,10 +332,15 @@ a {{ color: var(--primary); }}
   border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
-.nav-rail.expanded {{ width: 220px; align-items: stretch; }}
+.nav-rail {{ transition: width 280ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
+.nav-rail.expanded {{ width: 220px; align-items: stretch; position: relative; z-index: 1; }}
 .nav-rail.expanded .dest {{
   width: auto; flex-direction: row; justify-content: flex-start;
   padding: 0 12px; gap: 8px;
+}}
+.rail-stage {{ position: relative; min-height: 280px; max-width: 720px; }}
+.rail-scrim {{
+  position: absolute; inset: 0; border-radius: 12px; z-index: 0;
 }}
 .carousel {{ display: flex; gap: 8px; overflow: hidden; max-width: 720px; }}
 .carousel .tile {{
@@ -507,7 +517,7 @@ document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
     if (segs[0]) segs[0].style.width = (Math.max(6, start * 42)).toFixed(1) + "%";
     if (segs[1]) segs[1].style.width = (Math.max(8, (end - start) * 42)).toFixed(1) + "%";
     var lab = row.querySelector(".slider-label");
-    if (lab) lab.textContent = "Price range · " + Math.round(start * 100) + "–" + Math.round(end * 100) + "%";
+    if (lab) lab.textContent = "Price range · " + Math.round(start * 100) + "–" + Math.round(end * 100) + "% · min span 5%";
   }}
   function clickStep(start, end, fraction) {{
     var pad = 0.04;
@@ -533,6 +543,7 @@ document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
     var start = parseFloat(row.getAttribute("data-start") || "0.2");
     var end = parseFloat(row.getAttribute("data-end") || "0.75");
     var f = fracFromEvent(ev);
+    if (true) {{ f = Math.round(f / 0.05) * 0.05; }}
     var next = dragging === "start" ? clampRange(f, end) : clampRange(start, f);
     paint(next[0], next[1]);
   }});
@@ -696,14 +707,21 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
 }});
 document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
   bar.style.cursor = "pointer";
-  bar.addEventListener("click", function () {{
-    var view = document.querySelector("[data-search-view]");
+  bar.addEventListener("click", function (ev) {{
+    if (ev.target && ev.target.closest && ev.target.closest("[data-search-input]")) return;
+    var view = bar.matches("[data-search-view]") ? bar : document.querySelector("[data-search-view]");
     if (!view) return;
     var open = view.getAttribute("data-open") !== "1";
     view.setAttribute("data-open", open ? "1" : "0");
     view.setAttribute("data-search-activity", open ? "1" : "0");
-    view.style.display = open ? "flex" : "none";
-    bar.setAttribute("data-hidden", open ? "1" : "0");
+    view.setAttribute("data-search-morph", open ? "1" : "0");
+    if (view.classList.contains("search-morph")) {{
+      view.style.minHeight = open ? "320px" : "56px";
+      view.style.borderRadius = open ? "0" : "28px";
+    }} else {{
+      view.style.display = open ? "flex" : "none";
+      bar.setAttribute("data-hidden", open ? "1" : "0");
+    }}
   }});
 }});
 document.querySelectorAll("[data-search-input]").forEach(function (input) {{
@@ -717,6 +735,71 @@ document.querySelectorAll("[data-search-input]").forEach(function (input) {{
     }});
   }});
   input.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
+}});
+document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
+  row.style.cursor = "pointer";
+  row.addEventListener("click", function () {{
+    var view = row.closest("[data-search-view]");
+    if (!view) return;
+    var input = view.querySelector("[data-search-input]");
+    if (input) {{
+      input.value = row.getAttribute("data-search-suggestion") || "";
+      input.dispatchEvent(new Event("input"));
+    }}
+  }});
+}});
+document.querySelectorAll("[data-carousel]").forEach(function (car) {{
+  car.setAttribute("data-carousel-fling", "1");
+  function applySel(sel) {{
+    var n = car.querySelectorAll("[data-carousel-item]").length;
+    sel = ((sel % n) + n) % n;
+    car.setAttribute("data-carousel-selected", String(sel));
+    car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
+      var i = Number(t.getAttribute("data-carousel-item"));
+      t.style.width = (i === sel ? 256 : 120) + "px";
+    }});
+  }}
+  car.addEventListener("click", function (ev) {{
+    var tile = ev.target.closest("[data-carousel-item]");
+    if (!tile) return;
+    applySel(Number(tile.getAttribute("data-carousel-item")));
+  }});
+  car.addEventListener("wheel", function (ev) {{
+    var dx = ev.deltaX, dy = ev.deltaY;
+    var dominant = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
+    if (Math.abs(dominant) < 0.5) return;
+    var mag = Math.round(Math.abs(dominant) / 24);
+    mag = Math.max(1, Math.min(3, mag));
+    var step = dominant > 0 ? mag : -mag;
+    var sel = Number(car.getAttribute("data-carousel-selected") || "0");
+    applySel(sel + step);
+    ev.preventDefault();
+  }}, {{ passive: false }});
+}});
+document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
+  rail.querySelectorAll(".dest").forEach(function (dest, i) {{
+    dest.style.cursor = "pointer";
+    dest.addEventListener("click", function () {{
+      rail.setAttribute("data-rail-selected", String(i));
+      rail.querySelectorAll(".dest").forEach(function (d, j) {{
+        d.setAttribute("data-active", j === i ? "1" : "0");
+      }});
+    }});
+  }});
+  var fab = rail.querySelector("[data-rail-fab]");
+  if (fab) {{
+    fab.style.cursor = "pointer";
+    fab.addEventListener("click", function () {{
+      var exp = rail.classList.toggle("expanded");
+      rail.setAttribute("data-nav-rail-expanded", exp ? "1" : "0");
+      rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
+      var stage = rail.closest(".rail-stage");
+      if (stage) {{
+        var scrim = stage.querySelector("[data-rail-scrim]");
+        if (scrim) scrim.style.display = exp ? "block" : "none";
+      }}
+    }});
+  }}
 }});
 </script>
 </body>
@@ -1253,9 +1336,11 @@ fn paint_outlined_field(
     if a.notched {
         let frame = text_field::notch_frame(label, a);
         let d = frame.outline_svg_d(280.0);
+        let even = frame.evenodd_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-path="{d}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-path="{d}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
+  <svg width="0" height="0" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" d="{even}"/></svg>
   {inner_html}
 </fieldset>"#,
             r = a.field.corners.top_left,
@@ -1642,10 +1727,10 @@ fn chrome(theme: &Theme) -> String {
   <div class="dest" style="color:{nin}">○<span>Profile</span></div>
 </div>
 <h2>Navigation rail</h2>
-<p class="note">Collapsed 80dp plus expanded 220dp modal with FAB slot and destination badges. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
-<div style="display:flex;gap:24px;align-items:flex-start">
-  <div class="nav-rail" data-nav-rail="1" data-hero="nav-rail" data-rail-mode="collapsed" style="background:{rbg}">{fab}{rail_dests}</div>
-  <div class="nav-rail expanded" data-nav-rail-expanded="1" data-rail-mode="expanded" style="background:{ebg};width:{ew}px">{fab}{rail_dests}</div>
+<p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<div class="rail-stage" data-hero="nav-rail">
+  <div class="rail-scrim" data-rail-scrim="1" style="background:{scrim}"></div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
 </div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
@@ -1656,10 +1741,10 @@ fn chrome(theme: &Theme) -> String {
         ind = nav.active_indicator.css_hex(),
         nin = nav.inactive_label.css_hex(),
         rbg = rail.container.css_hex(),
-        ebg = expanded.container.css_hex(),
         ew = expanded.width_dp,
         rail_dests = rail_dests,
         fab = fab,
+        scrim = navigation_rail::scrim(theme).css_hex(),
     )
 }
 
@@ -1685,9 +1770,17 @@ fn progress_section(theme: &Theme) -> String {
 <h3>indeterminate</h3>
 <div class="linear indet" data-progress="indeterminate" data-hero="progress-indet" style="background:{itrack};margin:12px 0"><i style="width:{span}%;background:{iind}"></i></div>
 <div class="circ indet" data-progress="circular-indet" style="background:conic-gradient({ciind} {arc}deg, {citrack} 0deg)"></div>
-<div class="ptr" data-progress="ptr" data-hero="progress-ptr">
-  <div class="circ indet" style="width:{psz}px;height:{psz}px;border-radius:{pr}px;background:conic-gradient({pind} {parc}deg, {ptrack} 0deg)"></div>
+<div class="ptr" data-progress="ptr" data-hero="progress-ptr" data-ptr-spin="1">
+  <svg width="{psz}" height="{psz}" viewBox="0 0 {psz} {psz}" aria-hidden="true">
+    <path d="{ptrd}" stroke="{pind}" stroke-width="{pstr}" fill="none" stroke-linecap="round"/>
+  </svg>
   <div class="note">{plabel}</div>
+</div>
+<div class="ptr" data-progress="loading" data-hero="progress-loading">
+  <svg width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
+    <path d="{loadd}" stroke="{lind}" stroke-width="{lstr}" fill="none" stroke-linecap="round"/>
+  </svg>
+  <div class="note">{llabel}</div>
 </div>"#,
         track = lin.track.css_hex(),
         ind = lin.indicator.css_hex(),
@@ -1702,11 +1795,20 @@ fn progress_section(theme: &Theme) -> String {
         citrack = circ_i.track.css_hex(),
         arc = circ_i.arc_deg,
         psz = ptr.size_dp,
-        pr = ptr.size_dp / 2.0,
+        pstr = ptr.stroke_dp,
         pind = ptr.indicator.css_hex(),
-        parc = ptr.arc_deg,
-        ptrack = ptr.track.css_hex(),
+        ptrd = progress::ptr_arc_svg_d(ptr.size_dp, ptr.stroke_dp, ptr.arc_deg, 0.0),
         plabel = progress::PTR_LABEL,
+        lsz = progress::CIRCULAR_SIZE_DP,
+        lstr = progress::CIRCULAR_STROKE_DP,
+        lind = circ.indicator.css_hex(),
+        loadd = progress::ptr_arc_svg_d(
+            progress::CIRCULAR_SIZE_DP,
+            progress::CIRCULAR_STROKE_DP,
+            360.0 * progress::LOADING_PROGRESS,
+            0.0,
+        ),
+        llabel = progress::LOADING_LABEL,
         ww = wave.width_dp,
         wh = wave.height_dp,
         mid = wave.height_dp / 2.0,
@@ -2193,7 +2295,6 @@ fn date_pickers(theme: &Theme) -> String {
 }
 
 fn search_section(theme: &Theme) -> String {
-    let a = search::resolve(theme);
     let view = search::resolve_activity(theme);
     let mut rows = String::new();
     for (i, label) in search::SUGGESTIONS.iter().enumerate() {
@@ -2207,14 +2308,8 @@ fn search_section(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Search</h2>
-<p class="note">Docked 56dp full-round bar morphs into a full-screen search activity (0dp corners, surface). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
-<div class="search-bar" data-search="1" data-hero="search" style="background:{bg};color:{hint};height:{h}px;border-radius:{r}px">
-  <div class="ico" aria-hidden="true" style="color:{lead}">{lead_ico}</div>
-  <div class="hint">{placeholder}</div>
-  <div class="ico" aria-hidden="true">{mic}</div>
-  <div class="avatar" style="background:{abg};color:{afg}">A</div>
-</div>
-<div class="search-view" data-search-view="1" data-search-activity="1" data-open="1" data-hero="search-view" style="background:{vbg};border-radius:{vr}px;box-shadow:{vsh};margin-top:12px">
+<p class="note">Docked 56dp full-round bar grows into a full-screen search activity (spatial-fast height/corners). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<div class="search-morph" data-search="1" data-search-view="1" data-search-activity="1" data-search-morph="1" data-open="1" data-hero="search" style="background:{vbg};border-radius:{vr}px;min-height:{mh}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="ico" aria-hidden="true">{back}</div>
     <input class="hint" data-search-input="1" placeholder="{placeholder}" style="color:{vph}"/>
@@ -2223,24 +2318,16 @@ fn search_section(theme: &Theme) -> String {
   <div style="height:1px;background:{vdiv}"></div>
   <div class="sv-list">{rows}</div>
 </div>"#,
-        bg = a.bar.container.css_hex(),
-        hint = a.placeholder.css_hex(),
-        h = a.bar.height_dp,
-        r = a.bar.corners.top_left,
-        lead = a.leading_icon.css_hex(),
-        lead_ico = search::LEADING_ICON,
-        placeholder = search::PLACEHOLDER,
-        mic = search::TRAILING_MIC,
-        abg = a.avatar.css_hex(),
-        afg = a.avatar_label.css_hex(),
         vbg = view.container.css_hex(),
         vr = view.corners.top_left,
-        vsh = ElevationLevels::css_shadow(view.elevation_dp),
+        mh = search::ACTIVITY_MIN_H_DP,
         vh = view.header_h_dp,
         vfg = view.header.css_hex(),
         vph = view.placeholder.css_hex(),
         back = search::VIEW_BACK,
         vdiv = view.divider.css_hex(),
+        placeholder = search::PLACEHOLDER,
+        mic = search::TRAILING_MIC,
         rows = rows,
     )
 }
@@ -2310,12 +2397,11 @@ fn time_picker_section(theme: &Theme) -> String {
     } else {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
-    let hand_d = time_picker::hand_svg_d(
-        a.clock_dp,
+    let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
+    let hand_deg = time_picker::hand_angle_deg(
         time_picker::DEMO_DIAL,
         time_picker::DEMO_HOUR,
         time_picker::DEMO_MINUTE,
-        a.number_dp,
     );
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
     format!(
@@ -2335,7 +2421,7 @@ fn time_picker_section(theme: &Theme) -> String {
     </div>
   </div>
   <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
-    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
+    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg)">
       <path d="{handd}" fill="{hand}"/>
     </svg>
     <div class="hub" style="background:{hand}"></div>
@@ -2370,6 +2456,7 @@ fn time_picker_section(theme: &Theme) -> String {
         minutes = minutes,
         hand = a.hand.css_hex(),
         handd = hand_d,
+        hdeg = hand_deg,
     )
 }
 
@@ -2406,8 +2493,8 @@ fn carousel_section(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Carousel</h2>
-<p class="note">Hero large item (256dp) plus smaller neighbors (120dp), extra-large 28dp corners. Catalog stub — no snap physics. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
-<div class="carousel" data-carousel="1" data-hero="carousel">{tiles}</div>"#,
+<p class="note">Hero large item (256dp) plus smaller neighbors (120dp). Click a tile to snap; wheel fling can skip more than one item. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
+<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
         tiles = tiles,
     )
 }
