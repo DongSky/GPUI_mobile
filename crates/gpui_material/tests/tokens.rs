@@ -415,11 +415,15 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(snackbar::SCENE_ACTION, "Action");
     assert!(snackbar::HAS_CLOSE);
     assert_eq!(snackbar::MAIL_ROWS.len(), 3);
-    assert_eq!(snackbar::MAIL_ROWS[0].from, "Sofia Sacchi");
-    assert_eq!(snackbar::MAIL_ROWS[0].time, "1 hr ago");
+    assert!(snackbar::MAIL_ROWS[0].peek);
+    assert_eq!(snackbar::MAIL_ROWS[0].from, "Shows lined up");
+    assert_eq!(snackbar::MAIL_ROWS[1].from, "Sofia Sacchi");
+    assert_eq!(snackbar::MAIL_ROWS[1].time, "1 hr ago");
+    assert!(!snackbar::SCENE_SHOW_TITLE);
     assert_eq!(snackbar::INBOX_NAV.len(), 4);
-    assert_eq!(snackbar::INBOX_NAV[0].1, "Mail");
-    assert_eq!(snackbar::INBOX_NAV[3].1, "Meet");
+    assert_eq!(snackbar::INBOX_NAV[0].label, "Mail");
+    assert_eq!(snackbar::INBOX_NAV[3].label, "Meet");
+    assert!(snackbar::INBOX_NAV[0].svg.contains("svg"));
     assert_eq!(snackbar::STATUS_TIME, "9:41");
     let mut snack_state = snackbar::SnackbarState::short();
     assert!(snack_state.visible);
@@ -506,6 +510,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Renee Claess"));
     assert!(html.contains("data-photo=\"sofia\""));
     assert!(html.contains("data-photo=\"basket\""));
+    assert!(html.contains("data-decoded-jpeg=\"1\""));
+    assert!(html.contains("url('data:image/jpeg;base64,"));
+    assert!(html.contains("data-mail-peek=\"1\""));
+    assert!(html.contains("data-carousel-lists"));
+    assert!(html.contains("Your lists"));
+    assert!(html.contains("Starred places"));
+    assert!(html.contains("class=\"nav-ico\""));
     assert!(html.contains("data-carousel-layout=\"uncontained-multi\""));
     assert!(html.contains(r#"layout === "uncontained-multi" ? 168"#));
     assert!(html.contains("photo-hero"));
@@ -1288,7 +1299,9 @@ fn search_bar_and_time_picker_tokens() {
         112.0
     );
     assert_eq!(carousel::parallax_offset_dp(0.5), 6.0);
-    assert_eq!(carousel::MEDIA_CAPTIONS.len(), 4);
+    assert_eq!(carousel::LISTS_TITLE, "Your lists");
+    assert!(carousel::CarouselLayout::UncontainedMulti.uses_lists_scene());
+    assert!(!carousel::CarouselLayout::Hero.uses_lists_scene());
     assert_eq!(carousel::advance(0, 1), 1);
     assert_eq!(carousel::advance(0, -1), 3);
     assert_eq!(carousel::fling_step(12.0, 0.0), 1);
@@ -1444,4 +1457,20 @@ fn search_bar_and_time_picker_tokens() {
     assert!(progress::loading_svg_values_for_wait(38.0, 4).contains(';'));
     let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
     assert!(lerped.abs() > 80.0);
+}
+
+#[test]
+fn catalog_jpeg_decodes_for_scene_photos() {
+    use gpui_material::components::photo_stub::PhotoKind;
+    let jpeg = PhotoKind::Basket.jpeg_bytes();
+    assert!(jpeg.len() > 32);
+    assert_eq!(&jpeg[0..2], &[0xFF, 0xD8]);
+    let (w, h, rgb) = PhotoKind::Basket.decode_rgb();
+    assert!(w >= 64 && h >= 64);
+    assert_eq!(rgb.len(), (w * h * 3) as usize);
+    let uri = PhotoKind::PortraitSofia.data_uri();
+    assert!(uri.starts_with("data:image/jpeg;base64,"));
+    let mosaic = PhotoKind::Bloom.mosaic(8, 6);
+    assert_eq!(mosaic.len(), 48);
+    assert!(PhotoKind::Mugs.css_background().contains("url('data:image/jpeg"));
 }

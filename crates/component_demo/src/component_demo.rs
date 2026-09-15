@@ -16,7 +16,7 @@ use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider, fab,
-    fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider,
+    fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, slider,
     snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
@@ -34,6 +34,47 @@ fn paint(c: Argb) -> gpui::Rgba {
         b: c.b() as f32 / 255.0,
         a: c.a() as f32 / 255.0,
     }
+}
+
+fn photo_mosaic(kind: photo_stub::PhotoKind, cols: u32, rows: u32) -> impl IntoElement {
+    let cells = std::rc::Rc::new(kind.mosaic(cols, rows));
+    div()
+        .size_full()
+        .flex()
+        .flex_col()
+        .children((0..rows).map({
+            let cells = cells.clone();
+            move |y| {
+                let start = (y * cols) as usize;
+                let row = cells[start..start + cols as usize].to_vec();
+                div()
+                    .flex()
+                    .flex_1()
+                    .w_full()
+                    .children(row.into_iter().map(|c| div().flex_1().h_full().bg(paint(c))))
+            }
+        }))
+}
+
+fn photo_fill(kind: photo_stub::PhotoKind) -> impl IntoElement {
+    photo_mosaic(
+        kind,
+        photo_stub::MOSAIC_WIDE_COLS,
+        photo_stub::MOSAIC_WIDE_ROWS,
+    )
+}
+
+fn photo_avatar(kind: photo_stub::PhotoKind, size: f32) -> impl IntoElement {
+    div()
+        .w(px(size))
+        .h(px(size))
+        .rounded(px(size / 2.0))
+        .overflow_hidden()
+        .child(photo_mosaic(
+            kind,
+            photo_stub::MOSAIC_AVATAR,
+            photo_stub::MOSAIC_AVATAR,
+        ))
 }
 
 fn type_size(style: gpui_material::typography::TypeStyle) -> gpui::Pixels {
@@ -1603,17 +1644,13 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                 .flex_wrap()
                 .gap(px(4.))
                 .p(px(8.))
-                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, caption)| {
+                .children(bottom_sheet::PHOTO_GRID.iter().enumerate().map(|(i, _caption)| {
                     div()
                         .w(px(104.))
                         .h(px(bottom_sheet::PHOTO_TILE_H_DP * 0.7))
                         .rounded(px(bottom_sheet::PHOTO_TILE_CORNER_DP))
-                        .bg(paint(bottom_sheet::photo_fill(theme, i)))
-                        .text_color(paint(bottom_sheet::photo_on(theme, i)))
-                        .p(px(8.))
-                        .flex()
-                        .items_end()
-                        .child(*caption)
+                        .overflow_hidden()
+                        .child(photo_fill(bottom_sheet::photo_kind(i)))
                 })),
         )
         .child(
@@ -1675,13 +1712,7 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                                 .flex_col()
                                 .items_center()
                                 .gap(px(4.))
-                                .child(
-                                    div()
-                                        .w(px(40.))
-                                        .h(px(40.))
-                                        .rounded(px(20.))
-                                        .bg(paint(person.photo.fill())),
-                                )
+                                .child(photo_avatar(person.photo, 40.0))
                                 .child(person.first)
                         })),
                 )
@@ -1773,29 +1804,19 @@ fn android_mail_snack(
                 .child(snackbar::STATUS_TIME)
                 .child("5G · 100%"),
         )
-        .child(
-            div()
-                .h(px(56.))
-                .px(px(16.))
-                .flex()
-                .items_center()
-                .text_color(paint(theme.color.on_surface))
-                .child(snackbar::SCENE_TITLE),
-        )
         .children(snackbar::MAIL_ROWS.iter().map(|row| {
             div()
-                .h(px(72.))
+                .h(px(if row.peek {
+                    snackbar::PEEK_H_DP
+                } else {
+                    72.0
+                }))
                 .px(px(16.))
+                .overflow_hidden()
                 .flex()
                 .items_center()
                 .gap(px(12.))
-                .child(
-                    div()
-                        .w(px(snackbar::AVATAR_DP))
-                        .h(px(snackbar::AVATAR_DP))
-                        .rounded(px(snackbar::AVATAR_DP / 2.0))
-                        .bg(paint(row.photo.fill())),
-                )
+                .child(photo_avatar(row.photo, snackbar::AVATAR_DP))
                 .child(
                     div()
                         .flex_1()
@@ -1867,7 +1888,7 @@ fn android_mail_snack(
                 .w_full()
                 .bg(paint(nav.container))
                 .flex()
-                .children(snackbar::INBOX_NAV.iter().enumerate().map(|(i, (icon, label))| {
+                .children(snackbar::INBOX_NAV.iter().enumerate().map(|(i, dest)| {
                     let active = i == 0;
                     div()
                         .flex_1()
@@ -1895,9 +1916,9 @@ fn android_mail_snack(
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .child(*icon),
+                                .child(dest.glyph),
                         )
-                        .child(*label)
+                        .child(dest.label)
                 }))
         })
 }
@@ -2000,7 +2021,8 @@ fn android_media_scene(
                         .w(px(140.))
                         .h(px(tabs::SCENE_TILE_H_DP * 0.8))
                         .rounded(px(tabs::SCENE_TILE_CORNER_DP))
-                        .bg(paint(tabs::scene_tile_fill(theme, i)))
+                        .overflow_hidden()
+                        .child(photo_fill(tabs::scene_tile_kind(i)))
                 })),
         )
 }
@@ -2250,7 +2272,14 @@ fn android_fab_menu(
         .rounded(px(fab_menu::PHONE_CORNER_DP))
         .overflow_hidden()
         .relative()
-        .bg(paint(fab_menu::SCENE_PHOTO.fill()))
+        .child(
+            div()
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .child(photo_fill(fab_menu::SCENE_PHOTO)),
+        )
         .child(
             div()
                 .absolute()
@@ -2861,7 +2890,7 @@ fn android_carousel(
                     this.carousel_fling_at = None;
                     cx.notify();
                 }))
-                .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, label)| {
+                .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, _label)| {
                     let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t)
                         .min(if layout.axis() == carousel::CarouselAxis::Vertical {
                             320.0
@@ -2874,20 +2903,14 @@ fn android_carousel(
                         } else {
                             0.7
                         };
-                    let bg = carousel::media_fill(theme, i);
-                    let fg = carousel::media_on(theme, i);
                     div()
                         .id(SharedString::from(format!("carousel-{i}")))
                         .w(px(w))
                         .h(px(h))
                         .ml(px(shift))
                         .rounded(px(a.corners.top_left))
-                        .bg(paint(bg))
-                        .p(px(12.))
-                        .flex()
-                        .items_end()
-                        .text_color(paint(fg))
-                        .child(*label)
+                        .overflow_hidden()
+                        .child(photo_fill(carousel::media_kind(i)))
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.carousel_index = carousel::snap_to(i);
                             this.carousel_fling = carousel::FlingState::new(i);

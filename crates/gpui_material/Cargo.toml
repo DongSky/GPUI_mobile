@@ -13,3 +13,4 @@ name = "material_catalog"
 path = "src/bin/material_catalog.rs"
 
 [dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg"] }

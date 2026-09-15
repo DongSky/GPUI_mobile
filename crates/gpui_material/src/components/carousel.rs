@@ -2,8 +2,9 @@
 //!
 //! Catalog: hero / multi-browse / uncontained / uncontained-multi /
 //! centered-hero / full-screen.
-//! Media tiles use photographic gradient stubs plus a parallax offset
-//! while flinging. Centered + full-screen sit in a phone-frame mask.
+//! Media tiles use decoded JPEG fills plus a parallax offset while flinging.
+//! Centered + full-screen sit in a phone-frame mask. Uncontained-multi sits
+//! in the official “Your lists” phone.
 //! Click / wheel snap the selected index; fling uses velocity/decay so a
 //! large delta can skip more than one item.
 
@@ -40,6 +41,14 @@ pub const PHONE_H_DP: f32 = 220.0;
 pub const PHONE_FULLSCREEN_H_DP: f32 = 480.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
 pub const PHONE_BEZEL_DP: f32 = 12.0;
+/// Official overview: uncontained-multi inside a lists phone.
+pub const LISTS_TITLE: &str = "Your lists";
+pub const LISTS_STATUS: &str = "9:30";
+pub const LISTS_PHONE_H_DP: f32 = 520.0;
+pub const LISTS_ROWS: [(&'static str, &'static str, &'static str); 2] = [
+    ("★", "Starred places", "Private · 62 places"),
+    ("🏷", "Labeled", ""),
+];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarouselAxis {
@@ -113,6 +122,10 @@ impl CarouselLayout {
 
     pub const fn uses_phone_frame(self) -> bool {
         matches!(self, Self::CenteredHero | Self::FullScreen)
+    }
+
+    pub const fn uses_lists_scene(self) -> bool {
+        matches!(self, Self::UncontainedMulti)
     }
 
     pub const fn next(self) -> Self {

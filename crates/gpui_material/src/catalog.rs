@@ -19,7 +19,7 @@ fn esc(s: &str) -> String {
 
 fn paint_photo_class(kind: photo_stub::PhotoKind, extra: &str, class: &str) -> String {
     format!(
-        r#"<div class="{class}" data-photo="{label}" style="background:{css};{extra}"></div>"#,
+        r#"<div class="{class}" data-photo="{label}" data-decoded-jpeg="1" style="background:{css};{extra}"></div>"#,
         label = kind.label(),
         css = kind.css_background(),
     )
@@ -27,7 +27,7 @@ fn paint_photo_class(kind: photo_stub::PhotoKind, extra: &str, class: &str) -> S
 
 fn paint_avatar(kind: photo_stub::PhotoKind, size: f32) -> String {
     format!(
-        r#"<div class="photo-stub av" data-photo="{label}" style="width:{size}px;height:{size}px;border-radius:{r}px;flex:0 0 {size}px;background:{css}"></div>"#,
+        r#"<div class="photo-stub av" data-photo="{label}" data-decoded-jpeg="1" style="width:{size}px;height:{size}px;border-radius:{r}px;flex:0 0 {size}px;background:{css}"></div>"#,
         label = kind.label(),
         r = size / 2.0,
         css = kind.css_background(),
@@ -571,6 +571,12 @@ table.inv th {{ font-weight: 500; }}
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; line-height: 16px;
 }}
+.inbox-nav .nav-ico {{ display: block; }}
+.mail-row[data-mail-peek="1"] {{
+  max-height: 28px; min-height: 28px; padding-top: 0; padding-bottom: 0;
+  overflow: hidden; opacity: 0.92; border-bottom: none;
+}}
+.mail-list {{ overflow: hidden; }}
 .phone .snack {{
   position: relative; margin: 8px 16px; min-width: 0; z-index: 2;
   flex: 0 0 auto; flex-wrap: nowrap; white-space: nowrap;
@@ -613,10 +619,18 @@ table.inv th {{ font-weight: 500; }}
 }}
 .photo-stub {{
   background-size: cover; background-position: center; overflow: hidden;
+  background-repeat: no-repeat;
 }}
 .mail-avatar.photo-stub, .people .av.photo-stub {{
   font-size: 0; color: transparent; background-repeat: no-repeat;
 }}
+.lists-scene {{ padding: 8px 16px 16px; }}
+.lists-scene .lists-title {{ font-size: 16px; font-weight: 500; margin: 12px 0 8px; }}
+.lists-row {{
+  display: flex; align-items: center; gap: 12px; min-height: 56px;
+}}
+.lists-row .lists-meta {{ display: flex; flex-direction: column; flex: 1; }}
+.lists-row .lists-sub {{ font-size: 12px; opacity: 0.7; }}
 .fab-scene, .product-card, .chat-scene {{
   position: relative; width: 360px; max-width: 100%;
   border: 12px solid {on_surface}; border-radius: 36px; overflow: hidden;
@@ -624,15 +638,8 @@ table.inv th {{ font-weight: 500; }}
 }}
 .fab-scene .photo-hero {{ min-height: 360px; height: 360px; }}
 .fab-scene .fab-menu {{ position: absolute; right: 16px; bottom: 16px; }}
-.product-card .mug-row {{
-  display: flex; gap: 10px; padding: 28px 16px 12px; justify-content: center; align-items: flex-end;
-  min-height: 160px;
-}}
-.product-card .mug {{
-  width: 40px; height: 52px; border-radius: 3px 3px 10px 10px;
-  border: 2px solid rgba(0,0,0,.14); box-shadow: inset 0 8px 0 rgba(255,255,255,.35);
-}}
-.product-card .copy {{ padding: 8px 20px 16px; }}
+.product-card .photo-hero {{ height: 200px; width: 100%; }}
+.product-card .copy {{ padding: 8px 20px 16px; background: {surface}; }}
 .product-card .copy .h {{ font-size: 22px; line-height: 28px; font-weight: 500; }}
 .product-card .copy .s {{ font-size: 14px; line-height: 20px; opacity: 0.75; margin: 4px 0 16px; }}
 .chat-scene .chat-head {{
@@ -1994,23 +2001,20 @@ fn split_button_section(theme: &Theme) -> String {
     let mut out = String::from(
         "<h2>Split button</h2><p class=\"note\">M3 Expressive: leading action + trailing menu, 2dp gap, outer full-round, inner 4dp rest / 12dp press (S). Official overview is an enamel-mugs product card. <a href=\"https://m3.material.io/components/split-button/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"split-button\">",
     );
-    let mut mugs = String::new();
-    for (r, g, b) in split_button::SCENE_MUG_COLORS {
-        mugs.push_str(&format!(
-            r#"<div class="mug" data-mug="1" style="background:rgb({r},{g},{b})"></div>"#,
-        ));
-    }
     out.push_str(&format!(
-        r#"<div class="product-card" data-split-scene="1" data-hero="split-button" style="background:{bg}">
-  <div class="mug-row" data-photo="mugs">{mugs}</div>
+        r#"<div class="product-card" data-split-scene="1" data-hero="split-button">
+  {photo}
   <div class="copy">
     <div class="h">{title}</div>
     <div class="s">{sub}</div>
     {split}
   </div>
 </div>"#,
-        bg = split_button::SCENE_PHOTO.fill().css_hex(),
-        mugs = mugs,
+        photo = paint_photo_class(
+            split_button::SCENE_PHOTO,
+            "height:200px;width:100%;",
+            "photo-stub photo-hero",
+        ),
         title = split_button::SCENE_TITLE,
         sub = split_button::SCENE_SUBTITLE,
         split = paint_split(
@@ -2619,8 +2623,9 @@ fn chrome(theme: &Theme) -> String {
     let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
     let mut mail_rows = String::new();
     for row in snackbar::MAIL_ROWS {
+        let peek = if row.peek { "1" } else { "0" };
         mail_rows.push_str(&format!(
-            r#"<div class="mail-row" data-mail-row="{from}" data-mail-avatar="1" data-mail-time="{time}">
+            r#"<div class="mail-row" data-mail-row="{from}" data-mail-avatar="1" data-mail-time="{time}" data-mail-peek="{peek}">
   {avatar}
   <span class="mail-meta"><span class="from">{from}</span><span class="subj" style="color:{sec}">{subj}</span></span>
   <span class="mail-time" style="color:{sec}">{time}</span>
@@ -2630,11 +2635,12 @@ fn chrome(theme: &Theme) -> String {
             avatar = paint_avatar(row.photo, snackbar::AVATAR_DP),
             subj = row.subject,
             sec = theme.color.on_surface_variant.css_hex(),
+            peek = peek,
         ));
     }
     let nav_bar = navigation_bar::resolve(theme);
     let mut inbox_nav = String::new();
-    for (i, (icon, label)) in snackbar::INBOX_NAV.iter().enumerate() {
+    for (i, dest) in snackbar::INBOX_NAV.iter().enumerate() {
         let active = i == 0;
         let fg = if active {
             nav_bar.active_label.css_hex()
@@ -2656,14 +2662,21 @@ fn chrome(theme: &Theme) -> String {
         };
         inbox_nav.push_str(&format!(
             r#"<div class="dest" data-inbox-nav="{label}" style="color:{fg}"><div class="ind" {ind}>{icon}</div>{label}{badge}</div>"#,
+            label = dest.label,
+            icon = dest.svg,
         ));
     }
+    let title_bar = if snackbar::SCENE_SHOW_TITLE {
+        format!(r#"<div class="phone-bar">{}</div>"#, snackbar::SCENE_TITLE)
+    } else {
+        String::new()
+    };
     format!(
         r#"<h2>Snackbar</h2>
 <p class="note">Official overview is a Gmail phone with “Email archived”, Action, close, and Mail / Chat / Rooms / Meet. Inverse surface · 4s timeout · swipe 72dp. <a href="https://m3.material.io/components/snackbar/specs">spec</a></p>
 <div class="phone" data-mail-scene="1" data-hero="snackbar" style="height:{ph}px">
   <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
-  <div class="phone-bar">{title}</div>
+  {title_bar}
   <div class="mail-list">{mail}</div>
   <div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-snackbar-close-affordance="1" data-persist="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
     <span>{scene_msg}</span>
@@ -2701,7 +2714,7 @@ fn chrome(theme: &Theme) -> String {
         action = snackbar::DEMO_ACTION,
         scene_msg = snackbar::SCENE_MESSAGE,
         scene_act = snackbar::SCENE_ACTION,
-        title = snackbar::SCENE_TITLE,
+        title_bar = title_bar,
         x = snackbar::CLOSE_GLYPH,
         mail = mail_rows,
         inbox_nav = inbox_nav,
@@ -2987,7 +3000,7 @@ fn sheets(theme: &Theme) -> String {
     let mut people = String::new();
     for person in bottom_sheet::PEOPLE {
         people.push_str(&format!(
-            r#"<div class="people" data-share-person="{first}"><div class="av photo-stub" data-photo="{photo}" style="background:{css}"></div><span class="pn">{first}</span><span class="pn">{last}</span></div>"#,
+            r#"<div class="people" data-share-person="{first}"><div class="av photo-stub" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css}"></div><span class="pn">{first}</span><span class="pn">{last}</span></div>"#,
             first = person.first,
             last = person.last,
             photo = person.photo.label(),
@@ -2999,7 +3012,7 @@ fn sheets(theme: &Theme) -> String {
 <p class="note">Official overview is a share sheet over a photo album: horizontal Share / Add to / Trash, then Send + named people. Modal extra-large top 28 · 32×4 handle · elevation 1. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
 <div class="phone share-stage" data-sheet-scene="1" data-hero="bottom-sheet" style="height:{ph}px;background:{surface}">
   <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
-  <div class="share-hero photo-stub" data-share-photo="0" data-share-grid="1" style="background:{album_css}">
+  <div class="share-hero photo-stub" data-share-photo="0" data-share-grid="1" data-decoded-jpeg="1" style="background:{album_css}">
     <div class="album-bar">{album}</div>
   </div>
   <div class="sheet" data-sheet="modal" data-sheet-share="1" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg};position:relative">
@@ -3314,7 +3327,7 @@ fn tabs_section(theme: &Theme) -> String {
     for (i, caption) in tabs::SCENE_TILES.iter().enumerate() {
         let kind = tabs::scene_tile_kind(i);
         tiles.push_str(&format!(
-            r#"<div class="media-tile photo-stub" data-media-tile="{i}" data-photo="{photo}" style="background:{css};height:{h}px;border-radius:{r}px">{caption}</div>"#,
+            r#"<div class="media-tile photo-stub" data-media-tile="{i}" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" style="background:{css};height:{h}px;border-radius:{r}px"></div>"#,
             photo = kind.label(),
             css = kind.css_background(),
             h = tabs::SCENE_TILE_H_DP,
@@ -3708,7 +3721,7 @@ fn motion_section(theme: &Theme) -> String {
     )
 }
 
-fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: bool) -> String {
+fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout) -> String {
     let a = carousel::resolve(theme);
     let mut tiles = String::new();
     for (i, caption) in carousel::MEDIA_CAPTIONS.iter().enumerate() {
@@ -3716,7 +3729,7 @@ fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: boo
         let h = carousel::item_height_for_index(layout, i);
         let kind = carousel::media_kind(i);
         tiles.push_str(&format!(
-            r#"<div class="tile photo-stub" data-carousel-item="{i}" data-media="1" data-photo="{photo}" data-parallax="{px}" style="width:{w}px;height:{h}px;background:{css};border-radius:{r}px">{caption}</div>"#,
+            r#"<div class="tile photo-stub" data-carousel-item="{i}" data-media="1" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" data-parallax="{px}" style="width:{w}px;height:{h}px;background:{css};border-radius:{r}px"></div>"#,
             photo = kind.label(),
             px = carousel::PARALLAX_MAX_DP,
             css = kind.css_background(),
@@ -3728,15 +3741,35 @@ fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: boo
         carousel::CarouselAxis::Horizontal => "horizontal",
     };
     let centered = layout.center_aligned() as u8;
+    let is_lists = layout.uses_lists_scene();
     let row = format!(
         r#"<div class="carousel" data-carousel="1" data-carousel-layout="{layout}" data-carousel-axis="{axis}" data-carousel-centered="{centered}" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-carousel-media="1" data-hero="{hero}">{tiles}</div>"#,
         layout = layout.label(),
-        hero = if hero { "carousel" } else { layout.label() },
+        hero = if is_lists { "carousel" } else { layout.label() },
         tiles = tiles,
         axis = axis,
         centered = centered,
     );
-    if layout.uses_phone_frame() {
+    if layout.uses_lists_scene() {
+        let mut lists = String::new();
+        for (icon, title, sub) in carousel::LISTS_ROWS {
+            lists.push_str(&format!(
+                r#"<div class="lists-row" data-lists-row="{title}"><span>{icon}</span><span class="lists-meta"><span>{title}</span><span class="lists-sub">{sub}</span></span></div>"#,
+            ));
+        }
+        format!(
+            r#"<div class="phone lists-scene" data-carousel-lists="1" data-carousel-phone="1" data-hero="carousel" style="height:{fh}px">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
+  {row}
+  <div class="lists-title">{title}</div>
+  {lists}
+</div>"#,
+            fh = carousel::LISTS_PHONE_H_DP,
+            stime = carousel::LISTS_STATUS,
+            title = carousel::LISTS_TITLE,
+            lists = lists,
+        )
+    } else if layout.uses_phone_frame() {
         format!(
             r#"<div class="phone-frame" data-carousel-phone="1" data-carousel-layout="{layout}" style="height:{fh}px">{row}</div>"#,
             layout = layout.label(),
@@ -3751,11 +3784,11 @@ fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: boo
 fn carousel_section(theme: &Theme) -> String {
     let mut out = String::from(
         r#"<h2>Carousel</h2>
-<p class="note">Hero, multi-browse, uncontained, uncontained-multi, centered-hero, and full-screen. Centered + full-screen use a phone-frame mask. Photographic gradient media + parallax while flinging. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>"#,
+<p class="note">Hero, multi-browse, uncontained, uncontained-multi, centered-hero, and full-screen. Uncontained-multi uses the official Your lists phone. Decoded JPEG media + parallax while flinging. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>"#,
     );
-    for (i, layout) in carousel::CarouselLayout::ALL.iter().enumerate() {
+    for layout in carousel::CarouselLayout::ALL {
         out.push_str(&format!("<h3>{}</h3>", layout.label()));
-        out.push_str(&paint_carousel_row(theme, *layout, i == 0));
+        out.push_str(&paint_carousel_row(theme, layout));
     }
     out
 }

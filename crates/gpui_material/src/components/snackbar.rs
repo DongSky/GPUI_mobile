@@ -20,11 +20,15 @@ pub const SWIPE_DISMISS_DP: f32 = 72.0;
 pub const DEMO_MESSAGE: &str = "Can't send right now. Try again later.";
 pub const DEMO_ACTION: &str = "Retry";
 /// Official overview hero: Gmail-style list + “Email archived” + Action + close.
+/// The phone chrome has no Inbox title — mail peeks from the top edge.
 pub const SCENE_TITLE: &str = "Inbox";
+pub const SCENE_SHOW_TITLE: bool = false;
 pub const SCENE_MESSAGE: &str = "Email archived";
 pub const SCENE_ACTION: &str = "Action";
 pub const CLOSE_GLYPH: &str = "✕";
 pub const HAS_CLOSE: bool = true;
+/// Clipped height of the peeking mail row (official shows a sliver of the previous thread).
+pub const PEEK_H_DP: f32 = 28.0;
 
 /// Official mail row: photo avatar + sender + preview + relative time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,6 +37,7 @@ pub struct MailRow {
     pub subject: &'static str,
     pub time: &'static str,
     pub photo: PhotoKind,
+    pub peek: bool,
 }
 
 impl MailRow {
@@ -47,30 +52,57 @@ impl MailRow {
 
 pub const MAIL_ROWS: [MailRow; 3] = [
     MailRow {
+        from: "Shows lined up",
+        subject: "I just saw there are a couple of good shows lined",
+        time: "Tue",
+        photo: PhotoKind::PortraitAna,
+        peek: true,
+    },
+    MailRow {
         from: "Sofia Sacchi",
         subject: "Bonjour de Paris",
         time: "1 hr ago",
         photo: PhotoKind::PortraitSofia,
+        peek: false,
     },
     MailRow {
         from: "Carmen Villanueva",
         subject: "Graduación de nietos",
         time: "yesterday",
         photo: PhotoKind::PortraitCarmen,
-    },
-    MailRow {
-        from: "Shows lined up",
-        subject: "I just saw there are a couple of good shows lined",
-        time: "Tue",
-        photo: PhotoKind::PortraitAna,
+        peek: false,
     },
 ];
+
 /// Official Gmail destinations (not Inbox/Starred/Profile).
-pub const INBOX_NAV: [(&str, &str); 4] = [
-    ("✉", "Mail"),
-    ("◐", "Chat"),
-    ("☷", "Rooms"),
-    ("▶", "Meet"),
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InboxDest {
+    pub glyph: &'static str,
+    pub label: &'static str,
+    pub svg: &'static str,
+}
+
+pub const INBOX_NAV: [InboxDest; 4] = [
+    InboxDest {
+        glyph: "✉",
+        label: "Mail",
+        svg: r#"<svg class="nav-ico" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>"#,
+    },
+    InboxDest {
+        glyph: "💬",
+        label: "Chat",
+        svg: r#"<svg class="nav-ico" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>"#,
+    },
+    InboxDest {
+        glyph: "▦",
+        label: "Rooms",
+        svg: r#"<svg class="nav-ico" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M10 4H5c-.55 0-1 .45-1 1v5h6V4zm10 0h-5v6h6V5c0-.55-.45-1-1-1zM4 13v5c0 .55.45 1 1 1h5v-6H4zm10 6h5c.55 0 1-.45 1-1v-5h-6v6z"/></svg>"#,
+    },
+    InboxDest {
+        glyph: "▶",
+        label: "Meet",
+        svg: r#"<svg class="nav-ico" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>"#,
+    },
 ];
 pub const MEET_BADGE_INDEX: usize = 3;
 pub const STATUS_H_DP: f32 = 24.0;
