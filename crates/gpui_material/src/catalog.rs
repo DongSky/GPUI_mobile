@@ -215,6 +215,12 @@ a {{ color: var(--primary); }}
   transform-origin: 50% 50%;
   transition: transform 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
+.timepicker .second-hand-svg {{
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  transform-origin: 50% 50%;
+  animation: tick-second 60s linear infinite;
+}}
+@keyframes tick-second {{ to {{ transform: rotate(360deg); }} }}
 .timepicker .hub {{
   position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
   margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none;
@@ -1829,6 +1835,7 @@ fn progress_section(theme: &Theme) -> String {
     let lsz = progress::LOADING_SIZE_DP;
     let loadd0 = progress::loading_svg_d(lsz, 0.0);
     let lvals = progress::loading_svg_values(lsz, 8);
+    let detd = progress::loading_svg_d_for_progress(lsz, progress::LOADING_PROGRESS);
     let capd = progress::round_capped_arc_svg_d(
         circ_i.size_dp,
         circ_i.stroke_dp,
@@ -1869,6 +1876,12 @@ fn progress_section(theme: &Theme) -> String {
     <path d="{capd}" fill="{cind_fill}"/>
   </svg>
   <div class="note">{llabel}</div>
+</div>
+<div class="loading-row" data-progress="loading-determinate" data-hero="progress-loading-det">
+  <svg class="loading-shape" width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
+    <path fill="{mind}" d="{detd}"/>
+  </svg>
+  <div class="note">{detlabel}</div>
 </div>"#,
         track = lin.track.css_hex(),
         ind = lin.indicator.css_hex(),
@@ -1894,6 +1907,8 @@ fn progress_section(theme: &Theme) -> String {
         csz = circ_i.size_dp,
         capd = capd,
         llabel = progress::LOADING_LABEL,
+        detd = detd,
+        detlabel = format!("{:.0}%", progress::LOADING_PROGRESS * 100.0),
         ww = wave.width_dp,
         wh = wave.height_dp,
         mid = wave.height_dp / 2.0,
@@ -2501,6 +2516,11 @@ fn time_picker_section(theme: &Theme) -> String {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
     let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
+    let second_d = time_picker::second_hand_svg_d(
+        a.clock_dp,
+        time_picker::second_hand_angle_deg(time_picker::DEMO_SECOND, 0.0),
+        a.number_dp,
+    );
     let hand_deg = time_picker::hand_angle_deg(
         time_picker::DEMO_DIAL,
         time_picker::DEMO_HOUR,
@@ -2526,6 +2546,9 @@ fn time_picker_section(theme: &Theme) -> String {
   <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
     <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg)">
       <path d="{handd}" fill="{hand}"/>
+    </svg>
+    <svg class="second-hand-svg" data-second-hand="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
+      <path d="{secondd}" fill="{hand}"/>
     </svg>
     <div class="hub" style="background:{hand}"></div>
     {hours}{minutes}
@@ -2559,6 +2582,7 @@ fn time_picker_section(theme: &Theme) -> String {
         minutes = minutes,
         hand = a.hand.css_hex(),
         handd = hand_d,
+        secondd = second_d,
         hdeg = hand_deg,
     )
 }

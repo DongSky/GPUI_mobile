@@ -163,4 +163,34 @@ impl FlingState {
     pub fn resting(&self) -> bool {
         self.velocity.abs() < 0.5 && self.leftover.abs() < FLING_UNIT
     }
+
+    /// Seed velocity so integrating to rest advances about `steps` items.
+    pub fn impulse_items(&mut self, steps: i32) {
+        if steps == 0 {
+            return;
+        }
+        self.velocity += steps as f32 * FLING_UNIT * FLING_DECAY;
+    }
+
+    /// Integrate until rest or `max_frames` at `dt_s`.
+    pub fn step_until_rest(&mut self, dt_s: f32, max_frames: usize) -> usize {
+        for _ in 0..max_frames {
+            if self.resting() {
+                break;
+            }
+            self.step(dt_s);
+        }
+        self.selected
+    }
+}
+
+/// Wheel / trackpad: inertial item count, then `FlingState` steps at 60 Hz.
+pub fn apply_wheel(selected: usize, dx: f32, dy: f32) -> usize {
+    let steps = inertial_steps(dx, dy);
+    if steps == 0 {
+        return clamp_index(selected);
+    }
+    let mut fling = FlingState::new(selected);
+    fling.impulse_items(steps);
+    fling.step_until_rest(1.0 / 60.0, 180)
 }

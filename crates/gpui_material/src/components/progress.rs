@@ -354,9 +354,14 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// Morphing Expressive polygon at `phase` 0..=1 (rotates + cycles 7 shapes).
-pub fn loading_polygon(size: f32, phase: f32) -> Vec<(f32, f32)> {
-    let phase = phase.fract().abs();
+/// Phase along the 7-shape morph for a determinate wait (`progress` 0..=1).
+/// Stops on the last shape at 100% (does not wrap back to the first).
+pub fn loading_phase_for_progress(progress: f32) -> f32 {
+    progress.clamp(0.0, 1.0) * ((LOADING_SHAPES - 1) as f32 / LOADING_SHAPES as f32)
+}
+
+fn loading_polygon_ex(size: f32, phase: f32, rotate: bool) -> Vec<(f32, f32)> {
+    let phase = phase.clamp(0.0, 0.999_999);
     let cx = size / 2.0;
     let cy = size / 2.0;
     let max_r = (size / 2.0 - 0.5).max(1.0);
@@ -364,7 +369,11 @@ pub fn loading_polygon(size: f32, phase: f32) -> Vec<(f32, f32)> {
     let i0 = x.floor() as usize;
     let f = smoothstep(x.fract());
     let i1 = (i0 + 1) % LOADING_SHAPES;
-    let rot = phase * std::f32::consts::TAU;
+    let rot = if rotate {
+        phase * std::f32::consts::TAU
+    } else {
+        0.0
+    };
     (0..LOADING_SAMPLES)
         .map(|i| {
             let t = i as f32 / LOADING_SAMPLES as f32;
@@ -375,8 +384,22 @@ pub fn loading_polygon(size: f32, phase: f32) -> Vec<(f32, f32)> {
         .collect()
 }
 
+/// Morphing Expressive polygon at `phase` 0..=1 (rotates + cycles 7 shapes).
+pub fn loading_polygon(size: f32, phase: f32) -> Vec<(f32, f32)> {
+    loading_polygon_ex(size, phase.fract().abs(), true)
+}
+
+/// Determinate Expressive morph: shape follows `progress`, no spin.
+pub fn loading_polygon_for_progress(size: f32, progress: f32) -> Vec<(f32, f32)> {
+    loading_polygon_ex(size, loading_phase_for_progress(progress), false)
+}
+
 pub fn loading_svg_d(size: f32, phase: f32) -> String {
     polyline_svg_d(&loading_polygon(size, phase), true)
+}
+
+pub fn loading_svg_d_for_progress(size: f32, progress: f32) -> String {
+    polyline_svg_d(&loading_polygon_for_progress(size, progress), true)
 }
 
 /// Semicolon-separated path `d` values for SVG `<animate>`.

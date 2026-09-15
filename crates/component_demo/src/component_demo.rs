@@ -1797,7 +1797,43 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                         .text_size(px(12.))
                         .text_color(paint(theme.color.on_surface_variant))
                         .child(progress::PTR_LABEL),
-                ),
+                )
+                .child({
+                    let det_size = progress::LOADING_SIZE_DP;
+                    let det_color = paint(progress::loading_indicator(theme).indicator);
+                    let det_pts =
+                        progress::loading_polygon_for_progress(det_size, progress::LOADING_PROGRESS);
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.))
+                        .child(
+                            div()
+                                .w(px(det_size))
+                                .h(px(det_size))
+                                .child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &det_pts,
+                                                det_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(det_size))
+                                    .h(px(det_size)),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(paint(theme.color.on_surface_variant))
+                                .child(format!("{:.0}%", progress::LOADING_PROGRESS * 100.0)),
+                        )
+                }),
         )
 }
 
@@ -1983,9 +2019,9 @@ fn android_carousel(
                 ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
                 ScrollDelta::Lines(p) => (p.x, p.y),
             };
-            let step = carousel::inertial_steps(dx, dy);
-            if step != 0 {
-                this.carousel_index = carousel::advance(this.carousel_index, step);
+            let next = carousel::apply_wheel(this.carousel_index, dx, dy);
+            if next != this.carousel_index {
+                this.carousel_index = next;
                 cx.notify();
             }
         }))
@@ -2033,6 +2069,8 @@ fn android_search_bar(
     };
     let morph_ms = search::morph_ms(theme) as u64;
     let open = this.search_open;
+    let docked_bg = a.bar.container;
+    let activity_bg = view.container;
     let header = if open {
         div()
             .id("search-activity")
@@ -2124,7 +2162,7 @@ fn android_search_bar(
         .flex()
         .flex_col()
         .overflow_hidden()
-        .bg(paint(if open { view.container } else { a.bar.container }))
+        .bg(paint(if open { activity_bg } else { docked_bg }))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.search_open {
@@ -2142,6 +2180,7 @@ fn android_search_bar(
                     .rounded(px(frame.corner_dp))
                     .ml(px(frame.inset_h_dp))
                     .mr(px(frame.inset_h_dp))
+                    .bg(paint(docked_bg.lerp(activity_bg, frame.t)))
             },
         )
         .child(header)
@@ -2368,6 +2407,50 @@ fn android_time_picker(
                             },
                         ),
                 )
+                .child({
+                    let second_color = hand_color;
+                    let second0 = time_picker::DEMO_SECOND;
+                    let period = time_picker::SECOND_PERIOD_MS as u64;
+                    div()
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .w(px(clock))
+                        .h(px(clock))
+                        .with_animation(
+                            "android-second-hand",
+                            Animation::new(Duration::from_millis(period)).repeat(),
+                            move |this, delta| {
+                                let angle = time_picker::second_hand_angle_deg(second0, delta);
+                                let quad = time_picker::second_hand_quad(clock, angle, number);
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let mut builder = PathBuilder::fill();
+                                            for (i, (x, y)) in quad.iter().enumerate() {
+                                                let p = point(
+                                                    bounds.origin.x + px(*x),
+                                                    bounds.origin.y + px(*y),
+                                                );
+                                                if i == 0 {
+                                                    builder.move_to(p);
+                                                } else {
+                                                    builder.line_to(p);
+                                                }
+                                            }
+                                            builder.close();
+                                            if let Ok(path) = builder.build() {
+                                                window.paint_path(path, second_color);
+                                            }
+                                        },
+                                    )
+                                    .w(px(clock))
+                                    .h(px(clock)),
+                                )
+                            },
+                        )
+                })
                 .children(labels.into_iter().map(|(value, label, x, y, selected)| {
                     let face = this.time_dial;
                     div()

@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; round-capped filled circular arc (not a stroked polyline); shared clock_ms animation helper",
+        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph-by-progress (no spin); round-capped filled circular arc (not a stroked polyline); shared clock_ms animation helper",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -249,14 +249,14 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change and continuous hour-face motion while the hour dial is showing; displaySmallEmphasized header; AM/PM",
+        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a 60s ticking second hand; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) + FlingState per-frame integrator that can skip more than one item",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) + FlingState 60 Hz step_until_rest / apply_wheel (can skip more than one item)",
     },
 ];
 
