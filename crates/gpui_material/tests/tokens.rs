@@ -807,6 +807,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-rail-header-tooltip=\"1\""));
     assert!(html.contains("data-header-fab=\"1\""));
     assert!(html.contains("data-rail-fab-extend=\"1\""));
+    assert!(html.contains("data-inflow-fab-extend=\"1\""));
     assert!(html.contains("data-rail-fab-label=\"1\""));
     assert!(html.contains("function applyRailFabMorph"));
     assert!(html.contains("function applyRailContainerMorph"));
@@ -1055,6 +1056,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("iconPosition")
             && e.notes.contains("lerp")
             && e.notes.contains("in-flow")
+            && e.notes.contains("Extended")
             && e.notes.contains("96")
             && e.notes.contains("narrow")
             && e.notes.contains("80")
@@ -1842,6 +1844,8 @@ fn expressive_wide_rail_icon_position() {
     );
     assert!(navigation_rail::HEADER_DEMO_HAS_HEADER);
     assert!(navigation_rail::HEADER_DEMO_HAS_FAB);
+    assert!(navigation_rail::WIDE_DEMO_HAS_EXTENDED_FAB);
+    assert!(navigation_rail::WIDE_DEMO_LAYOUT.in_flow());
     assert_eq!(navigation_rail::FAB_LABEL, "Create");
     assert_eq!(navigation_rail::FAB_GLYPH, "+");
     assert_eq!(navigation_rail::FAB_CORNER_DP, 16.0);

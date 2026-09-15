@@ -6,7 +6,8 @@
 //! Start-icon destinations use a 56dp full-width pill
 //! (`NavigationRailHorizontalItemTokens`). Expanded layout is either
 //! **standard** (in-flow, 96↔220, no scrim, elevation 0, CornerNone /
-//! Surface) or **modal** (overlay 96↔220 over a 32% scrim, elevation 2,
+//! Surface, Compose `ExtendedFloatingActionButton(expanded = railExpanded)`
+//! Create 56↔188) or **modal** (overlay 96↔220 over a 32% scrim, elevation 2,
 //! `modalExpandedShape` CornerLarge 16 / `ModalContainerColor`
 //! SurfaceContainer). Compose `iconPosition` follows `railExpanded`
 //! with a spatial-fast layout animation ([`item_morph`]). Modal
@@ -15,9 +16,9 @@
 //! the overlay keeps expanded shape + modal container. `Arrangement.Vertical`
 //! is Top (default), Center (full container height), or Bottom
 //! (remaining space below the header). Optional header (Menu / MenuOpen +
-//! Compose `ExtendedFloatingActionButton(expanded = railExpanded)`)
-//! stays at the top. `WideNavigationRailDefaults.ContentPadding` is
-//! start/end 0 and top/bottom [`WIDE_TOP_SPACE_DP`] (`WNRVerticalPadding` /
+//! the same Extended FAB) stays at the top.
+//! `WideNavigationRailDefaults.ContentPadding` is start/end 0 and top/bottom
+//! [`WIDE_TOP_SPACE_DP`] (`WNRVerticalPadding` /
 //! `NavigationRailCollapsedTokens.TopSpace` 44).
 
 use super::{dialog, fab};
@@ -153,6 +154,8 @@ impl RailExpandedLayout {
 }
 
 pub const WIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
+/// In-flow standard rail uses Compose `ExtendedFloatingActionButton`.
+pub const WIDE_DEMO_HAS_EXTENDED_FAB: bool = true;
 pub const MODAL_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
 /// Live optional narrow modal (`NarrowContainerWidth` 80).
 pub const NARROW_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
