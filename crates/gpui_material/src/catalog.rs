@@ -259,6 +259,15 @@ a {{ color: var(--primary); }}
   display: flex; align-items: center; height: 32px; padding: 0 16px;
   font: 500 12px/16px Roboto, sans-serif; letter-spacing: 0.1px;
 }}
+.search-morph .sv-status {{
+  display: flex; align-items: center; height: 32px; padding: 0 16px;
+  font: 500 12px/16px Roboto, sans-serif; letter-spacing: 0.1px;
+}}
+.search-morph[data-search-status="suggestions"] .sv-status {{ display: none; }}
+.search-morph[data-search-status="quick-results"] .sv-group-title,
+.search-morph[data-search-status="results"] .sv-group-title {{ display: none; }}
+.search-morph[data-search-status="quick-results"] .sv-group + .sv-group,
+.search-morph[data-search-status="results"] .sv-group + .sv-group {{ margin-top: 0; }}
 .search-view .sv-row, .search-morph .sv-row {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
   min-height: 56px; font-size: 16px;
@@ -2076,22 +2085,61 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     }}
   }});
 }});
+function syncSearchStatus(view, input) {{
+  if (!view || !input) return;
+  var q = (input.value || "").trim();
+  var focused = document.activeElement === input;
+  var status = !q ? "suggestions" : (focused ? "quick-results" : "results");
+  view.setAttribute("data-search-status", status);
+  var live = view.querySelector("[data-search-status-label]");
+  var visible = 0;
+  view.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
+    var label = (row.getAttribute("data-search-suggestion") || "").toLowerCase();
+    var show = !q || label.indexOf(q.toLowerCase()) >= 0;
+    row.style.display = show ? "flex" : "none";
+    if (show) visible += 1;
+  }});
+  view.querySelectorAll("[data-search-group]").forEach(function (group) {{
+    var any = false;
+    group.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
+      if (row.style.display !== "none") any = true;
+    }});
+    group.style.display = any ? "flex" : "none";
+  }});
+  if (live) {{
+    if (status === "suggestions") {{
+      live.textContent = "";
+      live.removeAttribute("aria-label");
+    }} else if (status === "quick-results") {{
+      live.textContent = "Quick results";
+      live.setAttribute("aria-label", visible === 1 ? "1 quick result" : visible + " quick results");
+    }} else {{
+      live.textContent = "Results";
+      live.setAttribute("aria-label", visible === 1 ? "1 result" : visible + " results");
+    }}
+  }}
+}}
 document.querySelectorAll("[data-search-input]").forEach(function (input) {{
   input.addEventListener("input", function () {{
     var view = input.closest("[data-search-view]");
-    if (!view) return;
-    var q = (input.value || "").trim().toLowerCase();
-    view.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
-      var label = (row.getAttribute("data-search-suggestion") || "").toLowerCase();
-      row.style.display = !q || label.indexOf(q) >= 0 ? "flex" : "none";
-    }});
-    view.querySelectorAll("[data-search-group]").forEach(function (group) {{
-      var any = false;
-      group.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
-        if (row.style.display !== "none") any = true;
-      }});
-      group.style.display = any ? "flex" : "none";
-    }});
+    syncSearchStatus(view, input);
+  }});
+  input.addEventListener("focus", function () {{
+    syncSearchStatus(input.closest("[data-search-view]"), input);
+  }});
+  input.addEventListener("blur", function () {{
+    var view = input.closest("[data-search-view]");
+    if (view && (input.value || "").trim()) {{
+      view.setAttribute("data-search-status", "results");
+      var live = view.querySelector("[data-search-status-label]");
+      if (live) live.textContent = "Results";
+    }}
+  }});
+  input.addEventListener("keydown", function (ev) {{
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    input.blur();
+    syncSearchStatus(input.closest("[data-search-view]"), input);
   }});
   input.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
 }});
@@ -2103,7 +2151,8 @@ document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
     var input = view.querySelector("[data-search-input]");
     if (input) {{
       input.value = row.getAttribute("data-search-suggestion") || "";
-      input.dispatchEvent(new Event("input"));
+      input.blur();
+      syncSearchStatus(view, input);
     }}
   }});
 }});
@@ -6037,20 +6086,35 @@ fn paint_contained_search(
     width_class: search::WindowWidthClass,
     hero: bool,
 ) -> String {
+    paint_contained_search_state(theme, width_class, hero, "", true)
+}
+
+fn paint_contained_search_state(
+    theme: &Theme,
+    width_class: search::WindowWidthClass,
+    hero: bool,
+    query: &str,
+    input_focused: bool,
+) -> String {
     let bar = search::resolve(theme);
     let contained = search::resolve_view(theme);
     let layout = width_class.expanded_search();
-    let focused =
+    let frame =
         search::contained_frame_at_layout(layout, 1.0, search::contained_suggestion_count());
+    let status = search::list_status(query, input_focused);
+    let grouped = search::filter_grouped_suggestions(query);
+    let result_count: usize = grouped.iter().map(|(_, items)| items.len()).sum();
+    let live = search::status_live_text(status, result_count);
+    let heading = status.heading().unwrap_or("");
     let mut rows = String::new();
     let mut flat = 0usize;
-    for group in search::SUGGESTION_GROUPS {
+    for (title, items) in grouped {
         rows.push_str(&format!(
             r#"<div class="sv-group" data-search-group="{title}"><div class="sv-group-title" style="color:{ico}">{title}</div>"#,
-            title = group.title,
+            title = title,
             ico = contained.suggestion_icon.css_hex(),
         ));
-        for label in group.items {
+        for label in items {
             rows.push_str(&format!(
                 r#"<div class="sv-row" data-search-suggestion="{label}" style="color:{fg};height:{h}px"><span style="color:{ico}">{icon}</span><span>{label}</span></div>"#,
                 fg = contained.suggestion.css_hex(),
@@ -6062,35 +6126,58 @@ fn paint_contained_search(
         }
         rows.push_str("</div>");
     }
+    let status_row = format!(
+        r#"<div class="sv-status" data-search-status-label="1" role="status" aria-live="polite" aria-label="{live}" style="color:{ico}">{heading}</div>"#,
+        live = esc(&live),
+        ico = contained.suggestion_icon.css_hex(),
+        heading = heading,
+    );
+    let value_attr = if query.is_empty() {
+        String::new()
+    } else {
+        format!(r#" value="{}""#, esc(query))
+    };
     format!(
-        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
+        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
       <span class="lead-activity" aria-hidden="true">{back}</span>
     </div>
-    <input class="hint" data-search-input="1" placeholder="{placeholder}" style="color:{vph}"/>
+    <input class="hint" data-search-input="1" placeholder="{placeholder}"{value_attr} style="color:{vin}"/>
     <div class="ico">{mic}</div>
     <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
-  <div class="sv-list">{rows}</div>
+  <div class="sv-list">{status_row}{rows}</div>
 </div>"#,
         wc = width_class.label(),
         layout = layout.label(),
+        status = status.attr(),
+        q = esc(query),
         hero_attr = if hero { r#" data-hero="search""# } else { "" },
         cbg = search::contained_container(theme).css_hex(),
-        cr = focused.corner_dp,
-        mh = focused.height_dp,
-        mg = focused.margin_dp,
-        vh = focused.header_h_dp,
+        cr = frame.corner_dp,
+        mh = if query.is_empty() {
+            frame.height_dp
+        } else {
+            search::CONTAINED_HEADER_DP + search::expanded_list_h_dp(query, input_focused)
+        },
+        mg = frame.margin_dp,
+        vh = frame.header_h_dp,
         vfg = contained.header.css_hex(),
-        vph = contained.placeholder.css_hex(),
+        vin = if query.is_empty() {
+            contained.placeholder.css_hex()
+        } else {
+            contained.input.css_hex()
+        },
         back = search::VIEW_BACK,
         lead = search::LEADING_ICON,
         abg = bar.avatar.css_hex(),
         afg = bar.avatar_label.css_hex(),
         placeholder = search::PLACEHOLDER,
         mic = search::TRAILING_MIC,
+        value_attr = value_attr,
+        status_row = status_row,
         rows = rows,
     )
 }
@@ -6099,13 +6186,32 @@ fn search_section(theme: &Theme) -> String {
     let activity = search::resolve_activity(theme);
     let compact = paint_contained_search(theme, search::WindowWidthClass::Compact, true);
     let docked = paint_contained_search(theme, search::WindowWidthClass::Medium, false);
+    let submitted = search::pick_suggestion(search::DEMO_QUERY, 0).unwrap_or("App");
+    let quick = paint_contained_search_state(
+        theme,
+        search::WindowWidthClass::Compact,
+        false,
+        search::DEMO_QUERY,
+        true,
+    );
+    let results = paint_contained_search_state(
+        theme,
+        search::WindowWidthClass::Compact,
+        false,
+        submitted,
+        false,
+    );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions). Queried search shows a <code>Quick results</code> status while typing and a <code>Results</code> label after submit (query stays visible, not focused). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin.</p>
 {docked}
+<h3>queried (Quick results / Results)</h3>
+<p class="note">Focused typing uses a Quick results status and a live region. Submitted search uses a Results label; the input text remains visible but is not focused.</p>
+{quick}
+{results}
 <h3>divided (baseline)</h3>
 <p class="note">Not recommended. Divider + full-screen activity flatten (0dp corners).</p>
 <div class="search-morph" data-search-style="divided" data-search-view="1" data-search-activity="1" data-open="1" style="background:{abg2};border-radius:{ar}px;min-height:{amh}px">
@@ -6117,6 +6223,8 @@ fn search_section(theme: &Theme) -> String {
 </div>"#,
         compact = compact,
         docked = docked,
+        quick = quick,
+        results = results,
         back = search::VIEW_BACK,
         placeholder = search::PLACEHOLDER,
         abg2 = activity.container.css_hex(),
@@ -6403,11 +6511,8 @@ fn time_picker_section(theme: &Theme) -> String {
     let hand_d = time_picker::hand_svg_d_at_angle(a.clock_dp, 0.0, a.number_dp);
     let second_d = time_picker::second_hand_svg_d(a.clock_dp, 0.0, a.number_dp);
     let dial_hour = time_picker::demo_hour(format);
-    let hand_deg = time_picker::hand_angle_deg(
-        time_picker::DEMO_DIAL,
-        dial_hour,
-        time_picker::DEMO_MINUTE,
-    );
+    let hand_deg =
+        time_picker::hand_angle_deg(time_picker::DEMO_DIAL, dial_hour, time_picker::DEMO_MINUTE);
     let hand_scale = if time_picker::hour_ring(dial_hour, format) == time_picker::DialRing::Inner
         && time_picker::DEMO_DIAL == time_picker::DialFace::Hour
     {

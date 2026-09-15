@@ -4659,30 +4659,47 @@ fn search_bar_hero(
                 ),
         )
         .into_any_element();
+    let status = search::list_status(this.search.value(), this.search.focused);
+    let show_groups = status.shows_suggestion_groups();
     let mut flat = 0usize;
-    let list = div()
-        .flex()
-        .flex_col()
-        .children(if grouped.is_empty() {
-            vec![div()
+    let mut list_children: Vec<gpui::AnyElement> = Vec::new();
+    if let Some(heading) = status.heading() {
+        list_children.push(
+            div()
+                .id("search-status")
+                .h(px(search::STATUS_H_DP))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(view.suggestion_icon))
+                .child(heading)
+                .into_any_element(),
+        );
+    }
+    if grouped.is_empty() {
+        list_children.push(
+            div()
                 .h(px(view.suggestion_h_dp))
                 .px(px(16.))
                 .flex()
                 .items_center()
                 .text_color(paint(view.suggestion))
                 .child(search::EMPTY_SUGGESTIONS)
-                .into_any_element()]
-        } else {
-            grouped
-                .into_iter()
-                .enumerate()
-                .map(|(gi, (title, items))| {
-                    let block = div()
-                        .id(SharedString::from(format!("search-group-{gi}")))
-                        .flex()
-                        .flex_col()
-                        .when(gi > 0, |el| el.mt(px(search::SUGGESTION_GROUP_GAP_DP)))
-                        .child(
+                .into_any_element(),
+        );
+    } else {
+        for (gi, (title, items)) in grouped.into_iter().enumerate() {
+            list_children.push(
+                div()
+                    .id(SharedString::from(format!("search-group-{gi}")))
+                    .flex()
+                    .flex_col()
+                    .when(show_groups && gi > 0, |el| {
+                        el.mt(px(search::SUGGESTION_GROUP_GAP_DP))
+                    })
+                    .when(show_groups, |el| {
+                        el.child(
                             div()
                                 .h(px(search::SUGGESTION_GROUP_TITLE_H_DP))
                                 .px(px(16.))
@@ -4692,36 +4709,42 @@ fn search_bar_hero(
                                 .text_color(paint(view.suggestion_icon))
                                 .child(title),
                         )
-                        .children(items.into_iter().map(|label| {
-                            let i = flat;
-                            flat += 1;
-                            div()
-                                .id(SharedString::from(format!("search-sug-{i}")))
-                                .h(px(view.suggestion_h_dp))
-                                .px(px(16.))
-                                .flex()
-                                .items_center()
-                                .gap(px(16.))
-                                .text_color(paint(view.suggestion))
-                                .child(
-                                    div()
-                                        .text_color(paint(view.suggestion_icon))
-                                        .child(if i == 0 { "⌕" } else { "◌" }),
-                                )
-                                .child(label)
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    if let Some(picked) =
-                                        search::pick_suggestion(this.search.value(), i)
-                                    {
-                                        this.search.set_value(picked);
-                                        cx.notify();
-                                    }
-                                }))
-                        }));
-                    block.into_any_element()
-                })
-                .collect()
-        })
+                    })
+                    .children(items.into_iter().map(|label| {
+                        let i = flat;
+                        flat += 1;
+                        div()
+                            .id(SharedString::from(format!("search-sug-{i}")))
+                            .h(px(view.suggestion_h_dp))
+                            .px(px(16.))
+                            .flex()
+                            .items_center()
+                            .gap(px(16.))
+                            .text_color(paint(view.suggestion))
+                            .child(
+                                div()
+                                    .text_color(paint(view.suggestion_icon))
+                                    .child(if i == 0 { "⌕" } else { "◌" }),
+                            )
+                            .child(label)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if let Some(picked) =
+                                    search::pick_suggestion(this.search.value(), i)
+                                {
+                                    this.search.set_value(picked);
+                                    this.search.set_focus(false);
+                                    cx.notify();
+                                }
+                            }))
+                    }))
+                    .into_any_element(),
+            );
+        }
+    }
+    let list = div()
+        .flex()
+        .flex_col()
+        .children(list_children)
         .into_any_element();
     div()
         .id("search-morph")
@@ -5141,7 +5164,8 @@ fn time_picker_hero(
     let live_hour = this.time_dial_hour();
     let live_minute = this.time_minute;
     let live_format = this.time_format;
-    let live_radius = time_picker::selector_radius_dp(this.time_dial, live_hour, live_format, clock);
+    let live_radius =
+        time_picker::selector_radius_dp(this.time_dial, live_hour, live_format, clock);
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -5238,39 +5262,39 @@ fn time_picker_hero(
                 )
                 .when(this.time_format.shows_period(), |row| {
                     row.child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(time_picker::PERIOD_GAP_DP))
-                        .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                            let selected = this.time_period == period;
-                            div()
-                                .id(SharedString::from(period.label()))
-                                .w(px(time_picker::PERIOD_W_DP))
-                                .h(px(time_picker::PERIOD_H_DP))
-                                .rounded(px(8.))
-                                .bg(paint(if selected {
-                                    a.period_selected_container
-                                } else {
-                                    a.period_idle_container
-                                }))
-                                .text_color(paint(if selected {
-                                    a.period_selected
-                                } else {
-                                    a.period_idle
-                                }))
-                                .font_weight(type_weight(a.period_style))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(period.label())
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.time_period = period;
-                                    cx.notify();
-                                }))
-                        })),
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(time_picker::PERIOD_GAP_DP))
+                            .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                                let selected = this.time_period == period;
+                                div()
+                                    .id(SharedString::from(period.label()))
+                                    .w(px(time_picker::PERIOD_W_DP))
+                                    .h(px(time_picker::PERIOD_H_DP))
+                                    .rounded(px(8.))
+                                    .bg(paint(if selected {
+                                        a.period_selected_container
+                                    } else {
+                                        a.period_idle_container
+                                    }))
+                                    .text_color(paint(if selected {
+                                        a.period_selected
+                                    } else {
+                                        a.period_idle
+                                    }))
+                                    .font_weight(type_weight(a.period_style))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(period.label())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.time_period = period;
+                                        cx.notify();
+                                    }))
+                            })),
                     )
-                })
+                }),
         )
         .child(
             div()
@@ -7357,6 +7381,14 @@ mod tests {
         );
         assert_eq!(search::SUGGESTION_GROUPS.len(), 2);
         assert_eq!(search::SUGGESTION_GROUP_GAP_DP, 8.0);
+        assert_eq!(
+            search::list_status(search::DEMO_QUERY, true),
+            search::SearchListStatus::QuickResults
+        );
+        assert_eq!(
+            search::list_status("App", false),
+            search::SearchListStatus::Results
+        );
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);
@@ -7375,7 +7407,9 @@ mod tests {
             time_picker::DialRing::Inner
         );
         assert!((time_picker::INNER_CIRCLE_RADIUS_DP - 69.0).abs() < 0.01);
-        assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01);
+        assert!(
+            (time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01
+        );
         let (s, e, thumb) =
             slider::apply_arrow(0.2, 0.75, slider::RangeThumb::Start, "right").expect("arrow");
         assert!((s - 0.25).abs() < 1e-5);

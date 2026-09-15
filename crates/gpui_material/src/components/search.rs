@@ -49,6 +49,51 @@ pub const SUGGESTION_GROUPS: [SuggestionGroup; 2] = [
         items: &SUGGESTION_GROUP_MORE,
     },
 ];
+
+/// Guidelines: focused search needs a status indicator (search icon or Results
+/// label). Typing uses **Quick results**; a submitted query uses **Results**.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchListStatus {
+    /// Empty query: historical suggestion groups, no status row.
+    Suggestions,
+    /// Non-empty query while the field is focused.
+    QuickResults,
+    /// Queried / submitted: input stays visible but is not focused.
+    Results,
+}
+
+impl SearchListStatus {
+    pub const ALL: [Self; 3] = [Self::Suggestions, Self::QuickResults, Self::Results];
+
+    pub const fn attr(self) -> &'static str {
+        match self {
+            Self::Suggestions => "suggestions",
+            Self::QuickResults => "quick-results",
+            Self::Results => "results",
+        }
+    }
+
+    pub const fn heading(self) -> Option<&'static str> {
+        match self {
+            Self::Suggestions => None,
+            Self::QuickResults => Some(QUICK_RESULTS_LABEL),
+            Self::Results => Some(RESULTS_LABEL),
+        }
+    }
+
+    /// Suggestion groups (Recent / Suggestions) only before a query.
+    pub const fn shows_suggestion_groups(self) -> bool {
+        matches!(self, Self::Suggestions)
+    }
+}
+
+pub const QUICK_RESULTS_LABEL: &str = "Quick results";
+pub const RESULTS_LABEL: &str = "Results";
+/// Status row height (titleSmall, matches suggestion-group titles).
+pub const STATUS_H_DP: f32 = 32.0;
+/// Catalog queried sibling types this so Visual QA sees Quick results.
+pub const DEMO_QUERY: &str = "app";
+
 /// Catalog starts expanded so Visual QA can see the sheet + caret after the grow morph.
 pub const VIEW_OPEN_BY_DEFAULT: bool = true;
 /// Expanded view uses 0dp corners + surface (full-screen search activity).
@@ -184,6 +229,57 @@ pub fn grouped_suggestion_list_h_dp(query: &str) -> f32 {
     let groups = filter_grouped_suggestions(query);
     let n: usize = groups.iter().map(|(_, items)| items.len()).sum();
     suggestion_list_h_dp(n, groups.len())
+}
+
+/// Empty query → suggestions; focused non-empty → Quick results; submitted → Results.
+pub fn list_status(query: &str, input_focused: bool) -> SearchListStatus {
+    if query.trim().is_empty() {
+        SearchListStatus::Suggestions
+    } else if input_focused {
+        SearchListStatus::QuickResults
+    } else {
+        SearchListStatus::Results
+    }
+}
+
+pub fn status_chrome_h_dp(status: SearchListStatus) -> f32 {
+    if status.heading().is_some() {
+        STATUS_H_DP
+    } else {
+        0.0
+    }
+}
+
+pub fn status_live_text(status: SearchListStatus, result_count: usize) -> String {
+    match status {
+        SearchListStatus::Suggestions => String::new(),
+        SearchListStatus::QuickResults => {
+            if result_count == 1 {
+                "1 quick result".to_string()
+            } else {
+                format!("{result_count} quick results")
+            }
+        }
+        SearchListStatus::Results => {
+            if result_count == 1 {
+                "1 result".to_string()
+            } else {
+                format!("{result_count} results")
+            }
+        }
+    }
+}
+
+/// List height under the 56dp header: groups when idle, status + compact rows when queried.
+pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
+    let status = list_status(query, input_focused);
+    let n = filter_suggestions(query).len();
+    if status.shows_suggestion_groups() {
+        grouped_suggestion_list_h_dp(query)
+    } else {
+        let rows = n.max(1);
+        status_chrome_h_dp(status) + SUGGESTION_H_DP * rows as f32
+    }
 }
 
 pub fn apply_search_key(query: &str, key: &str) -> String {
@@ -680,17 +776,26 @@ pub fn contained_container(theme: &Theme) -> crate::argb::Argb {
 
 pub fn apply_key_to_editor(ed: &mut crate::components::text_field::TextFieldEditor, key: &str) {
     match key {
-        "backspace" | "delete" => ed.backspace(),
+        "backspace" | "delete" => {
+            ed.set_focus(true);
+            ed.backspace();
+        }
         "left" => ed.move_caret(-1),
         "right" => ed.move_caret(1),
-        "space" => ed.insert_char(' '),
+        "space" => {
+            ed.set_focus(true);
+            ed.insert_char(' ');
+        }
         "enter" => {
             if let Some(first) = filter_suggestions(ed.value()).first().copied() {
                 ed.set_value(first);
             }
+            // Queried: input remains visible but not focused (Results status).
+            ed.set_focus(false);
         }
         k if k.len() == 1 => {
             if let Some(ch) = k.chars().next() {
+                ed.set_focus(true);
                 ed.insert_char(ch);
             }
         }

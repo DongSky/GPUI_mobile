@@ -5422,45 +5422,86 @@ fn android_search_bar(
                 ),
         )
         .into_any_element();
+    let status = search::list_status(this.search.value(), this.search.focused);
+    let show_groups = status.shows_suggestion_groups();
     let mut flat = 0usize;
+    let mut list_children: Vec<gpui::AnyElement> = Vec::new();
+    if let Some(heading) = status.heading() {
+        list_children.push(
+            div()
+                .id("search-status")
+                .h(px(search::STATUS_H_DP))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(view.suggestion_icon))
+                .child(heading)
+                .into_any_element(),
+        );
+    }
+    if grouped.is_empty() {
+        list_children.push(
+            div()
+                .h(px(view.suggestion_h_dp))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_color(paint(view.suggestion))
+                .child(search::EMPTY_SUGGESTIONS)
+                .into_any_element(),
+        );
+    } else {
+        for (gi, (title, items)) in grouped.into_iter().enumerate() {
+            list_children.push(
+                div()
+                    .id(SharedString::from(format!("search-group-{gi}")))
+                    .flex()
+                    .flex_col()
+                    .when(show_groups && gi > 0, |el| {
+                        el.mt(px(search::SUGGESTION_GROUP_GAP_DP))
+                    })
+                    .when(show_groups, |el| {
+                        el.child(
+                            div()
+                                .h(px(search::SUGGESTION_GROUP_TITLE_H_DP))
+                                .px(px(16.))
+                                .flex()
+                                .items_center()
+                                .text_size(px(12.))
+                                .text_color(paint(view.suggestion_icon))
+                                .child(title),
+                        )
+                    })
+                    .children(items.into_iter().map(|label| {
+                        let i = flat;
+                        flat += 1;
+                        div()
+                            .id(SharedString::from(format!("search-sug-{i}")))
+                            .h(px(view.suggestion_h_dp))
+                            .px(px(16.))
+                            .flex()
+                            .items_center()
+                            .text_color(paint(view.suggestion))
+                            .child(label)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if let Some(picked) =
+                                    search::pick_suggestion(this.search.value(), i)
+                                {
+                                    this.search.set_value(picked);
+                                    this.search.set_focus(false);
+                                    cx.notify();
+                                }
+                            }))
+                    }))
+                    .into_any_element(),
+            );
+        }
+    }
     let list = div()
         .flex()
         .flex_col()
-        .children(grouped.into_iter().enumerate().map(|(gi, (title, items))| {
-            div()
-                .id(SharedString::from(format!("search-group-{gi}")))
-                .flex()
-                .flex_col()
-                .when(gi > 0, |el| el.mt(px(search::SUGGESTION_GROUP_GAP_DP)))
-                .child(
-                    div()
-                        .h(px(search::SUGGESTION_GROUP_TITLE_H_DP))
-                        .px(px(16.))
-                        .flex()
-                        .items_center()
-                        .text_size(px(12.))
-                        .text_color(paint(view.suggestion_icon))
-                        .child(title),
-                )
-                .children(items.into_iter().map(|label| {
-                    let i = flat;
-                    flat += 1;
-                    div()
-                        .id(SharedString::from(format!("search-sug-{i}")))
-                        .h(px(view.suggestion_h_dp))
-                        .px(px(16.))
-                        .flex()
-                        .items_center()
-                        .text_color(paint(view.suggestion))
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
-                                this.search.set_value(picked);
-                                cx.notify();
-                            }
-                        }))
-                }))
-        }))
+        .children(list_children)
         .into_any_element();
     div()
         .id("search-morph")
@@ -5877,7 +5918,8 @@ fn android_time_picker(
     let live_hour = this.time_dial_hour();
     let live_minute = this.time_minute;
     let live_format = this.time_format;
-    let live_radius = time_picker::selector_radius_dp(this.time_dial, live_hour, live_format, clock);
+    let live_radius =
+        time_picker::selector_radius_dp(this.time_dial, live_hour, live_format, clock);
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -5936,11 +5978,8 @@ fn android_time_picker(
                 ),
         )
         .when(this.time_format.shows_period(), |col| {
-            col.child(
-            div()
-                .flex()
-                .gap(px(8.))
-                .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+            col.child(div().flex().gap(px(8.)).children(
+                [DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
                     let selected = this.time_period == period;
                     div()
                         .id(SharedString::from(period.label()))
@@ -5964,8 +6003,8 @@ fn android_time_picker(
                             this.time_period = period;
                             cx.notify();
                         }))
-                })),
-            )
+                }),
+            ))
         })
         .child(
             div()

@@ -875,6 +875,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-expanded="docked""#));
     assert!(html.contains(r#"data-search-group="Recent""#));
     assert!(html.contains(r#"data-search-group="Suggestions""#));
+    assert!(html.contains(r#"data-search-status="quick-results""#));
+    assert!(html.contains(r#"data-search-status="results""#));
+    assert!(html.contains("Quick results"));
+    assert!(html.contains(r#"data-search-status-label="1""#));
+    assert!(html.contains(r#"aria-live="polite""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
@@ -1152,6 +1157,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("compact")
             && e.notes.contains("600dp")
             && e.notes.contains("fullscreen")
+            && e.notes.contains("Quick results")
+            && e.notes.contains("Results")
     }));
     assert!(INVENTORY
         .iter()
@@ -2716,6 +2723,49 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(ed.value(), "app");
     search::apply_key_to_editor(&mut ed, "enter");
     assert_eq!(ed.value(), "App");
+    assert!(!ed.focused);
+    assert_eq!(
+        search::list_status("", true),
+        search::SearchListStatus::Suggestions
+    );
+    assert_eq!(
+        search::list_status(search::DEMO_QUERY, true),
+        search::SearchListStatus::QuickResults
+    );
+    assert_eq!(
+        search::list_status("App", false),
+        search::SearchListStatus::Results
+    );
+    assert_eq!(
+        search::SearchListStatus::QuickResults.heading(),
+        Some(search::QUICK_RESULTS_LABEL)
+    );
+    assert_eq!(
+        search::SearchListStatus::Results.heading(),
+        Some(search::RESULTS_LABEL)
+    );
+    assert_eq!(
+        search::status_live_text(search::SearchListStatus::QuickResults, 1),
+        "1 quick result"
+    );
+    assert_eq!(
+        search::status_live_text(search::SearchListStatus::Results, 1),
+        "1 result"
+    );
+    assert_eq!(
+        search::status_chrome_h_dp(search::SearchListStatus::Suggestions),
+        0.0
+    );
+    assert_eq!(
+        search::status_chrome_h_dp(search::SearchListStatus::QuickResults),
+        32.0
+    );
+    assert!(
+        (search::expanded_list_h_dp(search::DEMO_QUERY, true)
+            - (search::STATUS_H_DP + search::SUGGESTION_H_DP))
+            .abs()
+            < 0.01
+    );
     let (ix, iy) = text_field::ime_cursor_origin_dp(3, 16.0);
     assert!(ix > 16.0 && iy > 0.0);
     let rect = text_field::ime_caret_rect_dp(3, 16.0);
@@ -2956,34 +3006,58 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!((time_picker::OUTER_CIRCLE_RADIUS_DP - 101.0).abs() < 0.01);
     assert!((time_picker::INNER_CIRCLE_RADIUS_DP - 69.0).abs() < 0.01);
-    assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01);
+    assert!(
+        (time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour24) - 114.0).abs() < 0.01
+    );
     assert!((time_picker::time_selector_w_dp(time_picker::TimeFormat::Hour12) - 96.0).abs() < 0.01);
     assert_eq!(
-        time_picker::dial_clock_hour(18, time_picker::TimeFormat::Hour24, time_picker::DayPeriod::Pm),
+        time_picker::dial_clock_hour(
+            18,
+            time_picker::TimeFormat::Hour24,
+            time_picker::DayPeriod::Pm
+        ),
         18
     );
     assert_eq!(
-        time_picker::hour_from_dial(18, time_picker::DayPeriod::Pm, time_picker::TimeFormat::Hour24),
+        time_picker::hour_from_dial(
+            18,
+            time_picker::DayPeriod::Pm,
+            time_picker::TimeFormat::Hour24
+        ),
         18
     );
     assert_eq!(
         time_picker::select_hour_for(6, 0, time_picker::TimeFormat::Hour24),
         0
     );
-    assert_eq!(time_picker::hour_label(0, time_picker::TimeFormat::Hour24), "00");
-    assert_eq!(time_picker::hour_label(18, time_picker::TimeFormat::Hour24), "18");
+    assert_eq!(
+        time_picker::hour_label(0, time_picker::TimeFormat::Hour24),
+        "00"
+    );
+    assert_eq!(
+        time_picker::hour_label(18, time_picker::TimeFormat::Hour24),
+        "18"
+    );
     let cells24 = time_picker::hour_cells(time_picker::TimeFormat::Hour24, 256.0, 48.0);
     assert_eq!(cells24.len(), 24);
-    assert!(cells24.iter().any(|c| c.hour == 18 && c.ring == time_picker::DialRing::Inner));
-    assert!(cells24.iter().any(|c| c.hour == 0 && c.ring == time_picker::DialRing::Outer));
+    assert!(cells24
+        .iter()
+        .any(|c| c.hour == 18 && c.ring == time_picker::DialRing::Inner));
+    assert!(cells24
+        .iter()
+        .any(|c| c.hour == 0 && c.ring == time_picker::DialRing::Outer));
     let (x0, y0) = time_picker::hour_offset_for(0, time_picker::TimeFormat::Hour24, 256.0, 48.0);
-    let (_x12, y12) = time_picker::hour_offset_for(12, time_picker::TimeFormat::Hour24, 256.0, 48.0);
+    let (_x12, y12) =
+        time_picker::hour_offset_for(12, time_picker::TimeFormat::Hour24, 256.0, 48.0);
     assert!(x0 > 80.0 && x0 < 130.0, "00 sits top-center, x={x0}");
     assert!(y0 < 20.0, "00 sits on outer top, y={y0}");
     assert!(y12 > y0 + 20.0, "12 sits on inner top, y12={y12} y0={y0}");
     let (x18, y18) = time_picker::hour_offset_for(18, time_picker::TimeFormat::Hour24, 256.0, 48.0);
     let (x6, y6) = time_picker::hour_offset_for(6, time_picker::TimeFormat::Hour24, 256.0, 48.0);
-    assert!(y18 > 140.0 && y18 < y6, "18 inner bottom vs 6 outer, y18={y18} y6={y6}");
+    assert!(
+        y18 > 140.0 && y18 < y6,
+        "18 inner bottom vs 6 outer, y18={y18} y6={y6}"
+    );
     assert!((x18 - x6).abs() < 8.0);
     let inner_r = time_picker::selector_radius_dp(
         time_picker::DialFace::Hour,
