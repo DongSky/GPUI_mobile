@@ -642,8 +642,8 @@ pub const OVERLAY_ANCHOR_GAP_DP: f32 = 8.0;
 /// immediate.
 pub const HOVER_OPEN_DELAY_MS: u64 = 200;
 /// WAI-ARIA typeahead: hosts auto-focus the cascade (`tab_index`) when a
-/// grouped overflow / split / overlay popup opens so letter keys hit the menu
-/// without an extra click.
+/// grouped overflow / split / overlay popup opens, and when the in-page
+/// submenu cascade is shown, so letter keys hit the menu without an extra click.
 pub const TYPEAHEAD_AUTOFOCUS: bool = true;
 
 /// Which mounted popup should receive typeahead after it opens.
@@ -664,6 +664,12 @@ pub fn typeahead_autofocus_kind(
     } else {
         None
     }
+}
+
+/// In-page submenu cascade is always mounted. Hosts autofocus it so typeahead
+/// hits Share / Save / Sort without a click (same contract as overflow/split).
+pub fn typeahead_autofocus_in_page(cascade_shown: bool) -> bool {
+    TYPEAHEAD_AUTOFOCUS && cascade_shown
 }
 
 pub fn parent_item_count() -> usize {

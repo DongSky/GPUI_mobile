@@ -350,6 +350,7 @@ struct CatalogView {
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
     wide_rail_mode: navigation_rail::RailMode,
+    narrow_rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -419,6 +420,12 @@ impl CatalogView {
         }
         self.typeahead_host = Some(host);
         self.typeahead_focus.focus(window, cx);
+    }
+
+    fn ensure_in_page_typeahead(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if menu::typeahead_autofocus_in_page(true) && self.typeahead_host.is_none() {
+            self.focus_typeahead(LiveMenuHost::Cascade, window, cx);
+        }
     }
 
     fn hover_live_parent(&mut self, host: LiveMenuHost, index: usize, cx: &mut Context<Self>) {
@@ -505,9 +512,10 @@ impl CatalogView {
 }
 
 impl Render for CatalogView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_carousel_fling(cx);
         self.tick_snack(cx);
+        self.ensure_in_page_typeahead(window, cx);
         let theme = self.theme();
         let c = theme.color;
         let bar = top_app_bar::resolve(&theme);
@@ -1048,6 +1056,7 @@ fn catalog_body(
         .child(android_wide_rail_icon_hero(this, theme, cx))
         .child(android_wide_rail_in_flow(this, theme, cx))
         .child(android_nav_rail(this, theme, cx))
+        .child(android_narrow_rail(this, theme, cx))
         .child(section_title(theme, "Navigation bar"))
         .child(android_nav_bars(theme))
         .child(section_title(theme, "Tooltip"))
@@ -2131,8 +2140,12 @@ fn android_live_cascade(
             apply_live_menu_action(this, host, action, cx);
         }))
         .when(host != LiveMenuHost::Overlay, |el| {
-            el.on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                if !*hovered {
+            el.on_hover(cx.listener(move |this, hovered: &bool, window, cx| {
+                if *hovered {
+                    if host == LiveMenuHost::Cascade {
+                        this.focus_typeahead(LiveMenuHost::Cascade, window, cx);
+                    }
+                } else {
                     this.live_menu_mut(host).hover_leave();
                     cx.notify();
                 }
@@ -4108,6 +4121,7 @@ fn android_rail_static_column(
             false,
             200.0,
             "wide-rail",
+            navigation_rail::RailCollapsedKind::Wide,
             cx,
         ))
 }
@@ -4130,6 +4144,7 @@ fn android_wide_rail_in_flow(
             theme,
             this.wide_rail_mode,
             navigation_rail::RailExpandedLayout::Standard,
+            navigation_rail::RailCollapsedKind::Wide,
             200.0,
             cx,
         ))
@@ -4148,22 +4163,28 @@ fn android_nav_rail_column(
     theme: &Theme,
     mode: navigation_rail::RailMode,
     layout: navigation_rail::RailExpandedLayout,
+    collapsed: navigation_rail::RailCollapsedKind,
     width_max: f32,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode(theme, mode);
+    let rail = navigation_rail::resolve_mode_kind(theme, mode, collapsed);
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
     let position = navigation_rail::icon_position_for_mode(mode);
     let column_w = rail.width_dp.min(width_max);
     let in_flow = layout.in_flow();
+    let narrow = collapsed.is_narrow();
     let id = if in_flow {
         "wide-inflow-rail"
+    } else if narrow {
+        "narrow-rail"
     } else {
         "nav-rail"
     };
     let fab_id = if in_flow {
         "wide-inflow-fab"
+    } else if narrow {
+        "narrow-rail-fab"
     } else {
         "rail-fab"
     };
@@ -4173,10 +4194,23 @@ fn android_nav_rail_column(
         } else {
             "android-wide-inflow-collapse"
         }
+    } else if narrow {
+        if expanded {
+            "android-narrow-rail-expand"
+        } else {
+            "android-narrow-rail-collapse"
+        }
     } else if expanded {
         "android-rail-expand"
     } else {
         "android-rail-collapse"
+    };
+    let dest_prefix = if in_flow {
+        "wide-inflow"
+    } else if narrow {
+        "narrow-rail"
+    } else {
+        "rail"
     };
     div()
         .id(SharedString::from(id))
@@ -4197,9 +4231,10 @@ fn android_nav_rail_column(
                 let theme = *theme;
                 move |this, delta| {
                     let t = if expanded { delta } else { 1.0 - delta };
-                    this.w(px(
-                        navigation_rail::morph_width_eased(&theme, t).min(width_max)
-                    ))
+                    this.w(px(navigation_rail::morph_width_eased_kind(
+                        &theme, collapsed, t,
+                    )
+                    .min(width_max)))
                 }
             },
         )
@@ -4218,6 +4253,8 @@ fn android_nav_rail_column(
                 .on_click(cx.listener(move |this, _, _, cx| {
                     if in_flow {
                         this.wide_rail_mode = navigation_rail::toggle_mode(this.wide_rail_mode);
+                    } else if narrow {
+                        this.narrow_rail_mode = navigation_rail::toggle_mode(this.narrow_rail_mode);
                     } else {
                         this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
                     }
@@ -4233,7 +4270,8 @@ fn android_nav_rail_column(
             true,
             expanded,
             width_max,
-            if in_flow { "wide-inflow" } else { "rail" },
+            dest_prefix,
+            collapsed,
             cx,
         ))
 }
@@ -4250,6 +4288,7 @@ fn android_nav_rail(
         theme,
         mode,
         navigation_rail::RailExpandedLayout::Modal,
+        navigation_rail::RailCollapsedKind::Wide,
         200.0,
         cx,
     );
@@ -4291,6 +4330,69 @@ fn android_nav_rail(
         .child(
             div()
                 .id("nav-rail-window")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .h_full()
+                .when(expanded, |el| el.shadow_lg())
+                .child(column),
+        )
+}
+
+fn android_narrow_rail(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let mode = this.narrow_rail_mode;
+    let expanded = mode == navigation_rail::RailMode::Expanded;
+    let column = android_nav_rail_column(
+        this,
+        theme,
+        mode,
+        navigation_rail::RailExpandedLayout::Modal,
+        navigation_rail::RailCollapsedKind::Narrow,
+        200.0,
+        cx,
+    );
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let scrim_c = paint(navigation_rail::scrim(theme));
+    div()
+        .id("narrow-rail-stage")
+        .relative()
+        .w_full()
+        .min_h(px(240.))
+        .overflow_hidden()
+        .child(
+            div()
+                .id("narrow-rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        this.narrow_rail_mode = navigation_rail::RailMode::Collapsed;
+                        cx.notify();
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "android-narrow-rail-scrim-in"
+                    } else {
+                        "android-narrow-rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(t)
+                    },
+                ),
+        )
+        .child(
+            div()
+                .id("narrow-rail-window")
                 .absolute()
                 .top(px(0.))
                 .left(px(0.))
@@ -4404,6 +4506,7 @@ fn android_rail_dest_views(
     expanded: bool,
     width_max: f32,
     id_prefix: &'static str,
+    collapsed: navigation_rail::RailCollapsedKind,
     cx: &mut Context<CatalogView>,
 ) -> Vec<gpui::AnyElement> {
     let theme = *theme;
@@ -4433,7 +4536,8 @@ fn android_rail_dest_views(
                     Animation::new(Duration::from_millis(morph_ms)),
                     move |this, delta| {
                         let t = if expanded { delta } else { 1.0 - delta };
-                        let rail_w = navigation_rail::morph_width_eased(&theme, t).min(width_max);
+                        let rail_w = navigation_rail::morph_width_eased_kind(&theme, collapsed, t)
+                            .min(width_max);
                         let m = navigation_rail::item_morph(&theme, t, rail_w);
                         this.w(px(m.dest_width_dp))
                             .h(px(m.dest_height_dp))
@@ -6149,6 +6253,7 @@ fn android_main(app: AndroidApp) {
                 rail_selected: navigation_rail::DEMO_SELECTED,
                 rail_mode: navigation_rail::DEMO_MODE,
                 wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
+                narrow_rail_mode: navigation_rail::NARROW_DEMO_MODE,
                 carousel_index: carousel::DEMO_INDEX,
                 carousel_layout: carousel::CarouselLayout::Hero,
                 carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),

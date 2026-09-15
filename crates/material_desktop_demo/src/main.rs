@@ -375,6 +375,7 @@ struct CatalogView {
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
     wide_rail_mode: navigation_rail::RailMode,
+    narrow_rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -441,6 +442,12 @@ impl CatalogView {
         self.typeahead_focus.focus(window, cx);
     }
 
+    fn ensure_in_page_typeahead(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if menu::typeahead_autofocus_in_page(true) && self.typeahead_host.is_none() {
+            self.focus_typeahead(LiveMenuHost::Cascade, window, cx);
+        }
+    }
+
     fn hover_live_parent(&mut self, host: LiveMenuHost, index: usize, cx: &mut Context<Self>) {
         let was = self.live_menu(host);
         let intent = self.live_menu_mut(host).hover_parent(index);
@@ -496,9 +503,10 @@ impl CatalogView {
 }
 
 impl Render for CatalogView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_carousel_fling(cx);
         self.tick_snack(cx);
+        self.ensure_in_page_typeahead(window, cx);
         let theme = self.theme();
         let c = theme.color;
         let bar = top_app_bar::resolve(&theme);
@@ -877,6 +885,7 @@ fn catalog_body(
         .child(wide_rail_icon_hero(this, theme, cx))
         .child(wide_rail_in_flow_hero(this, theme, cx))
         .child(nav_rail_hero(this, theme, cx))
+        .child(narrow_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
             div()
@@ -1579,8 +1588,12 @@ fn desktop_live_cascade(
             apply_live_menu_action(this, host, action, cx);
         }))
         .when(host != LiveMenuHost::Overlay, |el| {
-            el.on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                if !*hovered {
+            el.on_hover(cx.listener(move |this, hovered: &bool, window, cx| {
+                if *hovered {
+                    if host == LiveMenuHost::Cascade {
+                        this.focus_typeahead(LiveMenuHost::Cascade, window, cx);
+                    }
+                } else {
                     this.live_menu_mut(host).hover_leave();
                     cx.notify();
                 }
@@ -5038,6 +5051,7 @@ fn nav_rail_static_column(
             false,
             false,
             "wide-rail",
+            navigation_rail::RailCollapsedKind::Wide,
             cx,
         ))
 }
@@ -5060,6 +5074,7 @@ fn wide_rail_in_flow_hero(
             theme,
             this.wide_rail_mode,
             navigation_rail::RailExpandedLayout::Standard,
+            navigation_rail::RailCollapsedKind::Wide,
             cx,
         ))
         .child(
@@ -5131,6 +5146,72 @@ fn nav_rail_hero(
                     theme,
                     this.rail_mode,
                     navigation_rail::RailExpandedLayout::Modal,
+                    navigation_rail::RailCollapsedKind::Wide,
+                    cx,
+                )),
+        )
+}
+
+fn narrow_rail_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let expanded = this.narrow_rail_mode == navigation_rail::RailMode::Expanded;
+    let scrim_c = paint(navigation_rail::scrim(theme));
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    div()
+        .id("narrow-rail-stage")
+        .relative()
+        .w_full()
+        .min_h(px(280.))
+        .overflow_hidden()
+        .child(
+            div()
+                .id("narrow-rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        this.narrow_rail_mode = navigation_rail::RailMode::Collapsed;
+                        cx.notify();
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "narrow-rail-scrim-in"
+                    } else {
+                        "narrow-rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(
+                            navigation_rail::scrim_opacity_for(
+                                navigation_rail::RailExpandedLayout::Modal,
+                                t,
+                            ) / navigation_rail::SCRIM_OPACITY,
+                        )
+                    },
+                ),
+        )
+        .child(
+            div()
+                .id("narrow-rail-window")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .h_full()
+                .when(expanded, |el| el.shadow_lg())
+                .child(nav_rail_column(
+                    this,
+                    theme,
+                    this.narrow_rail_mode,
+                    navigation_rail::RailExpandedLayout::Modal,
+                    navigation_rail::RailCollapsedKind::Narrow,
                     cx,
                 )),
         )
@@ -5141,22 +5222,28 @@ fn nav_rail_column(
     theme: &Theme,
     mode: navigation_rail::RailMode,
     layout: navigation_rail::RailExpandedLayout,
+    collapsed: navigation_rail::RailCollapsedKind,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let rail = navigation_rail::resolve_mode(theme, mode);
+    let rail = navigation_rail::resolve_mode_kind(theme, mode, collapsed);
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
     let position = navigation_rail::icon_position_for_mode(mode);
     let theme = *theme;
     let in_flow = layout.in_flow();
+    let narrow = collapsed.is_narrow();
     let id = if in_flow {
         "wide-inflow-rail"
+    } else if narrow {
+        "narrow-rail"
     } else {
         "nav-rail"
     };
     let fab_id = if in_flow {
         "wide-inflow-fab"
+    } else if narrow {
+        "narrow-rail-fab"
     } else {
         "rail-fab"
     };
@@ -5166,10 +5253,23 @@ fn nav_rail_column(
         } else {
             "wide-inflow-collapse"
         }
+    } else if narrow {
+        if expanded {
+            "narrow-rail-expand"
+        } else {
+            "narrow-rail-collapse"
+        }
     } else if expanded {
         "rail-expand"
     } else {
         "rail-collapse"
+    };
+    let dest_prefix = if in_flow {
+        "wide-inflow"
+    } else if narrow {
+        "narrow-rail"
+    } else {
+        "rail"
     };
     div()
         .id(SharedString::from(id))
@@ -5186,7 +5286,9 @@ fn nav_rail_column(
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
-                this.w(px(navigation_rail::morph_width_eased(&theme, t)))
+                this.w(px(navigation_rail::morph_width_eased_kind(
+                    &theme, collapsed, t,
+                )))
             },
         )
         .child(
@@ -5204,6 +5306,8 @@ fn nav_rail_column(
                 .on_click(cx.listener(move |this, _, _, cx| {
                     if in_flow {
                         this.wide_rail_mode = navigation_rail::toggle_mode(this.wide_rail_mode);
+                    } else if narrow {
+                        this.narrow_rail_mode = navigation_rail::toggle_mode(this.narrow_rail_mode);
                     } else {
                         this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
                     }
@@ -5218,7 +5322,8 @@ fn nav_rail_column(
             selected,
             true,
             expanded,
-            if in_flow { "wide-inflow" } else { "rail" },
+            dest_prefix,
+            collapsed,
             cx,
         ))
 }
@@ -5328,6 +5433,7 @@ fn nav_rail_dest_views(
     animate: bool,
     expanded: bool,
     id_prefix: &'static str,
+    collapsed: navigation_rail::RailCollapsedKind,
     cx: &mut Context<CatalogView>,
 ) -> Vec<gpui::AnyElement> {
     let theme = *theme;
@@ -5357,7 +5463,7 @@ fn nav_rail_dest_views(
                     Animation::new(Duration::from_millis(morph_ms)),
                     move |this, delta| {
                         let t = if expanded { delta } else { 1.0 - delta };
-                        let rail_w = navigation_rail::morph_width_eased(&theme, t);
+                        let rail_w = navigation_rail::morph_width_eased_kind(&theme, collapsed, t);
                         let m = navigation_rail::item_morph(&theme, t, rail_w);
                         this.w(px(m.dest_width_dp))
                             .h(px(m.dest_height_dp))
@@ -6104,6 +6210,7 @@ fn main() {
                     rail_selected: navigation_rail::DEMO_SELECTED,
                     rail_mode: navigation_rail::DEMO_MODE,
                     wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
+                    narrow_rail_mode: navigation_rail::NARROW_DEMO_MODE,
                     carousel_index: carousel::DEMO_INDEX,
                     carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
@@ -6417,6 +6524,8 @@ mod tests {
         assert_eq!(chip::press_t_anim(true, 0.5), 0.5);
         assert_eq!(chip::press_ms(&theme), 350);
         assert!(menu::TYPEAHEAD_AUTOFOCUS);
+        assert!(menu::typeahead_autofocus_in_page(true));
+        assert!(!menu::typeahead_autofocus_in_page(false));
         assert_eq!(
             menu::typeahead_autofocus_kind(false, true, false, false),
             Some(menu::GroupedPopupKind::StandardOverflow)
@@ -6479,6 +6588,28 @@ mod tests {
             navigation_rail::RailExpandedLayout::Standard
         ));
         assert!((navigation_rail::morph_width_dp(0.0) - 96.0).abs() < 0.01);
+        assert_eq!(
+            navigation_rail::RailCollapsedKind::Narrow.width_dp(),
+            navigation_rail::WIDTH_DP
+        );
+        assert!(
+            (navigation_rail::morph_width_eased_kind(
+                &theme,
+                navigation_rail::RailCollapsedKind::Narrow,
+                0.0
+            ) - 80.0)
+                .abs()
+                < 0.01
+        );
+        assert_eq!(
+            navigation_rail::resolve_mode_kind(
+                &theme,
+                navigation_rail::RailMode::Collapsed,
+                navigation_rail::RailCollapsedKind::Narrow
+            )
+            .width_dp,
+            80.0
+        );
         assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
         let morph = navigation_rail::item_morph(&theme, 0.2, 150.0);
         assert!(morph.icon_box_w_dp > 24.0 && morph.icon_box_w_dp < 56.0);

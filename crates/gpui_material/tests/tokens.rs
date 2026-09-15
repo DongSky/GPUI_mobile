@@ -792,7 +792,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-nav-rail=\"1\""));
     assert!(html.contains("data-hero=\"wide-rail\""));
     assert!(html.contains("data-hero=\"wide-rail-inflow\""));
+    assert!(html.contains("data-hero=\"wide-rail-narrow\""));
     assert!(html.contains("data-rail-layout=\"standard\""));
+    assert!(html.contains("data-rail-layout=\"narrow\""));
+    assert!(html.contains("data-narrow=\"1\""));
+    assert!(html.contains("data-collapsed-width=\"80\""));
     assert!(html.contains("data-rail-inflow-body=\"1\""));
     assert!(html.contains("data-icon-position=\"top\""));
     assert!(html.contains("data-icon-position=\"start\""));
@@ -825,6 +829,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-menu-icon=\"I\""));
     assert!(html.contains("data-hero=\"menu-submenu\""));
     assert!(html.contains("data-menu-cascade=\"1\""));
+    assert!(html.contains(
+        r#"data-menu-cascade="1" data-open="1" data-typeahead="1" data-typeahead-autofocus="1""#
+    ));
     assert!(html.contains("data-menu-submenu=\"1\""));
     assert!(html.contains("data-submenu-trigger=\"1\""));
     assert!(html.contains("data-typeahead=\"1\""));
@@ -1021,6 +1028,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("lerp")
             && e.notes.contains("in-flow")
             && e.notes.contains("96")
+            && e.notes.contains("narrow")
+            && e.notes.contains("80")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1035,6 +1044,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("200ms")
             && e.notes.contains("GPUI")
             && e.notes.contains("autofocus")
+            && e.notes.contains("in-page")
     }));
     assert!(
         !INVENTORY
@@ -1435,6 +1445,8 @@ fn expressive_chip_tokens() {
     assert_eq!(chip::press_t_anim(false, 1.0), 0.0);
     assert_eq!(chip::press_ms(&theme), theme.motion.spatial_fast_ms);
     assert!(menu::TYPEAHEAD_AUTOFOCUS);
+    assert!(menu::typeahead_autofocus_in_page(true));
+    assert!(!menu::typeahead_autofocus_in_page(false));
     assert_eq!(
         menu::typeahead_autofocus_kind(false, true, false, false),
         Some(menu::GroupedPopupKind::StandardOverflow)
@@ -1673,6 +1685,28 @@ fn expressive_wide_rail_icon_position() {
     assert!((navigation_rail::morph_width_eased(&theme, 0.0) - 96.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_eased(&theme, 1.0) - 220.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_narrow_dp(0.0) - 80.0).abs() < 0.01);
+    assert_eq!(navigation_rail::RailCollapsedKind::Narrow.width_dp(), 80.0);
+    assert_eq!(navigation_rail::RailCollapsedKind::Wide.width_dp(), 96.0);
+    assert_eq!(navigation_rail::RailCollapsedKind::Narrow.label(), "narrow");
+    assert!(navigation_rail::RailCollapsedKind::Narrow.is_narrow());
+    assert_eq!(
+        navigation_rail::resolve_mode_kind(
+            &theme,
+            navigation_rail::RailMode::Collapsed,
+            navigation_rail::RailCollapsedKind::Narrow
+        )
+        .width_dp,
+        80.0
+    );
+    assert!(
+        (navigation_rail::morph_width_eased_kind(
+            &theme,
+            navigation_rail::RailCollapsedKind::Narrow,
+            0.0
+        ) - 80.0)
+            .abs()
+            < 0.01
+    );
     assert_eq!(navigation_rail::RailMode::Collapsed.width_dp(), 96.0);
     assert_eq!(navigation_rail::RailMode::Collapsed.narrow_width_dp(), 80.0);
     assert_eq!(

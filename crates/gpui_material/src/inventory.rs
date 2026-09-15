@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; live Top→Start iconPosition lerp (spatial-fast); wide collapsed 96 / narrow 80 token; in-flow standard WideNavigationRail 96↔220 no scrim; expanded 220–360 modal overlay 96 collapsed + 32% scrim; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
+        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; live Top→Start iconPosition lerp (spatial-fast); wide collapsed 96 / live narrow modal 80↔220; in-flow standard WideNavigationRail 96↔220 no scrim; expanded 220–360 modal overlay 96 collapsed + 32% scrim; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Menus",
         docs: "https://m3.material.io/components/menus/specs",
         parity: Parity::Done,
-        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + GPUI/catalog hover-open 200ms (MenuOpenDelay) + WAI-ARIA typeahead (cascade autofocus when overflow/split/overlay opens); overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; overflow/split trailing menus use the same grouped 2dp + More flyout (not a single 16dp shell); horizontal 2dp pills (selected full-round) + icon-only 52dp",
+        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + GPUI/catalog hover-open 200ms (MenuOpenDelay) + WAI-ARIA typeahead (cascade autofocus when overflow/split/overlay opens and on the in-page submenu); overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; overflow/split trailing menus use the same grouped 2dp + More flyout (not a single 16dp shell); horizontal 2dp pills (selected full-round) + icon-only 52dp",
     },
     ComponentEntry {
         name: "Slider",

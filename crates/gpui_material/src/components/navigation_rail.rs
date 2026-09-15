@@ -113,8 +113,47 @@ impl RailExpandedLayout {
 
 pub const WIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
 pub const MODAL_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
+/// Live optional narrow modal (`NarrowContainerWidth` 80).
+pub const NARROW_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
+pub const NARROW_DEMO_MODE: RailMode = RailMode::Collapsed;
 /// Placeholder content that shifts when the standard rail expands in-flow.
 pub const IN_FLOW_BODY: &str = "Inbox";
+
+/// Compose collapsed width: Wide `ContainerWidth` 96 vs optional `NarrowContainerWidth` 80.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RailCollapsedKind {
+    /// WideNavigationRail default collapsed width (96).
+    Wide,
+    /// Optional `NarrowContainerWidth` (80).
+    Narrow,
+}
+
+impl RailCollapsedKind {
+    pub const fn width_dp(self) -> f32 {
+        match self {
+            Self::Wide => WIDE_COLLAPSED_WIDTH_DP,
+            Self::Narrow => WIDTH_DP,
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Wide => "wide",
+            Self::Narrow => "narrow",
+        }
+    }
+
+    pub const fn is_narrow(self) -> bool {
+        matches!(self, Self::Narrow)
+    }
+
+    pub const fn data_narrow(self) -> &'static str {
+        if self.is_narrow() { "1" } else { "0" }
+    }
+}
+
+pub const WIDE_DEMO_KIND: RailCollapsedKind = RailCollapsedKind::Wide;
+pub const NARROW_DEMO_KIND: RailCollapsedKind = RailCollapsedKind::Narrow;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavRailAppearance {
@@ -155,8 +194,20 @@ pub fn resolve(theme: &Theme) -> NavRailAppearance {
 }
 
 pub fn resolve_mode(theme: &Theme, mode: RailMode) -> NavRailAppearance {
+    resolve_mode_kind(theme, mode, RailCollapsedKind::Wide)
+}
+
+/// Wide 96 or optional narrow 80 collapsed width.
+pub fn resolve_mode_kind(
+    theme: &Theme,
+    mode: RailMode,
+    collapsed: RailCollapsedKind,
+) -> NavRailAppearance {
     let mut a = resolve(theme);
-    a.width_dp = mode.width_dp();
+    a.width_dp = match mode {
+        RailMode::Collapsed => collapsed.width_dp(),
+        RailMode::Expanded => EXPANDED_WIDTH_DP,
+    };
     a
 }
 
@@ -420,7 +471,16 @@ pub fn morph_width_narrow_dp(t: f32) -> f32 {
 
 /// [`morph_width_dp`] after spatial-fast (catalog / GPUI width clock).
 pub fn morph_width_eased(theme: &Theme, t: f32) -> f32 {
-    morph_width_dp(icon_position_eased(theme, t))
+    morph_width_eased_kind(theme, RailCollapsedKind::Wide, t)
+}
+
+/// Spatial-fast width for Wide 96 or optional narrow 80 collapsed.
+pub fn morph_width_eased_kind(theme: &Theme, collapsed: RailCollapsedKind, t: f32) -> f32 {
+    morph_width_between(
+        collapsed.width_dp(),
+        EXPANDED_WIDTH_DP,
+        icon_position_eased(theme, t),
+    )
 }
 
 fn lerp(a: f32, b: f32, t: f32) -> f32 {

@@ -557,6 +557,8 @@ a {{ color: var(--primary); }}
 .nav-rail.expanded, .nav-rail[data-icon-position="start"] {{ width: 220px; align-items: stretch; }}
 .nav-rail[data-wide-collapsed="1"] {{ width: 96px; }}
 .nav-rail[data-wide-collapsed="1"] .dest {{ width: 96px; }}
+.nav-rail[data-narrow="1"]:not(.expanded):not([data-icon-position="start"]) {{ width: 80px; }}
+.nav-rail[data-narrow="1"]:not(.expanded):not([data-icon-position="start"]) .dest {{ width: 80px; }}
 .nav-rail.expanded .dest, .nav-rail[data-icon-position="start"] .dest {{
   width: auto; flex-direction: row; justify-content: flex-start; align-items: center;
   margin: 0 16px; padding: 0 16px; gap: 8px; height: 56px; border-radius: 28px;
@@ -1796,6 +1798,9 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         clearRailIconMorph(rail);
         var layout = rail.getAttribute("data-rail-layout") || "modal";
         rail.setAttribute("data-wide-collapsed", !exp && layout !== "narrow" ? "1" : "0");
+        if (layout === "narrow") {{
+          rail.setAttribute("data-narrow", "1");
+        }}
         if (fab) fab.textContent = exp ? "←" : "+";
         var stage = rail.closest(".rail-stage");
         if (stage && layout === "standard") {{
@@ -1896,7 +1901,10 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
   }}
   var hoverWhole = root.hasAttribute("data-menu-cascade") && !root.hasAttribute("data-menu-overlay");
   if (hoverWhole) {{
-    root.addEventListener("mouseenter", openSoon);
+    root.addEventListener("mouseenter", function () {{
+      openSoon();
+      focusTypeahead(root);
+    }});
   }} else if (trigger) {{
     trigger.addEventListener("mouseenter", openSoon);
   }}
@@ -1928,6 +1936,7 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
     }});
   }});
   root.setAttribute("tabindex", "0");
+  if (hoverWhole) focusTypeahead(root);
   root.addEventListener("keydown", function (ev) {{
     var open = root.getAttribute(flyAttr) === "1";
     var parentItems = itemList(root.querySelector("[data-menu-parent]"));
@@ -3826,7 +3835,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast). Narrow 80 remains a token only. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220 (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast). <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -3839,6 +3848,12 @@ fn chrome(theme: &Theme) -> String {
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
   <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-layout="modal" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  </div>
+</div>
+<div class="rail-stage" data-hero="wide-rail-narrow" data-rail-layout="narrow">
+  <div class="rail-scrim" data-rail-scrim="1" data-visible="0" style="background:{scrim}"></div>
+  <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="narrow" data-narrow="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{nw}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{nw}px">{inflow_fab}{top_dests}</div>
   </div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -3870,6 +3885,7 @@ fn chrome(theme: &Theme) -> String {
         rbg = rail.container.css_hex(),
         ew = expanded.width_dp,
         ww = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
+        nw = navigation_rail::WIDTH_DP,
         rail_dests = rail_dests,
         top_dests = top_dests,
         start_dests = start_dests,
@@ -4694,11 +4710,16 @@ fn paint_submenu_flyout(theme: &Theme, scheme: menu::MenuScheme) -> String {
 fn paint_submenu_cascade(theme: &Theme) -> String {
     let scheme = menu::MenuScheme::Standard;
     format!(
-        r#"<div class="menu-cascade" data-hero="menu-submenu" data-menu-cascade="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" style="gap:{gap}px">
+        r#"<div class="menu-cascade" data-hero="menu-submenu" data-menu-cascade="1" data-open="{open}" data-typeahead="1" data-typeahead-autofocus="{af}" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" tabindex="0" style="gap:{gap}px">
   {parent}
   {flyout}
 </div>"#,
         open = if menu::CASCADE_OPEN { "1" } else { "0" },
+        af = if menu::typeahead_autofocus_in_page(menu::CASCADE_OPEN) {
+            "1"
+        } else {
+            "0"
+        },
         gap = menu::SUBMENU_GAP_DP,
         delay = menu::HOVER_OPEN_DELAY_MS,
         parent = paint_vertical_menu_focus(
@@ -4807,7 +4828,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; overflow and split trailing menus use the same grouped 2dp shell + More flyout (not a single 16dp surface). More hover opens the End flyout after 200ms on catalog JS and GPUI hosts (click/keyboard stay immediate; More does not dismiss). Hover-open + WAI-ARIA typeahead (cascade autofocus when overflow/split opens). Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; overflow and split trailing menus use the same grouped 2dp shell + More flyout (not a single 16dp surface). More hover opens the End flyout after 200ms on catalog JS and GPUI hosts (click/keyboard stay immediate; More does not dismiss). Hover-open + WAI-ARIA typeahead (cascade autofocus when overflow/split/overlay opens and on the in-page submenu). Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}
