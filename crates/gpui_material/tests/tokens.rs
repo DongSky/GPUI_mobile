@@ -869,6 +869,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Hinted search text"));
     assert!(html.contains("data-search-view=\"1\""));
     assert!(html.contains("data-timepicker=\"1\""));
+    assert!(html.contains("data-time-scroll=\"1\""));
+    assert!(html.contains(r#"data-time-picker-style="scroll""#));
+    assert!(html.contains(r#"data-scroll-field="hour""#));
+    assert!(html.contains(r#"data-scroll-field="minute""#));
     assert!(html.contains("data-dial=\"minute\""));
     assert!(html.contains("data-progress=\"indeterminate\""));
     assert!(html.contains("data-progress=\"ptr\""));
@@ -1115,6 +1119,16 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("tonalColors")
             && e.notes.contains("Inside")
     }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Time picker"
+            && e.notes.contains("TimeScroll")
+            && e.notes.contains("ScrollField")
+            && e.notes.contains("vibrantColors")
+            && e.notes.contains("200dp")
+    }));
+    assert!(INVENTORY
+        .iter()
+        .any(|e| { e.name == "Motion tokens" && e.notes.contains("TimeScroll") }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Button group"
             && e.notes.contains("Standard")
@@ -2698,6 +2712,47 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::DayPeriod::Am
     );
     assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
+    assert_eq!(
+        time_picker::DEMO_STYLE,
+        time_picker::TimePickerStyle::Scroll
+    );
+    let scroll = time_picker::resolve_scroll(&theme);
+    assert_eq!(scroll.container, theme.color.primary_container);
+    assert_eq!(
+        scroll.field_container,
+        theme.color.surface_container_highest
+    );
+    assert_eq!(scroll.field_h_dp, time_picker::SCROLL_FIELD_H_DP);
+    assert_eq!(
+        scroll.field_corners.top_left,
+        time_picker::SCROLL_FIELD_CORNER_DP
+    );
+    assert_eq!(scroll.selected_style.name, "displayLargeEmphasized");
+    assert_eq!(scroll.unselected_style.name, "displayMedium");
+    let mut wheel = time_picker::TimeScrollState::demo();
+    assert_eq!(wheel.hour_value(), time_picker::DEMO_HOUR);
+    assert_eq!(wheel.minute_value(), time_picker::DEMO_MINUTE);
+    assert!((time_picker::hour_index(6) - 5.0).abs() < 1e-5);
+    assert_eq!(time_picker::hour_from_index(5), 6);
+    assert_eq!(time_picker::minute_from_index(30), 30);
+    assert_eq!(time_picker::wrap_index(-1, 12), 11);
+    assert!((time_picker::wrap_offset(-0.25, 12) - 11.75).abs() < 1e-5);
+    wheel.hour.apply_delta_dp(-time_picker::SCROLL_ITEM_H_DP);
+    assert_eq!(wheel.hour.selected_value(), 7);
+    let mut wrap_h = time_picker::ScrollField::hour(12);
+    wrap_h.apply_delta_dp(-time_picker::SCROLL_ITEM_H_DP);
+    assert_eq!(wrap_h.selected_value(), 1);
+    time_picker::apply_wheel(&mut wheel.minute, time_picker::SCROLL_ITEM_H_DP);
+    wheel.step_until_rest();
+    assert!(wheel.resting());
+    assert!((0..=59).contains(&wheel.minute_value()));
+    let slots = time_picker::ScrollField::hour(6).slots();
+    assert_eq!(
+        slots.len(),
+        (time_picker::SCROLL_SLOT_SPAN * 2 + 1) as usize
+    );
+    assert!(slots.iter().any(|s| s.selected && s.value == 6));
+    assert_eq!(time_picker::TimePickerStyle::Scroll.label(), "scroll");
     let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
     assert!(
         x > 80.0 && x < 130.0,

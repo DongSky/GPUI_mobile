@@ -67,7 +67,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Easing and duration",
         docs: "https://m3.material.io/styles/motion/easing-and-duration/tokens-specs",
         parity: Parity::Done,
-        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; shared FRAME_MS/FRAME_DT vsync clock for GPUI second-hand + carousel fling + list swipe fling",
+        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; shared FRAME_MS/FRAME_DT vsync clock for GPUI second-hand + TimeScroll ScrollField fling + carousel fling + list swipe fling",
     },
     ComponentEntry {
         name: "Button",
@@ -281,10 +281,10 @@ pub const INVENTORY: &[ComponentEntry] = &[
     },
     ComponentEntry {
         name: "Time picker",
-        material: "Time pickers (dial)",
+        material: "Time pickers (dial + TimeScroll)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change, continuous hour-face motion while the hour dial is showing, and a wall-clock ticking second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
+        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. Dial remains: 12-hour + minute polar face, analog hand spatial-fast lerp, wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",

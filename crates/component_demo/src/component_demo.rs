@@ -376,6 +376,8 @@ struct CatalogView {
     time_dial: DialFace,
     time_hand_from: f32,
     time_hand_gen: u32,
+    time_scroll: time_picker::TimeScrollState,
+    time_scroll_at: Option<Instant>,
 }
 
 impl CatalogView {
@@ -489,6 +491,27 @@ impl CatalogView {
         }
     }
 
+    fn tick_time_scroll(&mut self, cx: &mut Context<Self>) {
+        if self.time_scroll.resting() {
+            self.time_hour = self.time_scroll.hour_value();
+            self.time_minute = self.time_scroll.minute_value();
+            self.time_scroll_at = None;
+            return;
+        }
+        let now = Instant::now();
+        let dt = self
+            .time_scroll_at
+            .map(|t| now.duration_since(t).as_secs_f32())
+            .unwrap_or(time_picker::SCROLL_FRAME_DT);
+        self.time_scroll_at = Some(now);
+        self.time_scroll.step_live(dt);
+        self.time_hour = self.time_scroll.hour_value();
+        self.time_minute = self.time_scroll.minute_value();
+        if self.time_scroll.needs_frame() {
+            cx.notify();
+        }
+    }
+
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
         if !self.snack_state.visible {
             return;
@@ -536,6 +559,7 @@ impl Render for CatalogView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_carousel_fling(cx);
         self.tick_list_swipe(cx);
+        self.tick_time_scroll(cx);
         self.tick_snack(cx);
         self.ensure_in_page_typeahead(window, cx);
         let theme = self.theme();
@@ -1117,6 +1141,7 @@ fn catalog_body(
         .child(section_title(theme, "Search"))
         .child(android_search_bar(this, theme, cx))
         .child(section_title(theme, "Time picker"))
+        .child(android_time_scroll(this, theme, cx))
         .child(android_time_picker(this, theme, cx))
         .child(section_title(theme, "Date picker"))
         .child(android_docked_date(this, theme, &pick, &cells, cx))
@@ -5453,6 +5478,154 @@ fn android_search_bar(
         )
 }
 
+fn android_time_scroll(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = time_picker::resolve_scroll(theme);
+    div()
+        .w_full()
+        .p(px(time_picker::CONTAINER_PAD_DP))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .flex()
+        .flex_col()
+        .gap(px(16.))
+        .child(
+            div()
+                .text_size(px(a.title_style.size_sp))
+                .text_color(paint(a.header))
+                .child(time_picker::TITLE),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(time_picker::SCROLL_GAP_DP))
+                .child(android_scroll_field(
+                    this,
+                    cx,
+                    time_picker::ScrollKind::Hour,
+                    &a,
+                ))
+                .child(
+                    div()
+                        .mt(px(time_picker::SCROLL_COLON_OFFSET_Y_DP))
+                        .text_size(px(a.colon_style.size_sp))
+                        .font_weight(type_weight(a.colon_style))
+                        .text_color(paint(a.colon))
+                        .child(":"),
+                )
+                .child(android_scroll_field(
+                    this,
+                    cx,
+                    time_picker::ScrollKind::Minute,
+                    &a,
+                ))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(time_picker::PERIOD_GAP_DP))
+                        .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                            let selected = this.time_period == period;
+                            div()
+                                .id(SharedString::from(format!("scroll-{}", period.label())))
+                                .w(px(time_picker::PERIOD_W_DP))
+                                .h(px(time_picker::PERIOD_H_DP))
+                                .rounded(px(8.))
+                                .bg(paint(if selected {
+                                    a.period_selected_container
+                                } else {
+                                    a.period_idle_container
+                                }))
+                                .text_color(paint(if selected {
+                                    a.period_selected
+                                } else {
+                                    a.period_idle
+                                }))
+                                .font_weight(type_weight(a.period_style))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(period.label())
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.time_period = period;
+                                    cx.notify();
+                                }))
+                        })),
+                ),
+        )
+}
+
+fn android_scroll_field(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    kind: time_picker::ScrollKind,
+    a: &time_picker::TimeScrollAppearance,
+) -> impl IntoElement {
+    let field = match kind {
+        time_picker::ScrollKind::Hour => this.time_scroll.hour,
+        time_picker::ScrollKind::Minute => this.time_scroll.minute,
+    };
+    let slots = field.slots();
+    let item_h = a.item_h_dp;
+    div()
+        .id(SharedString::from(format!("scroll-field-{}", kind.label())))
+        .relative()
+        .w(px(a.field_w_dp))
+        .h(px(a.field_h_dp))
+        .rounded(px(a.field_corners.top_left))
+        .bg(paint(a.field_container))
+        .overflow_hidden()
+        .on_scroll_wheel(cx.listener(move |this, ev: &ScrollWheelEvent, _, cx| {
+            let dy = match ev.delta {
+                ScrollDelta::Pixels(p) => f32::from(p.y),
+                ScrollDelta::Lines(p) => p.y * item_h,
+            };
+            time_picker::apply_wheel(this.time_scroll.field_mut(kind), dy);
+            this.time_hour = this.time_scroll.hour_value();
+            this.time_minute = this.time_scroll.minute_value();
+            cx.notify();
+        }))
+        .children(slots.into_iter().map(|slot| {
+            let index = slot.index;
+            let selected = slot.selected;
+            let style = if selected {
+                a.selected_style
+            } else {
+                a.unselected_style
+            };
+            let color = if selected { a.selected } else { a.unselected };
+            div()
+                .id(SharedString::from(format!(
+                    "scroll-{}-{}",
+                    kind.label(),
+                    slot.label
+                )))
+                .absolute()
+                .left(px(0.))
+                .top(px(slot.y_dp))
+                .w(px(a.field_w_dp))
+                .h(px(a.item_h_dp))
+                .flex()
+                .items_center()
+                .justify_center()
+                .opacity(slot.opacity)
+                .text_size(px(style.size_sp))
+                .font_weight(type_weight(style))
+                .text_color(paint(color))
+                .child(slot.label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.time_scroll.field_mut(kind).snap_to_index(index);
+                    this.time_hour = this.time_scroll.hour_value();
+                    this.time_minute = this.time_scroll.minute_value();
+                    cx.notify();
+                }))
+        }))
+}
+
 fn android_time_picker(
     this: &CatalogView,
     theme: &Theme,
@@ -6847,6 +7020,8 @@ fn android_main(app: AndroidApp) {
                     time_picker::DEMO_MINUTE,
                 ),
                 time_hand_gen: 0,
+                time_scroll: time_picker::TimeScrollState::demo(),
+                time_scroll_at: None,
             })
         })
         .expect("failed to open window");

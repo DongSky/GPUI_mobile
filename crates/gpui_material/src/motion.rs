@@ -4,7 +4,8 @@
 //! Hosts without a GPUI animation clock can still evaluate the same curves
 //! (`emphasized_at`, `lerp`) and reuse the CSS strings in catalogs.
 //! Shared vsync tokens (`FRAME_MS` / `FRAME_DT`) drive the time-picker second
-//! hand, carousel fling integrator, and list swipe LazyColumn fling.
+//! hand, TimeScroll ScrollField fling, carousel fling integrator, and list
+//! swipe LazyColumn fling.
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MotionTokens {

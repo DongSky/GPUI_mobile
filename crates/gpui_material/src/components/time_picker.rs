@@ -1,7 +1,12 @@
-//! Time picker (12-hour dial). Specs: https://m3.material.io/components/time-pickers/specs
+//! Time picker (12-hour dial + Expressive TimeScroll).
+//! Specs: https://m3.material.io/components/time-pickers/specs
 //!
-//! Hour and minute faces plus an analog selector hand. GPUI/HTML interpolate
-//! the hand angle when the face or value changes (spatial-fast).
+//! Dial: hour and minute faces plus an analog selector hand. GPUI/HTML
+//! interpolate the hand angle when the face or value changes (spatial-fast).
+//!
+//! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
+//! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
+//! and `ScrollFieldDefaults.ScrollFieldHeight` 200. Dial remains available.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -328,12 +333,373 @@ pub fn hand_svg_d_at_angle(clock_dp: f32, angle_deg: f32, number_dp: f32) -> Str
     )
 }
 
-pub fn hand_svg_d(
-    clock_dp: f32,
-    face: DialFace,
-    hour: u8,
-    minute: u8,
-    number_dp: f32,
-) -> String {
+pub fn hand_svg_d(clock_dp: f32, face: DialFace, hour: u8, minute: u8, number_dp: f32) -> String {
     hand_svg_d_at_angle(clock_dp, hand_angle_deg(face, hour, minute), number_dp)
+}
+
+/// Compose `TimePicker` display mode. Dial is baseline; Scroll is Expressive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimePickerStyle {
+    Dial,
+    Scroll,
+}
+
+impl TimePickerStyle {
+    pub const ALL: [Self; 2] = [Self::Dial, Self::Scroll];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Dial => "dial",
+            Self::Scroll => "scroll",
+        }
+    }
+}
+
+/// Catalog / host hero uses Compose `TimeScroll` (recommended).
+pub const DEMO_STYLE: TimePickerStyle = TimePickerStyle::Scroll;
+
+/// Compose `ScrollFieldDefaults.ScrollFieldHeight` (three-item window).
+pub const SCROLL_FIELD_H_DP: f32 = 200.0;
+/// Time-selection sample width (`Modifier.size(width = 100.dp, …)`).
+pub const SCROLL_FIELD_W_DP: f32 = 100.0;
+pub const SCROLL_VISIBLE: u8 = 3;
+pub const SCROLL_ITEM_H_DP: f32 = SCROLL_FIELD_H_DP / SCROLL_VISIBLE as f32;
+/// Official time-selection sample: 8dp between fields, 12dp row pad.
+pub const SCROLL_GAP_DP: f32 = 8.0;
+pub const SCROLL_PAD_DP: f32 = 12.0;
+/// `TimePickerDefaults.shapes().timeFieldShape` / extra-large.
+pub const SCROLL_FIELD_CORNER_DP: f32 = 28.0;
+/// Colon `offset(y = (-4).dp)` in the Compose time-selection sample.
+pub const SCROLL_COLON_OFFSET_Y_DP: f32 = -4.0;
+pub const HOUR_COUNT: usize = 12;
+pub const MINUTE_COUNT: usize = 60;
+/// Same LazyColumn-style decay as list swipe / carousel.
+pub const SCROLL_FLING_DECAY: f32 = 2.0;
+pub const SCROLL_FLING_REST: f32 = 0.35;
+pub const SCROLL_SNAP_STIFFNESS: f32 = 14.0;
+pub const SCROLL_FRAME_DT: f32 = crate::motion::FRAME_DT;
+/// Slots painted above/below the selected item (plus the center).
+pub const SCROLL_SLOT_SPAN: i32 = 2;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollKind {
+    Hour,
+    Minute,
+}
+
+impl ScrollKind {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Hour => "hour",
+            Self::Minute => "minute",
+        }
+    }
+
+    pub const fn count(self) -> usize {
+        match self {
+            Self::Hour => HOUR_COUNT,
+            Self::Minute => MINUTE_COUNT,
+        }
+    }
+}
+
+/// Compose `rememberScrollFieldState` (wrapping wheel).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ScrollField {
+    pub kind: ScrollKind,
+    /// Item-space offset; 0 centers index 0. Always wrapped into `0..count`.
+    pub offset: f32,
+    /// Items per second (positive = later values move toward center).
+    pub velocity: f32,
+}
+
+impl ScrollField {
+    pub fn hour(hour: u8) -> Self {
+        Self {
+            kind: ScrollKind::Hour,
+            offset: hour_index(hour),
+            velocity: 0.0,
+        }
+    }
+
+    pub fn minute(minute: u8) -> Self {
+        Self {
+            kind: ScrollKind::Minute,
+            offset: minute_index(minute),
+            velocity: 0.0,
+        }
+    }
+
+    pub fn count(self) -> usize {
+        self.kind.count()
+    }
+
+    pub fn selected_index(self) -> usize {
+        wrap_index(self.offset.round() as i32, self.count())
+    }
+
+    pub fn selected_value(self) -> u8 {
+        match self.kind {
+            ScrollKind::Hour => hour_from_index(self.selected_index()),
+            ScrollKind::Minute => minute_from_index(self.selected_index()),
+        }
+    }
+
+    pub fn apply_delta_dp(&mut self, dy_dp: f32) {
+        let count = self.count();
+        self.offset = wrap_offset(self.offset - dy_dp / SCROLL_ITEM_H_DP, count);
+    }
+
+    pub fn impulse(&mut self, items_per_sec: f32) {
+        self.velocity += items_per_sec;
+    }
+
+    pub fn snap_to_index(&mut self, index: usize) {
+        let count = self.count();
+        let target = wrap_index(index as i32, count) as f32;
+        self.offset = shortest_target(self.offset, target, count);
+        self.velocity = 0.0;
+    }
+
+    pub fn step(&mut self, dt_s: f32) -> f32 {
+        let dt = dt_s.clamp(0.0, 0.05);
+        let count = self.count();
+        if self.velocity.abs() >= SCROLL_FLING_REST {
+            self.offset = wrap_offset(self.offset + self.velocity * dt, count);
+            self.velocity *= (-SCROLL_FLING_DECAY * dt).exp();
+            if self.velocity.abs() < SCROLL_FLING_REST {
+                self.velocity = 0.0;
+            }
+        } else {
+            self.velocity = 0.0;
+            let target = self.offset.round();
+            let delta = shortest_delta(self.offset, target, count);
+            if delta.abs() < 0.002 {
+                self.offset = wrap_offset(target, count);
+            } else {
+                self.offset = wrap_offset(
+                    self.offset + delta * (1.0 - (-SCROLL_SNAP_STIFFNESS * dt).exp()),
+                    count,
+                );
+            }
+        }
+        self.offset
+    }
+
+    pub fn step_live(&mut self, dt_s: f32) -> f32 {
+        self.step(dt_s)
+    }
+
+    pub fn resting(self) -> bool {
+        self.velocity.abs() < SCROLL_FLING_REST
+            && shortest_delta(self.offset, self.offset.round(), self.count()).abs() < 0.002
+    }
+
+    pub fn needs_frame(self) -> bool {
+        !self.resting()
+    }
+
+    pub fn slots(self) -> Vec<ScrollSlot> {
+        let count = self.count();
+        let center = (SCROLL_FIELD_H_DP - SCROLL_ITEM_H_DP) / 2.0;
+        let mut out = Vec::new();
+        let base = self.offset.floor() as i32;
+        for rel in -SCROLL_SLOT_SPAN..=SCROLL_SLOT_SPAN {
+            let logical = base + rel;
+            let index = wrap_index(logical, count);
+            let y = (logical as f32 - self.offset) * SCROLL_ITEM_H_DP + center;
+            let dist = (logical as f32 - self.offset).abs();
+            let selected = dist < 0.5;
+            let opacity = (1.0 - dist * 0.42).clamp(0.28, 1.0);
+            let value = match self.kind {
+                ScrollKind::Hour => hour_from_index(index),
+                ScrollKind::Minute => minute_from_index(index),
+            };
+            out.push(ScrollSlot {
+                index,
+                value,
+                label: match self.kind {
+                    ScrollKind::Hour => format_hour_field(value),
+                    ScrollKind::Minute => format_minute_field(value),
+                },
+                y_dp: y,
+                selected,
+                opacity,
+            });
+        }
+        out
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScrollSlot {
+    pub index: usize,
+    pub value: u8,
+    pub label: String,
+    pub y_dp: f32,
+    pub selected: bool,
+    pub opacity: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeScrollState {
+    pub hour: ScrollField,
+    pub minute: ScrollField,
+}
+
+impl TimeScrollState {
+    pub fn demo() -> Self {
+        Self {
+            hour: ScrollField::hour(DEMO_HOUR),
+            minute: ScrollField::minute(DEMO_MINUTE),
+        }
+    }
+
+    pub fn hour_value(self) -> u8 {
+        self.hour.selected_value()
+    }
+
+    pub fn minute_value(self) -> u8 {
+        self.minute.selected_value()
+    }
+
+    pub fn field_mut(&mut self, kind: ScrollKind) -> &mut ScrollField {
+        match kind {
+            ScrollKind::Hour => &mut self.hour,
+            ScrollKind::Minute => &mut self.minute,
+        }
+    }
+
+    pub fn step_live(&mut self, dt_s: f32) -> bool {
+        self.hour.step_live(dt_s);
+        self.minute.step_live(dt_s);
+        self.needs_frame()
+    }
+
+    pub fn resting(self) -> bool {
+        self.hour.resting() && self.minute.resting()
+    }
+
+    pub fn needs_frame(self) -> bool {
+        self.hour.needs_frame() || self.minute.needs_frame()
+    }
+
+    pub fn step_until_rest(&mut self) {
+        for _ in 0..180 {
+            if self.resting() {
+                break;
+            }
+            self.step_live(SCROLL_FRAME_DT);
+        }
+        if !self.resting() {
+            self.hour.snap_to_index(self.hour.selected_index());
+            self.minute.snap_to_index(self.minute.selected_index());
+        }
+    }
+}
+
+/// Wheel / trackpad: add leftover velocity (host ticks `step_live`).
+pub fn apply_wheel(field: &mut ScrollField, dy_dp: f32) {
+    // Scroll down (positive) advances the wheel toward later values.
+    field.impulse(dy_dp / SCROLL_ITEM_H_DP * 8.0);
+    field.apply_delta_dp(-dy_dp * 0.15);
+}
+
+pub fn hour_index(hour: u8) -> f32 {
+    (hour.clamp(1, 12) - 1) as f32
+}
+
+pub fn minute_index(minute: u8) -> f32 {
+    minute.min(59) as f32
+}
+
+pub fn hour_from_index(index: usize) -> u8 {
+    ((index % HOUR_COUNT) + 1) as u8
+}
+
+pub fn minute_from_index(index: usize) -> u8 {
+    (index % MINUTE_COUNT) as u8
+}
+
+pub fn wrap_index(index: i32, count: usize) -> usize {
+    let c = count as i32;
+    (((index % c) + c) % c) as usize
+}
+
+pub fn wrap_offset(offset: f32, count: usize) -> f32 {
+    let c = count as f32;
+    let mut o = offset % c;
+    if o < 0.0 {
+        o += c;
+    }
+    o
+}
+
+fn shortest_delta(from: f32, to: f32, count: usize) -> f32 {
+    let c = count as f32;
+    let mut d = to - from;
+    if d > c / 2.0 {
+        d -= c;
+    } else if d < -c / 2.0 {
+        d += c;
+    }
+    d
+}
+
+fn shortest_target(from: f32, to: f32, count: usize) -> f32 {
+    wrap_offset(from + shortest_delta(from, to, count), count)
+}
+
+/// Compose `TimePickerDefaults.vibrantColors()` + `TimeScroll` field tokens.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeScrollAppearance {
+    pub corners: Corners,
+    pub container: Argb,
+    pub header: Argb,
+    pub field_container: Argb,
+    pub field_corners: Corners,
+    pub selected: Argb,
+    pub unselected: Argb,
+    pub colon: Argb,
+    pub period_selected_container: Argb,
+    pub period_selected: Argb,
+    pub period_idle_container: Argb,
+    pub period_idle: Argb,
+    pub elevation_dp: f32,
+    pub field_w_dp: f32,
+    pub field_h_dp: f32,
+    pub item_h_dp: f32,
+    pub title_style: TypeStyle,
+    pub selected_style: TypeStyle,
+    pub unselected_style: TypeStyle,
+    pub colon_style: TypeStyle,
+    pub period_style: TypeStyle,
+}
+
+/// Vibrant TimeScroll (recommended Expressive hero).
+pub fn resolve_scroll(theme: &Theme) -> TimeScrollAppearance {
+    let c = theme.color;
+    TimeScrollAppearance {
+        corners: Corners::all(CORNER_DP),
+        container: c.primary_container,
+        header: c.on_primary_container,
+        field_container: c.surface_container_highest,
+        field_corners: Corners::all(SCROLL_FIELD_CORNER_DP),
+        selected: c.on_surface,
+        unselected: c.on_surface_variant,
+        colon: c.on_primary_container,
+        period_selected_container: c.on_primary_container,
+        period_selected: c.primary_container,
+        period_idle_container: c.primary,
+        period_idle: c.on_primary,
+        elevation_dp: theme.elevation.level3,
+        field_w_dp: SCROLL_FIELD_W_DP,
+        field_h_dp: SCROLL_FIELD_H_DP,
+        item_h_dp: SCROLL_ITEM_H_DP,
+        title_style: theme.typography.label_large,
+        selected_style: theme.typography.display_large.emphasized(),
+        unselected_style: theme.typography.display_medium,
+        colon_style: theme.typography.display_large,
+        period_style: theme.typography.title_medium.emphasized(),
+    }
 }

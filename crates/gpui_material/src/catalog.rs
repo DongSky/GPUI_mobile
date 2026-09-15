@@ -274,6 +274,20 @@ a {{ color: var(--primary); }}
 .period button {{
   width: 52px; height: 36px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;
 }}
+.time-scroll {{
+  display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
+}}
+.time-scroll .scroll-row {{ display: flex; align-items: center; gap: 8px; }}
+.time-scroll .scroll-field {{
+  position: relative; overflow: hidden; flex: 0 0 auto; touch-action: none;
+}}
+.time-scroll .scroll-item {{
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: center;
+  user-select: none; cursor: pointer;
+}}
+.time-scroll .scroll-colon {{
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
@@ -1640,6 +1654,139 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
     }}
     tickSecond();
   }}
+}});
+document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
+  var itemH = Number(hero.getAttribute("data-scroll-item-h") || "66.666");
+  var decay = Number(hero.getAttribute("data-scroll-fling-decay") || "2");
+  var rest = Number(hero.getAttribute("data-scroll-fling-rest") || "0.35");
+  var stiff = Number(hero.getAttribute("data-scroll-snap") || "14");
+  function wrap(off, count) {{
+    var o = off % count;
+    return o < 0 ? o + count : o;
+  }}
+  function shortest(from, to, count) {{
+    var d = to - from;
+    if (d > count / 2) d -= count;
+    else if (d < -count / 2) d += count;
+    return d;
+  }}
+  function paintField(field) {{
+    var count = Number(field.getAttribute("data-count") || "12");
+    var off = Number(field.getAttribute("data-offset") || "0");
+    var kind = field.getAttribute("data-scroll-field");
+    var center = (Number(field.getAttribute("data-field-h") || "200") - itemH) / 2;
+    var base = Math.floor(off);
+    field.querySelectorAll(".scroll-item").forEach(function (el) {{
+      var rel = Number(el.getAttribute("data-rel") || "0");
+      var logical = base + rel;
+      var idx = ((logical % count) + count) % count;
+      var value = kind === "hour" ? (idx % 12) + 1 : idx % 60;
+      var y = (logical - off) * itemH + center;
+      var dist = Math.abs(logical - off);
+      var selected = dist < 0.5;
+      var opacity = Math.max(0.28, Math.min(1, 1 - dist * 0.42));
+      var label = kind === "hour"
+        ? String(value).padStart(2, "0")
+        : String(value).padStart(2, "0");
+      el.style.top = y + "px";
+      el.style.opacity = String(opacity);
+      el.style.fontWeight = selected ? "500" : "400";
+      el.style.fontSize = selected ? "57px" : "45px";
+      el.setAttribute("data-index", String(idx));
+      el.setAttribute("data-value", String(value));
+      el.setAttribute("data-selected", selected ? "1" : "0");
+      el.textContent = label;
+    }});
+    field.setAttribute("data-offset", String(off));
+    var selectedIdx = Math.round(off);
+    selectedIdx = ((selectedIdx % count) + count) % count;
+    var selectedVal = kind === "hour" ? (selectedIdx % 12) + 1 : selectedIdx % 60;
+    hero.setAttribute(kind === "hour" ? "data-hour" : "data-minute", String(selectedVal));
+  }}
+  hero.querySelectorAll("[data-scroll-field]").forEach(function (field) {{
+    var count = Number(field.getAttribute("data-count") || "12");
+    var vel = 0, dragging = false, lastY = 0, lastT = 0, raf = 0, last = 0;
+    function setOff(next) {{
+      field.setAttribute("data-offset", String(wrap(next, count)));
+      paintField(field);
+    }}
+    function loop(now) {{
+      if (last) {{
+        var dt = Math.min(0.05, (now - last) / 1000);
+        var off = Number(field.getAttribute("data-offset") || "0");
+        if (Math.abs(vel) >= rest) {{
+          off = wrap(off + vel * dt, count);
+          vel *= Math.exp(-decay * dt);
+          if (Math.abs(vel) < rest) vel = 0;
+        }} else {{
+          vel = 0;
+          var target = Math.round(off);
+          var d = shortest(off, target, count);
+          if (Math.abs(d) < 0.002) off = wrap(target, count);
+          else off = wrap(off + d * (1 - Math.exp(-stiff * dt)), count);
+        }}
+        setOff(off);
+      }}
+      last = now;
+      var still = Math.abs(vel) >= rest;
+      var offNow = Number(field.getAttribute("data-offset") || "0");
+      var dNow = shortest(offNow, Math.round(offNow), count);
+      if (still || Math.abs(dNow) >= 0.002) raf = requestAnimationFrame(loop);
+      else raf = 0;
+    }}
+    function kick() {{
+      if (!raf) {{
+        last = 0;
+        raf = requestAnimationFrame(loop);
+      }}
+    }}
+    field.addEventListener("wheel", function (ev) {{
+      ev.preventDefault();
+      vel += ev.deltaY / itemH * 8;
+      setOff(Number(field.getAttribute("data-offset") || "0") + ev.deltaY * 0.15 / itemH);
+      kick();
+    }}, {{ passive: false }});
+    field.addEventListener("pointerdown", function (ev) {{
+      dragging = true;
+      lastY = ev.clientY;
+      lastT = performance.now();
+      vel = 0;
+      field.setPointerCapture(ev.pointerId);
+    }});
+    field.addEventListener("pointermove", function (ev) {{
+      if (!dragging) return;
+      var now = performance.now();
+      var dy = ev.clientY - lastY;
+      var dt = Math.max(0.008, (now - lastT) / 1000);
+      vel = -dy / itemH / dt * 0.35;
+      setOff(Number(field.getAttribute("data-offset") || "0") - dy / itemH);
+      lastY = ev.clientY;
+      lastT = now;
+    }});
+    function endDrag() {{
+      if (!dragging) return;
+      dragging = false;
+      kick();
+    }}
+    field.addEventListener("pointerup", endDrag);
+    field.addEventListener("pointercancel", endDrag);
+    field.querySelectorAll(".scroll-item").forEach(function (el) {{
+      el.addEventListener("click", function () {{
+        if (Math.abs(vel) > 1) return;
+        var idx = Number(el.getAttribute("data-index") || "0");
+        var off = Number(field.getAttribute("data-offset") || "0");
+        setOff(off + shortest(off, idx, count));
+        vel = 0;
+        kick();
+      }});
+    }});
+    paintField(field);
+  }});
+  hero.querySelectorAll("[data-period]").forEach(function (btn) {{
+    btn.addEventListener("click", function () {{
+      hero.setAttribute("data-period", btn.getAttribute("data-period"));
+    }});
+  }});
 }});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
   var cal = dock.querySelector("[data-datepicker-popup]");
@@ -5751,7 +5898,124 @@ fn search_section(theme: &Theme) -> String {
     )
 }
 
+fn paint_scroll_field(
+    field: time_picker::ScrollField,
+    a: &time_picker::TimeScrollAppearance,
+) -> String {
+    let mut items = String::new();
+    for (i, slot) in field.slots().into_iter().enumerate() {
+        let rel = i as i32 - time_picker::SCROLL_SLOT_SPAN;
+        let (color, size, weight) = if slot.selected {
+            (
+                a.selected.css_hex(),
+                a.selected_style.size_sp,
+                a.selected_style.weight,
+            )
+        } else {
+            (
+                a.unselected.css_hex(),
+                a.unselected_style.size_sp,
+                a.unselected_style.weight,
+            )
+        };
+        items.push_str(&format!(
+            r#"<div class="scroll-item" data-rel="{rel}" data-index="{idx}" data-value="{val}" data-selected="{sel}" style="top:{y}px;height:{ih}px;color:{color};font-size:{size}px;font-weight:{weight};opacity:{op}">{label}</div>"#,
+            rel = rel,
+            idx = slot.index,
+            val = slot.value,
+            sel = slot.selected as u8,
+            y = slot.y_dp,
+            ih = a.item_h_dp,
+            color = color,
+            size = size,
+            weight = weight,
+            op = slot.opacity,
+            label = slot.label,
+        ));
+    }
+    format!(
+        r#"<div class="scroll-field" data-scroll-field="{kind}" data-count="{count}" data-offset="{off}" data-field-h="{h}" style="width:{w}px;height:{h}px;background:{bg};border-radius:{r}px">{items}</div>"#,
+        kind = field.kind.label(),
+        count = field.count(),
+        off = field.offset,
+        w = a.field_w_dp,
+        h = a.field_h_dp,
+        bg = a.field_container.css_hex(),
+        r = a.field_corners.top_left,
+        items = items,
+    )
+}
+
 fn time_picker_section(theme: &Theme) -> String {
+    let scroll = time_picker::resolve_scroll(theme);
+    let state = time_picker::TimeScrollState::demo();
+    let hour_field = paint_scroll_field(state.hour, &scroll);
+    let minute_field = paint_scroll_field(state.minute, &scroll);
+    let (sam_bg, sam_fg) = if time_picker::DEMO_PERIOD == time_picker::DayPeriod::Am {
+        (
+            scroll.period_selected_container.css_hex(),
+            scroll.period_selected.css_hex(),
+        )
+    } else {
+        (
+            scroll.period_idle_container.css_hex(),
+            scroll.period_idle.css_hex(),
+        )
+    };
+    let (spm_bg, spm_fg) = if time_picker::DEMO_PERIOD == time_picker::DayPeriod::Pm {
+        (
+            scroll.period_selected_container.css_hex(),
+            scroll.period_selected.css_hex(),
+        )
+    } else {
+        (
+            scroll.period_idle_container.css_hex(),
+            scroll.period_idle.css_hex(),
+        )
+    };
+    let mut out = format!(
+        r#"<h2>Time picker</h2>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="time-scroll dialog" data-time-scroll="1" data-hero="timepicker" data-time-picker-style="scroll" data-scroll-item-h="{ih}" data-scroll-fling-decay="{decay}" data-scroll-fling-rest="{rest}" data-scroll-snap="{snap}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div style="color:{hy};font-size:{ys}px">{title}</div>
+  <div class="scroll-row">
+    {hour_field}
+    <div class="scroll-colon" style="color:{colon};font-size:{cs}px;font-weight:{cw};margin-top:{cy}px">:</div>
+    {minute_field}
+    <div class="period">
+      <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
+      <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
+    </div>
+  </div>
+</div>
+<h3>dial</h3>"#,
+        ih = time_picker::SCROLL_ITEM_H_DP,
+        decay = time_picker::SCROLL_FLING_DECAY,
+        rest = time_picker::SCROLL_FLING_REST,
+        snap = time_picker::SCROLL_SNAP_STIFFNESS,
+        hour = time_picker::DEMO_HOUR,
+        minute = time_picker::DEMO_MINUTE,
+        period = time_picker::DEMO_PERIOD.label(),
+        bg = scroll.container.css_hex(),
+        r = scroll.corners.top_left,
+        sh = ElevationLevels::css_shadow(scroll.elevation_dp),
+        hy = scroll.header.css_hex(),
+        ys = scroll.title_style.size_sp,
+        title = time_picker::TITLE,
+        hour_field = hour_field,
+        minute_field = minute_field,
+        colon = scroll.colon.css_hex(),
+        cs = scroll.colon_style.size_sp,
+        cw = scroll.colon_style.weight,
+        cy = time_picker::SCROLL_COLON_OFFSET_Y_DP,
+        amb = sam_bg,
+        amf = sam_fg,
+        pmb = spm_bg,
+        pmf = spm_fg,
+        am = time_picker::DayPeriod::Am.label(),
+        pm = time_picker::DayPeriod::Pm.label(),
+    );
+
     let a = time_picker::resolve(theme);
     let mut hours = String::new();
     for h in 1u8..=12 {
@@ -5838,10 +6102,9 @@ fn time_picker_section(theme: &Theme) -> String {
         time_picker::DEMO_MINUTE,
     );
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
-    format!(
-        r#"<h2>Time picker</h2>
-<p class="note">12-hour + minute dial, analog selector hand, displaySmallEmphasized header, AM/PM. Header fields toggle the face. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="timepicker dialog" data-timepicker="1" data-hero="timepicker" data-dial="minute" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+    out.push_str(&format!(
+        r#"<p class="note">Baseline 12-hour + minute dial, analog selector hand, displaySmallEmphasized header, AM/PM. Header fields toggle the face.</p>
+<div class="timepicker dialog" data-timepicker="1" data-dial="minute" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div style="color:{hy};font-size:{ys}px">{title}</div>
   <div class="time-row">
     <div class="time-fields">
@@ -5895,7 +6158,8 @@ fn time_picker_section(theme: &Theme) -> String {
         handd = hand_d,
         secondd = second_d,
         hdeg = hand_deg,
-    )
+    ));
+    out
 }
 
 fn motion_section(theme: &Theme) -> String {
