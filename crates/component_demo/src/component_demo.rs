@@ -325,6 +325,7 @@ struct CatalogView {
     picker_year: i32,
     picker_month: u32,
     selected: CivilDate,
+    selected_committed: CivilDate,
     today: CivilDate,
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
@@ -605,6 +606,18 @@ impl CatalogView {
 
     fn confirm_date_range(&mut self) {
         self.date_range_committed = date_picker::apply_range_confirm(self.date_range);
+    }
+
+    fn confirm_date(&mut self) {
+        self.selected_committed = date_picker::apply_date_confirm(self.selected);
+    }
+
+    fn dismiss_date(&mut self) {
+        self.selected = date_picker::apply_date_dismiss(self.selected_committed);
+        let (y, m) = date_picker::date_month_of(self.selected);
+        self.picker_year = y;
+        self.picker_month = m;
+        self.date_pane = date_picker::DatePickerPane::Calendar;
     }
 
     fn dismiss_date_range(&mut self) {
@@ -1518,6 +1531,41 @@ fn catalog_body(
                 )
             },
         )
+        .when(date_picker::DATE_ACTIONS, |el| {
+            el.child(
+                div()
+                    .w(px(pick.day_dp * 7.0))
+                    .h(px(date_picker::DATE_DIVIDER_H_DP))
+                    .bg(paint(theme.color.outline_variant)),
+            )
+            .child(
+                div()
+                    .w(px(pick.day_dp * 7.0))
+                    .flex()
+                    .justify_end()
+                    .gap(px(dialog::ACTION_GAP_DP))
+                    .child(
+                        div()
+                            .id("date-cancel")
+                            .text_color(paint(theme.color.primary))
+                            .child(date_picker::INPUT_CANCEL)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.dismiss_date();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .id("date-ok")
+                            .text_color(paint(theme.color.primary))
+                            .child(date_picker::INPUT_OK)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.confirm_date();
+                                cx.notify();
+                            })),
+                    ),
+            )
+        })
         .child(android_date_input(this, theme, pick))
         .child(android_date_range_input(theme, pick))
         .child(section_title(theme, "Overlays"))
@@ -7771,6 +7819,8 @@ fn android_docked_date(
                                     .when(in_month, |el| {
                                         el.on_click(cx.listener(move |this, _, _, cx| {
                                             this.selected = CivilDate { year, month, day };
+                                            this.selected_committed =
+                                                date_picker::apply_date_confirm(this.selected);
                                             if date_picker::DOCKED_DISMISS_ON_SELECT {
                                                 this.docked_open = false;
                                             }
@@ -8117,6 +8167,11 @@ fn android_main(app: AndroidApp) {
                 picker_year: 2026,
                 picker_month: 9,
                 selected: CivilDate {
+                    year: 2026,
+                    month: 9,
+                    day: 15,
+                },
+                selected_committed: CivilDate {
                     year: 2026,
                     month: 9,
                     day: 15,

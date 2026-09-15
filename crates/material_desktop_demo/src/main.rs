@@ -351,6 +351,7 @@ struct CatalogView {
     picker_year: i32,
     picker_month: u32,
     selected: CivilDate,
+    selected_committed: CivilDate,
     today: CivilDate,
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
@@ -633,6 +634,18 @@ impl CatalogView {
         self.range_year = y;
         self.range_month = m;
         self.range_pane = date_picker::DatePickerPane::Calendar;
+    }
+
+    fn confirm_date(&mut self) {
+        self.selected_committed = date_picker::apply_date_confirm(self.selected);
+    }
+
+    fn dismiss_date(&mut self) {
+        self.selected = date_picker::apply_date_dismiss(self.selected_committed);
+        let (y, m) = date_picker::date_month_of(self.selected);
+        self.picker_year = y;
+        self.picker_month = m;
+        self.date_pane = date_picker::DatePickerPane::Calendar;
     }
 
     fn select_range_year(&mut self, year: i32) {
@@ -2750,6 +2763,8 @@ fn docked_date_picker(
                         .when(in_month, |el| {
                             el.on_click(cx.listener(move |this, _, _, cx| {
                                 this.selected = CivilDate { year, month, day };
+                                this.selected_committed =
+                                    date_picker::apply_date_confirm(this.selected);
                                 if date_picker::DOCKED_DISMISS_ON_SELECT {
                                     this.docked_open = false;
                                 }
@@ -4005,29 +4020,43 @@ fn date_picker_card(
                     )),
             )
         })
-        .child(
-            div()
-                .w_full()
-                .flex()
-                .justify_end()
-                .gap(px(dialog::ACTION_GAP_DP))
-                .child(m_button(
-                    "date-cancel",
-                    theme,
-                    button::ButtonVariant::Text,
-                    InteractionState::Enabled,
-                    "Cancel",
-                    |_, _, _| {},
-                ))
-                .child(m_button(
-                    "date-ok",
-                    theme,
-                    button::ButtonVariant::Text,
-                    InteractionState::Enabled,
-                    "OK",
-                    |_, _, _| {},
-                )),
-        )
+        .when(date_picker::DATE_ACTIONS, |el| {
+            el.child(
+                div()
+                    .w_full()
+                    .h(px(date_picker::DATE_DIVIDER_H_DP))
+                    .bg(paint(theme.color.outline_variant)),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .justify_end()
+                    .gap(px(dialog::ACTION_GAP_DP))
+                    .child(m_button(
+                        "date-cancel",
+                        theme,
+                        button::ButtonVariant::Text,
+                        InteractionState::Enabled,
+                        date_picker::INPUT_CANCEL,
+                        cx.listener(|this, _, _, cx| {
+                            this.dismiss_date();
+                            cx.notify();
+                        }),
+                    ))
+                    .child(m_button(
+                        "date-ok",
+                        theme,
+                        button::ButtonVariant::Text,
+                        InteractionState::Enabled,
+                        date_picker::INPUT_OK,
+                        cx.listener(|this, _, _, cx| {
+                            this.confirm_date();
+                            cx.notify();
+                        }),
+                    )),
+            )
+        })
 }
 
 fn tab_row(
@@ -8009,6 +8038,11 @@ fn main() {
                         month: 9,
                         day: 15,
                     },
+                    selected_committed: CivilDate {
+                        year: 2026,
+                        month: 9,
+                        day: 15,
+                    },
                     today: CivilDate {
                         year: 2026,
                         month: 9,
@@ -8307,6 +8341,20 @@ mod tests {
         assert_eq!(
             date_picker::range_fill(date_picker::DayKind::Selected, true, false),
             date_picker::RangeFill::StartHalf
+        );
+        assert!(date_picker::DATE_ACTIONS);
+        assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
+        assert_eq!(
+            date_picker::apply_date_confirm(date_picker::RANGE_DEMO_START),
+            date_picker::RANGE_DEMO_START
+        );
+        assert_eq!(
+            date_picker::apply_date_dismiss(date_picker::RANGE_DEMO_START),
+            date_picker::RANGE_DEMO_START
+        );
+        assert_eq!(
+            date_picker::date_month_of(date_picker::RANGE_DEMO_START),
+            (2026, 9)
         );
         assert_eq!(
             date_picker::apply_range_confirm(date_picker::DateRangeSelection::demo()),

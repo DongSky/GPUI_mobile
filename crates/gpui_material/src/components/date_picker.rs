@@ -224,12 +224,15 @@ pub const RANGE_NEXT_MONTH: &str = "Next month";
 pub const RANGE_YEAR_PANE: bool = true;
 /// Compose `DateRangePickerDefaults.showModeToggle` on the range hero (not the single-date modal).
 pub const RANGE_SHOW_MODE_TOGGLE: bool = true;
-/// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
+/// Compose modal `DateRangePicker` header divider + Confirm/Cancel (draft until OK).
 pub const RANGE_ACTIONS: bool = true;
 pub const RANGE_DIVIDER_H_DP: f32 = 1.0;
 /// Compose `drawRangeBackground` half-cell start/end connectors
 /// (`DateRangePicker.kt` firstIsSelectionStart / lastIsSelectionEnd).
 pub const RANGE_CONNECTOR: bool = true;
+/// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
+pub const DATE_ACTIONS: bool = true;
+pub const DATE_DIVIDER_H_DP: f32 = 1.0;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -435,6 +438,20 @@ pub fn range_month_of(sel: DateRangeSelection) -> (i32, u32) {
         Some(s) => (s.year, s.month),
         None => (RANGE_DEMO_START.year, RANGE_DEMO_START.month),
     }
+}
+
+/// OK commits the draft date. Cancel restores the last committed day.
+pub fn apply_date_confirm(draft: CivilDate) -> CivilDate {
+    draft
+}
+
+pub fn apply_date_dismiss(committed: CivilDate) -> CivilDate {
+    committed
+}
+
+/// Month pager follows the committed / draft civil date.
+pub fn date_month_of(date: CivilDate) -> (i32, u32) {
+    (date.year, date.month)
 }
 
 pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {
