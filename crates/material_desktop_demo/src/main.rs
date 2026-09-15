@@ -303,6 +303,7 @@ enum Overlay {
     Dialog,
     ListDialog,
     FullscreenDialog,
+    Menu,
 }
 
 struct CatalogView {
@@ -311,6 +312,8 @@ struct CatalogView {
     checked: bool,
     switched: bool,
     overlay: Overlay,
+    overlay_menu: menu::OverlayMenuSession,
+    cascade_menu: menu::OverlayMenuSession,
     slider: f32,
     ringtone: usize,
     tab: usize,
@@ -458,6 +461,7 @@ impl Render for CatalogView {
             Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
             Overlay::ListDialog => list_dialog_overlay(self, &theme, cx).into_any_element(),
             Overlay::FullscreenDialog => fullscreen_dialog_overlay(&theme, cx).into_any_element(),
+            Overlay::Menu => menu_overlay(self, &theme, cx).into_any_element(),
         };
 
         div()
@@ -765,7 +769,7 @@ fn catalog_body(
         .child(section_title(theme, "Chips"))
         .child(desktop_chips(theme))
         .child(section_title(theme, "Menu"))
-        .child(desktop_menus(theme))
+        .child(desktop_menus(this, theme, cx))
         .child(section_title(theme, "Snackbar"))
         .child(desktop_mail_snack(this, theme, cx))
         .child(section_title(theme, "Navigation bar"))
@@ -816,6 +820,18 @@ fn catalog_body(
                     "Event",
                     cx.listener(|this, _, _, cx| {
                         this.overlay = Overlay::FullscreenDialog;
+                        cx.notify();
+                    }),
+                ))
+                .child(m_button(
+                    "open-menu",
+                    theme,
+                    button::ButtonVariant::Tonal,
+                    InteractionState::Enabled,
+                    "Menu",
+                    cx.listener(|this, _, _, cx| {
+                        this.overlay = Overlay::Menu;
+                        this.overlay_menu = menu::OverlayMenuSession::overlay();
                         cx.notify();
                     }),
                 )),
@@ -1074,19 +1090,156 @@ fn desktop_vertical_menu_focus(
         }))
 }
 
-fn desktop_submenu_flyout(theme: &Theme) -> impl IntoElement {
+fn desktop_live_menu_item(
+    id: SharedString,
+    item: menu::MenuDemoItem,
+    a: menu::MenuItemAppearance,
+    on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
+    on_move: impl Fn(&MouseMoveEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    let trail = menu::trailing_text(&item);
+    div()
+        .id(id)
+        .h(px(a.height_dp))
+        .px(px(a.pad_h_dp))
+        .rounded_tl(px(a.corners.top_left))
+        .rounded_tr(px(a.corners.top_right))
+        .rounded_br(px(a.corners.bottom_right))
+        .rounded_bl(px(a.corners.bottom_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.label))
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
+        .child(
+            div()
+                .w(px(menu::ICON_DP))
+                .text_color(paint(a.icon))
+                .child(item.icon),
+        )
+        .child(div().flex_1().child(item.label))
+        .when(!trail.is_empty(), |el| {
+            el.child(div().text_color(paint(a.shortcut)).child(trail))
+        })
+        .on_click(on_click)
+        .on_mouse_move(on_move)
+}
+
+fn apply_live_menu_action(
+    this: &mut CatalogView,
+    overlay: bool,
+    action: menu::OverlayMenuAction,
+    cx: &mut Context<CatalogView>,
+) {
+    if overlay
+        && matches!(
+            action,
+            menu::OverlayMenuAction::Commit | menu::OverlayMenuAction::Dismiss
+        )
+    {
+        this.overlay = Overlay::None;
+    }
+    cx.notify();
+}
+
+fn desktop_live_parent(
+    theme: &Theme,
+    session: menu::OverlayMenuSession,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
+    let groups = menu::VERTICAL_GROUPS;
+    let group_count = groups.len();
+    let scheme = menu::MenuScheme::Standard;
+    let focus = session.parent_focus();
+    let prefix = if overlay { "ov" } else { "cas" };
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(menu::GROUP_GAP_DP))
+        .w(px(220.))
+        .children(groups.iter().enumerate().map(move |(gi, group)| {
+            let shell = menu::resolve_group_focus(theme, scheme, gi, group_count, focus);
+            let start: usize = groups.iter().take(gi).map(|g| g.len()).sum();
+            let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = group
+                .iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let index = start + i;
+                    (
+                        index,
+                        *item,
+                        menu::resolve_item_at(
+                            theme,
+                            scheme,
+                            menu::MenuAxis::Vertical,
+                            i,
+                            group.len(),
+                            session.parent_selected(index),
+                            session.parent_state(index, item),
+                        ),
+                    )
+                })
+                .collect();
+            div()
+                .p(px(shell.pad_dp))
+                .rounded_tl(px(shell.corners.top_left))
+                .rounded_tr(px(shell.corners.top_right))
+                .rounded_br(px(shell.corners.bottom_right))
+                .rounded_bl(px(shell.corners.bottom_left))
+                .bg(paint(shell.container))
+                .flex()
+                .flex_col()
+                .children(rows.into_iter().map(|(index, item, a)| {
+                    desktop_live_menu_item(
+                        SharedString::from(format!("{prefix}-menu-{index}")),
+                        item,
+                        a,
+                        cx.listener(move |this, _, _, cx| {
+                            let action = if overlay {
+                                this.overlay_menu.click_parent(index)
+                            } else {
+                                this.cascade_menu.click_parent(index)
+                            };
+                            apply_live_menu_action(this, overlay, action, cx);
+                        }),
+                        cx.listener(move |this, _, _, cx| {
+                            if overlay {
+                                let was = this.overlay_menu;
+                                this.overlay_menu.hover_parent(index);
+                                if this.overlay_menu != was {
+                                    cx.notify();
+                                }
+                            } else {
+                                let was = this.cascade_menu;
+                                this.cascade_menu.hover_parent(index);
+                                if this.cascade_menu != was {
+                                    cx.notify();
+                                }
+                            }
+                        }),
+                    )
+                }))
+        }))
+}
+
+fn desktop_live_flyout(
+    theme: &Theme,
+    session: menu::OverlayMenuSession,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
     let scheme = menu::MenuScheme::Standard;
     let shell = menu::resolve_submenu(theme, scheme);
     let count = menu::SUBMENU_ITEMS.len();
-    div()
-        .p(px(shell.pad_dp))
-        .rounded(px(shell.corners.top_left))
-        .bg(paint(shell.container))
-        .flex()
-        .flex_col()
-        .children(menu::SUBMENU_ITEMS.iter().enumerate().map(move |(i, item)| {
-            let selected = i == menu::SUBMENU_SELECTED;
-            paint_menu_item(
+    let prefix = if overlay { "ov" } else { "cas" };
+    let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = menu::SUBMENU_ITEMS
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            (
+                i,
                 *item,
                 menu::resolve_item_at(
                     theme,
@@ -1094,26 +1247,114 @@ fn desktop_submenu_flyout(theme: &Theme) -> impl IntoElement {
                     menu::MenuAxis::Vertical,
                     i,
                     count,
-                    selected,
-                    InteractionState::Enabled,
+                    session.submenu_selected(i),
+                    if session.submenu_hi == i {
+                        InteractionState::Hovered
+                    } else {
+                        InteractionState::Enabled
+                    },
                 ),
+            )
+        })
+        .collect();
+    div()
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .flex()
+        .flex_col()
+        .children(rows.into_iter().map(|(i, item, a)| {
+            desktop_live_menu_item(
+                SharedString::from(format!("{prefix}-sub-{i}")),
+                item,
+                a,
+                cx.listener(move |this, _, _, cx| {
+                    let action = if overlay {
+                        this.overlay_menu.click_submenu(i)
+                    } else {
+                        this.cascade_menu.click_submenu(i)
+                    };
+                    apply_live_menu_action(this, overlay, action, cx);
+                }),
+                cx.listener(move |this, _, _, cx| {
+                    if overlay {
+                        this.overlay_menu.submenu_hi = i;
+                    } else {
+                        this.cascade_menu.submenu_hi = i;
+                    }
+                    cx.notify();
+                }),
             )
         }))
 }
 
-fn desktop_submenu_cascade(theme: &Theme) -> impl IntoElement {
+fn desktop_live_cascade(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
+    let session = if overlay {
+        this.overlay_menu
+    } else {
+        this.cascade_menu
+    };
+    let id = if overlay {
+        "menu-overlay-cascade"
+    } else {
+        "menu-cascade"
+    };
     div()
+        .id(id)
+        .tab_index(0)
         .flex()
         .flex_row()
         .items_end()
         .gap(px(menu::SUBMENU_GAP_DP))
-        .child(desktop_vertical_menu_focus(
-            theme,
-            menu::MenuScheme::Standard,
-            menu::MenuFocus::Inactive,
-            true,
+        .on_key_down(cx.listener(move |this, ev: &KeyDownEvent, _, cx| {
+            let action = if overlay {
+                this.overlay_menu.apply_key(&ev.keystroke.key)
+            } else {
+                this.cascade_menu.apply_key(&ev.keystroke.key)
+            };
+            apply_live_menu_action(this, overlay, action, cx);
+        }))
+        .when(!overlay, |el| {
+            el.on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                if !*hovered {
+                    this.cascade_menu.hover_leave();
+                    cx.notify();
+                }
+            }))
+        })
+        .child(desktop_live_parent(theme, session, cx, overlay))
+        .when(session.submenu_open, |el| {
+            el.child(desktop_live_flyout(theme, session, cx, overlay))
+        })
+}
+
+fn menu_overlay(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    div()
+        .id("menu-scrim")
+        .flex_1()
+        .w_full()
+        .p(px(24.))
+        .bg(paint(
+            theme
+                .color
+                .scrim
+                .with_alpha(0.32)
+                .composite_over(theme.color.surface),
         ))
-        .child(desktop_submenu_flyout(theme))
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.overlay = Overlay::None;
+            cx.notify();
+        }))
+        .child(desktop_live_cascade(this, theme, cx, true))
 }
 
 fn desktop_horizontal_menu(theme: &Theme) -> impl IntoElement {
@@ -1165,34 +1406,33 @@ fn desktop_horizontal_icons(theme: &Theme) -> impl IntoElement {
         .p(px(shell.pad_dp))
         .rounded(px(shell.corners.top_left))
         .bg(paint(shell.container))
-        .children(
-            menu::HORIZONTAL_ICONS
-                .iter()
-                .enumerate()
-                .map(|(i, glyph)| {
-                    let selected = i == menu::HORIZONTAL_ICON_SELECTED;
-                    let a = menu::resolve_horizontal_icon(
-                        theme,
-                        menu::MenuScheme::Standard,
-                        i,
-                        count,
-                        selected,
-                    );
-                    div()
-                        .w(px(a.height_dp))
-                        .h(px(a.height_dp))
-                        .rounded(px(a.corners.top_left))
-                        .bg(paint(a.container))
-                        .text_color(paint(a.label))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(*glyph)
-                }),
-        )
+        .children(menu::HORIZONTAL_ICONS.iter().enumerate().map(|(i, glyph)| {
+            let selected = i == menu::HORIZONTAL_ICON_SELECTED;
+            let a = menu::resolve_horizontal_icon(
+                theme,
+                menu::MenuScheme::Standard,
+                i,
+                count,
+                selected,
+            );
+            div()
+                .w(px(a.height_dp))
+                .h(px(a.height_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+                .text_color(paint(a.label))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(*glyph)
+        }))
 }
 
-fn desktop_menus(theme: &Theme) -> impl IntoElement {
+fn desktop_menus(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     div()
         .flex()
         .flex_col()
@@ -1214,9 +1454,8 @@ fn desktop_menus(theme: &Theme) -> impl IntoElement {
                 .child(desktop_horizontal_menu(theme))
                 .child(desktop_horizontal_icons(theme)),
         )
-        .child(desktop_submenu_cascade(theme))
+        .child(desktop_live_cascade(this, theme, cx, false))
 }
-
 fn standard_button_group(
     theme: &Theme,
     selected: usize,
@@ -5520,6 +5759,8 @@ fn main() {
                     checked: true,
                     switched: true,
                     overlay: Overlay::None,
+                    overlay_menu: menu::OverlayMenuSession::overlay(),
+                    cascade_menu: menu::OverlayMenuSession::cascade(),
                     slider: slider::OVERVIEW_ROWS[3].value,
                     ringtone: 2,
                     tab: tabs::SCENE_SELECTED,
@@ -5829,6 +6070,14 @@ mod tests {
             menu::typeahead_index(&menu::submenu_labels(), 0, 's'),
             Some(1)
         );
+        let mut overlay = menu::OverlayMenuSession::overlay();
+        assert!(!overlay.submenu_open);
+        assert_eq!(
+            overlay.click_parent(menu::MORE_INDEX),
+            menu::OverlayMenuAction::Stay
+        );
+        assert!(overlay.submenu_open);
+        assert_eq!(overlay.parent_focus(), menu::MenuFocus::Inactive);
         assert_eq!(chip::HEIGHT_DP, 32.0);
         assert_eq!(chip::UNSELECTED_CORNER_DP, 12.0);
         assert_eq!(chip::SELECTED_CORNER_DP, 16.0);

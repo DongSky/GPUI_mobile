@@ -678,6 +678,11 @@ table.inv th {{ font-weight: 500; }}
   position: relative; min-width: 360px;
 }}
 .menu-cascade[data-open="0"] .menu-flyout {{ display: none; }}
+.menu-overlay {{
+  display: flex; flex-direction: row; align-items: flex-end; gap: 4px;
+  position: relative; min-width: 360px; padding: 24px; border-radius: 16px;
+}}
+.menu-overlay[data-open="0"] .menu-flyout {{ display: none; }}
 .menu-flyout {{
   min-width: 160px; max-width: 280px;
 }}
@@ -1705,6 +1710,77 @@ document.querySelectorAll("[data-menu-cascade]").forEach(function (cascade) {{
   cascade.addEventListener("keydown", function (ev) {{
     var open = cascade.getAttribute("data-open") === "1";
     var parentItems = itemList(cascade.querySelector("[data-menu-parent]"));
+    var subItems = itemList(flyout);
+    var items = open ? subItems : parentItems;
+    var cur = items.findIndex(function (el) {{ return el.getAttribute("data-menu-hi") === "1"; }});
+    if (ev.key === "ArrowRight") {{
+      applyOpen(true);
+      setHi(subItems, 0);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowLeft" || ev.key === "Escape") {{
+      applyOpen(false);
+      setHi(parentItems, parentItems.length - 1);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowDown") {{
+      var next = cur < 0 ? 0 : (cur + 1) % items.length;
+      setHi(items, next);
+      ev.preventDefault();
+    }} else if (ev.key === "ArrowUp") {{
+      var prev = cur < 0 ? items.length - 1 : (cur - 1 + items.length) % items.length;
+      setHi(items, prev);
+      ev.preventDefault();
+    }} else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {{
+      var hit = typeahead(items, cur < 0 ? items.length - 1 : cur, ev.key);
+      if (hit >= 0) setHi(items, hit);
+      ev.preventDefault();
+    }}
+  }});
+}});
+document.querySelectorAll("[data-menu-overlay]").forEach(function (overlay) {{
+  var flyout = overlay.querySelector("[data-menu-submenu]");
+  var trigger = overlay.querySelector("[data-submenu-trigger]");
+  function itemList(root) {{
+    return root ? Array.prototype.slice.call(root.querySelectorAll("[data-menu-item]")) : [];
+  }}
+  function setHi(items, idx) {{
+    items.forEach(function (el, i) {{
+      el.setAttribute("data-menu-hi", i === idx ? "1" : "0");
+    }});
+  }}
+  function applyOpen(open) {{
+    overlay.setAttribute("data-open", open ? "1" : "0");
+    overlay.setAttribute("data-menu-focus-parent", open ? "inactive" : "rest");
+    if (flyout) flyout.style.display = open ? "flex" : "none";
+    if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    overlay.querySelectorAll("[data-r-rest]").forEach(function (g) {{
+      var r = open ? g.getAttribute("data-r-inactive") : g.getAttribute("data-r-rest");
+      if (r) g.style.borderRadius = r;
+    }});
+  }}
+  function typeahead(items, from, ch) {{
+    if (!items.length) return from;
+    var needle = ch.toLowerCase();
+    var start = ((from < 0 ? -1 : from) + 1) % items.length;
+    for (var step = 0; step < items.length; step++) {{
+      var i = (start + step) % items.length;
+      var label = (items[i].getAttribute("data-menu-item") || "").charAt(0).toLowerCase();
+      if (label === needle) return i;
+    }}
+    return from;
+  }}
+  if (trigger) {{
+    trigger.style.cursor = "pointer";
+    trigger.addEventListener("mouseenter", function () {{ applyOpen(true); }});
+    trigger.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      applyOpen(overlay.getAttribute("data-open") !== "1");
+    }});
+  }}
+  overlay.addEventListener("mouseleave", function () {{ applyOpen(false); }});
+  overlay.setAttribute("tabindex", "0");
+  overlay.addEventListener("keydown", function (ev) {{
+    var open = overlay.getAttribute("data-open") === "1";
+    var parentItems = itemList(overlay.querySelector("[data-menu-parent]"));
     var subItems = itemList(flyout);
     var items = open ? subItems : parentItems;
     var cur = items.findIndex(function (el) {{ return el.getAttribute("data-menu-hi") === "1"; }});
@@ -4360,6 +4436,32 @@ fn paint_submenu_cascade(theme: &Theme) -> String {
     )
 }
 
+fn paint_overlay_menu(theme: &Theme) -> String {
+    let scheme = menu::MenuScheme::Standard;
+    let scrim = theme
+        .color
+        .scrim
+        .with_alpha(0.32)
+        .composite_over(theme.color.surface);
+    format!(
+        r#"<div class="menu-overlay" data-hero="menu-overlay" data-menu-overlay="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-overlay-flyout="1" style="gap:{gap}px;background:{bg}">
+  {parent}
+  {flyout}
+</div>"#,
+        open = if menu::OVERLAY_FLYOUT_OPEN { "1" } else { "0" },
+        gap = menu::SUBMENU_GAP_DP,
+        bg = scrim.css_hex(),
+        parent = paint_vertical_menu_focus(
+            theme,
+            scheme,
+            menu::MenuFocus::Rest,
+            false,
+            r#" data-menu-parent="1""#,
+        ),
+        flyout = paint_submenu_flyout(theme, scheme),
+    )
+}
+
 fn paint_horizontal_menu(theme: &Theme) -> String {
     let scheme = menu::MenuScheme::Standard;
     let shell = menu::resolve_container(theme, scheme);
@@ -4418,7 +4520,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus start as grouped surfaces; More hover/click opens the End flyout (does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}
@@ -4431,12 +4533,16 @@ fn menus(theme: &Theme) -> String {
 </div>
 <div class="hero-card" data-hero="menu-submenu">
   {cascade}
+</div>
+<div class="hero-card" data-hero="menu-overlay">
+  {overlay}
 </div>"#,
         standard = paint_vertical_menu(theme, menu::MenuScheme::Standard),
         vibrant = paint_vertical_menu(theme, menu::MenuScheme::Vibrant),
         horizontal = paint_horizontal_menu(theme),
         icons = paint_horizontal_icons(theme),
         cascade = paint_submenu_cascade(theme),
+        overlay = paint_overlay_menu(theme),
     )
 }
 

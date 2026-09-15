@@ -509,6 +509,35 @@ pub fn submenu_labels() -> Vec<&'static str> {
     SUBMENU_ITEMS.iter().map(|item| item.label).collect()
 }
 
+/// Flat index of the More › trigger in `VERTICAL_GROUPS`.
+pub const MORE_INDEX: usize = STYLE_ITEMS.len() + EDIT_ITEMS.len();
+
+/// Overlay menus start as the grouped parent only; More opens the flyout.
+pub const OVERLAY_FLYOUT_OPEN: bool = false;
+
+pub fn parent_item_count() -> usize {
+    VERTICAL_GROUPS.iter().map(|group| group.len()).sum()
+}
+
+pub fn parent_item_at(index: usize) -> Option<(usize, usize, MenuDemoItem)> {
+    let mut n = 0;
+    for (gi, group) in VERTICAL_GROUPS.iter().enumerate() {
+        for (i, item) in group.iter().enumerate() {
+            if n == index {
+                return Some((gi, i, *item));
+            }
+            n += 1;
+        }
+    }
+    None
+}
+
+pub fn is_submenu_trigger(index: usize) -> bool {
+    parent_item_at(index)
+        .map(|(_, _, item)| item.submenu)
+        .unwrap_or(false)
+}
+
 /// WAI-ARIA menu typeahead: next label whose first character matches `ch`
 /// (case-insensitive), wrapping from `from + 1`.
 pub fn typeahead_index(labels: &[&str], from: usize, ch: char) -> Option<usize> {
@@ -526,4 +555,186 @@ pub fn typeahead_index(labels: &[&str], from: usize, ch: char) -> Option<usize> 
         let first = labels[i].chars().next()?.to_lowercase().next()?;
         (first == needle).then_some(i)
     })
+}
+
+/// Last committed leaf in an overlay / live cascade.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OverlayMenuCommit {
+    Parent(usize),
+    Submenu(usize),
+}
+
+/// Host action after a click or key on the overlay session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OverlayMenuAction {
+    /// Keep the overlay / cascade mounted (More opened, arrows, typeahead).
+    Stay,
+    /// A leaf was activated. Overlay hosts dismiss; in-page cascade stays.
+    Commit,
+    /// Escape from the parent (or equivalent). Overlay hosts dismiss.
+    Dismiss,
+}
+
+/// Live GPUI overlay + cascade: grouped parent, End flyout, typeahead.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OverlayMenuSession {
+    pub submenu_open: bool,
+    pub parent_hi: usize,
+    pub submenu_hi: usize,
+    pub committed: OverlayMenuCommit,
+}
+
+impl OverlayMenuSession {
+    /// Overlay default: grouped surfaces only (clicking More must not dismiss).
+    pub fn overlay() -> Self {
+        Self {
+            submenu_open: OVERLAY_FLYOUT_OPEN,
+            parent_hi: STYLE_SELECTED,
+            submenu_hi: SUBMENU_SELECTED,
+            committed: OverlayMenuCommit::Parent(STYLE_SELECTED),
+        }
+    }
+
+    /// Catalog cascade hero default-open for anatomy screenshots.
+    pub fn cascade() -> Self {
+        Self {
+            submenu_open: CASCADE_OPEN,
+            parent_hi: MORE_INDEX,
+            submenu_hi: SUBMENU_SELECTED,
+            committed: OverlayMenuCommit::Submenu(SUBMENU_SELECTED),
+        }
+    }
+
+    pub fn parent_focus(self) -> MenuFocus {
+        if self.submenu_open {
+            MenuFocus::Inactive
+        } else {
+            MenuFocus::Rest
+        }
+    }
+
+    pub fn parent_selected(self, index: usize) -> bool {
+        matches!(self.committed, OverlayMenuCommit::Parent(i) if i == index)
+    }
+
+    pub fn submenu_selected(self, index: usize) -> bool {
+        self.submenu_hi == index
+    }
+
+    pub fn parent_state(self, index: usize, item: &MenuDemoItem) -> InteractionState {
+        if item.submenu && self.submenu_open {
+            InteractionState::Hovered
+        } else if self.parent_hi == index {
+            InteractionState::Hovered
+        } else {
+            InteractionState::Enabled
+        }
+    }
+
+    pub fn hover_parent(&mut self, index: usize) {
+        self.parent_hi = index;
+        self.submenu_open = is_submenu_trigger(index);
+        if self.submenu_open {
+            self.submenu_hi = SUBMENU_SELECTED;
+        }
+    }
+
+    pub fn hover_leave(&mut self) {
+        self.submenu_open = false;
+    }
+
+    pub fn click_parent(&mut self, index: usize) -> OverlayMenuAction {
+        self.parent_hi = index;
+        if is_submenu_trigger(index) {
+            self.submenu_open = true;
+            self.submenu_hi = SUBMENU_SELECTED;
+            OverlayMenuAction::Stay
+        } else {
+            self.submenu_open = false;
+            self.committed = OverlayMenuCommit::Parent(index);
+            OverlayMenuAction::Commit
+        }
+    }
+
+    pub fn click_submenu(&mut self, index: usize) -> OverlayMenuAction {
+        self.submenu_hi = index;
+        self.committed = OverlayMenuCommit::Submenu(index);
+        self.submenu_open = false;
+        OverlayMenuAction::Commit
+    }
+
+    fn move_hi(&mut self, delta: isize) {
+        if self.submenu_open {
+            let n = SUBMENU_ITEMS.len() as isize;
+            let cur = self.submenu_hi as isize;
+            self.submenu_hi = ((cur + delta).rem_euclid(n)) as usize;
+        } else {
+            let n = parent_item_count() as isize;
+            if n == 0 {
+                return;
+            }
+            let cur = self.parent_hi as isize;
+            self.parent_hi = ((cur + delta).rem_euclid(n)) as usize;
+        }
+    }
+
+    fn typeahead(&mut self, ch: char) {
+        if self.submenu_open {
+            let labels = submenu_labels();
+            if let Some(i) = typeahead_index(&labels, self.submenu_hi, ch) {
+                self.submenu_hi = i;
+            }
+        } else {
+            let labels = parent_labels();
+            if let Some(i) = typeahead_index(&labels, self.parent_hi, ch) {
+                self.parent_hi = i;
+            }
+        }
+    }
+
+    /// WAI-ARIA menu keys (`right`/`left`/`up`/`down`/`escape`/`enter` + typeahead).
+    pub fn apply_key(&mut self, key: &str) -> OverlayMenuAction {
+        match key {
+            "right" | "arrowright" => {
+                if is_submenu_trigger(self.parent_hi) {
+                    self.submenu_open = true;
+                    self.submenu_hi = SUBMENU_SELECTED;
+                }
+                OverlayMenuAction::Stay
+            }
+            "left" | "arrowleft" if self.submenu_open => {
+                self.submenu_open = false;
+                self.parent_hi = MORE_INDEX;
+                OverlayMenuAction::Stay
+            }
+            "escape" if self.submenu_open => {
+                self.submenu_open = false;
+                self.parent_hi = MORE_INDEX;
+                OverlayMenuAction::Stay
+            }
+            "escape" => OverlayMenuAction::Dismiss,
+            "down" | "j" | "arrowdown" => {
+                self.move_hi(1);
+                OverlayMenuAction::Stay
+            }
+            "up" | "k" | "arrowup" => {
+                self.move_hi(-1);
+                OverlayMenuAction::Stay
+            }
+            "enter" | "space" => {
+                if self.submenu_open {
+                    self.click_submenu(self.submenu_hi)
+                } else {
+                    self.click_parent(self.parent_hi)
+                }
+            }
+            k if k.chars().count() == 1 => {
+                if let Some(ch) = k.chars().next() {
+                    self.typeahead(ch);
+                }
+                OverlayMenuAction::Stay
+            }
+            _ => OverlayMenuAction::Stay,
+        }
+    }
 }

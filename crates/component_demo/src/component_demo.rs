@@ -284,7 +284,8 @@ struct CatalogView {
     radio: usize,
     switched: bool,
     overlay: Overlay,
-    menu_selected: usize,
+    overlay_menu: menu::OverlayMenuSession,
+    cascade_menu: menu::OverlayMenuSession,
     slider: f32,
     ringtone: usize,
     tab_primary: usize,
@@ -868,7 +869,7 @@ fn catalog_body(
         .child(android_list_swipe(this, theme, cx))
         .child(android_list_reorder(this, theme, cx))
         .child(section_title(theme, "Menu"))
-        .child(android_menus(theme))
+        .child(android_menus(this, theme, cx))
         .child(list_row(&one, "One-line item", None))
         .child(
             div()
@@ -1183,6 +1184,7 @@ fn catalog_body(
                     cx.listener(|this, _, _, cx| {
                         this.blur_fields();
                         this.overlay = Overlay::Menu;
+                        this.overlay_menu = menu::OverlayMenuSession::overlay();
                         cx.notify();
                     }),
                 )),
@@ -1817,19 +1819,156 @@ fn android_vertical_menu_focus(
         }))
 }
 
-fn android_submenu_flyout(theme: &Theme) -> impl IntoElement {
+fn android_live_menu_item(
+    id: SharedString,
+    item: menu::MenuDemoItem,
+    a: menu::MenuItemAppearance,
+    on_click: impl Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
+    on_move: impl Fn(&MouseMoveEvent, &mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    let trail = menu::trailing_text(&item);
+    div()
+        .id(id)
+        .h(px(a.height_dp))
+        .px(px(a.pad_h_dp))
+        .rounded_tl(px(a.corners.top_left))
+        .rounded_tr(px(a.corners.top_right))
+        .rounded_br(px(a.corners.bottom_right))
+        .rounded_bl(px(a.corners.bottom_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.label))
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
+        .child(
+            div()
+                .w(px(menu::ICON_DP))
+                .text_color(paint(a.icon))
+                .child(item.icon),
+        )
+        .child(div().flex_1().child(item.label))
+        .when(!trail.is_empty(), |el| {
+            el.child(div().text_color(paint(a.shortcut)).child(trail))
+        })
+        .on_click(on_click)
+        .on_mouse_move(on_move)
+}
+
+fn apply_live_menu_action(
+    this: &mut CatalogView,
+    overlay: bool,
+    action: menu::OverlayMenuAction,
+    cx: &mut Context<CatalogView>,
+) {
+    if overlay
+        && matches!(
+            action,
+            menu::OverlayMenuAction::Commit | menu::OverlayMenuAction::Dismiss
+        )
+    {
+        this.overlay = Overlay::None;
+    }
+    cx.notify();
+}
+
+fn android_live_parent(
+    theme: &Theme,
+    session: menu::OverlayMenuSession,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
+    let groups = menu::VERTICAL_GROUPS;
+    let group_count = groups.len();
+    let scheme = menu::MenuScheme::Standard;
+    let focus = session.parent_focus();
+    let prefix = if overlay { "ov" } else { "cas" };
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(menu::GROUP_GAP_DP))
+        .w(px(220.))
+        .children(groups.iter().enumerate().map(move |(gi, group)| {
+            let shell = menu::resolve_group_focus(theme, scheme, gi, group_count, focus);
+            let start: usize = groups.iter().take(gi).map(|g| g.len()).sum();
+            let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = group
+                .iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let index = start + i;
+                    (
+                        index,
+                        *item,
+                        menu::resolve_item_at(
+                            theme,
+                            scheme,
+                            menu::MenuAxis::Vertical,
+                            i,
+                            group.len(),
+                            session.parent_selected(index),
+                            session.parent_state(index, item),
+                        ),
+                    )
+                })
+                .collect();
+            div()
+                .p(px(shell.pad_dp))
+                .rounded_tl(px(shell.corners.top_left))
+                .rounded_tr(px(shell.corners.top_right))
+                .rounded_br(px(shell.corners.bottom_right))
+                .rounded_bl(px(shell.corners.bottom_left))
+                .bg(paint(shell.container))
+                .flex()
+                .flex_col()
+                .children(rows.into_iter().map(|(index, item, a)| {
+                    android_live_menu_item(
+                        SharedString::from(format!("{prefix}-menu-{index}")),
+                        item,
+                        a,
+                        cx.listener(move |this, _, _, cx| {
+                            let action = if overlay {
+                                this.overlay_menu.click_parent(index)
+                            } else {
+                                this.cascade_menu.click_parent(index)
+                            };
+                            apply_live_menu_action(this, overlay, action, cx);
+                        }),
+                        cx.listener(move |this, _, _, cx| {
+                            if overlay {
+                                let was = this.overlay_menu;
+                                this.overlay_menu.hover_parent(index);
+                                if this.overlay_menu != was {
+                                    cx.notify();
+                                }
+                            } else {
+                                let was = this.cascade_menu;
+                                this.cascade_menu.hover_parent(index);
+                                if this.cascade_menu != was {
+                                    cx.notify();
+                                }
+                            }
+                        }),
+                    )
+                }))
+        }))
+}
+
+fn android_live_flyout(
+    theme: &Theme,
+    session: menu::OverlayMenuSession,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
     let scheme = menu::MenuScheme::Standard;
     let shell = menu::resolve_submenu(theme, scheme);
     let count = menu::SUBMENU_ITEMS.len();
-    div()
-        .p(px(shell.pad_dp))
-        .rounded(px(shell.corners.top_left))
-        .bg(paint(shell.container))
-        .flex()
-        .flex_col()
-        .children(menu::SUBMENU_ITEMS.iter().enumerate().map(move |(i, item)| {
-            let selected = i == menu::SUBMENU_SELECTED;
-            paint_menu_item(
+    let prefix = if overlay { "ov" } else { "cas" };
+    let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = menu::SUBMENU_ITEMS
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            (
+                i,
                 *item,
                 menu::resolve_item_at(
                     theme,
@@ -1837,26 +1976,90 @@ fn android_submenu_flyout(theme: &Theme) -> impl IntoElement {
                     menu::MenuAxis::Vertical,
                     i,
                     count,
-                    selected,
-                    InteractionState::Enabled,
+                    session.submenu_selected(i),
+                    if session.submenu_hi == i {
+                        InteractionState::Hovered
+                    } else {
+                        InteractionState::Enabled
+                    },
                 ),
+            )
+        })
+        .collect();
+    div()
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .flex()
+        .flex_col()
+        .children(rows.into_iter().map(|(i, item, a)| {
+            android_live_menu_item(
+                SharedString::from(format!("{prefix}-sub-{i}")),
+                item,
+                a,
+                cx.listener(move |this, _, _, cx| {
+                    let action = if overlay {
+                        this.overlay_menu.click_submenu(i)
+                    } else {
+                        this.cascade_menu.click_submenu(i)
+                    };
+                    apply_live_menu_action(this, overlay, action, cx);
+                }),
+                cx.listener(move |this, _, _, cx| {
+                    if overlay {
+                        this.overlay_menu.submenu_hi = i;
+                    } else {
+                        this.cascade_menu.submenu_hi = i;
+                    }
+                    cx.notify();
+                }),
             )
         }))
 }
 
-fn android_submenu_cascade(theme: &Theme) -> impl IntoElement {
+fn android_live_cascade(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+    overlay: bool,
+) -> impl IntoElement {
+    let session = if overlay {
+        this.overlay_menu
+    } else {
+        this.cascade_menu
+    };
+    let id = if overlay {
+        "menu-overlay-cascade"
+    } else {
+        "menu-cascade"
+    };
     div()
+        .id(id)
+        .tab_index(0)
         .flex()
         .flex_row()
         .items_end()
         .gap(px(menu::SUBMENU_GAP_DP))
-        .child(android_vertical_menu_focus(
-            theme,
-            menu::MenuScheme::Standard,
-            menu::MenuFocus::Inactive,
-            true,
-        ))
-        .child(android_submenu_flyout(theme))
+        .on_key_down(cx.listener(move |this, ev: &KeyDownEvent, _, cx| {
+            let action = if overlay {
+                this.overlay_menu.apply_key(&ev.keystroke.key)
+            } else {
+                this.cascade_menu.apply_key(&ev.keystroke.key)
+            };
+            apply_live_menu_action(this, overlay, action, cx);
+        }))
+        .when(!overlay, |el| {
+            el.on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                if !*hovered {
+                    this.cascade_menu.hover_leave();
+                    cx.notify();
+                }
+            }))
+        })
+        .child(android_live_parent(theme, session, cx, overlay))
+        .when(session.submenu_open, |el| {
+            el.child(android_live_flyout(theme, session, cx, overlay))
+        })
 }
 
 fn android_horizontal_menu(theme: &Theme) -> impl IntoElement {
@@ -1996,7 +2199,11 @@ fn android_chips(theme: &Theme) -> impl IntoElement {
         )
 }
 
-fn android_menus(theme: &Theme) -> impl IntoElement {
+fn android_menus(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     div()
         .flex()
         .flex_col()
@@ -2017,7 +2224,7 @@ fn android_menus(theme: &Theme) -> impl IntoElement {
                 .child(android_horizontal_menu(theme))
                 .child(android_horizontal_icons(theme)),
         )
-        .child(android_submenu_cascade(theme))
+        .child(android_live_cascade(this, theme, cx, false))
 }
 
 fn menu_overlay(
@@ -2025,9 +2232,6 @@ fn menu_overlay(
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let groups = menu::VERTICAL_GROUPS;
-    let group_count = groups.len();
-    let selected = this.menu_selected;
     div()
         .id("menu-scrim")
         .flex_1()
@@ -2044,79 +2248,7 @@ fn menu_overlay(
             this.overlay = Overlay::None;
             cx.notify();
         }))
-        .child(
-            div()
-                .id("menu-card")
-                .flex()
-                .flex_col()
-                .gap(px(menu::GROUP_GAP_DP))
-                .w(px(220.))
-                .children(groups.iter().enumerate().map(move |(gi, group)| {
-                    let shell =
-                        menu::resolve_group(theme, menu::MenuScheme::Standard, gi, group_count);
-                    let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = group
-                        .iter()
-                        .enumerate()
-                        .map(|(i, item)| {
-                            let global = gi * 8 + i;
-                            (
-                                global,
-                                *item,
-                                menu::resolve_item_at(
-                                    theme,
-                                    menu::MenuScheme::Standard,
-                                    menu::MenuAxis::Vertical,
-                                    i,
-                                    group.len(),
-                                    selected == global,
-                                    InteractionState::Enabled,
-                                ),
-                            )
-                        })
-                        .collect();
-                    div()
-                        .p(px(shell.pad_dp))
-                        .rounded_tl(px(shell.corners.top_left))
-                        .rounded_tr(px(shell.corners.top_right))
-                        .rounded_br(px(shell.corners.bottom_right))
-                        .rounded_bl(px(shell.corners.bottom_left))
-                        .bg(paint(shell.container))
-                        .flex()
-                        .flex_col()
-                        .children(rows.into_iter().map(|(global, item, a)| {
-                            let trail = menu::trailing_text(&item);
-                            div()
-                                .id(SharedString::from(format!("menu-item-{global}")))
-                                .h(px(a.height_dp))
-                                .px(px(a.pad_h_dp))
-                                .rounded_tl(px(a.corners.top_left))
-                                .rounded_tr(px(a.corners.top_right))
-                                .rounded_br(px(a.corners.bottom_right))
-                                .rounded_bl(px(a.corners.bottom_left))
-                                .bg(paint(a.container))
-                                .text_color(paint(a.label))
-                                .flex()
-                                .flex_row()
-                                .items_center()
-                                .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
-                                .child(
-                                    div()
-                                        .w(px(menu::ICON_DP))
-                                        .text_color(paint(a.icon))
-                                        .child(item.icon),
-                                )
-                                .child(div().flex_1().child(item.label))
-                                .when(!trail.is_empty(), |el| {
-                                    el.child(div().text_color(paint(a.shortcut)).child(trail))
-                                })
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.menu_selected = global;
-                                    this.overlay = Overlay::None;
-                                    cx.notify();
-                                }))
-                        }))
-                })),
-        )
+        .child(android_live_cascade(this, theme, cx, true))
 }
 
 fn android_mail_snack(
@@ -5580,7 +5712,8 @@ fn android_main(app: AndroidApp) {
                 radio: 0,
                 switched: true,
                 overlay: Overlay::None,
-                menu_selected: 0,
+                overlay_menu: menu::OverlayMenuSession::overlay(),
+                cascade_menu: menu::OverlayMenuSession::cascade(),
                 slider: slider::OVERVIEW_ROWS[3].value,
                 ringtone: 2,
                 tab_primary: tabs::SCENE_SELECTED,

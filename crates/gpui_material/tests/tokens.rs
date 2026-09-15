@@ -819,6 +819,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-menu-item=\"Share\""));
     assert!(html.contains("data-menu-item=\"Save\""));
     assert!(html.contains("data-menu-item=\"Sort\""));
+    assert!(html.contains("data-hero=\"menu-overlay\""));
+    assert!(html.contains("data-menu-overlay=\"1\""));
+    assert!(html.contains("data-overlay-flyout=\"1\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
     assert!(html.contains("data-hero=\"slider\""));
     assert!(html.contains("data-hero=\"buttons\""));
@@ -970,6 +973,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("submenu")
             && e.notes.contains("ActiveContainerShape")
             && e.notes.contains("typeahead")
+            && e.notes.contains("overlay")
+            && e.notes.contains("More")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1192,6 +1197,61 @@ fn expressive_menu_submenu_tokens() {
     let parent = menu::parent_labels();
     assert_eq!(parent.last().copied(), Some("More"));
     assert_eq!(menu::typeahead_index(&parent, 0, 'm'), Some(6));
+}
+
+#[test]
+fn expressive_menu_overlay_session() {
+    assert_eq!(menu::MORE_INDEX, 6);
+    assert!(!menu::OVERLAY_FLYOUT_OPEN);
+    assert!(menu::is_submenu_trigger(menu::MORE_INDEX));
+    assert!(!menu::is_submenu_trigger(0));
+    assert_eq!(menu::parent_item_count(), 7);
+    let (_, _, more) = menu::parent_item_at(menu::MORE_INDEX).expect("More");
+    assert!(more.submenu);
+    assert_eq!(more.label, "More");
+
+    let mut overlay = menu::OverlayMenuSession::overlay();
+    assert!(!overlay.submenu_open);
+    assert_eq!(overlay.parent_focus(), menu::MenuFocus::Rest);
+    assert_eq!(
+        overlay.click_parent(menu::MORE_INDEX),
+        menu::OverlayMenuAction::Stay,
+        "More opens the End flyout instead of dismissing"
+    );
+    assert!(overlay.submenu_open);
+    assert_eq!(overlay.parent_focus(), menu::MenuFocus::Inactive);
+    assert_eq!(overlay.apply_key("s"), menu::OverlayMenuAction::Stay);
+    assert_eq!(overlay.submenu_hi, 1, "s from Share → Save");
+    assert_eq!(overlay.apply_key("s"), menu::OverlayMenuAction::Stay);
+    assert_eq!(overlay.submenu_hi, 2);
+    assert_eq!(overlay.click_submenu(2), menu::OverlayMenuAction::Commit);
+    assert!(!overlay.submenu_open);
+    assert_eq!(overlay.committed, menu::OverlayMenuCommit::Submenu(2));
+
+    let mut overlay = menu::OverlayMenuSession::overlay();
+    assert_eq!(
+        overlay.click_parent(0),
+        menu::OverlayMenuAction::Commit,
+        "leaf items still dismiss the overlay"
+    );
+    overlay.hover_parent(menu::MORE_INDEX);
+    assert!(overlay.submenu_open);
+    overlay.hover_parent(1);
+    assert!(!overlay.submenu_open);
+    overlay.hover_parent(menu::MORE_INDEX);
+    assert_eq!(overlay.apply_key("left"), menu::OverlayMenuAction::Stay);
+    assert!(!overlay.submenu_open);
+    assert_eq!(
+        overlay.apply_key("escape"),
+        menu::OverlayMenuAction::Dismiss
+    );
+    overlay.hover_parent(menu::MORE_INDEX);
+    assert_eq!(overlay.apply_key("right"), menu::OverlayMenuAction::Stay);
+    assert!(overlay.submenu_open);
+
+    let cascade = menu::OverlayMenuSession::cascade();
+    assert!(cascade.submenu_open);
+    assert_eq!(cascade.parent_focus(), menu::MenuFocus::Inactive);
 }
 
 #[test]
