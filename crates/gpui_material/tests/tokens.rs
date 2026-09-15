@@ -500,6 +500,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-morph"));
     assert!(html.contains("data-rail-scrim"));
     assert!(html.contains("data-notch-evenodd"));
+    assert!(html.contains("data-notch-cpath"));
+    assert!(html.contains("data-loading-morph"));
+    assert!(html.contains("data-range-ticks"));
+    assert!(html.contains("fill-rule=\"evenodd\""));
     assert!(html.contains("data-carousel-fling"));
     assert!(html.contains("Loading"));
     assert!(html.contains("min span 5%") || html.contains("Price range"));
@@ -877,6 +881,10 @@ fn search_bar_and_time_picker_tokens() {
     assert!((s - 0.35).abs() < 1e-5);
     assert!(slider::RANGE_SNAP_WHILE_DRAG);
     assert!((slider::snap_to_step(0.22) - 0.20).abs() < 1e-5);
+    let (cs, ce) = slider::click_step(0.20, 0.75, 0.40);
+    assert!((cs - 0.40).abs() < 1e-5);
+    assert!((ce - 0.75).abs() < 1e-5);
+    assert_eq!(slider::range_tick_fractions().len(), 21);
     assert!(slider::range_value_label(0.2, 0.75).contains("min span"));
     let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::End, "left").unwrap();
     assert!((e - 0.70).abs() < 1e-5);
@@ -892,6 +900,8 @@ fn search_bar_and_time_picker_tokens() {
         navigation_rail::resolve_mode(&theme, navigation_rail::RailMode::Expanded).width_dp,
         220.0
     );
+    assert!(navigation_rail::is_modal(navigation_rail::RailMode::Expanded));
+    assert!((search::morph_list_opacity(1.0) - 1.0).abs() < 1e-5);
     assert_eq!(navigation_rail::DESTINATION_BADGES[1], Some(3));
     let car = carousel::resolve(&theme);
     assert_eq!(car.large_w_dp, 256.0);
@@ -903,6 +913,10 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(carousel::advance(0, -1), 3);
     assert_eq!(carousel::fling_step(12.0, 0.0), 1);
     assert_eq!(carousel::fling_steps(80.0, 0.0), 3);
+    assert_eq!(carousel::inertial_steps(48.0, 0.0), 1);
+    assert_eq!(carousel::inertial_steps(96.0, 0.0), 2);
+    let (v, _r, _s) = carousel::integrate_fling(8.0, 0.0, 0.25);
+    assert!(v < 8.0);
     assert!(carousel::decay_velocity(10.0, 0.25) < 10.0);
     let paint = slider::range_paint(0.20, 0.75, 280.0, 4.0);
     assert!(paint.left < paint.end_handle);
@@ -913,6 +927,28 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(caps.len(), 2);
     assert_eq!(progress::clock_ms(&theme), theme.motion.effects_default_ms * 6);
     assert_eq!(progress::LOADING_LABEL, "Loading");
+    let morph = progress::loading_polygon(progress::LOADING_SIZE_DP, 0.3);
+    assert_eq!(morph.len(), progress::LOADING_SAMPLES);
+    assert!(progress::loading_svg_d(38.0, 0.0).starts_with('M'));
+    assert!(progress::loading_svg_values(38.0, 4).contains(';'));
+    let sausage = progress::round_capped_arc_polygon(48.0, 4.0, -90.0, 90.0);
+    assert!(sausage.len() > 20);
+    assert_eq!(progress::contained_loading_indicator(&theme).contained, true);
+    assert_eq!(
+        progress::contained_loading_indicator(&theme).container,
+        theme.color.primary_container
+    );
+    assert_eq!(
+        progress::contained_loading_indicator(&theme).indicator,
+        theme.color.on_primary_container
+    );
+    assert_eq!(
+        progress::loading_indicator(&theme).indicator,
+        theme.color.primary
+    );
+    assert!((navigation_rail::morph_width_dp(0.0) - 80.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_dp(1.0) - 220.0).abs() < 0.01);
+    assert!((time_picker::hour_face_live_angle_deg(6, 30, 0.0) - 195.0).abs() < 0.01);
     assert_eq!(navigation_rail::select_destination(0, 2), 2);
     assert_eq!(
         navigation_rail::toggle_mode(navigation_rail::RailMode::Expanded),
@@ -930,6 +966,12 @@ fn search_bar_and_time_picker_tokens() {
     let hole = frame.hole_rect(280.0);
     assert!(hole.2 > 200.0);
     assert!(frame.evenodd_svg_d(280.0).contains('Z'));
+    assert_eq!(frame.evenodd_subpath_count(280.0), 1);
+    assert!(frame.evenodd_svg_d(280.0).contains(" 0 0 0 "));
+    let poly = frame.evenodd_polygon(280.0);
+    assert!(poly.len() > 16);
+    assert!(poly.iter().any(|(x, _)| *x < 10.0));
+    assert!(poly.iter().any(|(x, _)| *x > 40.0 && *x < 50.0));
     let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
     assert!(lerped.abs() > 80.0);
 }

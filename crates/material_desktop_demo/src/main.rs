@@ -15,9 +15,9 @@
 
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
-    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context,
+    FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement, PathBuilder, Render, ScrollDelta, ScrollWheelEvent, SharedString,
     Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
@@ -73,12 +73,13 @@ fn feed_outline_verbs(
                 to_x,
                 to_y,
                 radius,
+                clockwise,
             } => {
                 builder.arc_to(
                     point(px(radius), px(radius)),
                     px(0.),
                     false,
-                    true,
+                    clockwise,
                     point(origin.x + px(to_x), origin.y + px(to_y)),
                 );
             }
@@ -87,14 +88,16 @@ fn feed_outline_verbs(
     }
 }
 
-fn paint_round_capped_polyline(
+fn paint_filled_polygon(
     window: &mut Window,
     origin: gpui::Point<gpui::Pixels>,
     pts: &[(f32, f32)],
-    stroke: f32,
     color: gpui::Rgba,
 ) {
-    let mut builder = PathBuilder::stroke(px(stroke));
+    if pts.len() < 3 {
+        return;
+    }
+    let mut builder = PathBuilder::fill();
     for (i, (x, y)) in pts.iter().enumerate() {
         let p = point(origin.x + px(*x), origin.y + px(*y));
         if i == 0 {
@@ -103,28 +106,49 @@ fn paint_round_capped_polyline(
             builder.line_to(p);
         }
     }
+    builder.close();
     if let Ok(path) = builder.build() {
         window.paint_path(path, color);
     }
-    let r = stroke / 2.0;
-    if let (Some(&(x0, y0)), Some(&(x1, y1))) = (pts.first(), pts.last()) {
-        for (cx, cy) in [(x0, y0), (x1, y1)] {
-            let mut cap = PathBuilder::fill();
-            let n = 12u32;
-            for i in 0..n {
-                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
-                let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
-                if i == 0 {
-                    cap.move_to(p);
-                } else {
-                    cap.line_to(p);
-                }
-            }
-            cap.close();
-            if let Ok(path) = cap.build() {
-                window.paint_path(path, color);
-            }
+}
+
+fn paint_disc(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    cx: f32,
+    cy: f32,
+    r: f32,
+    color: gpui::Rgba,
+) {
+    let mut cap = PathBuilder::fill();
+    let n = 14u32;
+    for i in 0..n {
+        let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+        let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
+        if i == 0 {
+            cap.move_to(p);
+        } else {
+            cap.line_to(p);
         }
+    }
+    cap.close();
+    if let Ok(path) = cap.build() {
+        window.paint_path(path, color);
+    }
+}
+
+/// Round-capped circular stroke: overlapping discs along the centerline
+/// (GPUI does not re-export `LineCap::Round`).
+fn paint_round_capped_polyline(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    pts: &[(f32, f32)],
+    stroke: f32,
+    color: gpui::Rgba,
+) {
+    let r = stroke / 2.0;
+    for &(cx, cy) in pts {
+        paint_disc(window, origin, cx, cy, r, color);
     }
 }
 
@@ -763,6 +787,22 @@ fn range_slider_hero(
                         .rounded(px(t.track_corner))
                         .bg(paint(t.inactive)),
                 )
+                .children(slider::range_tick_fractions().into_iter().map(|frac| {
+                    let x = (frac * total - t.stop_dp / 2.0).max(0.0);
+                    let active = slider::range_tick_active(frac, range.start, range.end);
+                    div()
+                        .absolute()
+                        .left(px(x))
+                        .top(px(y_track + (t.track_h - t.stop_dp) / 2.0))
+                        .w(px(t.stop_dp))
+                        .h(px(t.stop_dp))
+                        .rounded(px(t.stop_dp / 2.0))
+                        .bg(paint(if active {
+                            t.stop_active
+                        } else {
+                            t.stop_inactive
+                        }))
+                }))
                 .child({
                     let hit = this.range_hit.clone();
                     canvas(
@@ -1777,40 +1817,39 @@ fn search_bar_hero(
     } else {
         suggestions
     };
-    let list = open.then(|| {
-        div()
-            .flex()
-            .flex_col()
-            .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
-            .children(rows.into_iter().enumerate().map(|(i, label)| {
-                div()
-                    .id(SharedString::from(format!("search-sug-{i}")))
-                    .h(px(view.suggestion_h_dp))
-                    .px(px(16.))
-                    .flex()
-                    .items_center()
-                    .gap(px(16.))
-                    .text_color(paint(view.suggestion))
-                    .child(
-                        div()
-                            .text_color(paint(view.suggestion_icon))
-                            .child(if i == 0 { "⌕" } else { "◌" }),
-                    )
-                    .child(label)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
-                            this.search.set_value(picked);
-                            cx.notify();
-                        }
-                    }))
-            }))
-            .into_any_element()
-    });
+    let list = div()
+        .flex()
+        .flex_col()
+        .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
+        .children(rows.into_iter().enumerate().map(|(i, label)| {
+            div()
+                .id(SharedString::from(format!("search-sug-{i}")))
+                .h(px(view.suggestion_h_dp))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .gap(px(16.))
+                .text_color(paint(view.suggestion))
+                .child(
+                    div()
+                        .text_color(paint(view.suggestion_icon))
+                        .child(if i == 0 { "⌕" } else { "◌" }),
+                )
+                .child(label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
+                        this.search.set_value(picked);
+                        cx.notify();
+                    }
+                }))
+        }))
+        .into_any_element();
     div()
         .id("search-morph")
         .w_full()
         .flex()
         .flex_col()
+        .overflow_hidden()
         .bg(paint(if open { view.container } else { a.bar.container }))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
@@ -1829,7 +1868,22 @@ fn search_bar_hero(
             },
         )
         .child(header)
-        .children(list)
+        .child(
+            div()
+                .with_animation(
+                    if open {
+                        "search-list-in"
+                    } else {
+                        "search-list-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if open { delta } else { 1.0 - delta };
+                        this.opacity(search::morph_list_opacity(t))
+                    },
+                )
+                .child(list),
+        )
 }
 
 fn time_picker_hero(
@@ -1863,6 +1917,9 @@ fn time_picker_hero(
     );
     let hand_gen = this.time_hand_gen;
     let hand_ms = time_picker::hand_motion_ms(theme) as u64;
+    let hour_live = hour_on;
+    let live_hour = this.time_hour;
+    let live_minute = this.time_minute;
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -1993,11 +2050,26 @@ fn time_picker_hero(
                         .w(px(clock))
                         .h(px(clock))
                         .with_animation(
-                            SharedString::from(format!("time-hand-{hand_gen}")),
-                            Animation::new(Duration::from_millis(hand_ms)),
+                            SharedString::from(format!(
+                                "time-hand-{hand_gen}-{}",
+                                if hour_live { "live" } else { "once" }
+                            )),
+                            if hour_live {
+                                Animation::new(Duration::from_millis(hand_ms.saturating_mul(12)))
+                                    .repeat()
+                            } else {
+                                Animation::new(Duration::from_millis(hand_ms))
+                            },
                             move |this, delta| {
-                                let angle =
-                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta);
+                                let angle = if hour_live {
+                                    time_picker::hour_face_live_angle_deg(
+                                        live_hour,
+                                        live_minute,
+                                        delta,
+                                    )
+                                } else {
+                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta)
+                                };
                                 let quad = time_picker::hand_quad_at_angle(clock, angle, number);
                                 this.child(
                                     canvas(
@@ -2095,26 +2167,40 @@ fn nav_rail_hero(
 ) -> impl IntoElement {
     let expanded = this.rail_mode == navigation_rail::RailMode::Expanded;
     let scrim_c = paint(navigation_rail::scrim(theme));
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
     div()
         .id("nav-rail-stage")
         .relative()
         .w_full()
         .min_h(px(280.))
-        .when(expanded, |el| {
-            el.child(
-                div()
-                    .id("rail-scrim")
-                    .absolute()
-                    .top(px(0.))
-                    .left(px(0.))
-                    .size_full()
-                    .bg(scrim_c)
-                    .on_click(cx.listener(|this, _, _, cx| {
+        .overflow_hidden()
+        .child(
+            div()
+                .id("rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
                         this.rail_mode = navigation_rail::RailMode::Collapsed;
                         cx.notify();
-                    })),
-            )
-        })
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "rail-scrim-in"
+                    } else {
+                        "rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(t)
+                    },
+                ),
+        )
         .child(
             div()
                 .relative()
@@ -2131,15 +2217,25 @@ fn nav_rail_column(
     let rail = navigation_rail::resolve_mode(theme, mode);
     let expanded = mode == navigation_rail::RailMode::Expanded;
     let selected = this.rail_selected;
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
     div()
         .id("nav-rail")
-        .w(px(rail.width_dp))
+        .overflow_hidden()
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
         .flex()
         .flex_col()
         .items_center()
         .gap(px(navigation_rail::DEST_GAP_DP))
+        .when(expanded, |el| el.shadow_lg())
+        .with_animation(
+            if expanded { "rail-expand" } else { "rail-collapse" },
+            Animation::new(Duration::from_millis(morph_ms)),
+            move |this, delta| {
+                let t = if expanded { delta } else { 1.0 - delta };
+                this.w(px(navigation_rail::morph_width_dp(t)))
+            },
+        )
         .child(
             div()
                 .id("rail-fab")
@@ -2251,7 +2347,6 @@ fn nav_rail_column(
 fn progress_heroes(theme: &Theme) -> impl IntoElement {
     let lin = progress::linear(theme, 0.6);
     let indet = progress::linear_indeterminate(theme);
-    let ptr = progress::pull_to_refresh(theme);
     let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
     let span = indet.head_span;
     let ind_color = paint(indet.indicator);
@@ -2347,55 +2442,43 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                 .items_center()
                 .gap(px(8.))
                 .child({
-                    let size = ptr.size_dp;
-                    let stroke = ptr.stroke_dp;
-                    let arc = ptr.arc_deg;
-                    let ptr_color = paint(ptr.indicator);
-                    let dur = ptr.duration_ms as u64;
+                    let load = progress::contained_loading_indicator(theme);
+                    let box_s = load.contained_dp;
+                    let shape_s = load.size_dp;
+                    let ptr_color = paint(load.indicator);
+                    let box_bg = paint(load.container);
+                    let dur = load.duration_ms as u64;
                     div()
-                        .relative()
-                        .w(px(size))
-                        .h(px(size))
+                        .w(px(box_s))
+                        .h(px(box_s))
+                        .rounded(px(box_s / 2.0))
+                        .bg(box_bg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
                         .child(
                             div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
-                                .w(px(size))
-                                .h(px(size))
-                                .rounded(px(size / 2.0))
-                                .border_2()
-                                .border_color(paint(ptr.track)),
-                        )
-                        .child(
-                            div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
-                                .w(px(size))
-                                .h(px(size))
+                                .w(px(shape_s))
+                                .h(px(shape_s))
                                 .with_animation(
-                                    "ptr-spin",
+                                    "ptr-morph",
                                     Animation::new(Duration::from_millis(dur)).repeat(),
                                     move |this, delta| {
                                         this.child(
                                             canvas(
                                                 move |_, _, _| {},
                                                 move |bounds, _, window, _| {
-                                                    let pts = progress::ptr_arc_polyline(
-                                                        size, stroke, arc, delta,
-                                                    );
-                                                    paint_round_capped_polyline(
+                                                    let pts = progress::loading_polygon(shape_s, delta);
+                                                    paint_filled_polygon(
                                                         window,
                                                         bounds.origin,
                                                         &pts,
-                                                        stroke,
                                                         ptr_color,
                                                     );
                                                 },
                                             )
-                                            .w(px(size))
-                                            .h(px(size)),
+                                            .w(px(shape_s))
+                                            .h(px(shape_s)),
                                         )
                                     },
                                 ),
@@ -2408,56 +2491,44 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                 )),
         )
         .child({
-            let load = progress::loading_circular(theme);
+            let load = progress::loading_indicator(theme);
             let size = load.size_dp;
-            let stroke = load.stroke_dp;
-            let prog = load.progress;
             let load_color = paint(load.indicator);
-            let dur = progress::clock_ms(theme) as u64;
+            let dur = load.duration_ms as u64;
+            let circ = progress::circular_indeterminate(theme);
+            let cap_size = circ.size_dp;
+            let cap_stroke = circ.stroke_dp;
+            let cap_arc = circ.arc_deg;
+            let cap_color = paint(circ.indicator);
+            let cap_dur = circ.duration_ms as u64;
             div()
                 .flex()
-                .flex_col()
+                .flex_row()
                 .items_center()
-                .gap(px(8.))
+                .gap(px(16.))
                 .child(
                     div()
-                        .relative()
-                        .w(px(size))
-                        .h(px(size))
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .gap(px(8.))
                         .child(
                             div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
-                                .w(px(size))
-                                .h(px(size))
-                                .rounded(px(size / 2.0))
-                                .border_2()
-                                .border_color(paint(load.track)),
-                        )
-                        .child(
-                            div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
                                 .w(px(size))
                                 .h(px(size))
                                 .with_animation(
-                                    "loading-spin",
+                                    "loading-morph",
                                     Animation::new(Duration::from_millis(dur)).repeat(),
                                     move |this, delta| {
                                         this.child(
                                             canvas(
                                                 move |_, _, _| {},
                                                 move |bounds, _, window, _| {
-                                                    let pts = progress::determinate_arc_polyline(
-                                                        size, stroke, prog, delta,
-                                                    );
-                                                    paint_round_capped_polyline(
+                                                    let pts = progress::loading_polygon(size, delta);
+                                                    paint_filled_polygon(
                                                         window,
                                                         bounds.origin,
                                                         &pts,
-                                                        stroke,
                                                         load_color,
                                                     );
                                                 },
@@ -2467,13 +2538,52 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                                         )
                                     },
                                 ),
+                        )
+                        .child(spaced_line(
+                            progress::LOADING_LABEL,
+                            12.0,
+                            paint(theme.color.on_surface_variant),
+                        )),
+                )
+                .child(
+                    div()
+                        .w(px(cap_size))
+                        .h(px(cap_size))
+                        .with_animation(
+                            "circ-indet-cap",
+                            Animation::new(Duration::from_millis(cap_dur)).repeat(),
+                            move |this, delta| {
+                                this.child(
+                                    canvas(
+                                        move |_, _, _| {},
+                                        move |bounds, _, window, _| {
+                                            let sausage = progress::ptr_arc_fill(
+                                                cap_size, cap_stroke, cap_arc, delta,
+                                            );
+                                            paint_filled_polygon(
+                                                window,
+                                                bounds.origin,
+                                                &sausage,
+                                                cap_color,
+                                            );
+                                            let line = progress::ptr_arc_polyline(
+                                                cap_size, cap_stroke, cap_arc, delta,
+                                            );
+                                            paint_round_capped_polyline(
+                                                window,
+                                                bounds.origin,
+                                                &line,
+                                                cap_stroke,
+                                                cap_color,
+                                            );
+                                        },
+                                    )
+                                    .w(px(cap_size))
+                                    .h(px(cap_size)),
+                                )
+                            },
                         ),
                 )
-                .child(spaced_line(
-                    progress::LOADING_LABEL,
-                    12.0,
-                    paint(theme.color.on_surface_variant),
-                ))
         })
 }
 
@@ -2494,7 +2604,7 @@ fn carousel_hero(
                 ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
                 ScrollDelta::Lines(p) => (p.x, p.y),
             };
-            let step = carousel::fling_steps(dx, dy);
+            let step = carousel::inertial_steps(dx, dy);
             if step != 0 {
                 this.carousel_index = carousel::advance(this.carousel_index, step);
                 cx.notify();
@@ -2576,12 +2686,9 @@ fn outlined_notched_field(
     let outline = field.field.outline.unwrap_or((field.label, 1.0));
     let frame = text_field::notch_frame(label.as_ref(), field);
     let fill = field.field.container;
-    let cut = field.cutout_fill;
     let (lx, ly) = frame.label_origin_dp();
     let stroke_color = paint(outline.0);
-    let stroke_w = frame.stroke_dp;
-    let verbs = frame.outline_verbs(280.0);
-    let evenodd = frame.evenodd_verbs(280.0);
+    let notch = frame.outline_verbs(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
     div()
@@ -2612,26 +2719,14 @@ fn outlined_notched_field(
                         label_h_dp: frame.label_h_dp,
                         field_h_dp: frame.field_h_dp,
                     };
-                    let even = if (w - 280.0).abs() > 1.0 {
-                        frame.evenodd_verbs(w)
-                    } else {
-                        evenodd.clone()
-                    };
-                    let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
-                        FillOptions::default().with_fill_rule(FillRule::EvenOdd),
-                    ));
-                    feed_outline_verbs(&mut fill_b, bounds.origin, even);
-                    if let Ok(path) = fill_b.build() {
-                        window.paint_path(path, stroke_color);
-                    }
-                    let stroke_verbs = if (w - 280.0).abs() > 1.0 {
+                    let verbs = if (w - 280.0).abs() > 1.0 {
                         frame.outline_verbs(w)
                     } else {
-                        verbs.clone()
+                        notch.clone()
                     };
-                    let mut builder = PathBuilder::stroke(px(stroke_w));
-                    feed_outline_verbs(&mut builder, bounds.origin, stroke_verbs);
-                    if let Ok(path) = builder.build() {
+                    let mut stroke_b = PathBuilder::stroke(px(frame.stroke_dp));
+                    feed_outline_verbs(&mut stroke_b, bounds.origin, verbs);
+                    if let Ok(path) = stroke_b.build() {
                         window.paint_path(path, stroke_color);
                     }
                 },
@@ -2667,7 +2762,6 @@ fn outlined_notched_field(
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(paint(cut))
                 .child(
                     div()
                         .text_size(px(field.label_style.size_sp))
@@ -2947,6 +3041,7 @@ mod tests {
         assert_eq!(frame.notch_gap_h_dp(), 2.0);
         assert!(frame.outline_svg_d(280.0).starts_with('M'));
         assert!(frame.evenodd_svg_d(280.0).contains('Z'));
+        assert_eq!(frame.evenodd_subpath_count(280.0), 1);
         assert_eq!(carousel::LARGE_W_DP, 256.0);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);

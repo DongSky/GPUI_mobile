@@ -104,12 +104,12 @@ pub fn circular_indeterminate(theme: &Theme) -> IndeterminateCircular {
 pub const LOADING_LABEL: &str = "Loading";
 pub const LOADING_PROGRESS: f32 = 0.65;
 
-/// Determinate circular used as the loading-indicator hero (round-capped arc).
+/// Determinate circular used as the circular-progress hero (round-capped filled arc).
 pub fn loading_circular(theme: &Theme) -> CircularProgress {
     circular(theme, LOADING_PROGRESS)
 }
 
-/// Pull-to-refresh style circular at the top of a scroll surface.
+/// Pull-to-refresh uses the contained Expressive loading indicator.
 pub fn pull_to_refresh(theme: &Theme) -> IndeterminateCircular {
     let mut a = circular_indeterminate(theme);
     a.size_dp = PTR_SIZE_DP;
@@ -193,7 +193,14 @@ pub fn determinate_arc_polyline(size: f32, stroke: f32, progress: f32, phase: f3
 }
 
 pub fn ptr_arc_svg_d(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> String {
-    let pts = ptr_arc_polyline(size, stroke, arc_deg, phase);
+    polyline_svg_d(&ptr_arc_polyline(size, stroke, arc_deg, phase), false)
+}
+
+pub fn wave_svg_d(width: f32, height: f32, progress: f32, phase: f32) -> String {
+    polyline_svg_d(&wave_polyline(width, height, progress, phase), false)
+}
+
+fn polyline_svg_d(pts: &[(f32, f32)], close: bool) -> String {
     let mut d = String::new();
     for (i, (x, y)) in pts.iter().enumerate() {
         if i == 0 {
@@ -201,19 +208,182 @@ pub fn ptr_arc_svg_d(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> String
         } else {
             d.push_str(&format!(" L{x:.2},{y:.2}"));
         }
+    }
+    if close && !pts.is_empty() {
+        d.push_str(" Z");
     }
     d
 }
 
-pub fn wave_svg_d(width: f32, height: f32, progress: f32, phase: f32) -> String {
-    let pts = wave_polyline(width, height, progress, phase);
-    let mut d = String::new();
-    for (i, (x, y)) in pts.iter().enumerate() {
-        if i == 0 {
-            d.push_str(&format!("M{x:.2},{y:.2}"));
-        } else {
-            d.push_str(&format!(" L{x:.2},{y:.2}"));
-        }
+/// Filled sausage for a round-capped circular stroke (outer arc + caps + inner arc).
+/// Used for determinate/indeterminate circular progress — not a stroked polyline.
+pub fn round_capped_arc_polygon(
+    size: f32,
+    stroke: f32,
+    start_deg: f32,
+    sweep_deg: f32,
+) -> Vec<(f32, f32)> {
+    let cx = size / 2.0;
+    let cy = size / 2.0;
+    let half = stroke.max(1.0) / 2.0;
+    let r = (size / 2.0 - stroke).max(half);
+    let r_out = r + half;
+    let r_in = (r - half).max(0.4);
+    let start = start_deg.to_radians();
+    let sweep = sweep_deg.to_radians().clamp(0.08, std::f32::consts::TAU * 0.96);
+    let n = ((sweep.abs() / 0.09).ceil() as usize).clamp(12, 48);
+    let cap_n = 10usize;
+    let mut pts = Vec::with_capacity((n + 1) * 2 + cap_n * 2);
+    for i in 0..=n {
+        let a = start + sweep * (i as f32 / n as f32);
+        pts.push((cx + r_out * a.cos(), cy + r_out * a.sin()));
     }
-    d
+    let end = start + sweep;
+    let ecx = cx + r * end.cos();
+    let ecy = cy + r * end.sin();
+    for i in 1..=cap_n {
+        let t = i as f32 / cap_n as f32;
+        let ang = end + std::f32::consts::PI * t;
+        pts.push((ecx + half * ang.cos(), ecy + half * ang.sin()));
+    }
+    for i in (0..=n).rev() {
+        let a = start + sweep * (i as f32 / n as f32);
+        pts.push((cx + r_in * a.cos(), cy + r_in * a.sin()));
+    }
+    let scx = cx + r * start.cos();
+    let scy = cy + r * start.sin();
+    for i in 1..=cap_n {
+        let t = i as f32 / cap_n as f32;
+        let ang = start + std::f32::consts::PI + std::f32::consts::PI * t;
+        pts.push((scx + half * ang.cos(), scy + half * ang.sin()));
+    }
+    pts
+}
+
+pub fn round_capped_arc_svg_d(size: f32, stroke: f32, start_deg: f32, sweep_deg: f32) -> String {
+    polyline_svg_d(
+        &round_capped_arc_polygon(size, stroke, start_deg, sweep_deg),
+        true,
+    )
+}
+
+/// PTR / circular-indeterminate as a filled round-capped arc (`phase` 0..=1).
+pub fn ptr_arc_fill(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> Vec<(f32, f32)> {
+    let start = phase * 360.0 - 90.0;
+    round_capped_arc_polygon(size, stroke, start, arc_deg)
+}
+
+pub const LOADING_SIZE_DP: f32 = 38.0;
+pub const LOADING_CONTAINED_DP: f32 = 48.0;
+pub const LOADING_SHAPES: usize = 7;
+pub const LOADING_SAMPLES: usize = 48;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LoadingIndicator {
+    pub size_dp: f32,
+    pub contained_dp: f32,
+    pub contained: bool,
+    pub container: Argb,
+    pub indicator: Argb,
+    pub duration_ms: u16,
+}
+
+/// M3 Expressive morphing loading indicator (short waits).
+/// Uncontained: primary morph on the surface (m3.material.io loading-indicator).
+pub fn loading_indicator(theme: &Theme) -> LoadingIndicator {
+    LoadingIndicator {
+        size_dp: LOADING_SIZE_DP,
+        contained_dp: LOADING_CONTAINED_DP,
+        contained: false,
+        container: theme.color.surface_container_highest,
+        indicator: theme.color.primary,
+        duration_ms: clock_ms(theme),
+    }
+}
+
+/// Contained loading indicator — preferred for pull-to-refresh.
+/// Container = primary-container, indicator = on-primary-container.
+pub fn contained_loading_indicator(theme: &Theme) -> LoadingIndicator {
+    LoadingIndicator {
+        size_dp: LOADING_SIZE_DP,
+        contained_dp: LOADING_CONTAINED_DP,
+        contained: true,
+        container: theme.color.primary_container,
+        indicator: theme.color.on_primary_container,
+        duration_ms: clock_ms(theme),
+    }
+}
+
+fn loading_radius(kind: usize, t: f32) -> f32 {
+    let tau = std::f32::consts::TAU;
+    match kind % LOADING_SHAPES {
+        0 => star_radius(8, 0.52, t),
+        1 => ngon_radius(9, t),
+        2 => ngon_radius(5, t),
+        3 => ellipse_radius(1.0, 0.58, t * tau),
+        4 => star_radius(12, 0.68, t),
+        5 => ngon_radius(4, t),
+        _ => ellipse_radius(1.0, 0.74, t * tau),
+    }
+}
+
+fn star_radius(points: usize, inner: f32, t: f32) -> f32 {
+    let u = (t * points as f32).fract();
+    if u < 0.5 {
+        1.0 + (inner - 1.0) * (u * 2.0)
+    } else {
+        inner + (1.0 - inner) * ((u - 0.5) * 2.0)
+    }
+}
+
+fn ngon_radius(sides: usize, t: f32) -> f32 {
+    let interior = std::f32::consts::TAU / sides as f32;
+    let a = t * std::f32::consts::TAU;
+    let local = (a + interior / 2.0).rem_euclid(interior) - interior / 2.0;
+    ((interior / 2.0).cos() / local.cos().max(0.18)).clamp(0.45, 1.35)
+}
+
+fn ellipse_radius(rx: f32, ry: f32, angle: f32) -> f32 {
+    let c = angle.cos();
+    let s = angle.sin();
+    (rx * ry) / (ry * c).hypot(rx * s).max(1e-4)
+}
+
+fn smoothstep(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// Morphing Expressive polygon at `phase` 0..=1 (rotates + cycles 7 shapes).
+pub fn loading_polygon(size: f32, phase: f32) -> Vec<(f32, f32)> {
+    let phase = phase.fract().abs();
+    let cx = size / 2.0;
+    let cy = size / 2.0;
+    let max_r = (size / 2.0 - 0.5).max(1.0);
+    let x = phase * LOADING_SHAPES as f32;
+    let i0 = x.floor() as usize;
+    let f = smoothstep(x.fract());
+    let i1 = (i0 + 1) % LOADING_SHAPES;
+    let rot = phase * std::f32::consts::TAU;
+    (0..LOADING_SAMPLES)
+        .map(|i| {
+            let t = i as f32 / LOADING_SAMPLES as f32;
+            let r = (loading_radius(i0, t) * (1.0 - f) + loading_radius(i1, t) * f) * max_r;
+            let a = t * std::f32::consts::TAU - std::f32::consts::FRAC_PI_2 + rot;
+            (cx + r * a.cos(), cy + r * a.sin())
+        })
+        .collect()
+}
+
+pub fn loading_svg_d(size: f32, phase: f32) -> String {
+    polyline_svg_d(&loading_polygon(size, phase), true)
+}
+
+/// Semicolon-separated path `d` values for SVG `<animate>`.
+pub fn loading_svg_values(size: f32, frames: usize) -> String {
+    let n = frames.max(2);
+    (0..n)
+        .map(|i| loading_svg_d(size, i as f32 / n as f32))
+        .collect::<Vec<_>>()
+        .join(";")
 }

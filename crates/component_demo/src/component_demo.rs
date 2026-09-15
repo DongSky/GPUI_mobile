@@ -5,9 +5,9 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
-    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    canvas, div, point, px, Animation, AnimationExt, App, Application, Context,
+    FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement, PathBuilder, Render, ScrollDelta, ScrollWheelEvent, SharedString,
     Styled, Window,
 };
 use gpui_android::AndroidPlatform;
@@ -63,17 +63,67 @@ fn feed_outline_verbs(
                 to_x,
                 to_y,
                 radius,
+                clockwise,
             } => {
                 builder.arc_to(
                     point(px(radius), px(radius)),
                     px(0.),
                     false,
-                    true,
+                    clockwise,
                     point(origin.x + px(to_x), origin.y + px(to_y)),
                 );
             }
             text_field::OutlineVerb::Close => builder.close(),
         }
+    }
+}
+
+fn paint_filled_polygon(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    pts: &[(f32, f32)],
+    color: gpui::Rgba,
+) {
+    if pts.len() < 3 {
+        return;
+    }
+    let mut builder = PathBuilder::fill();
+    for (i, (x, y)) in pts.iter().enumerate() {
+        let p = point(origin.x + px(*x), origin.y + px(*y));
+        if i == 0 {
+            builder.move_to(p);
+        } else {
+            builder.line_to(p);
+        }
+    }
+    builder.close();
+    if let Ok(path) = builder.build() {
+        window.paint_path(path, color);
+    }
+}
+
+fn paint_disc(
+    window: &mut Window,
+    origin: gpui::Point<gpui::Pixels>,
+    cx: f32,
+    cy: f32,
+    r: f32,
+    color: gpui::Rgba,
+) {
+    let mut cap = PathBuilder::fill();
+    let n = 14u32;
+    for i in 0..n {
+        let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+        let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
+        if i == 0 {
+            cap.move_to(p);
+        } else {
+            cap.line_to(p);
+        }
+    }
+    cap.close();
+    if let Ok(path) = cap.build() {
+        window.paint_path(path, color);
     }
 }
 
@@ -84,37 +134,9 @@ fn paint_round_capped_polyline(
     stroke: f32,
     color: gpui::Rgba,
 ) {
-    let mut builder = PathBuilder::stroke(px(stroke));
-    for (i, (x, y)) in pts.iter().enumerate() {
-        let p = point(origin.x + px(*x), origin.y + px(*y));
-        if i == 0 {
-            builder.move_to(p);
-        } else {
-            builder.line_to(p);
-        }
-    }
-    if let Ok(path) = builder.build() {
-        window.paint_path(path, color);
-    }
     let r = stroke / 2.0;
-    if let (Some(&(x0, y0)), Some(&(x1, y1))) = (pts.first(), pts.last()) {
-        for (cx, cy) in [(x0, y0), (x1, y1)] {
-            let mut cap = PathBuilder::fill();
-            let n = 12u32;
-            for i in 0..n {
-                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
-                let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
-                if i == 0 {
-                    cap.move_to(p);
-                } else {
-                    cap.line_to(p);
-                }
-            }
-            cap.close();
-            if let Ok(path) = cap.build() {
-                window.paint_path(path, color);
-            }
-        }
+    for &(cx, cy) in pts {
+        paint_disc(window, origin, cx, cy, r, color);
     }
 }
 
@@ -1646,7 +1668,6 @@ fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
 
 fn android_progress_indet(theme: &Theme) -> impl IntoElement {
     let indet = progress::linear_indeterminate(theme);
-    let ptr = progress::pull_to_refresh(theme);
     let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
     let span = indet.head_span;
     let ind_color = paint(indet.indicator);
@@ -1728,55 +1749,43 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                 .items_center()
                 .gap(px(8.))
                 .child({
-                    let size = ptr.size_dp;
-                    let stroke = ptr.stroke_dp;
-                    let arc = ptr.arc_deg;
-                    let ptr_color = paint(ptr.indicator);
-                    let dur = ptr.duration_ms as u64;
+                    let load = progress::contained_loading_indicator(theme);
+                    let box_s = load.contained_dp;
+                    let shape_s = load.size_dp;
+                    let ptr_color = paint(load.indicator);
+                    let box_bg = paint(load.container);
+                    let dur = load.duration_ms as u64;
                     div()
-                        .relative()
-                        .w(px(size))
-                        .h(px(size))
+                        .w(px(box_s))
+                        .h(px(box_s))
+                        .rounded(px(box_s / 2.0))
+                        .bg(box_bg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
                         .child(
                             div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
-                                .w(px(size))
-                                .h(px(size))
-                                .rounded(px(size / 2.0))
-                                .border_2()
-                                .border_color(paint(ptr.track)),
-                        )
-                        .child(
-                            div()
-                                .absolute()
-                                .top(px(0.))
-                                .left(px(0.))
-                                .w(px(size))
-                                .h(px(size))
+                                .w(px(shape_s))
+                                .h(px(shape_s))
                                 .with_animation(
-                                    "android-ptr-spin",
+                                    "android-ptr-morph",
                                     Animation::new(Duration::from_millis(dur)).repeat(),
                                     move |this, delta| {
                                         this.child(
                                             canvas(
                                                 move |_, _, _| {},
                                                 move |bounds, _, window, _| {
-                                                    let pts = progress::ptr_arc_polyline(
-                                                        size, stroke, arc, delta,
-                                                    );
-                                                    paint_round_capped_polyline(
+                                                    let pts = progress::loading_polygon(shape_s, delta);
+                                                    paint_filled_polygon(
                                                         window,
                                                         bounds.origin,
                                                         &pts,
-                                                        stroke,
                                                         ptr_color,
                                                     );
                                                 },
                                             )
-                                            .w(px(size))
-                                            .h(px(size)),
+                                            .w(px(shape_s))
+                                            .h(px(shape_s)),
                                         )
                                     },
                                 ),
@@ -1803,11 +1812,21 @@ fn android_nav_rail(
     let column = div()
         .id("nav-rail")
         .w(px(rail.width_dp.min(if expanded { 200.0 } else { 80.0 })))
+        .overflow_hidden()
         .flex()
         .flex_col()
         .items_center()
         .gap(px(navigation_rail::DEST_GAP_DP))
         .bg(paint(rail.container))
+        .when(expanded, |el| el.shadow_lg())
+        .with_animation(
+            if expanded { "android-rail-expand" } else { "android-rail-collapse" },
+            Animation::new(Duration::from_millis(navigation_rail::morph_ms(theme) as u64)),
+            move |this, delta| {
+                let t = if expanded { delta } else { 1.0 - delta };
+                this.w(px(navigation_rail::morph_width_dp(t).min(200.0)))
+            },
+        )
         .child(
             div()
                 .id("rail-fab")
@@ -1908,28 +1927,45 @@ fn android_nav_rail(
                     }
                 }),
         );
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let scrim_c = paint(navigation_rail::scrim(theme));
     div()
         .id("nav-rail-stage")
         .relative()
         .w_full()
         .min_h(px(240.))
-        .when(expanded, |el| {
-            el.child(
-                div()
-                    .id("rail-scrim")
-                    .absolute()
-                    .top(px(0.))
-                    .left(px(0.))
-                    .size_full()
-                    .bg(paint(navigation_rail::scrim(theme)))
-                    .on_click(cx.listener(|this, _, _, cx| {
+        .overflow_hidden()
+        .child(
+            div()
+                .id("rail-scrim")
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .bg(scrim_c)
+                .when(expanded, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
                         this.rail_mode = navigation_rail::RailMode::Collapsed;
                         cx.notify();
-                    })),
-            )
-        })
+                    }))
+                })
+                .with_animation(
+                    if expanded {
+                        "android-rail-scrim-in"
+                    } else {
+                        "android-rail-scrim-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if expanded { delta } else { 1.0 - delta };
+                        this.opacity(t)
+                    },
+                ),
+        )
         .child(column)
 }
+
+fn android_carousel(
     this: &CatalogView,
     theme: &Theme,
     cx: &mut Context<CatalogView>,
@@ -1946,7 +1982,7 @@ fn android_nav_rail(
                 ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
                 ScrollDelta::Lines(p) => (p.x, p.y),
             };
-            let step = carousel::fling_steps(dx, dy);
+            let step = carousel::inertial_steps(dx, dy);
             if step != 0 {
                 this.carousel_index = carousel::advance(this.carousel_index, step);
                 cx.notify();
@@ -2061,33 +2097,32 @@ fn android_search_bar(
             }))
             .into_any_element()
     };
-    let list = open.then(|| {
-        div()
-            .flex()
-            .flex_col()
-            .children(suggestions.into_iter().enumerate().map(|(i, label)| {
-                div()
-                    .id(SharedString::from(format!("search-sug-{i}")))
-                    .h(px(view.suggestion_h_dp))
-                    .px(px(16.))
-                    .flex()
-                    .items_center()
-                    .text_color(paint(view.suggestion))
-                    .child(label)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
-                            this.search.set_value(picked);
-                            cx.notify();
-                        }
-                    }))
-            }))
-            .into_any_element()
-    });
+    let list = div()
+        .flex()
+        .flex_col()
+        .children(suggestions.into_iter().enumerate().map(|(i, label)| {
+            div()
+                .id(SharedString::from(format!("search-sug-{i}")))
+                .h(px(view.suggestion_h_dp))
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .text_color(paint(view.suggestion))
+                .child(label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if let Some(picked) = search::pick_suggestion(this.search.value(), i) {
+                        this.search.set_value(picked);
+                        cx.notify();
+                    }
+                }))
+        }))
+        .into_any_element();
     div()
         .id("search-morph")
         .w_full()
         .flex()
         .flex_col()
+        .overflow_hidden()
         .bg(paint(if open { view.container } else { a.bar.container }))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
@@ -2106,7 +2141,22 @@ fn android_search_bar(
             },
         )
         .child(header)
-        .children(list)
+        .child(
+            div()
+                .with_animation(
+                    if open {
+                        "search-list-in"
+                    } else {
+                        "search-list-out"
+                    },
+                    Animation::new(Duration::from_millis(morph_ms)),
+                    move |this, delta| {
+                        let t = if open { delta } else { 1.0 - delta };
+                        this.opacity(search::morph_list_opacity(t))
+                    },
+                )
+                .child(list),
+        )
 }
 
 fn android_time_picker(
@@ -2140,6 +2190,9 @@ fn android_time_picker(
     );
     let hand_gen = this.time_hand_gen;
     let hand_ms = time_picker::hand_motion_ms(theme) as u64;
+    let hour_live = hour_on;
+    let live_hour = this.time_hour;
+    let live_minute = this.time_minute;
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
     div()
@@ -2243,11 +2296,26 @@ fn android_time_picker(
                         .w(px(clock))
                         .h(px(clock))
                         .with_animation(
-                            SharedString::from(format!("android-hand-{hand_gen}")),
-                            Animation::new(Duration::from_millis(hand_ms)),
+                            SharedString::from(format!(
+                                "android-hand-{hand_gen}-{}",
+                                if hour_live { "live" } else { "once" }
+                            )),
+                            if hour_live {
+                                Animation::new(Duration::from_millis(hand_ms.saturating_mul(12)))
+                                    .repeat()
+                            } else {
+                                Animation::new(Duration::from_millis(hand_ms))
+                            },
                             move |this, delta| {
-                                let angle =
-                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta);
+                                let angle = if hour_live {
+                                    time_picker::hour_face_live_angle_deg(
+                                        live_hour,
+                                        live_minute,
+                                        delta,
+                                    )
+                                } else {
+                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta)
+                                };
                                 let quad = time_picker::hand_quad_at_angle(clock, angle, number);
                                 this.child(
                                     canvas(
@@ -2529,6 +2597,22 @@ fn android_range_slider(
                         .rounded(px(t.track_corner))
                         .bg(paint(t.inactive)),
                 )
+                .children(slider::range_tick_fractions().into_iter().map(|frac| {
+                    let x = (frac * total - t.stop_dp / 2.0).max(0.0);
+                    let active = slider::range_tick_active(frac, range.start, range.end);
+                    div()
+                        .absolute()
+                        .left(px(x))
+                        .top(px(y_track + (t.track_h - t.stop_dp) / 2.0))
+                        .w(px(t.stop_dp))
+                        .h(px(t.stop_dp))
+                        .rounded(px(t.stop_dp / 2.0))
+                        .bg(paint(if active {
+                            t.stop_active
+                        } else {
+                            t.stop_inactive
+                        }))
+                }))
                 .child({
                     let hit = this.range_hit.clone();
                     canvas(
@@ -2778,12 +2862,9 @@ fn field_block(
     let box_el = if outlined && field.notched {
         let frame = text_field::notch_frame(label.as_ref(), field);
         let fill = field.field.container;
-        let cut = field.cutout_fill;
         let (lx, ly) = frame.label_origin_dp();
         let stroke_color = paint(outline.0);
-        let stroke_w = frame.stroke_dp;
-        let verbs = frame.outline_verbs(280.0);
-        let evenodd = frame.evenodd_verbs(280.0);
+        let notch = frame.outline_verbs(280.0);
         let h = field.field.height_dp;
         let radius = frame.radius_dp;
         div()
@@ -2814,26 +2895,14 @@ fn field_block(
                             label_h_dp: frame.label_h_dp,
                             field_h_dp: frame.field_h_dp,
                         };
-                        let even = if (w - 280.0).abs() > 1.0 {
-                            frame.evenodd_verbs(w)
-                        } else {
-                            evenodd.clone()
-                        };
-                        let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
-                            FillOptions::default().with_fill_rule(FillRule::EvenOdd),
-                        ));
-                        feed_outline_verbs(&mut fill_b, bounds.origin, even);
-                        if let Ok(path) = fill_b.build() {
-                            window.paint_path(path, stroke_color);
-                        }
-                        let stroke_verbs = if (w - 280.0).abs() > 1.0 {
+                        let verbs = if (w - 280.0).abs() > 1.0 {
                             frame.outline_verbs(w)
                         } else {
-                            verbs.clone()
+                            notch.clone()
                         };
-                        let mut builder = PathBuilder::stroke(px(stroke_w));
-                        feed_outline_verbs(&mut builder, bounds.origin, stroke_verbs);
-                        if let Ok(path) = builder.build() {
+                        let mut stroke_b = PathBuilder::stroke(px(frame.stroke_dp));
+                        feed_outline_verbs(&mut stroke_b, bounds.origin, verbs);
+                        if let Ok(path) = stroke_b.build() {
                             window.paint_path(path, stroke_color);
                         }
                     },
@@ -2869,7 +2938,6 @@ fn field_block(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .bg(paint(cut))
                     .child(
                         div()
                             .text_size(px(field.label_style.size_sp))

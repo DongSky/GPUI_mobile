@@ -19,6 +19,11 @@ pub fn last_ime_position(slot: &Cell<Option<ImeBoundsDp>>) -> Option<ImeBoundsDp
     slot.get()
 }
 
+/// `PlatformWindow::update_ime_position` feeds this from a GPUI caret `Bounds`.
+pub fn record_caret_rect(slot: &Cell<Option<ImeBoundsDp>>, rect: (f32, f32, f32, f32)) {
+    record_ime_position(slot, rect.0, rect.1, rect.2, rect.3);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -29,5 +34,7 @@ mod tests {
         assert_eq!(last_ime_position(&slot), None);
         record_ime_position(&slot, 16.0, 16.0, 2.0, 24.0);
         assert_eq!(last_ime_position(&slot), Some([16.0, 16.0, 2.0, 24.0]));
+        record_caret_rect(&slot, (20.0, 8.0, 2.0, 24.0));
+        assert_eq!(last_ime_position(&slot), Some([20.0, 8.0, 2.0, 24.0]));
     }
 }

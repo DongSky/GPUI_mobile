@@ -123,3 +123,25 @@ pub fn is_modal(mode: RailMode) -> bool {
 pub fn is_active(selected: usize, index: usize) -> bool {
     selected == index
 }
+
+/// 0 = collapsed, 1 = expanded modal.
+pub fn morph_t(expanded: bool) -> f32 {
+    if expanded { 1.0 } else { 0.0 }
+}
+
+pub fn morph_width_dp(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    WIDTH_DP + (EXPANDED_WIDTH_DP - WIDTH_DP) * t
+}
+
+pub fn scrim_opacity_at(t: f32) -> f32 {
+    SCRIM_OPACITY * t.clamp(0.0, 1.0)
+}
+
+pub fn morph_ms(theme: &Theme) -> u16 {
+    theme.motion.spatial_fast_ms
+}
+
+pub fn elevation_dp_at(t: f32, theme: &Theme) -> f32 {
+    theme.elevation.level2 * t.clamp(0.0, 1.0)
+}

@@ -349,22 +349,21 @@ pub fn nudge_thumb(start: f32, end: f32, thumb: RangeThumb, delta: f32) -> (f32,
     }
 }
 
-/// Keep the v6 5% click-step: inactive rails nudge the adjacent thumb,
-/// handles step that thumb forward, active span moves the nearest thumb.
+/// Keep min-span as one tick. Clicking the track snaps the nearest thumb
+/// onto the 5% grid (M3 discrete dual-thumb), instead of a separate overlay
+/// click-step that fought drag-snap.
 pub fn click_step(start: f32, end: f32, fraction: f32) -> (f32, f32) {
-    let fraction = fraction.clamp(0.0, 1.0);
-    let pad = RANGE_STEP * 0.8;
-    if (fraction - start).abs() <= pad {
-        nudge_start(start, end, RANGE_STEP)
-    } else if (fraction - end).abs() <= pad {
-        nudge_end(start, end, RANGE_STEP)
-    } else if fraction < start {
-        nudge_start(start, end, -RANGE_STEP)
-    } else if fraction > end {
-        nudge_end(start, end, -RANGE_STEP)
-    } else {
-        move_nearest(start, end, (start + end) * 0.5)
-    }
+    move_nearest(start, end, snap_to_step(fraction))
+}
+
+/// 5% tick fractions along a dual-thumb track (21 stops including ends).
+pub fn range_tick_fractions() -> Vec<f32> {
+    let n = ((1.0 / RANGE_STEP).round() as usize) + 1;
+    stop_fractions(n)
+}
+
+pub fn range_tick_active(frac: f32, start: f32, end: f32) -> bool {
+    frac + 1e-4 >= start && frac - 1e-4 <= end
 }
 
 pub fn drag_cell_fraction(index: u32) -> f32 {

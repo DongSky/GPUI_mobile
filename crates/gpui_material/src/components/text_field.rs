@@ -305,29 +305,13 @@ impl NotchFrame {
         vec![
             OutlineVerb::Move(notch_r, half),
             OutlineVerb::Line(w - r, half),
-            OutlineVerb::Arc {
-                to_x: w - half,
-                to_y: r,
-                radius: r - half,
-            },
+            OutlineVerb::arc_cw(w - half, r, r - half),
             OutlineVerb::Line(w - half, h - r),
-            OutlineVerb::Arc {
-                to_x: w - r,
-                to_y: h - half,
-                radius: r - half,
-            },
+            OutlineVerb::arc_cw(w - r, h - half, r - half),
             OutlineVerb::Line(r, h - half),
-            OutlineVerb::Arc {
-                to_x: half,
-                to_y: h - r,
-                radius: r - half,
-            },
+            OutlineVerb::arc_cw(half, h - r, r - half),
             OutlineVerb::Line(half, r),
-            OutlineVerb::Arc {
-                to_x: r,
-                to_y: half,
-                radius: r - half,
-            },
+            OutlineVerb::arc_cw(r, half, r - half),
             OutlineVerb::Line(notch_l, half),
         ]
     }
@@ -336,33 +320,163 @@ impl NotchFrame {
         outline_verbs_svg_d(&self.outline_verbs(width_dp))
     }
 
-    /// Even-odd subpaths: outer rounded rect, inner hole, legend gap.
-    /// Compose OutlinedTextField is a filled ring with a hole; even-odd matches that.
+    /// Single C-shaped even-odd path: outer clockwise, inner counterclockwise,
+    /// joined at the legend gap. Compose `OutlinedTextField` / MDC cutout is a
+    /// filled ring with a gap — not a padded-rect hole plus a third gap chip.
     pub fn evenodd_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
         let s = self.stroke_dp.max(1.0);
         let r = self.radius_dp.max(s);
         let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
         let h = self.field_h_dp.max(r * 2.0);
-        let mut verbs = Vec::new();
-        verbs.extend(rounded_rect_verbs(0.0, 0.0, w, h, r, true));
-        let inner_r = (r - s).max(0.0);
-        verbs.extend(rounded_rect_verbs(s, s, (w - s * 2.0).max(1.0), (h - s * 2.0).max(1.0), inner_r, true));
-        let (gx, gy, gw, gh) = self.notch_gap_rect();
-        verbs.extend([
-            OutlineVerb::Move(gx, gy),
-            OutlineVerb::Line(gx + gw, gy),
-            OutlineVerb::Line(gx + gw, gy + gh),
-            OutlineVerb::Line(gx, gy + gh),
-            OutlineVerb::Close,
-        ]);
-        verbs
+        let notch_l = self.start_dp.max(0.0);
+        let notch_r = (self.start_dp + self.width_dp).min(w);
+        let ir = (r - s).max(0.0);
+        let ix = s;
+        let iy = s;
+        let iw = (w - s * 2.0).max(1.0);
+        let ih = (h - s * 2.0).max(1.0);
+        let notch_l_i = notch_l.clamp(ix, ix + iw);
+        let notch_r_i = notch_r.clamp(ix, ix + iw);
+
+        let mut v = Vec::with_capacity(24);
+        v.push(OutlineVerb::Move(notch_r, 0.0));
+        v.push(OutlineVerb::Line(w - r, 0.0));
+        v.push(OutlineVerb::arc_cw(w, r, r));
+        v.push(OutlineVerb::Line(w, h - r));
+        v.push(OutlineVerb::arc_cw(w - r, h, r));
+        v.push(OutlineVerb::Line(r, h));
+        v.push(OutlineVerb::arc_cw(0.0, h - r, r));
+        v.push(OutlineVerb::Line(0.0, r));
+        v.push(OutlineVerb::arc_cw(r, 0.0, r));
+        v.push(OutlineVerb::Line(notch_l, 0.0));
+        v.push(OutlineVerb::Line(notch_l_i, iy));
+        if ir < 0.5 {
+            v.push(OutlineVerb::Line(ix, iy));
+            v.push(OutlineVerb::Line(ix, iy + ih));
+            v.push(OutlineVerb::Line(ix + iw, iy + ih));
+            v.push(OutlineVerb::Line(ix + iw, iy));
+            v.push(OutlineVerb::Line(notch_r_i, iy));
+        } else {
+            v.push(OutlineVerb::Line(ix + ir, iy));
+            v.push(OutlineVerb::arc_ccw(ix, iy + ir, ir));
+            v.push(OutlineVerb::Line(ix, iy + ih - ir));
+            v.push(OutlineVerb::arc_ccw(ix + ir, iy + ih, ir));
+            v.push(OutlineVerb::Line(ix + iw - ir, iy + ih));
+            v.push(OutlineVerb::arc_ccw(ix + iw, iy + ih - ir, ir));
+            v.push(OutlineVerb::Line(ix + iw, iy + ir));
+            v.push(OutlineVerb::arc_ccw(ix + iw - ir, iy, ir));
+            v.push(OutlineVerb::Line(notch_r_i, iy));
+        }
+        v.push(OutlineVerb::Line(notch_r, 0.0));
+        v.push(OutlineVerb::Close);
+        v
+    }
+
+    /// Number of `Move` subpaths. The C-shaped notch is a single contour.
+    pub fn evenodd_subpath_count(self, width_dp: f32) -> usize {
+        self.evenodd_verbs(width_dp)
+            .iter()
+            .filter(|v| matches!(v, OutlineVerb::Move(_, _)))
+            .count()
     }
 
     pub fn evenodd_svg_d(self, width_dp: f32) -> String {
         outline_verbs_svg_d(&self.evenodd_verbs(width_dp))
     }
+
+    /// Flattened C-path for GPUI `PathBuilder` (no native arc — tessellated).
+    pub fn evenodd_polygon(self, width_dp: f32) -> Vec<(f32, f32)> {
+        flatten_outline_verbs(&self.evenodd_verbs(width_dp))
+    }
 }
 
+/// Tessellate verbs to a polyline (arcs become line samples).
+pub fn flatten_outline_verbs(verbs: &[OutlineVerb]) -> Vec<(f32, f32)> {
+    let mut pts = Vec::with_capacity(verbs.len() * 6);
+    let mut cx = 0.0_f32;
+    let mut cy = 0.0_f32;
+    for v in verbs {
+        match *v {
+            OutlineVerb::Move(x, y) | OutlineVerb::Line(x, y) => {
+                pts.push((x, y));
+                cx = x;
+                cy = y;
+            }
+            OutlineVerb::Arc {
+                to_x,
+                to_y,
+                radius,
+                clockwise,
+            } => {
+                for (x, y) in tessellate_arc(cx, cy, to_x, to_y, radius.max(0.5), clockwise) {
+                    pts.push((x, y));
+                }
+                cx = to_x;
+                cy = to_y;
+            }
+            OutlineVerb::Close => {
+                if let Some(&(x, y)) = pts.first() {
+                    pts.push((x, y));
+                    cx = x;
+                    cy = y;
+                }
+            }
+        }
+    }
+    pts
+}
+
+fn tessellate_arc(
+    from_x: f32,
+    from_y: f32,
+    to_x: f32,
+    to_y: f32,
+    radius: f32,
+    clockwise: bool,
+) -> Vec<(f32, f32)> {
+    // Quarter-circle corners used by the notched outline: infer center from
+    // axis-aligned from→to with equal radius.
+    let dx = to_x - from_x;
+    let dy = to_y - from_y;
+    let (cx, cy, a0, a1) = if dx.abs() > 0.25 && dy.abs() > 0.25 {
+        // Center is the unique point radius away from both endpoints on the
+        // "inside" of a 90° rounded-rect corner.
+        let candidates = [
+            (from_x, to_y),
+            (to_x, from_y),
+        ];
+        let (cx, cy) = candidates
+            .into_iter()
+            .min_by(|a, b| {
+                let da = (a.0 - from_x).hypot(a.1 - from_y) + (a.0 - to_x).hypot(a.1 - to_y);
+                let db = (b.0 - from_x).hypot(b.1 - from_y) + (b.0 - to_x).hypot(b.1 - to_y);
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .unwrap_or((from_x, to_y));
+        let a0 = (from_y - cy).atan2(from_x - cx);
+        let a1 = (to_y - cy).atan2(to_x - cx);
+        (cx, cy, a0, a1)
+    } else {
+        return vec![(to_x, to_y)];
+    };
+    let mut sweep = a1 - a0;
+    if clockwise {
+        if sweep > 0.0 {
+            sweep -= std::f32::consts::TAU;
+        }
+    } else if sweep < 0.0 {
+        sweep += std::f32::consts::TAU;
+    }
+    let n = ((sweep.abs() / 0.18).ceil() as usize).clamp(4, 12);
+    (1..=n)
+        .map(|i| {
+            let a = a0 + sweep * (i as f32 / n as f32);
+            (cx + radius * a.cos(), cy + radius * a.sin())
+        })
+        .collect()
+}
+
+#[allow(dead_code)]
 fn rounded_rect_verbs(x: f32, y: f32, w: f32, h: f32, r: f32, clockwise: bool) -> Vec<OutlineVerb> {
     let r = r.min(w / 2.0).min(h / 2.0).max(0.0);
     if r < 0.5 {
@@ -378,57 +492,25 @@ fn rounded_rect_verbs(x: f32, y: f32, w: f32, h: f32, r: f32, clockwise: bool) -
         vec![
             OutlineVerb::Move(x + r, y),
             OutlineVerb::Line(x + w - r, y),
-            OutlineVerb::Arc {
-                to_x: x + w,
-                to_y: y + r,
-                radius: r,
-            },
+            OutlineVerb::arc_cw(x + w, y + r, r),
             OutlineVerb::Line(x + w, y + h - r),
-            OutlineVerb::Arc {
-                to_x: x + w - r,
-                to_y: y + h,
-                radius: r,
-            },
+            OutlineVerb::arc_cw(x + w - r, y + h, r),
             OutlineVerb::Line(x + r, y + h),
-            OutlineVerb::Arc {
-                to_x: x,
-                to_y: y + h - r,
-                radius: r,
-            },
+            OutlineVerb::arc_cw(x, y + h - r, r),
             OutlineVerb::Line(x, y + r),
-            OutlineVerb::Arc {
-                to_x: x + r,
-                to_y: y,
-                radius: r,
-            },
+            OutlineVerb::arc_cw(x + r, y, r),
             OutlineVerb::Close,
         ]
     } else {
         vec![
             OutlineVerb::Move(x + r, y),
-            OutlineVerb::Arc {
-                to_x: x,
-                to_y: y + r,
-                radius: r,
-            },
+            OutlineVerb::arc_ccw(x, y + r, r),
             OutlineVerb::Line(x, y + h - r),
-            OutlineVerb::Arc {
-                to_x: x + r,
-                to_y: y + h,
-                radius: r,
-            },
+            OutlineVerb::arc_ccw(x + r, y + h, r),
             OutlineVerb::Line(x + w - r, y + h),
-            OutlineVerb::Arc {
-                to_x: x + w,
-                to_y: y + h - r,
-                radius: r,
-            },
+            OutlineVerb::arc_ccw(x + w, y + h - r, r),
             OutlineVerb::Line(x + w, y + r),
-            OutlineVerb::Arc {
-                to_x: x + w - r,
-                to_y: y,
-                radius: r,
-            },
+            OutlineVerb::arc_ccw(x + w - r, y, r),
             OutlineVerb::Close,
         ]
     }
@@ -444,8 +526,10 @@ fn outline_verbs_svg_d(verbs: &[OutlineVerb]) -> String {
                 to_x,
                 to_y,
                 radius,
+                clockwise,
             } => d.push_str(&format!(
-                " A{radius:.2},{radius:.2} 0 0 1 {to_x:.2},{to_y:.2}"
+                " A{radius:.2},{radius:.2} 0 0 {sweep} {to_x:.2},{to_y:.2}",
+                sweep = if *clockwise { 1 } else { 0 },
             )),
             OutlineVerb::Close => d.push_str(" Z"),
         }
@@ -458,8 +542,33 @@ fn outline_verbs_svg_d(verbs: &[OutlineVerb]) -> String {
 pub enum OutlineVerb {
     Move(f32, f32),
     Line(f32, f32),
-    Arc { to_x: f32, to_y: f32, radius: f32 },
+    Arc {
+        to_x: f32,
+        to_y: f32,
+        radius: f32,
+        clockwise: bool,
+    },
     Close,
+}
+
+impl OutlineVerb {
+    pub fn arc_cw(to_x: f32, to_y: f32, radius: f32) -> Self {
+        Self::Arc {
+            to_x,
+            to_y,
+            radius,
+            clockwise: true,
+        }
+    }
+
+    pub fn arc_ccw(to_x: f32, to_y: f32, radius: f32) -> Self {
+        Self::Arc {
+            to_x,
+            to_y,
+            radius,
+            clockwise: false,
+        }
+    }
 }
 
 pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {

@@ -183,12 +183,17 @@ pub fn select_minute(_current: u8, tapped: u8) -> u8 {
 /// Degrees from 12 o'clock, clockwise. CSS `rotate()` and GPUI dots share this.
 pub fn hand_angle_deg(face: DialFace, hour: u8, minute: u8) -> f32 {
     match face {
-        DialFace::Hour => {
-            let h = if hour == 0 { 12 } else { hour };
-            (h as f32) * 30.0 + (minute as f32) * 0.5
-        }
+        DialFace::Hour => hour_face_live_angle_deg(hour, minute, 0.0),
         DialFace::Minute => (minute.min(59) as f32) * 6.0,
     }
+}
+
+/// Continuous hour-face motion: `tick` in 0..=1 adds a fraction of a minute
+/// so the analog hand eases while the hour dial is showing.
+pub fn hour_face_live_angle_deg(hour: u8, minute: u8, tick: f32) -> f32 {
+    let h = if hour == 0 { 12 } else { hour };
+    let minutes = minute as f32 + tick.clamp(0.0, 1.0);
+    (h as f32) * 30.0 + minutes * 0.5
 }
 
 /// Center of the selector knob at an arbitrary clock angle.

@@ -178,7 +178,12 @@ a {{ color: var(--primary); }}
 .search-view .sv-head, .search-morph .sv-head {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
 }}
-.search-view .sv-list, .search-morph .sv-list {{ display: flex; flex-direction: column; }}
+.search-view .sv-list, .search-morph .sv-list {{
+  display: flex; flex-direction: column;
+  max-height: 480px; opacity: 1; overflow: hidden;
+  transition: max-height 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
+    opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
 .search-view .sv-row, .search-morph .sv-row {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
   min-height: 56px; font-size: 16px;
@@ -222,11 +227,17 @@ a {{ color: var(--primary); }}
 .ol {{
   width: 280px; min-height: 56px; margin: 8px 0 0; padding: 0 12px 8px;
   display: flex; align-items: center; gap: 12px; background: transparent;
+  position: relative; border: none;
 }}
 .ol legend {{
   padding: 0 4px; margin-left: 8px; font-size: 12px; line-height: 16px;
+  position: relative; z-index: 1; background: transparent;
 }}
-.ol[data-notch="cutout"] {{ border-style: solid; }}
+.ol .ol-evenodd {{
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}}
+.ol[data-notch="cutout"] {{ border-style: none; }}
 .ol input, .filled-hero input {{
   border: none; outline: none; background: transparent; width: 100%;
   font: 400 16px/24px Roboto, sans-serif; color: inherit; padding: 8px 0 4px;
@@ -253,6 +264,10 @@ a {{ color: var(--primary); }}
 }}
 .xstop {{
   width: 4px; height: 4px; border-radius: 2px; flex: 0 0 auto;
+}}
+.xtick {{
+  position: absolute; width: 4px; height: 4px; border-radius: 2px;
+  top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 2;
 }}
 .xhandle {{ flex: 0 0 auto; border-radius: 2px; position: relative; z-index: 1; }}
 .slider-row {{ display: flex; align-items: center; gap: 12px; width: 100%; }}
@@ -300,6 +315,20 @@ a {{ color: var(--primary); }}
 }}
 .circ.indet, .ptr .circ {{ animation: m3spin 1200ms linear infinite; }}
 .ptr {{ display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; }}
+.loading-row {{ display: flex; align-items: center; gap: 16px; margin: 12px 0; }}
+.loading-contained {{
+  width: 48px; height: 48px; border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+}}
+.loading-shape {{ display: block; }}
+.hand-svg[data-hour-live="1"] {{
+  animation: hourHandLive 8s linear infinite;
+  transform-origin: 50% 50%;
+}}
+@keyframes hourHandLive {{
+  from {{ transform: rotate(var(--hand-base, 0deg)); }}
+  to {{ transform: rotate(calc(var(--hand-base, 0deg) + 15deg)); }}
+}}
 @keyframes m3indet {{
   0% {{ transform: translateX(-120%); }}
   100% {{ transform: translateX(340%); }}
@@ -332,8 +361,8 @@ a {{ color: var(--primary); }}
   border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
 }}
 .nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
-.nav-rail {{ transition: width 280ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
-.nav-rail.expanded {{ width: 220px; align-items: stretch; position: relative; z-index: 1; }}
+.nav-rail {{ transition: width 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90), box-shadow 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90); }}
+.nav-rail.expanded {{ width: 220px; align-items: stretch; position: relative; z-index: 1; box-shadow: 0 8px 24px rgba(0,0,0,.28); }}
 .nav-rail.expanded .dest {{
   width: auto; flex-direction: row; justify-content: flex-start;
   padding: 0 12px; gap: 8px;
@@ -341,6 +370,11 @@ a {{ color: var(--primary); }}
 .rail-stage {{ position: relative; min-height: 280px; max-width: 720px; }}
 .rail-scrim {{
   position: absolute; inset: 0; border-radius: 12px; z-index: 0;
+  opacity: 0; pointer-events: none;
+  transition: opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.rail-stage.is-modal .rail-scrim, .rail-scrim[data-visible="1"] {{
+  opacity: 1; pointer-events: auto;
 }}
 .carousel {{ display: flex; gap: 8px; overflow: hidden; max-width: 720px; }}
 .carousel .tile {{
@@ -459,7 +493,24 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
       fs.setAttribute("data-field", "outlined-edit");
       fs.setAttribute("data-notched", "1");
       fs.setAttribute("data-notch", "cutout");
-      fs.setAttribute("style", box.getAttribute("style") || "");
+      fs.setAttribute("data-notch-evenodd", "1");
+      fs.setAttribute("data-notch-cpath", "1");
+      fs.setAttribute("style", "border:none;position:relative;" + (box.getAttribute("style") || ""));
+      var evenD = box.getAttribute("data-evenodd-d") || "";
+      if (evenD) {{
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "ol-evenodd");
+        svg.setAttribute("viewBox", "0 0 280 56");
+        svg.setAttribute("preserveAspectRatio", "none");
+        var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("fill-rule", "evenodd");
+        path.setAttribute("data-notch-evenodd-path", "1");
+        path.setAttribute("d", evenD);
+        var oc = (box.getAttribute("style") || "").match(/border:[^;]*solid\\s+([^;]+)/);
+        path.setAttribute("fill", oc ? oc[1].trim() : "currentColor");
+        svg.appendChild(path);
+        fs.appendChild(svg);
+      }}
       var legend = document.createElement("legend");
       legend.textContent = (box.querySelector(".lab") || {{textContent: "Email"}}).textContent || "Email";
       legend.style.padding = "0 4px";
@@ -520,14 +571,9 @@ document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
     if (lab) lab.textContent = "Price range · " + Math.round(start * 100) + "–" + Math.round(end * 100) + "% · min span 5%";
   }}
   function clickStep(start, end, fraction) {{
-    var pad = 0.04;
-    if (Math.abs(fraction - start) <= pad) return clampRange(start + 0.05, end);
-    if (Math.abs(fraction - end) <= pad) return clampRange(start, end + 0.05);
-    if (fraction < start) return clampRange(start - 0.05, end);
-    if (fraction > end) return clampRange(start, end - 0.05);
-    var mid = (start + end) / 2;
-    if (Math.abs(fraction - start) <= Math.abs(fraction - end)) return clampRange(mid, end);
-    return clampRange(start, mid);
+    var snapped = Math.round(fraction / 0.05) * 0.05;
+    if (Math.abs(snapped - start) <= Math.abs(snapped - end)) return clampRange(snapped, end);
+    return clampRange(start, snapped);
   }}
   slider.addEventListener("pointerdown", function (ev) {{
     var start = parseFloat(row.getAttribute("data-start") || "0.2");
@@ -581,7 +627,16 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
     var minute = parseInt(picker.getAttribute("data-minute") || "30", 10);
     var deg = face === "minute" ? minute * 6 : hour * 30 + minute * 0.5;
     var hand = picker.querySelector(".hand-svg");
-    if (hand) hand.style.transform = "rotate(" + deg + "deg)";
+    if (hand) {{
+      hand.style.setProperty("--hand-base", deg + "deg");
+      hand.style.transform = "rotate(" + deg + "deg)";
+      if (face === "hour") {{
+        hand.setAttribute("data-hour-live", "1");
+      }} else {{
+        hand.removeAttribute("data-hour-live");
+        hand.style.animation = "none";
+      }}
+    }}
     picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
       el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
     }});
@@ -768,7 +823,7 @@ document.querySelectorAll("[data-carousel]").forEach(function (car) {{
     var dx = ev.deltaX, dy = ev.deltaY;
     var dominant = Math.abs(dx) >= Math.abs(dy) ? dx : dy;
     if (Math.abs(dominant) < 0.5) return;
-    var mag = Math.round(Math.abs(dominant) / 24);
+    var mag = Math.round(Math.abs(dominant) / {fling_unit} / {fling_decay});
     mag = Math.max(1, Math.min(3, mag));
     var step = dominant > 0 ? mag : -mag;
     var sel = Number(car.getAttribute("data-carousel-selected") || "0");
@@ -795,8 +850,9 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       rail.setAttribute("data-rail-mode", exp ? "expanded" : "collapsed");
       var stage = rail.closest(".rail-stage");
       if (stage) {{
+        stage.classList.toggle("is-modal", exp);
         var scrim = stage.querySelector("[data-rail-scrim]");
-        if (scrim) scrim.style.display = exp ? "block" : "none";
+        if (scrim) scrim.setAttribute("data-visible", exp ? "1" : "0");
       }}
     }});
   }}
@@ -819,6 +875,8 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         body = body,
         motion = theme.motion.css_state_transition(),
         ease = theme.motion.emphasized,
+        fling_unit = carousel::FLING_UNIT,
+        fling_decay = carousel::FLING_DECAY,
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
         h1l = theme.typography.display_small.emphasized().line_height_sp,
@@ -1338,9 +1396,9 @@ fn paint_outlined_field(
         let d = frame.outline_svg_d(280.0);
         let even = frame.evenodd_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-path="{d}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-hole="1" data-notch-evenodd="1" data-notch-cpath="1" data-notch-path="{d}" data-stroke="{ow}" {attrs} style="border:none;position:relative;border-radius:{r}px;color:{inp}">
+  <svg class="ol-evenodd" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" fill="{oc}" d="{even}"/></svg>
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
-  <svg width="0" height="0" aria-hidden="true"><path data-notch-evenodd-path="1" fill-rule="evenodd" d="{even}"/></svg>
   {inner_html}
 </fieldset>"#,
             r = a.field.corners.top_left,
@@ -1350,8 +1408,9 @@ fn paint_outlined_field(
             d = d,
         )
     } else {
+        let even = text_field::notch_frame(label, a).evenodd_svg_d(280.0);
         format!(
-            r#"<div class="ol" data-notched="0" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{lab};min-height:56px">
+            r#"<div class="ol" data-notched="0" data-evenodd-d="{even}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{lab};min-height:56px">
   <span class="lab" style="font-size:{ls}px;line-height:{lh}px">{label}</span>
   {inner_html}
 </div>"#,
@@ -1728,8 +1787,8 @@ fn chrome(theme: &Theme) -> String {
 </div>
 <h2>Navigation rail</h2>
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
-<div class="rail-stage" data-hero="nav-rail">
-  <div class="rail-scrim" data-rail-scrim="1" style="background:{scrim}"></div>
+<div class="rail-stage is-modal" data-hero="nav-rail">
+  <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-mode="expanded" data-rail-selected="0" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -1753,12 +1812,22 @@ fn progress_section(theme: &Theme) -> String {
     let circ = progress::circular(theme, 0.6);
     let indet = progress::linear_indeterminate(theme);
     let circ_i = progress::circular_indeterminate(theme);
-    let ptr = progress::pull_to_refresh(theme);
     let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
     let wave_d = progress::wave_svg_d(wave.width_dp, wave.height_dp, wave.progress, 0.0);
+    let load = progress::contained_loading_indicator(theme);
+    let morph = progress::loading_indicator(theme);
+    let lsz = progress::LOADING_SIZE_DP;
+    let loadd0 = progress::loading_svg_d(lsz, 0.0);
+    let lvals = progress::loading_svg_values(lsz, 8);
+    let capd = progress::round_capped_arc_svg_d(
+        circ_i.size_dp,
+        circ_i.stroke_dp,
+        -90.0,
+        circ_i.arc_deg,
+    );
     format!(
         r#"<h2>Progress</h2>
-<p class="note">Determinate, wavy determinate, indeterminate / pull-to-refresh. HTML CSS + GPUI Animation clock. <a href="https://m3.material.io/components/progress-indicators/specs">spec</a></p>
+<p class="note">Determinate, wavy determinate, indeterminate, plus M3 Expressive morphing loading indicator (contained for PTR). HTML CSS + GPUI Animation clock. <a href="https://m3.material.io/components/loading-indicator/overview">loading</a> · <a href="https://m3.material.io/components/progress-indicators/specs">progress</a></p>
 <div class="linear" data-progress="linear" style="background:{track}"><i style="width:{p}%;background:{ind}"></i></div>
 <div class="circ" data-progress="circular" style="background:conic-gradient({cind} {ang}deg, {ctrack} 0deg)"></div>
 <div class="wave" data-progress="wavy" data-hero="progress-wavy">
@@ -1770,15 +1839,24 @@ fn progress_section(theme: &Theme) -> String {
 <h3>indeterminate</h3>
 <div class="linear indet" data-progress="indeterminate" data-hero="progress-indet" style="background:{itrack};margin:12px 0"><i style="width:{span}%;background:{iind}"></i></div>
 <div class="circ indet" data-progress="circular-indet" style="background:conic-gradient({ciind} {arc}deg, {citrack} 0deg)"></div>
-<div class="ptr" data-progress="ptr" data-hero="progress-ptr" data-ptr-spin="1">
-  <svg width="{psz}" height="{psz}" viewBox="0 0 {psz} {psz}" aria-hidden="true">
-    <path d="{ptrd}" stroke="{pind}" stroke-width="{pstr}" fill="none" stroke-linecap="round"/>
-  </svg>
+<div class="ptr" data-progress="ptr" data-hero="progress-ptr" data-loading-morph="1">
+  <div class="loading-contained" style="background:{lbox}">
+    <svg class="loading-shape" width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
+      <path fill="{lind}" d="{loadd0}">
+        <animate attributeName="d" dur="{ldur}ms" repeatCount="indefinite" values="{lvals}"/>
+      </path>
+    </svg>
+  </div>
   <div class="note">{plabel}</div>
 </div>
-<div class="ptr" data-progress="loading" data-hero="progress-loading">
-  <svg width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
-    <path d="{loadd}" stroke="{lind}" stroke-width="{lstr}" fill="none" stroke-linecap="round"/>
+<div class="loading-row" data-progress="loading" data-hero="progress-loading" data-loading-morph="1">
+  <svg class="loading-shape" width="{lsz}" height="{lsz}" viewBox="0 0 {lsz} {lsz}" aria-hidden="true">
+    <path fill="{mind}" d="{loadd0}">
+      <animate attributeName="d" dur="{ldur}ms" repeatCount="indefinite" values="{lvals}"/>
+    </path>
+  </svg>
+  <svg width="{csz}" height="{csz}" viewBox="0 0 {csz} {csz}" aria-hidden="true">
+    <path d="{capd}" fill="{cind_fill}"/>
   </svg>
   <div class="note">{llabel}</div>
 </div>"#,
@@ -1794,20 +1872,17 @@ fn progress_section(theme: &Theme) -> String {
         ciind = circ_i.indicator.css_hex(),
         citrack = circ_i.track.css_hex(),
         arc = circ_i.arc_deg,
-        psz = ptr.size_dp,
-        pstr = ptr.stroke_dp,
-        pind = ptr.indicator.css_hex(),
-        ptrd = progress::ptr_arc_svg_d(ptr.size_dp, ptr.stroke_dp, ptr.arc_deg, 0.0),
+        lbox = load.container.css_hex(),
+        lsz = lsz,
+        lind = load.indicator.css_hex(),
+        mind = morph.indicator.css_hex(),
+        cind_fill = circ_i.indicator.css_hex(),
+        loadd0 = loadd0,
+        lvals = lvals,
+        ldur = load.duration_ms,
         plabel = progress::PTR_LABEL,
-        lsz = progress::CIRCULAR_SIZE_DP,
-        lstr = progress::CIRCULAR_STROKE_DP,
-        lind = circ.indicator.css_hex(),
-        loadd = progress::ptr_arc_svg_d(
-            progress::CIRCULAR_SIZE_DP,
-            progress::CIRCULAR_STROKE_DP,
-            360.0 * progress::LOADING_PROGRESS,
-            0.0,
-        ),
+        csz = circ_i.size_dp,
+        capd = capd,
         llabel = progress::LOADING_LABEL,
         ww = wave.width_dp,
         wh = wave.height_dp,
@@ -2007,6 +2082,23 @@ fn paint_range_slider(a: &slider::RangeSliderAppearance, label: &str) -> String 
     let t = &a.track;
     let left = (a.start * 42.0).max(6.0);
     let mid = ((a.end - a.start) * 42.0).max(8.0);
+    let ticks: String = slider::range_tick_fractions()
+        .into_iter()
+        .map(|frac| {
+            let active = slider::range_tick_active(frac, a.start, a.end);
+            let color = if active {
+                t.stop_active.css_hex()
+            } else {
+                t.stop_inactive.css_hex()
+            };
+            format!(
+                r#"<i class="xtick" data-range-tick="{frac:.2}" style="left:{left}%;background:{color}"></i>"#,
+                left = frac * 100.0,
+                color = color,
+                frac = frac,
+            )
+        })
+        .collect();
     format!(
         r#"<div class="slider-row" data-slider-range="1" data-start="{start}" data-end="{end}" data-range-interactive="1">
   <div class="slider-meta"><div class="slider-label">{label}</div>
@@ -2016,6 +2108,7 @@ fn paint_range_slider(a: &slider::RangeSliderAppearance, label: &str) -> String 
     <div class="xseg active" style="width:{mw}%;height:{th}px;background:{active};border-radius:{ic}px"></div>
     <div class="xhandle" style="width:{hw}px;height:{hh}px;background:{handle};margin:0 {gap}px"></div>
     <div class="xseg inactive" style="flex:1;height:{th}px;background:{inactive};border-radius:{ic}px {oc}px {oc}px {ic}px"></div>
+    <div class="xstops" data-range-ticks="1">{ticks}</div>
   </div></div>
 </div>"#,
         start = a.start,

@@ -373,12 +373,14 @@ impl PlatformWindow for AndroidWindow {
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
         // NativeActivity has no InputConnection. Record the caret rect so a
         // later InputConnection can consume `gpui_material::text_field::ime_caret_rect_dp`.
-        crate::ime::record_ime_position(
+        crate::ime::record_caret_rect(
             &self.inner.last_ime_bounds,
-            f32::from(bounds.origin.x),
-            f32::from(bounds.origin.y),
-            f32::from(bounds.size.width),
-            f32::from(bounds.size.height),
+            (
+                f32::from(bounds.origin.x),
+                f32::from(bounds.origin.y),
+                f32::from(bounds.size.width),
+                f32::from(bounds.size.height),
+            ),
         );
     }
 }

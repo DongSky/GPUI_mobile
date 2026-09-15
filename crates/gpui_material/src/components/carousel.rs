@@ -20,7 +20,8 @@ pub const HERO_TITLE: &str = "Hero carousel";
 /// Wheel/fling distance that maps to one item. Larger deltas skip further.
 pub const FLING_UNIT: f32 = 24.0;
 /// Exponential decay per second for a one-shot velocity model (`v * e^{-k t}`).
-pub const FLING_DECAY: f32 = 4.0;
+/// `k = 2` so a ~96dp flick rests ~2 items away (beyond ±1).
+pub const FLING_DECAY: f32 = 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarouselAppearance {
@@ -91,6 +92,29 @@ pub fn fling_steps(dx: f32, dy: f32) -> i32 {
 /// Convert a scroll delta into an item step (0 if below the stub threshold).
 pub fn fling_step(dx: f32, dy: f32) -> i32 {
     fling_steps(dx, dy)
+}
+
+/// Integrate `v₀ e^{-kt}` to rest (`distance = v₀ / k`) and round to items.
+pub fn inertial_steps(dx: f32, dy: f32) -> i32 {
+    let dominant = if dx.abs() >= dy.abs() { dx } else { dy };
+    if dominant.abs() < 0.5 {
+        return 0;
+    }
+    let v0 = dominant / FLING_UNIT;
+    let distance = v0 / FLING_DECAY;
+    let mag = distance.abs().round() as i32;
+    let mag = mag.clamp(1, ITEMS.len() as i32 - 1);
+    if distance >= 0.0 { mag } else { -mag }
+}
+
+/// Advance leftover fling velocity by `dt_s`. Returns `(velocity, residual, index_delta)`.
+pub fn integrate_fling(velocity: f32, residual: f32, dt_s: f32) -> (f32, f32, i32) {
+    let dt = dt_s.max(0.0);
+    let next_v = decay_velocity(velocity, dt);
+    let displacement = (velocity + next_v) * 0.5 * dt;
+    let acc = residual + displacement;
+    let steps = acc.trunc() as i32;
+    (next_v, acc - steps as f32, steps)
 }
 
 /// Decay leftover fling velocity (`dt_s` in seconds).

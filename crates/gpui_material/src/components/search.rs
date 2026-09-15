@@ -181,6 +181,16 @@ pub fn morph_ms(theme: &Theme) -> u16 {
     theme.motion.spatial_fast_ms
 }
 
+/// Suggestion-list opacity during the docked→activity grow.
+pub fn morph_list_opacity(t: f32) -> f32 {
+    t.clamp(0.0, 1.0)
+}
+
+/// Docked avatar fades out as the activity header takes over.
+pub fn morph_avatar_opacity(t: f32) -> f32 {
+    (1.0 - t.clamp(0.0, 1.0)).max(0.0)
+}
+
 pub fn pick_suggestion(query: &str, index: usize) -> Option<&'static str> {
     filter_suggestions(query).get(index).copied()
 }

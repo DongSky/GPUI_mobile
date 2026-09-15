@@ -1,52 +1,46 @@
 # v10 Visual QA — Desktop GPUI window
 
 **Date:** 2026-09-15  
-**Landing:** `main` (user asked to stop updating PR #4; work continues as commits on the default branch)  
-**Binary:** `target/debug/material_desktop_demo` rebuilt after v10.
+**Landing:** `main` (standing order: no iteration PRs; PR #4 is already merged)  
+**Binary:** `target/debug/material_desktop_demo` after the v10 C-path / Expressive pass.
 
-## What v10 PNGs show
+Live GPUI capture: `scripts/desktop-screenshot.sh` + wheel-scroll frames, `DISPLAY=:1`, lavapipe Vulkan (`mesa-vulkan-drivers` 25.2.8 + LLVM 20.1), window **720×880** at `+2,85`.
 
-Live GPUI capture (`720×880` lavapipe). Scroll frames are labeled by capture order; content is listed honestly.
+`docs/qa/catalog_*_v10.png` and `desktop_gpui_live_v10.png` are **live GPUI pixels**. Walkthrough copies: `/opt/cursor/artifacts/screenshots/v10_*.png`.
+
+HTML catalog (`docs/catalog/material-catalog-*.html`) shares `gpui_material::resolve()`. `docs/qa/catalog_html_light_v10.png` is a headless-Chrome crop of that HTML (inventory header). Android `component_demo` maps the same tokens (NDK not present; crate typechecks only).
+
+Host tests: `gpui_material` **26**, `gpui_android` **11** (IME caret stub), `material_desktop_demo` **1**.
+
+## What the v10 PNGs show
 
 | File | Live GPUI content |
 |---|---|
-| `desktop_gpui_live_v10.png` / `catalog_settings_scene_v10.png` | Settings scene, notched Email, Day–Week–Month |
-| `catalog_text_fields_v10.png` | Empty filled/outlined + **even-odd notched Email**; **Price range · 20–75% · min span 5%** |
-| `catalog_slider_v10.png` / `catalog_progress_carousel_v10.png` | Range min-span label; wavy + **round-capped PTR** + **Loading** circular; carousel |
-| `catalog_progress_v10.png` / `catalog_nav_rail_scrim_v10.png` | Carousel **Three** selected (wheel fling skipped past ±1); **expanded rail over 32% scrim** (`←` FAB, Home/Search/Profile) |
-| `catalog_nav_rail_v10.png` / `catalog_search_activity_v10.png` | Search activity **growing-bar** with caret `\|` + suggestions; time picker header |
-| `catalog_search_v10.png` / `catalog_timepicker_dial_v10.png` | Polar minute dial + analog hand at 30; date range |
-| `catalog_timepicker_v10.png` / `catalog_datepicker_v10.png` | Docked date field + calendars |
-
-Walkthrough copies also live under `/opt/cursor/artifacts/screenshots/v10_*`.
-
-Same lavapipe recipe as v8/v9 (`scripts/desktop-screenshot.sh`, `DISPLAY=:1`, `720×880`).
-
-`docs/qa/catalog_*_v10.png`, `desktop_gpui_live_v10.png` are **live GPUI pixels** when capture succeeds.
-
-HTML catalog (`docs/catalog/material-catalog-*.html`) shares `gpui_material::resolve()`. Android `component_demo` maps the same morph/search, snap range, round-capped PTR, even-odd notch, modal rail, fling carousel, and hour-hand lerp (NDK not present in this VM so Android was not rebuilt here).
-
-Host tests: `gpui_material` 26, `gpui_android` 11 (IME stub), `material_desktop_demo` 1.
+| `desktop_gpui_live_v10.png` / `catalog_settings_scene_v10.png` | Settings: sliders, **notched Email** (label sits in a top-stroke gap), Day–Week–Month |
+| `catalog_text_fields_v10.png` | Empty filled + empty outlined vs **populated Email notch** |
+| `catalog_slider_v10.png` | Dual-thumb **Price range · 20–75% · min span 5%** with painted ticks; wavy; **contained morph PTR** (cookie/burst) + uncontained morph + **round-capped** circular |
+| `catalog_progress_v10.png` / `catalog_progress_carousel_v10.png` | Progress + **hero carousel** One–Four |
+| `catalog_nav_rail_v10.png` / `catalog_nav_rail_scrim_v10.png` | **Expanded 220dp modal rail over 32% scrim** (`←` FAB, Home/Search/Profile, badges) |
+| `catalog_search_v10.png` / `catalog_search_activity_v10.png` | Search **activity** growing-bar (back, caret `\|`, suggestions) |
+| `catalog_timepicker_v10.png` / `catalog_timepicker_dial_v10.png` | Polar minute dial + analog hand at 30; date-range hero |
+| `catalog_datepicker_v10.png` | Docked date field + calendars |
+| `catalog_html_light_v10.png` | HTML catalog (same `resolve()`), not GPUI pixels |
 
 ## What v10 changed (code)
 
 | Area | Shared `gpui_material` | Mapping |
 |---|---|---|
-| Search | `morph_t` / `morph_height_dp` / `morph_corner_dp_at` / `morph_ms` | One growing-bar tree; `with_animation` spatial-fast; caret editor kept |
-| Range | `snap_to_step`, `drag_thumb_snapped`, documented `RANGE_MIN_SPAN` (5%) | Tick-snap while dragging; label shows min span |
-| Progress | `clock_ms`, `ptr_cap_centers`, `loading_circular` | Round-capped PTR/loading stroke (PathBuilder + cap discs); shared clock |
-| Notch | `evenodd_verbs` / `evenodd_svg_d` | GPUI even-odd fill + stroke; HTML **fieldset** + hidden evenodd path |
-| Nav rail | `scrim()`, `is_modal` | Collapsed 80dp; expanded 220dp **modal + 32% scrim**; dest selection kept |
-| Carousel | `fling_steps`, `decay_velocity` | Wheel fling can skip more than ±1 item |
-| IME | `ime_caret_rect_dp` | `gpui_android::ime` records bounds from `update_ime_position` (still no InputConnection) |
-| Time | `lerp_angle_deg`, `hand_quad_at_angle` | Hour-face / value change interpolates the analog hand |
+| Notch (P0) | Single C-path `evenodd_verbs` (outer CW + inner CCW, **one** contour, no gap-chip). `evenodd_polygon` tessellates for hosts. | **GPUI strokes the open `outline_verbs` centerline** (label cuts the stroke on any background). HTML SVG **even-odd fill**, fieldset `border:none`. |
+| Loading + PTR (P0) | `loading_polygon` 7-shape morph; `contained_loading_indicator` = primary-container / on-primary-container; `round_capped_arc_polygon`; `clock_ms`. | PTR = contained morph. Circular = filled sausage + **disc-stamped** round caps (not a stroked polyline crescent). |
+| Nav rail (P1) | `morph_width_dp`, `scrim_opacity_at`, `elevation_dp_at`, `morph_ms` | Width + scrim opacity + shadow; expanded is a modal overlay, not a plain width swap. |
+| Search (P1) | `morph_height_dp` / `morph_corner_dp_at` / `morph_list_opacity` | One growing-bar tree, overflow clip, list fade. HTML max-height/opacity transition. |
+| Range (P1) | `snap_to_step` while dragging; `click_step` snaps nearest thumb to the 5% grid; `range_tick_fractions` (21) | Painted ticks; min-span stays one tick (5%). |
+| Carousel (P2) | `inertial_steps` (`v₀ e^{-kt}`, `k=2`) can skip **beyond ±1** (~96dp → 2 items) | Wheel uses inertial steps; `integrate_fling` kept for a later per-frame loop. |
+| IME (P2) | `ime_caret_rect_dp` | `gpui_android::ime::record_caret_rect` from NativeActivity `update_ime_position` (still no InputConnection). |
+| Time (P2) | `hour_face_live_angle_deg` | Repeating hour-face hand motion while the hour dial is showing. |
+
+Official refs used: [text fields](https://m3.material.io/components/text-fields/specs), [loading indicator](https://m3.material.io/components/loading-indicator/overview) (7-shape morph; contained for PTR), [progress](https://m3.material.io/components/progress-indicators/specs), [navigation rail](https://m3.material.io/components/navigation-rail/guidelines).
 
 ## v11 leftovers
 
-- Real system IME / JNI InputConnection (NativeActivity still has none).
-- Search morph is height/corner lerp, not a pixel-perfect M3 container transform.
-- Range has no live stop ticks painted on the dual-thumb track.
-- PTR round caps are tessellated discs (gpui does not re-export `LineCap`).
-- Rail modal is an in-catalog overlay, not a separate `Window`.
-- Carousel decay is a one-shot `e^{-kt}` helper, not a physics integrator.
-- Hour hand animation is one-shot per change, not a continuous ticking second hand.
+See `docs/qa/v11_leftovers.md`.

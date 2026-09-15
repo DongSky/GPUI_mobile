@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is even-odd hole fill (outer rounded rect minus inner hole minus legend gap) plus PathBuilder stroke; HTML fieldset; 8dp start; focus outline 2dp; IME caret rect stub wired to NativeActivity update_ime_position",
+        notes: "Floating label; outlined notch is a C-shaped path (outer CW + inner CCW joined at the legend gap): HTML paints SVG even-odd fill (fieldset border none); GPUI strokes the open centerline so the label cuts the stroke on any background (no page-color chip); 8dp start; focus outline 2dp; IME caret rect stub wired to NativeActivity update_ime_position",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy + loading circular; round-capped PTR/loading stroke (PathBuilder + cap discs); shared clock_ms animation helper",
+        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; round-capped filled circular arc (not a stroked polyline); shared clock_ms animation helper",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp modal column over a 32% scrim (M3 pattern); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp modal column that morphs over a 32% scrim (spatial-fast width + opacity, elevation); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with local-X drag, optional 5% tick-snap while dragging, min-span 5% (documented on the label), keyboard arrows, 5% click-step; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with local-X drag, 5% tick-snap while dragging, min-span 5% (one tick), click snaps nearest thumb onto the grid, keyboard arrows, painted range ticks; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -242,21 +242,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar growing-bar morph into full-screen search activity (spatial-fast height/corners); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar growing-bar morph into full-screen search activity (spatial-fast height/corners, overflow-clipped list); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change (hour-face hand motion); displaySmallEmphasized header; AM/PM",
+        notes: "12-hour + minute polar dial; analog hand is a shared filled path with spatial-fast angle lerp on face/value change and continuous hour-face motion while the hour dial is showing; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + velocity/decay fling that can skip more than one item",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + inertial fling (v₀ e^{-kt} integrate) that can skip more than one item",
     },
 ];
 
