@@ -5329,6 +5329,57 @@ fn hide_rail_hero(
         )
 }
 
+fn header_extended_fab(
+    theme: &Theme,
+    rail: &navigation_rail::NavRailAppearance,
+    expanded: bool,
+) -> impl IntoElement {
+    let morph_ms = navigation_rail::morph_ms(theme) as u64;
+    let theme_a = *theme;
+    let label = theme.typography.label_large;
+    div()
+        .id("header-rail-fab")
+        .h(px(navigation_rail::FAB_SLOT_DP))
+        .rounded(px(navigation_rail::FAB_CORNER_DP))
+        .bg(paint(rail.fab))
+        .text_color(paint(rail.fab_icon))
+        .flex()
+        .flex_row()
+        .items_center()
+        .overflow_hidden()
+        .px(px(navigation_rail::FAB_PAD_EXPANDED_DP))
+        .gap(px(if expanded {
+            navigation_rail::FAB_ICON_LABEL_GAP_DP
+        } else {
+            0.
+        }))
+        .with_animation(
+            if expanded {
+                "header-fab-expand"
+            } else {
+                "header-fab-collapse"
+            },
+            Animation::new(Duration::from_millis(morph_ms)),
+            move |this, delta| {
+                let t = if expanded { delta } else { 1.0 - delta };
+                let rail_w = navigation_rail::morph_width_eased_kind(
+                    &theme_a,
+                    navigation_rail::RailCollapsedKind::Wide,
+                    t,
+                );
+                let morph = navigation_rail::fab_morph(&theme_a, t, rail_w);
+                this.w(px(morph.width_dp)).ml(px(morph.margin_start_dp))
+            },
+        )
+        .child(navigation_rail::FAB_GLYPH)
+        .child(
+            div()
+                .id("header-rail-fab-label")
+                .text_size(px(label.size_sp))
+                .child(navigation_rail::FAB_LABEL),
+        )
+}
+
 fn header_rail_hero(
     this: &CatalogView,
     theme: &Theme,
@@ -5407,50 +5458,61 @@ fn header_rail_column(
                 .relative()
                 .flex()
                 .flex_col()
-                .items_start()
-                .pl(px(navigation_rail::HEADER_PAD_START_DP))
-                .when(tip_open, |el| {
-                    el.child(
-                        div()
-                            .id("header-rail-tooltip")
-                            .absolute()
-                            .bottom(px(
-                                navigation_rail::HEADER_BUTTON_DP + tooltip::ANCHOR_GAP_DP
-                            ))
-                            .left(px(navigation_rail::HEADER_PAD_START_DP))
-                            .h(px(tip.min_height_dp))
-                            .px(px(tip.pad_start_dp))
-                            .py(px(tip.pad_top_dp))
-                            .rounded(px(tip.corners.top_left))
-                            .bg(paint(tip.container))
-                            .text_color(paint(tip.supporting))
-                            .text_size(px(tip.supporting_style.size_sp))
-                            .flex()
-                            .items_center()
-                            .child(navigation_rail::header_menu_label(expanded)),
-                    )
-                })
+                .items_stretch()
+                .gap(px(navigation_rail::HEADER_FAB_GAP_DP))
                 .child(
                     div()
-                        .id("header-rail-menu")
-                        .w(px(navigation_rail::HEADER_BUTTON_DP))
-                        .h(px(navigation_rail::HEADER_BUTTON_DP))
-                        .rounded(px(header_btn.corners.top_left))
-                        .text_color(paint(header_btn.content))
+                        .id("header-rail-menu-row")
+                        .relative()
                         .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(navigation_rail::header_menu_glyph(expanded))
-                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
-                            this.header_tooltip_open = *hovered;
-                            cx.notify();
-                        }))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.header_rail_mode =
-                                navigation_rail::toggle_mode(this.header_rail_mode);
-                            cx.notify();
-                        })),
-                ),
+                        .flex_col()
+                        .items_start()
+                        .pl(px(navigation_rail::HEADER_PAD_START_DP))
+                        .when(tip_open, |el| {
+                            el.child(
+                                div()
+                                    .id("header-rail-tooltip")
+                                    .absolute()
+                                    .bottom(px(
+                                        navigation_rail::HEADER_BUTTON_DP
+                                            + tooltip::ANCHOR_GAP_DP
+                                    ))
+                                    .left(px(navigation_rail::HEADER_PAD_START_DP))
+                                    .h(px(tip.min_height_dp))
+                                    .px(px(tip.pad_start_dp))
+                                    .py(px(tip.pad_top_dp))
+                                    .rounded(px(tip.corners.top_left))
+                                    .bg(paint(tip.container))
+                                    .text_color(paint(tip.supporting))
+                                    .text_size(px(tip.supporting_style.size_sp))
+                                    .flex()
+                                    .items_center()
+                                    .child(navigation_rail::header_menu_label(expanded)),
+                            )
+                        })
+                        .child(
+                            div()
+                                .id("header-rail-menu")
+                                .w(px(navigation_rail::HEADER_BUTTON_DP))
+                                .h(px(navigation_rail::HEADER_BUTTON_DP))
+                                .rounded(px(header_btn.corners.top_left))
+                                .text_color(paint(header_btn.content))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(navigation_rail::header_menu_glyph(expanded))
+                                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                    this.header_tooltip_open = *hovered;
+                                    cx.notify();
+                                }))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.header_rail_mode =
+                                        navigation_rail::toggle_mode(this.header_rail_mode);
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(header_extended_fab(theme, &rail, expanded)),
         )
         .child(
             div()
@@ -6949,6 +7011,12 @@ mod tests {
         assert!(navigation_rail::HIDE_DEMO_HIDE_ON_COLLAPSE);
         assert!(navigation_rail::HIDE_DEMO_ARRANGEMENT.is_center());
         assert!(navigation_rail::HEADER_DEMO_HAS_HEADER);
+        assert!(navigation_rail::HEADER_DEMO_HAS_FAB);
+        assert_eq!(navigation_rail::FAB_LABEL, "Create");
+        let fab0 = navigation_rail::fab_morph(&theme, 0.0, 96.0);
+        assert!((fab0.width_dp - 56.0).abs() < 0.01);
+        let fab1 = navigation_rail::fab_morph(&theme, 1.0, 220.0);
+        assert!((fab1.width_dp - 188.0).abs() < 0.01);
         assert!(navigation_rail::HEADER_DEMO_ARRANGEMENT.is_bottom());
         assert_eq!(
             navigation_rail::header_menu_glyph(false),

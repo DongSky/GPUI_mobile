@@ -805,7 +805,12 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-rail-header=\"1\""));
     assert!(html.contains("data-rail-header-menu=\"1\""));
     assert!(html.contains("data-rail-header-tooltip=\"1\""));
+    assert!(html.contains("data-header-fab=\"1\""));
+    assert!(html.contains("data-rail-fab-extend=\"1\""));
+    assert!(html.contains("data-rail-fab-label=\"1\""));
+    assert!(html.contains("function applyRailFabMorph"));
     assert!(html.contains("Expand rail"));
+    assert!(html.contains(">Create<"));
     assert!(html.contains("function applyRailHideSlide"));
     assert!(html.contains("data-rail-menu=\"1\""));
     assert!(html.contains("data-narrow=\"1\""));
@@ -1047,6 +1052,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Arrangement.Center")
             && e.notes.contains("Arrangement.Bottom")
             && e.notes.contains("MenuOpen")
+            && e.notes.contains("Extended")
+            && e.notes.contains("Create")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1811,6 +1818,19 @@ fn expressive_wide_rail_icon_position() {
         "center"
     );
     assert!(navigation_rail::HEADER_DEMO_HAS_HEADER);
+    assert!(navigation_rail::HEADER_DEMO_HAS_FAB);
+    assert_eq!(navigation_rail::FAB_LABEL, "Create");
+    assert_eq!(navigation_rail::FAB_GLYPH, "+");
+    assert_eq!(navigation_rail::FAB_CORNER_DP, 16.0);
+    assert!((navigation_rail::fab_margin_collapsed_dp(96.0) - 20.0).abs() < 0.01);
+    let fab0 = navigation_rail::fab_morph(&theme, 0.0, 96.0);
+    assert!((fab0.width_dp - 56.0).abs() < 0.01);
+    assert!(fab0.label_alpha < 0.01);
+    assert!((fab0.margin_start_dp - 20.0).abs() < 0.01);
+    let fab1 = navigation_rail::fab_morph(&theme, 1.0, 220.0);
+    assert!((fab1.width_dp - 188.0).abs() < 0.01);
+    assert!((fab1.label_alpha - 1.0).abs() < 0.01);
+    assert!((fab1.margin_start_dp - 16.0).abs() < 0.01);
     assert!(navigation_rail::HEADER_DEMO_ARRANGEMENT.is_bottom());
     assert_eq!(
         navigation_rail::HEADER_DEMO_ARRANGEMENT.justify_content(),

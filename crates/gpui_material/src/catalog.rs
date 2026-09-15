@@ -521,6 +521,22 @@ a {{ color: var(--primary); }}
   width: 56px; height: 56px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; font-size: 24px;
 }}
+.nav-rail .fab-slot[data-rail-fab-extend="1"] {{
+  box-sizing: border-box; overflow: hidden; white-space: nowrap;
+  justify-content: flex-start; gap: 0; padding: 0 16px; margin-left: 20px;
+  flex: 0 0 auto; font-size: 24px;
+}}
+.nav-rail .fab-slot[data-rail-fab-extend="1"] .fab-label {{
+  font-size: 14px; line-height: 20px; font-weight: 500; opacity: 0;
+}}
+.nav-rail.expanded .fab-slot[data-rail-fab-extend="1"],
+.nav-rail[data-nav-rail-expanded="1"] .fab-slot[data-rail-fab-extend="1"] {{
+  width: calc(100% - 32px); margin-left: 16px; gap: 8px;
+}}
+.nav-rail.expanded .fab-slot[data-rail-fab-extend="1"] .fab-label,
+.nav-rail[data-nav-rail-expanded="1"] .fab-slot[data-rail-fab-extend="1"] .fab-label {{
+  opacity: 1;
+}}
 .nav-rail .dot {{
   position: absolute; top: 2px; right: 18px; min-width: 16px; height: 16px;
   border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
@@ -647,6 +663,11 @@ a {{ color: var(--primary); }}
 }}
 .rail-header {{
   position: relative; flex: 0 0 auto; z-index: 1;
+  display: flex; flex-direction: column; align-items: stretch;
+  width: 100%; gap: 12px;
+}}
+.rail-header-menu-row {{
+  position: relative; flex: 0 0 auto;
   display: flex; flex-direction: column; align-items: flex-start;
   padding-left: 24px;
 }}
@@ -660,8 +681,8 @@ a {{ color: var(--primary); }}
   min-height: 24px; max-width: 200px; padding: 4px 8px; border-radius: 4px;
   font-size: 12px; line-height: 16px; white-space: nowrap; pointer-events: none;
 }}
-.rail-header:hover .rail-header-tip, .rail-header-btn:focus + .rail-header-tip,
-.rail-header[data-open="1"] .rail-header-tip {{ display: flex; align-items: center; }}
+.rail-header-menu-row:hover .rail-header-tip, .rail-header-btn:focus + .rail-header-tip,
+.rail-header-menu-row[data-open="1"] .rail-header-tip {{ display: flex; align-items: center; }}
 .nav-rail[data-rail-arrangement="bottom"] {{
   justify-content: flex-start;
 }}
@@ -1778,6 +1799,20 @@ function applyRailHideSlide(rail, t) {{
   rail.style.width = expanded + "px";
   rail.style.transform = "translateX(" + (-expanded * (1 - e)) + "px)";
 }}
+function applyRailFabMorph(rail, e, railW) {{
+  var fab = rail.querySelector("[data-rail-fab-extend]");
+  if (!fab) return;
+  var collapsed = Number(rail.getAttribute("data-collapsed-width") || {rail_collapsed});
+  var ml0 = Math.max(0, (collapsed - {fab_slot}) / 2);
+  var ml1 = {fab_pad};
+  var ml = ml0 + (ml1 - ml0) * e;
+  var w = Math.max({fab_slot}, railW - 2 * ml);
+  fab.style.width = w + "px";
+  fab.style.marginLeft = ml + "px";
+  fab.style.gap = ({fab_gap} * e) + "px";
+  var label = fab.querySelector("[data-rail-fab-label]");
+  if (label) label.style.opacity = String(e);
+}}
 function applyRailIconMorph(rail, t) {{
   if (rail.getAttribute("data-hide-on-collapse") === "1") {{
     applyRailHideSlide(rail, t);
@@ -1787,6 +1822,7 @@ function applyRailIconMorph(rail, t) {{
   var collapsed = Number(rail.getAttribute("data-collapsed-width") || {rail_collapsed});
   var expanded = {rail_expanded};
   var railW = collapsed + (expanded - collapsed) * e;
+  applyRailFabMorph(rail, e, railW);
   rail.style.width = railW + "px";
   var destMl = 16 * e;
   var destW = Math.max(0, railW - destMl * 2);
@@ -1832,6 +1868,14 @@ function clearRailIconMorph(rail) {{
     return;
   }}
   rail.style.width = "";
+  var fab = rail.querySelector("[data-rail-fab-extend]");
+  if (fab) {{
+    fab.style.width = "";
+    fab.style.marginLeft = "";
+    fab.style.gap = "";
+    var label = fab.querySelector("[data-rail-fab-label]");
+    if (label) label.style.opacity = "";
+  }}
   rail.querySelectorAll(".dest").forEach(function (dest) {{
     ["--dest-w","--dest-h","--dest-ml","--dest-r","--dest-bg","--icon-left","--icon-top","--icon-w","--icon-h","--icon-bg","--lbl-left","--lbl-top","--lbl-w","--lbl-size","--lbl-line","--lbl-align"].forEach(function (k) {{
       dest.style.removeProperty(k);
@@ -2095,6 +2139,9 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
         wait_ms = progress::determinate_wait_ms(theme),
         rail_collapsed = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
         rail_expanded = navigation_rail::EXPANDED_WIDTH_DP,
+        fab_slot = navigation_rail::FAB_SLOT_DP,
+        fab_pad = navigation_rail::FAB_PAD_EXPANDED_DP,
+        fab_gap = navigation_rail::FAB_ICON_LABEL_GAP_DP,
         morph_ms = navigation_rail::morph_ms(theme),
         header_menu = navigation_rail::HEADER_MENU_GLYPH,
         header_open = navigation_rail::HEADER_MENU_OPEN_GLYPH,
@@ -3946,7 +3993,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. Header slot (Menu / MenuOpen + plain tooltip Above) stays top; live <code>Arrangement.Bottom</code> packs destinations below it. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. Header slot stays top: Menu / MenuOpen + plain tooltip Above + Compose <code>ExtendedFloatingActionButton</code> (Create, 56↔188). Live <code>Arrangement.Bottom</code> packs destinations below the menu+FAB. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -3977,9 +4024,12 @@ fn chrome(theme: &Theme) -> String {
 </div>
 <div class="rail-stage is-standard" data-hero="wide-rail-header" data-rail-layout="header">
   <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="header" data-rail-header="1" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="collapsed" data-rail-arrangement="{harr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">
-    <div class="rail-header" data-rail-header-slot="1" data-header-space="{hspace}" data-tooltip-anchor="{htip}">
-      <button type="button" class="rail-header-btn" data-rail-header-menu="1" data-rail-header-label="{hlabel}" data-rail-header-state="{hstate}" aria-label="{hlabel}" style="color:{hbtn}">{hglyph}</button>
-      <div class="rail-header-tip" data-rail-header-tooltip="1" data-tooltip-plain="header" data-tooltip-text="{hlabel}" style="background:{htbg};color:{htfg}">{hlabel}</div>
+    <div class="rail-header" data-rail-header-slot="1" data-header-space="{hspace}" data-tooltip-anchor="{htip}" data-header-fab="1">
+      <div class="rail-header-menu-row">
+        <button type="button" class="rail-header-btn" data-rail-header-menu="1" data-rail-header-label="{hlabel}" data-rail-header-state="{hstate}" aria-label="{hlabel}" style="color:{hbtn}">{hglyph}</button>
+        <div class="rail-header-tip" data-rail-header-tooltip="1" data-tooltip-plain="header" data-tooltip-text="{hlabel}" style="background:{htbg};color:{htfg}">{hlabel}</div>
+      </div>
+      <div class="fab-slot" data-rail-fab-extend="1" style="background:{fab_bg};color:{fab_fg}"><span class="fab-icon">{fglyph}</span><span class="fab-label" data-rail-fab-label="1">{flabel}</span></div>
     </div>
     <div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{harr}">{top_dests}</div>
   </div>
@@ -4040,6 +4090,8 @@ fn chrome(theme: &Theme) -> String {
         hlabel = navigation_rail::header_menu_label(false),
         hstate = navigation_rail::header_state_description(false),
         hglyph = navigation_rail::header_menu_glyph(false),
+        fglyph = navigation_rail::FAB_GLYPH,
+        flabel = navigation_rail::FAB_LABEL,
         htbg = tooltip::resolve_plain(theme).container.css_hex(),
         htfg = tooltip::resolve_plain(theme).supporting.css_hex(),
         hbtn = icon_button::resolve(

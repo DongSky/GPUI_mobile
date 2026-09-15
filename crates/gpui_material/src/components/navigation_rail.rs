@@ -12,10 +12,11 @@
 //! offscreen instead of leaving a collapsed 96/80 strip; items stay
 //! Start (`railExpanded = true`). `Arrangement.Vertical` is Top
 //! (default), Center (full container height), or Bottom (remaining
-//! space below the header). Optional header (Menu / MenuOpen) stays
-//! at the top.
+//! space below the header). Optional header (Menu / MenuOpen +
+//! Compose `ExtendedFloatingActionButton(expanded = railExpanded)`)
+//! stays at the top.
 
-use super::dialog;
+use super::{dialog, fab};
 use crate::argb::Argb;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -46,6 +47,16 @@ pub const ICON_DP: f32 = 24.0;
 pub const DEST_GAP_DP: f32 = 12.0;
 pub const PAD_TOP_DP: f32 = 16.0;
 pub const FAB_SLOT_DP: f32 = 56.0;
+/// Expressive regular / extended FAB corner (`FabPrimaryContainerShape`).
+pub const FAB_CORNER_DP: f32 = fab::CORNER_DP;
+/// Compose sample header `ExtendedFloatingActionButton` icon.
+pub const FAB_GLYPH: &str = "+";
+/// Compose sample header `ExtendedFloatingActionButton` text.
+pub const FAB_LABEL: &str = "Create";
+/// Icon→label gap on the extended rail FAB.
+pub const FAB_ICON_LABEL_GAP_DP: f32 = 8.0;
+/// Expanded FAB leading/trailing inset (matches dest `FullWidthLeading`).
+pub const FAB_PAD_EXPANDED_DP: f32 = START_LEADING_DP;
 /// 32% scrim behind the expanded modal rail (same token as dialogs).
 pub const SCRIM_OPACITY: f32 = dialog::SCRIM_OPACITY;
 
@@ -247,6 +258,10 @@ pub const HEADER_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
 pub const HEADER_DEMO_MODE: RailMode = RailMode::Collapsed;
 pub const HEADER_DEMO_ARRANGEMENT: RailArrangement = RailArrangement::Bottom;
 pub const HEADER_DEMO_HAS_HEADER: bool = true;
+/// Official “menu and FAB” arrangement: Menu + Extended FAB in the header.
+pub const HEADER_DEMO_HAS_FAB: bool = true;
+/// Gap between the menu row and the header FAB.
+pub const HEADER_FAB_GAP_DP: f32 = DEST_GAP_DP;
 
 /// Compose sample Menu ↔ MenuOpen glyph.
 pub fn header_menu_glyph(expanded: bool) -> &'static str {
@@ -273,6 +288,84 @@ pub fn header_state_description(expanded: bool) -> &'static str {
     } else {
         HEADER_STATE_COLLAPSED
     }
+}
+
+/// Collapsed FAB side inset: center the 56dp slot in `collapsed_width`.
+pub fn fab_margin_collapsed_dp(collapsed_width_dp: f32) -> f32 {
+    ((collapsed_width_dp - FAB_SLOT_DP) / 2.0).max(0.0)
+}
+
+/// Side inset for the rail FAB. Collapsed is centered; expanded is 16dp.
+pub fn fab_margin_dp(e: f32, collapsed_width_dp: f32) -> f32 {
+    lerp(
+        fab_margin_collapsed_dp(collapsed_width_dp),
+        FAB_PAD_EXPANDED_DP,
+        e.clamp(0.0, 1.0),
+    )
+}
+
+/// FAB width: rail minus leading + trailing insets (56 collapsed, ~188 expanded).
+pub fn fab_extended_width_dp(rail_width_dp: f32, margin_dp: f32) -> f32 {
+    (rail_width_dp - margin_dp * 2.0).max(FAB_SLOT_DP)
+}
+
+/// Compose `ExtendedFloatingActionButton(expanded = railExpanded)` metrics.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailFabMorph {
+    pub t: f32,
+    pub width_dp: f32,
+    pub height_dp: f32,
+    pub radius_dp: f32,
+    pub margin_start_dp: f32,
+    pub pad_h_dp: f32,
+    pub gap_dp: f32,
+    pub label_alpha: f32,
+    pub glyph: &'static str,
+    pub label: &'static str,
+}
+
+/// Interpolate Regular 56 → Extended (rail − 32) with spatial-fast easing.
+/// `rail_width_dp` is the current (already width-lerped) rail width.
+pub fn fab_morph(theme: &Theme, t: f32, rail_width_dp: f32) -> RailFabMorph {
+    fab_morph_kind(theme, t, rail_width_dp, RailCollapsedKind::Wide)
+}
+
+/// Regular → Extended FAB for Wide 96 or optional narrow 80 collapsed.
+pub fn fab_morph_kind(
+    theme: &Theme,
+    t: f32,
+    rail_width_dp: f32,
+    collapsed: RailCollapsedKind,
+) -> RailFabMorph {
+    let e = icon_position_eased(theme, t.clamp(0.0, 1.0));
+    let margin = fab_margin_dp(e, collapsed.width_dp());
+    let width = fab_extended_width_dp(rail_width_dp, margin);
+    RailFabMorph {
+        t: e,
+        width_dp: width,
+        height_dp: FAB_SLOT_DP,
+        radius_dp: FAB_CORNER_DP,
+        margin_start_dp: margin,
+        pad_h_dp: FAB_PAD_EXPANDED_DP,
+        gap_dp: lerp(0.0, FAB_ICON_LABEL_GAP_DP, e),
+        label_alpha: e,
+        glyph: FAB_GLYPH,
+        label: FAB_LABEL,
+    }
+}
+
+pub fn fab_morph_for_mode(
+    theme: &Theme,
+    mode: RailMode,
+    rail_width_dp: f32,
+    collapsed: RailCollapsedKind,
+) -> RailFabMorph {
+    fab_morph_kind(
+        theme,
+        icon_position_t(matches!(mode, RailMode::Expanded)),
+        rail_width_dp,
+        collapsed,
+    )
 }
 
 /// Header gap under the slot. Compose applies `WNRHeaderPadding` when the
