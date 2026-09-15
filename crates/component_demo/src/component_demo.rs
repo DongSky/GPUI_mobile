@@ -5,19 +5,24 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    div, px, App, Application, Context, FontWeight, IntoElement, ParentElement, Render,
-    SharedString, Styled, Window,
+    canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FontWeight,
+    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
+    PathBuilder, Render, SharedString, Styled, Window,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
+use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, card, checkbox, chip, dialog, divider, fab, icon_button, list,
-    menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs, text_field, top_app_bar,
-    Appearance,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider, fab,
+    icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider,
+    snackbar, switch, tabs, text_field, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::{Argb, InteractionState};
+use std::cell::Cell;
+use std::rc::Rc;
+use std::time::Duration;
 
 fn paint(c: Argb) -> gpui::Rgba {
     gpui::Rgba {
@@ -30,6 +35,14 @@ fn paint(c: Argb) -> gpui::Rgba {
 
 fn type_size(style: gpui_material::typography::TypeStyle) -> gpui::Pixels {
     px(style.size_sp)
+}
+
+fn type_weight(style: gpui_material::typography::TypeStyle) -> FontWeight {
+    match style.weight {
+        w if w >= 700 => FontWeight::BOLD,
+        w if w >= 500 => FontWeight::MEDIUM,
+        _ => FontWeight::NORMAL,
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -61,6 +74,20 @@ struct CatalogView {
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
     nav: usize,
+    group_selected: usize,
+    range_start: f32,
+    range_end: f32,
+    range_drag: Option<slider::RangeThumb>,
+    range_focus: slider::RangeThumb,
+    range_moved: bool,
+    range_hit: Rc<Cell<(f32, f32)>>,
+    docked_open: bool,
+    search_open: bool,
+    search_query: String,
+    time_hour: u8,
+    time_minute: u8,
+    time_period: DayPeriod,
+    time_dial: DialFace,
 }
 
 impl CatalogView {
@@ -289,6 +316,7 @@ fn catalog_body(
                 .text_color(paint(c.on_surface_variant))
                 .child("Material 3 / Expressive (m3.material.io). Color roles: androidx v0_210."),
         )
+        .child(android_settings_scene(this, theme, cx))
         .child(section_title(theme, "Buttons"))
         .child(
             div()
@@ -375,6 +403,7 @@ fn catalog_body(
                         .child("Label")
                 })),
         )
+        .child(android_connected_group(theme, this.group_selected, cx))
         .child(section_title(theme, "Text fields"))
         .child(
             div()
@@ -593,6 +622,9 @@ fn catalog_body(
         )
         .child(section_title(theme, "Slider"))
         .child(volume_slider_scene(theme, this.slider, cx))
+        .child(android_range_slider(this, theme, cx))
+        .child(section_title(theme, "Carousel"))
+        .child(android_carousel(theme))
         .child(
             div()
                 .text_size(px(12.))
@@ -605,6 +637,8 @@ fn catalog_body(
         .child(section_title(theme, "Tabs"))
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
         .child(tab_row(theme, &tabs_s, this.tab_secondary, "s", cx))
+        .child(section_title(theme, "Navigation rail"))
+        .child(android_nav_rail(theme))
         .child(section_title(theme, "Badge"))
         .child(
             div()
@@ -634,7 +668,27 @@ fn catalog_body(
                         )),
                 ),
         )
+        .child(section_title(theme, "Search"))
+        .child(android_search_bar(this, theme, cx))
+        .child(section_title(theme, "Time picker"))
+        .child(android_time_picker(this, theme, cx))
         .child(section_title(theme, "Date picker"))
+        .child(android_docked_date(this, theme, &pick, &cells, cx))
+        .child(
+            div()
+                .text_size(px(pick.year_style.size_sp))
+                .text_color(paint(pick.header_year))
+                .child(date_picker::RANGE_HERO_TITLE),
+        )
+        .child(
+            div()
+                .text_size(px(22.))
+                .text_color(paint(pick.header_date))
+                .child(date_picker::header_range_label(
+                    date_picker::RANGE_DEMO_START,
+                    date_picker::RANGE_DEMO_END,
+                )),
+        )
         .child(
             div()
                 .text_size(px(pick.year_style.size_sp))
@@ -661,7 +715,7 @@ fn catalog_body(
                 .child(
                     div()
                         .text_size(px(pick.date_style.size_sp.min(22.0)))
-                        .child(date_picker::month_title(this.picker_year, this.picker_month)),
+                        .child(date_picker::month_nav_label(this.picker_year, this.picker_month)),
                 )
                 .child(
                     div()
@@ -706,13 +760,22 @@ fn catalog_body(
         )
         .child(div().w(px(pick.day_dp * 7.0)).flex().flex_wrap().children(
             cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                let (bg, fg) = match kind {
-                    DayKind::Selected => {
-                        (paint(pick.day_selected_container), paint(pick.day_selected))
+                let (bg, fg, radius) = match kind {
+                    DayKind::Selected => (
+                        paint(pick.day_selected_container),
+                        paint(pick.day_selected),
+                        pick.day_dp / 2.0,
+                    ),
+                    DayKind::InRange => (
+                        paint(pick.day_range_container),
+                        paint(pick.day_range),
+                        0.0,
+                    ),
+                    DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::OutOfMonth => {
+                        (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
                     }
-                    DayKind::Today => (paint(pick.container), paint(pick.day)),
-                    DayKind::InMonth => (paint(pick.container), paint(pick.day)),
-                    DayKind::OutOfMonth => (paint(pick.container), paint(pick.day_out)),
                 };
                 let in_month = kind != DayKind::OutOfMonth;
                 let year = this.picker_year;
@@ -721,7 +784,7 @@ fn catalog_body(
                     .id(SharedString::from(format!("day-{i}")))
                     .w(px(pick.day_dp))
                     .h(px(pick.day_dp))
-                    .rounded(px(pick.day_dp / 2.0))
+                    .rounded(px(radius))
                     .bg(bg)
                     .text_color(fg)
                     .flex()
@@ -808,6 +871,7 @@ fn catalog_body(
                         .bg(paint(lin.indicator)),
                 ),
         )
+        .child(android_progress_indet(theme))
         .child(
             div()
                 .w_full()
@@ -865,6 +929,7 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                         .flex()
                         .justify_center()
                         .text_size(type_size(a.headline_style))
+                        .font_weight(type_weight(a.headline_style))
                         .text_color(paint(a.headline))
                         .child(dialog::RESET_HEADLINE),
                 )
@@ -875,6 +940,36 @@ fn dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElem
                         .text_color(paint(a.supporting))
                         .child(dialog::RESET_SUPPORTING),
                 )
+                .children(dialog::RESET_ACCOUNTS.iter().map(|email| {
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_row()
+                        .items_center()
+                        .gap(px(12.))
+                        .child(
+                            div()
+                                .w(px(40.))
+                                .h(px(40.))
+                                .rounded(px(20.))
+                                .bg(paint(theme.color.secondary_container))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(
+                                    div()
+                                        .text_size(px(14.))
+                                        .text_color(paint(theme.color.on_secondary_container))
+                                        .child(dialog::account_initials(email)),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(14.))
+                                .text_color(paint(theme.color.on_surface))
+                                .child(*email),
+                        )
+                }))
                 .child(
                     div()
                         .w_full()
@@ -940,6 +1035,7 @@ fn list_dialog_overlay(
                 .child(
                     div()
                         .text_size(type_size(a.headline_style))
+                        .font_weight(type_weight(a.headline_style))
                         .text_color(paint(a.headline))
                         .child(dialog::RINGTONE_HEADLINE),
                 )
@@ -1029,10 +1125,10 @@ fn slider_stop(slide: &slider::SliderAppearance, active: bool) -> impl IntoEleme
 }
 
 fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
-    let (active_n, inactive_n) = slider::segmented_stop_counts(slide.value, slide.stop_count);
-    div()
+    let fractions = slider::stop_fractions(slide.stop_count);
+    let rail = div()
         .w_full()
-        .h(px(slide.handle_h))
+        .h(px(slide.target_dp))
         .flex()
         .items_center()
         .child(
@@ -1040,18 +1136,13 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .w(px(140. * slide.value.max(0.12)))
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.active))
-                .flex()
-                .items_center()
-                .justify_between()
-                .px(px(8.))
-                .children((0..active_n).map(|_| slider_stop(slide, true))),
+                .bg(paint(slide.active)),
         )
         .child(
             div()
                 .mx(px(slide.gap_dp))
                 .w(px(slide.handle_w))
-                .h(px(slide.handle_h))
+                .h(px(slide.handle_h_visual))
                 .rounded(px(2.))
                 .bg(paint(slide.handle)),
         )
@@ -1060,13 +1151,30 @@ fn expressive_slider(slide: &slider::SliderAppearance) -> impl IntoElement {
                 .h(px(slide.track_h))
                 .flex_1()
                 .rounded(px(slide.track_corner))
-                .bg(paint(slide.inactive))
+                .bg(paint(slide.inactive)),
+        );
+    if slide.stop_count <= 2 {
+        return rail.into_any_element();
+    }
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .child(rail)
+        .child(
+            div()
+                .w_full()
+                .h(px(slide.target_dp))
+                .mt(px(-slide.target_dp))
+                .px(px(8.))
                 .flex()
                 .items_center()
                 .justify_between()
-                .px(px(8.))
-                .children((0..inactive_n).map(|_| slider_stop(slide, false))),
+                .children(fractions.into_iter().map(|frac| {
+                    slider_stop(slide, frac <= slide.value + 0.001)
+                })),
         )
+        .into_any_element()
 }
 
 fn volume_slider_scene(
@@ -1108,7 +1216,20 @@ fn volume_slider_scene(
                         .text_color(paint(theme.color.on_surface_variant))
                         .child(row.icon),
                 )
-                .child(expressive_slider(&slide))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(12.))
+                                .text_color(paint(theme.color.on_surface))
+                                .child(row.label),
+                        )
+                        .child(expressive_slider(&slide)),
+                )
                 .when(interactive, |el| {
                     el.on_click(cx.listener(|this, _, _, cx| {
                         this.slider = ((this.slider + 0.1) * 10.0).round() / 10.0;
@@ -1423,12 +1544,910 @@ fn m_block(a: &Appearance, child: impl IntoElement) -> impl IntoElement {
 }
 
 fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
+    let style = theme.typography.title_medium.emphasized();
     div()
         .mt(px(8.))
-        .text_size(px(theme.typography.title_medium.size_sp))
-        .font_weight(FontWeight::MEDIUM)
+        .text_size(px(style.size_sp))
+        .font_weight(type_weight(style))
         .text_color(paint(theme.color.on_surface))
         .child(title)
+}
+
+fn android_progress_indet(theme: &Theme) -> impl IntoElement {
+    let indet = progress::linear_indeterminate(theme);
+    let ptr = progress::pull_to_refresh(theme);
+    let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
+    let span = indet.head_span;
+    let ind_color = paint(indet.indicator);
+    let wave_color = paint(wave.indicator);
+    let wave_w = 200.0_f32;
+    let wave_h = wave.height_dp;
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .w(px(wave_w))
+                .h(px(wave_h))
+                .bg(paint(wave.track))
+                .with_animation(
+                    "android-wavy",
+                    Animation::new(Duration::from_millis(wave.duration_ms as u64)).repeat(),
+                    move |this, delta| {
+                        this.child(
+                            canvas(
+                                move |_, _, _| {},
+                                move |bounds, _, window, _| {
+                                    let pts = progress::wave_polyline(
+                                        wave_w,
+                                        wave_h,
+                                        progress::WAVE_DEMO_PROGRESS,
+                                        delta,
+                                    );
+                                    let mut builder = PathBuilder::stroke(px(progress::WAVE_STROKE_DP));
+                                    for (i, (x, y)) in pts.iter().enumerate() {
+                                        let p = point(
+                                            bounds.origin.x + px(*x),
+                                            bounds.origin.y + px(*y),
+                                        );
+                                        if i == 0 {
+                                            builder.move_to(p);
+                                        } else {
+                                            builder.line_to(p);
+                                        }
+                                    }
+                                    if let Ok(path) = builder.build() {
+                                        window.paint_path(path, wave_color);
+                                    }
+                                },
+                            )
+                            .w(px(wave_w))
+                            .h(px(wave_h)),
+                        )
+                    },
+                ),
+        )
+        .child(
+            div()
+                .relative()
+                .w(px(200.))
+                .h(px(indet.height_dp))
+                .rounded(px(2.))
+                .bg(paint(indet.track))
+                .with_animation(
+                    "android-indet",
+                    Animation::new(Duration::from_millis(indet.duration_ms as u64)).repeat(),
+                    move |this, delta| {
+                        this.child(
+                            div()
+                                .absolute()
+                                .left(px(-60.0 + delta * 260.0))
+                                .h_full()
+                                .w(px(200.0 * span))
+                                .bg(ind_color),
+                        )
+                    },
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .w(px(ptr.size_dp))
+                        .h(px(ptr.size_dp))
+                        .rounded(px(ptr.size_dp / 2.0))
+                        .border_2()
+                        .border_color(paint(ptr.track))
+                        .flex()
+                        .items_start()
+                        .justify_center()
+                        .child(
+                            div()
+                                .w(px(ptr.stroke_dp))
+                                .h(px(12.))
+                                .bg(paint(ptr.indicator)),
+                        ),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(paint(theme.color.on_surface_variant))
+                        .child(progress::PTR_LABEL),
+                ),
+        )
+}
+
+fn android_nav_rail(theme: &Theme) -> impl IntoElement {
+    let rail = navigation_rail::resolve(theme);
+    div()
+        .w(px(rail.width_dp))
+        .flex()
+        .flex_col()
+        .items_center()
+        .gap(px(navigation_rail::DEST_GAP_DP))
+        .bg(paint(rail.container))
+        .child(
+            div()
+                .w(px(navigation_rail::FAB_SLOT_DP))
+                .h(px(navigation_rail::FAB_SLOT_DP))
+                .rounded(px(16.))
+                .bg(paint(rail.fab))
+                .text_color(paint(rail.fab_icon))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("+"),
+        )
+        .children(
+            navigation_rail::DESTINATIONS
+                .iter()
+                .zip(navigation_rail::DESTINATION_ICONS.iter())
+                .zip(navigation_rail::DESTINATION_BADGES.iter())
+                .enumerate()
+                .map(|(i, ((label, icon), badge))| {
+                    let active = i == 0;
+                    let mut dest = div().relative().flex().flex_col().items_center().child(
+                        div()
+                            .w(px(navigation_rail::INDICATOR_W_DP))
+                            .h(px(navigation_rail::INDICATOR_H_DP))
+                            .rounded(px(16.))
+                            .bg(paint(if active {
+                                rail.active_indicator
+                            } else {
+                                rail.container
+                            }))
+                            .text_color(paint(if active {
+                                rail.active_icon
+                            } else {
+                                rail.inactive_icon
+                            }))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(*icon),
+                    );
+                    dest = dest.child(
+                        div()
+                            .text_size(px(12.))
+                            .text_color(paint(if active {
+                                rail.active_label
+                            } else {
+                                rail.inactive_label
+                            }))
+                            .child(*label),
+                    );
+                    match badge {
+                        Some(0) => dest.child(
+                            div()
+                                .absolute()
+                                .top(px(2.))
+                                .right(px(18.))
+                                .w(px(6.))
+                                .h(px(6.))
+                                .rounded(px(3.))
+                                .bg(paint(rail.badge)),
+                        ),
+                        Some(n) => dest.child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .right(px(8.))
+                                .min_w(px(16.))
+                                .h(px(16.))
+                                .rounded(px(8.))
+                                .bg(paint(rail.badge))
+                                .text_color(paint(rail.badge_label))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(badge::label_for_count(*n)),
+                        ),
+                        None => dest,
+                    }
+                }),
+        )
+}
+
+fn android_carousel(theme: &Theme) -> impl IntoElement {
+    let a = carousel::resolve(theme);
+    div()
+        .w_full()
+        .flex()
+        .gap(px(a.gap_dp))
+        .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
+            let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
+            let (bg, fg) = if i == carousel::DEMO_INDEX {
+                (a.container, a.label)
+            } else {
+                (a.neighbor, theme.color.on_secondary_container)
+            };
+            div()
+                .w(px(w.min(160.0)))
+                .h(px(a.height_dp * 0.7))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(bg))
+                .p(px(12.))
+                .flex()
+                .items_end()
+                .text_color(paint(fg))
+                .child(*label)
+        }))
+}
+
+fn android_search_bar(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = search::resolve(theme);
+    let view = if this.search_open {
+        search::resolve_activity(theme)
+    } else {
+        search::resolve_view(theme)
+    };
+    let suggestions = search::filter_suggestions(&this.search_query);
+    let query_label = search::query_display(&this.search_query).to_string();
+    let mut root = div().flex().flex_col().gap(px(8.));
+    if !this.search_open {
+        root = root.child(
+        div()
+            .id("search-bar")
+            .w_full()
+            .h(px(a.bar.height_dp))
+            .px(px(a.bar.pad_start_dp))
+            .rounded(px(a.bar.corners.top_left))
+            .bg(paint(a.bar.container))
+            .flex()
+            .items_center()
+            .gap(px(search::GAP_DP))
+            .child(div().text_color(paint(a.leading_icon)).child(search::LEADING_ICON))
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(a.placeholder_style.size_sp))
+                    .text_color(paint(a.placeholder))
+                    .child(search::PLACEHOLDER),
+            )
+            .child(
+                div()
+                    .w(px(search::AVATAR_DP))
+                    .h(px(search::AVATAR_DP))
+                    .rounded(px(search::AVATAR_DP / 2.0))
+                    .bg(paint(a.avatar))
+                    .text_color(paint(a.avatar_label))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child("A"),
+            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.search_open = true;
+                cx.notify();
+            })),
+        );
+    }
+    if this.search_open {
+        root = root.child(
+            div()
+                .id("search-activity")
+                .w_full()
+                .min_h(px(search::ACTIVITY_MIN_H_DP))
+                .rounded(px(view.corners.top_left))
+                .bg(paint(view.container))
+                .flex()
+                .flex_col()
+                .tab_index(0)
+                .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+                    this.search_query =
+                        search::apply_search_key(&this.search_query, &ev.keystroke.key);
+                    cx.notify();
+                }))
+                .child(
+                    div()
+                        .h(px(view.header_h_dp))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .gap(px(12.))
+                        .child(
+                            div()
+                                .id("search-back")
+                                .child(search::VIEW_BACK)
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.search_open = false;
+                                    this.search_query.clear();
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .flex_1()
+                                .text_color(paint(if this.search_query.is_empty() {
+                                    view.placeholder
+                                } else {
+                                    view.input
+                                }))
+                                .child(query_label),
+                        ),
+                )
+                .children(suggestions.into_iter().enumerate().map(|(i, label)| {
+                    div()
+                        .id(SharedString::from(format!("search-sug-{i}")))
+                        .h(px(view.suggestion_h_dp))
+                        .px(px(16.))
+                        .flex()
+                        .items_center()
+                        .text_color(paint(view.suggestion))
+                        .child(label)
+                })),
+        );
+    }
+    root
+}
+
+fn android_time_picker(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let a = time_picker::resolve(theme);
+    let hour_on = this.time_dial == DialFace::Hour;
+    let cells: Vec<(u8, String, bool)> = match this.time_dial {
+        DialFace::Hour => (1u8..=12)
+            .map(|h| (h, h.to_string(), h == this.time_hour))
+            .collect(),
+        DialFace::Minute => time_picker::minute_labels()
+            .map(|m| (m, format!("{m:02}"), m == this.time_minute))
+            .collect(),
+    };
+    div()
+        .w_full()
+        .p(px(16.))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .id("time-hour-field")
+                        .px(px(8.))
+                        .bg(paint(if hour_on {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if hour_on {
+                            a.number_selected
+                        } else {
+                            a.header
+                        }))
+                        .child(time_picker::format_hour_field(this.time_hour))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.time_dial = DialFace::Hour;
+                            cx.notify();
+                        })),
+                )
+                .child(div().child(":"))
+                .child(
+                    div()
+                        .id("time-minute-field")
+                        .px(px(8.))
+                        .bg(paint(if !hour_on {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if !hour_on {
+                            a.number_selected
+                        } else {
+                            a.header
+                        }))
+                        .child(time_picker::format_minute_field(this.time_minute))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.time_dial = DialFace::Minute;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .flex()
+                .gap(px(8.))
+                .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                    let selected = this.time_period == period;
+                    div()
+                        .id(SharedString::from(period.label()))
+                        .px(px(12.))
+                        .h(px(time_picker::PERIOD_H_DP))
+                        .rounded(px(8.))
+                        .bg(paint(if selected {
+                            a.period_selected_container
+                        } else {
+                            a.period_idle_container
+                        }))
+                        .text_color(paint(if selected {
+                            a.period_selected
+                        } else {
+                            a.period_idle
+                        }))
+                        .flex()
+                        .items_center()
+                        .child(period.label())
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.time_period = period;
+                            cx.notify();
+                        }))
+                })),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(4.))
+                .children(cells.into_iter().map(|(value, label, selected)| {
+                    let face = this.time_dial;
+                    div()
+                        .id(SharedString::from(format!("dial-{value}")))
+                        .w(px(36.))
+                        .h(px(36.))
+                        .rounded(px(18.))
+                        .bg(paint(if selected {
+                            a.number_selected_container
+                        } else {
+                            a.clock
+                        }))
+                        .text_color(paint(if selected {
+                            a.number_selected
+                        } else {
+                            a.number
+                        }))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            match face {
+                                DialFace::Hour => {
+                                    this.time_hour = time_picker::select_hour(this.time_hour, value);
+                                    this.time_dial = DialFace::Minute;
+                                }
+                                DialFace::Minute => {
+                                    this.time_minute =
+                                        time_picker::select_minute(this.time_minute, value);
+                                }
+                            }
+                            cx.notify();
+                        }))
+                })),
+        )
+}
+
+fn android_connected_group(
+    theme: &Theme,
+    selected: usize,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let count = button_group::DEMO_SEGMENTS.len();
+    div()
+        .flex()
+        .flex_row()
+        .gap(px(button_group::CONNECTED_GAP_DP))
+        .children(
+            button_group::DEMO_SEGMENTS
+                .iter()
+                .enumerate()
+                .map(|(i, label)| {
+                    let a = button_group::resolve_segment(theme, i, count, i == selected, false);
+                    div()
+                        .id(SharedString::from(format!("group-{i}")))
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_start_dp))
+                        .rounded_tl(px(a.corners.top_left))
+                        .rounded_tr(px(a.corners.top_right))
+                        .rounded_br(px(a.corners.bottom_right))
+                        .rounded_bl(px(a.corners.bottom_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .text_size(type_size(a.label_style))
+                        .font_weight(type_weight(a.label_style))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(a.outline.is_some(), |el| {
+                            let (color, _) = a.outline.unwrap();
+                            el.border_1().border_color(paint(color))
+                        })
+                        .child(*label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.group_selected = i;
+                            cx.notify();
+                        }))
+                }),
+        )
+}
+
+fn android_range_slider(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let range = slider::resolve_range(
+        theme,
+        this.range_start,
+        this.range_end,
+        InteractionState::Enabled,
+    );
+    let t = range.track;
+    let total = 240.0;
+    let left = (total * range.start).max(12.0);
+    let mid = (total * (range.end - range.start)).max(16.0);
+    let hit = this.range_hit.clone();
+    let hit_move = this.range_hit.clone();
+    let hit_click = this.range_hit.clone();
+    div()
+        .id("range-slider")
+        .tab_index(0)
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+            if let Some((s, e, thumb)) = slider::apply_arrow(
+                this.range_start,
+                this.range_end,
+                this.range_focus,
+                &ev.keystroke.key,
+            ) {
+                this.range_start = s;
+                this.range_end = e;
+                this.range_focus = thumb;
+                cx.notify();
+            }
+        }))
+        .child(
+            div()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(slider::range_value_label(range.start, range.end)),
+        )
+        .child(
+            div()
+                .id("range-track")
+                .relative()
+                .w(px(total))
+                .h(px(t.target_dp))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, ev: &MouseDownEvent, _, cx| {
+                        let (origin, w) = hit.get();
+                        let frac =
+                            slider::fraction_from_local_x(f32::from(ev.position.x) - origin, w);
+                        this.range_focus =
+                            slider::nearest_thumb(this.range_start, this.range_end, frac);
+                        this.range_drag = Some(this.range_focus);
+                        this.range_moved = false;
+                        cx.notify();
+                    }),
+                )
+                .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
+                    if ev.dragging() {
+                        if let Some(thumb) = this.range_drag {
+                            let (origin, w) = hit_move.get();
+                            let frac = slider::fraction_from_local_x(
+                                f32::from(ev.position.x) - origin,
+                                w,
+                            );
+                            let (s, e) =
+                                slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
+                            this.range_start = s;
+                            this.range_end = e;
+                            this.range_moved = true;
+                            cx.notify();
+                        }
+                    }
+                }))
+                .on_click(cx.listener(move |this, ev: &gpui::ClickEvent, _, cx| {
+                    if this.range_moved {
+                        this.range_drag = None;
+                        this.range_moved = false;
+                        cx.notify();
+                        return;
+                    }
+                    let (origin, w) = hit_click.get();
+                    let frac =
+                        slider::fraction_from_local_x(f32::from(ev.position().x) - origin, w);
+                    let (s, e) = slider::click_step(this.range_start, this.range_end, frac);
+                    this.range_start = s;
+                    this.range_end = e;
+                    this.range_drag = None;
+                    cx.notify();
+                }))
+                .child(
+                    div()
+                        .w(px(total))
+                        .h(px(t.target_dp))
+                        .flex()
+                        .items_center()
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(left))
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .w(px(mid))
+                                .rounded(px(t.inner_corner))
+                                .bg(paint(t.active)),
+                        )
+                        .child(
+                            div()
+                                .mx(px(t.gap_dp))
+                                .w(px(t.handle_w.max(12.0)))
+                                .h(px(t.handle_h_visual))
+                                .rounded(px(2.))
+                                .bg(paint(t.handle)),
+                        )
+                        .child(
+                            div()
+                                .h(px(t.track_h))
+                                .flex_1()
+                                .rounded(px(t.track_corner))
+                                .bg(paint(t.inactive)),
+                        ),
+                )
+                .child({
+                    let hit = this.range_hit.clone();
+                    canvas(
+                        move |bounds, _, _| {
+                            hit.set((
+                                f32::from(bounds.origin.x),
+                                f32::from(bounds.size.width).max(1.0),
+                            ));
+                        },
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .w(px(total))
+                    .h(px(t.target_dp))
+                }),
+        )
+}
+
+fn android_settings_scene(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let title = theme.typography.title_large.emphasized();
+    let section = theme.typography.title_medium.emphasized();
+    let outlined = this.outlined.appearance(theme);
+    div()
+        .w_full()
+        .p(px(button_group::SETTINGS_PAD_DP))
+        .rounded(px(button_group::SETTINGS_CORNER_DP))
+        .bg(paint(theme.color.surface_container))
+        .flex()
+        .flex_col()
+        .gap(px(button_group::SETTINGS_GROUP_GAP_DP))
+        .child(
+            div()
+                .text_size(px(title.size_sp))
+                .font_weight(type_weight(title))
+                .text_color(paint(theme.color.on_surface))
+                .child(button_group::SETTINGS_SCENE_TITLE),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(button_group::SETTINGS_ROW_GAP_DP))
+                .child(
+                    div()
+                        .text_size(px(section.size_sp))
+                        .font_weight(type_weight(section))
+                        .text_color(paint(theme.color.on_surface))
+                        .child(button_group::SETTINGS_VOLUME_TITLE),
+                )
+                .child(volume_slider_scene(theme, this.slider, cx)),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(button_group::SETTINGS_ROW_GAP_DP))
+                .child(
+                    div()
+                        .text_size(px(section.size_sp))
+                        .font_weight(type_weight(section))
+                        .text_color(paint(theme.color.on_surface))
+                        .child(button_group::SETTINGS_QUIET_HOURS_TITLE),
+                )
+                .child(field_block(
+                    "settings-email",
+                    &outlined,
+                    "Email",
+                    this.outlined.display_with_caret(),
+                    if this.outlined.error {
+                        "Enter a valid email"
+                    } else {
+                        "Supporting text"
+                    },
+                    cx.listener(|this, _, _, cx| {
+                        this.blur_fields();
+                        this.outlined.set_focus(true);
+                        cx.notify();
+                    }),
+                ))
+                .child(android_connected_group(theme, this.group_selected, cx)),
+        )
+        .child(m_button(
+            "settings-reset",
+            theme,
+            button::ButtonVariant::Text,
+            InteractionState::Enabled,
+            "Reset settings",
+            cx.listener(|this, _, _, cx| {
+                this.blur_fields();
+                this.overlay = Overlay::Dialog;
+                cx.notify();
+            }),
+        ))
+}
+
+fn android_docked_date(
+    this: &CatalogView,
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+    cells: &[(u32, DayKind); 42],
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        if this.docked_open {
+            InteractionState::Focused
+        } else {
+            InteractionState::Enabled
+        },
+        true,
+    );
+    let value = date_picker::docked_field_value(this.selected);
+    let mut root = div()
+        .id("docked-date")
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+            if date_picker::DOCKED_DISMISS_ON_OUTSIDE && this.docked_open {
+                this.docked_open = false;
+                cx.notify();
+            }
+        }))
+        .child(field_block(
+            "docked-date-field",
+            &field,
+            date_picker::DOCKED_FIELD_LABEL,
+            value,
+            "",
+            cx.listener(|this, _, _, cx| {
+                this.docked_open = !this.docked_open;
+                cx.notify();
+            }),
+        ));
+    if this.docked_open {
+        let year = this.picker_year;
+        let month = this.picker_month;
+        root = root.child(
+            div()
+                .w_full()
+                .p(px(8.))
+                .rounded(px(pick.corners.top_left))
+                .bg(paint(pick.container))
+                .shadow_md()
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .flex()
+                        .justify_between()
+                        .child(
+                            div()
+                                .id("docked-month-prev")
+                                .child("<")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        -1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(div().child(date_picker::month_nav_label(
+                            this.picker_year,
+                            this.picker_month,
+                        )))
+                        .child(
+                            div()
+                                .id("docked-month-next")
+                                .child(">")
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    let (y, m) = date_picker::add_months(
+                                        this.picker_year,
+                                        this.picker_month,
+                                        1,
+                                    );
+                                    this.picker_year = y;
+                                    this.picker_month = m;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .children(cells.iter().copied().enumerate().take(14).map(|(i, (day, kind))| {
+                    let (bg, fg, radius) = match kind {
+                        DayKind::Selected => (
+                            paint(pick.day_selected_container),
+                            paint(pick.day_selected),
+                            pick.day_dp / 2.0,
+                        ),
+                        DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                        _ => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    };
+                    let in_month = kind != DayKind::OutOfMonth;
+                    div()
+                        .id(SharedString::from(format!("docked-day-{i}")))
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(radius))
+                        .bg(bg)
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(day.to_string())
+                        .when(in_month, |el| {
+                            el.on_click(cx.listener(move |this, _, _, cx| {
+                                this.selected = CivilDate { year, month, day };
+                                if date_picker::DOCKED_DISMISS_ON_SELECT {
+                                    this.docked_open = false;
+                                }
+                                cx.notify();
+                            }))
+                        })
+                })),
+                ),
+        );
+    }
+    root
 }
 
 fn field_block(
@@ -1444,48 +2463,159 @@ fn field_block(
     let label = label.into();
     let value = value.into();
     let box_el = if outlined && field.notched {
-        let label_h = field.label_style.line_height_sp;
+        let frame = text_field::notch_frame(label.as_ref(), field);
+        let stroke = frame.stroke_dp;
+        let radius = frame.radius_dp;
+        let fill = field.field.container;
+        let inner = frame.inner_radius_dp();
+        let inner_sz = (radius - stroke).max(0.0);
+        let middle_h = frame.middle_h_dp();
+        let tl = div()
+            .w(px(radius))
+            .h(px(radius))
+            .rounded_tl(px(radius))
+            .bg(paint(outline.0))
+            .pt(px(stroke))
+            .pl(px(stroke))
+            .child(
+                div()
+                    .w(px(inner_sz))
+                    .h(px(inner_sz))
+                    .rounded_tl(px(inner))
+                    .bg(paint(fill)),
+            );
+        let tr = div()
+            .w(px(radius))
+            .h(px(radius))
+            .rounded_tr(px(radius))
+            .bg(paint(outline.0))
+            .pt(px(stroke))
+            .pr(px(stroke))
+            .child(
+                div()
+                    .w(px(inner_sz))
+                    .h(px(inner_sz))
+                    .rounded_tr(px(inner))
+                    .bg(paint(fill)),
+            );
+        let bl = div()
+            .w(px(radius))
+            .h(px(radius))
+            .rounded_bl(px(radius))
+            .bg(paint(outline.0))
+            .pb(px(stroke))
+            .pl(px(stroke))
+            .child(
+                div()
+                    .w(px(inner_sz))
+                    .h(px(inner_sz))
+                    .rounded_bl(px(inner))
+                    .bg(paint(fill)),
+            );
+        let br = div()
+            .w(px(radius))
+            .h(px(radius))
+            .rounded_br(px(radius))
+            .bg(paint(outline.0))
+            .pb(px(stroke))
+            .pr(px(stroke))
+            .child(
+                div()
+                    .w(px(inner_sz))
+                    .h(px(inner_sz))
+                    .rounded_br(px(inner))
+                    .bg(paint(fill)),
+            );
         div()
             .id(id)
+            .relative()
             .flex()
             .flex_col()
+            .w_full()
             .on_click(on_click)
             .child(
                 div()
-                    .h(px(label_h))
-                    .pl(px(12.))
+                    .flex()
+                    .flex_row()
+                    .items_start()
+                    .h(px(radius))
+                    .child(tl)
                     .child(
                         div()
-                            .px(px(text_field::NOTCH_PAD_DP))
-                            .bg(paint(field.field.container))
-                            .text_size(px(field.label_style.size_sp))
-                            .text_color(paint(field.label))
-                            .child(label),
-                    ),
+                            .w(px(frame.top_lead_dp()))
+                            .h(px(radius))
+                            .flex()
+                            .flex_col()
+                            .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
+                    )
+                    .child(
+                        div()
+                            .w(px(frame.width_dp))
+                            .h(px(frame.notch_gap_h_dp()))
+                            .bg(paint(fill)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .h(px(radius))
+                            .flex()
+                            .flex_col()
+                            .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
+                    )
+                    .child(tr),
             )
             .child(
                 div()
-                    .mt(px(-label_h * 0.5))
-                    .h(px(field.field.height_dp))
-                    .px(px(16.))
-                    .pt(px(8.))
-                    .rounded(px(field.field.corners.top_left))
-                    .bg(paint(field.field.container))
-                    .when(outline.1 >= 2.0, |el| {
-                        el.border_2().border_color(paint(outline.0))
-                    })
-                    .when(outline.1 < 2.0, |el| {
-                        el.border_1().border_color(paint(outline.0))
-                    })
                     .flex()
-                    .items_center()
+                    .flex_row()
+                    .h(px(middle_h))
+                    .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0)))
                     .child(
                         div()
-                            .text_size(px(field.input_style.size_sp))
-                            .text_color(paint(field.input))
-                            .child(value),
-                    ),
+                            .flex_1()
+                            .h(px(middle_h))
+                            .px(px(16.))
+                            .flex()
+                            .items_center()
+                            .bg(paint(fill))
+                            .child(
+                                div()
+                                    .text_size(px(field.input_style.size_sp))
+                                    .text_color(paint(field.input))
+                                    .child(value),
+                            ),
+                    )
+                    .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0))),
             )
+            .child(
+                div()
+                    .flex()
+                    .flex_row()
+                    .items_end()
+                    .h(px(radius))
+                    .child(bl)
+                    .child(div().flex_1().h(px(stroke)).bg(paint(outline.0)))
+                    .child(br),
+            )
+            .child({
+                let (lx, ly) = frame.label_origin_dp();
+                div()
+                    .absolute()
+                    .left(px(lx))
+                    .top(px(ly))
+                    .w(px(frame.width_dp))
+                    .h(px(frame.label_h_dp))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(paint(fill))
+                    .child(
+                        div()
+                            .text_size(px(field.label_style.size_sp))
+                            .text_color(paint(field.label))
+                            .child(label),
+                    )
+            })
             .into_any_element()
     } else if outlined {
         div()
@@ -1701,6 +2831,20 @@ fn android_main(app: AndroidApp) {
                     ed
                 },
                 nav: 0,
+                group_selected: button_group::DEMO_SELECTED,
+                range_start: slider::RANGE_DEMO_START,
+                range_end: slider::RANGE_DEMO_END,
+                range_drag: None,
+                range_focus: slider::RangeThumb::Start,
+                range_moved: false,
+                range_hit: Rc::new(Cell::new((0.0, 240.0))),
+                docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
+                search_open: search::VIEW_OPEN_BY_DEFAULT,
+                search_query: String::new(),
+                time_hour: time_picker::DEMO_HOUR,
+                time_minute: time_picker::DEMO_MINUTE,
+                time_period: time_picker::DEMO_PERIOD,
+                time_dial: time_picker::DEMO_DIAL,
             })
         })
         .expect("failed to open window");

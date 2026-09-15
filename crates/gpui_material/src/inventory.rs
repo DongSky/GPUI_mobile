@@ -39,7 +39,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Type scale (15 baseline styles)",
         docs: "https://m3.material.io/styles/typography/type-scale-tokens",
         parity: Parity::Done,
-        notes: "Roboto; emphasized styles not implemented",
+        notes: "Roboto when installed else Liberation Sans + word-gap; 15 baseline + 15 emphasized (400→500 / 500→700); heroes use display/headline emphasized",
     },
     ComponentEntry {
         name: "Shape",
@@ -67,7 +67,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Easing and duration",
         docs: "https://m3.material.io/styles/motion/easing-and-duration/tokens-specs",
         parity: Parity::Done,
-        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; no GPUI animation clock",
+        notes: "Expressive spatial/effects springs + legacy emphasized eval; catalog CSS morph; GPUI Animation clock on indeterminate/wavy progress",
     },
     ComponentEntry {
         name: "Button",
@@ -75,6 +75,13 @@ pub const INVENTORY: &[ComponentEntry] = &[
         docs: "https://m3.material.io/components/buttons/specs",
         parity: Parity::Done,
         notes: "Expressive XS–XL, round/square, press morph; default S 40×16; outlined = outline-variant",
+    },
+    ComponentEntry {
+        name: "Button group",
+        material: "Connected button groups (Expressive)",
+        docs: "https://m3.material.io/components/button-groups/specs",
+        parity: Parity::Done,
+        notes: "2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month demo",
     },
     ComponentEntry {
         name: "Icon button",
@@ -95,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch (4dp) on every populated/focused state; focus outline 2dp; icons; IME still NativeActivity stub",
+        notes: "Floating label; outlined notch is a shared outline path (fieldset + GPUI PathBuilder), 8dp start, stroke-height cutout, legend on top stroke; focus outline 2dp; IME still NativeActivity stub",
     },
     ComponentEntry {
         name: "List",
@@ -151,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate only in catalog; no wavy/indeterminate motion",
+        notes: "Determinate linear/circular + wavy determinate track + indeterminate sliding head / spinning arc (HTML CSS + GPUI Animation clock) + 40dp pull-to-refresh hero",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -175,11 +182,18 @@ pub const INVENTORY: &[ComponentEntry] = &[
         notes: "80dp; active indicator 64×32; 3 destinations in catalog",
     },
     ComponentEntry {
+        name: "Navigation rail",
+        material: "Navigation rail",
+        docs: "https://m3.material.io/components/navigation-rail/specs",
+        parity: Parity::Done,
+        notes: "Collapsed 80dp + expanded 220dp modal; 56×32 indicator; FAB slot; destination badges (count + small dot); Home/Search/Profile",
+    },
+    ComponentEntry {
         name: "Dialog",
         material: "Basic dialogs",
         docs: "https://m3.material.io/components/dialogs/specs",
         parity: Parity::Done,
-        notes: "surface-container-high, 28dp, elev 3, headlineSmall/bodyMedium, 32% scrim",
+        notes: "surface-container-high, 28dp, elev 3, headlineSmallEmphasized/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept",
     },
     ComponentEntry {
         name: "Bottom sheet",
@@ -200,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle, 6dp gap, 4dp stops; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with continuous local-X drag, keyboard arrows, and 5% click-step; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -221,7 +235,28 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Date pickers",
         docs: "https://m3.material.io/components/date-pickers/specs",
         parity: Parity::Done,
-        notes: "Modal calendar; 40dp days; selected/today/out-of-month; Sunday-first grid (official modal)",
+        notes: "Modal calendar; 40dp days; selected/today/in-range/out-of-month; Sunday-first grid; range hero + docked popup (shadow, select dismiss, outside-click dismiss, month nav that re-grids HTML+GPUI); month ▾ chrome; emphasized large date",
+    },
+    ComponentEntry {
+        name: "Search",
+        material: "Search bar + view",
+        docs: "https://m3.material.io/components/search/specs",
+        parity: Parity::Done,
+        notes: "56dp full-round docked bar morphs into full-screen search activity (0dp corners, surface); back + input + filtered suggestions",
+    },
+    ComponentEntry {
+        name: "Time picker",
+        material: "Time pickers (dial)",
+        docs: "https://m3.material.io/components/time-pickers/specs",
+        parity: Parity::Done,
+        notes: "12-hour + minute dial; analog selector hand is a shared filled path (HTML SVG / GPUI PathBuilder); displaySmallEmphasized header; AM/PM; hand motion not animated",
+    },
+    ComponentEntry {
+        name: "Carousel",
+        material: "Carousel (hero / multi-browse)",
+        docs: "https://m3.material.io/components/carousel/specs",
+        parity: Parity::Done,
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; no snap/fling physics",
     },
 ];
 

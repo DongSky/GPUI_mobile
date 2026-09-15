@@ -1,9 +1,9 @@
 //! Golden tests against androidx Material 3 token values (v0_210 palette / type scale).
 
 use gpui_material::components::{
-    badge, bottom_sheet, button, card, checkbox, chip, date_picker, dialog, divider, fab,
-    icon_button, list, menu, navigation_bar, progress, radio, slider, snackbar, switch, tabs,
-    text_field, top_app_bar,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
+    fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
+    tabs, text_field, time_picker, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
 use gpui_material::motion;
@@ -13,6 +13,7 @@ use gpui_material::state::{
     HOVER_OPACITY, PRESSED_OPACITY,
 };
 use gpui_material::theme::Theme;
+use gpui_material::typography;
 use gpui_material::Argb;
 
 fn hex(c: Argb) -> String {
@@ -83,6 +84,14 @@ fn type_scale_matches_androidx_type_scale_tokens() {
     assert_eq!((t.label_large.size_sp, t.label_large.weight), (14.0, 500));
     assert_eq!((t.title_medium.size_sp, t.title_medium.weight), (16.0, 500));
     assert_eq!(t.label_small.size_sp, 11.0);
+    let emp = t.emphasized();
+    assert_eq!(emp.headline_small.name, "headlineSmallEmphasized");
+    assert_eq!(emp.headline_small.size_sp, 24.0);
+    assert_eq!(emp.headline_small.weight, 500);
+    assert_eq!(emp.headline_large.weight, 500);
+    assert_eq!(emp.title_medium.weight, 700);
+    assert_eq!(emp.label_large.weight, 700);
+    assert_eq!(emp.body_large.weight, 500);
 }
 
 #[test]
@@ -265,6 +274,21 @@ fn text_field_metrics_and_error_focus() {
     assert!(focused.floating);
     assert_eq!(focused.label, theme.color.primary);
     assert_eq!(focused.label_style.name, "bodySmall");
+    let cut = text_field::notch_cutout("Email", &focused);
+    assert_eq!(cut.start_dp, 8.0);
+    assert_eq!(cut.stroke_dp, 2.0);
+    assert!(cut.width_dp >= 28.0);
+    let frame = text_field::notch_frame("Email", &focused);
+    assert_eq!(frame.radius_dp, 4.0);
+    assert_eq!(frame.stroke_dp, 2.0);
+    assert_eq!(frame.top_lead_dp(), 4.0);
+    assert_eq!(frame.notch_gap_h_dp(), 2.0);
+    assert_eq!(frame.inner_radius_dp(), 2.0);
+    let d = frame.outline_svg_d(280.0);
+    assert!(d.starts_with('M'));
+    assert!(d.contains(" A"));
+    assert_eq!(focused.cutout_fill, theme.color.background);
+    assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
 
     let error = text_field::resolve(
         &theme,
@@ -382,6 +406,14 @@ fn card_chip_fab_chrome_tokens() {
     let lin = progress::linear(&theme, 0.5);
     assert_eq!(lin.height_dp, 4.0);
     assert_eq!(lin.indicator, theme.color.primary);
+    let indet = progress::linear_indeterminate(&theme);
+    assert_eq!(indet.head_span, progress::INDETERMINATE_SPAN);
+    assert_eq!(indet.indicator, theme.color.primary);
+    assert_eq!(progress::pull_to_refresh(&theme).size_dp, 40.0);
+    let wave = progress::wavy(&theme, 0.6);
+    assert_eq!(wave.height_dp, 16.0);
+    assert_eq!(wave.indicator, theme.color.primary);
+    assert!(progress::wave_polyline(240.0, 16.0, 0.6, 0.0).len() > 8);
 }
 
 #[test]
@@ -403,8 +435,41 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-field-hero=\"empty-filled\""));
     assert!(html.contains("data-field-hero=\"empty-outlined\""));
     assert!(html.contains("data-week-start=\"sunday\""));
-    assert!(html.contains("data-stops=\"11\""));
+    assert!(html.contains("data-stops=\"13\""));
     assert!(html.contains("Alarm volume"));
+    assert!(html.contains("Call volume"));
+    assert!(html.contains("data-notch=\"cutout\""));
+    assert!(html.contains("leevilanuevanotes@google.com"));
+    assert!(html.contains("data-dialog-accounts=\"1\""));
+    assert!(html.contains("data-datepicker-range=\"1\""));
+    assert!(html.contains("Depart – Return dates"));
+    assert!(html.contains("data-handle-visual=\"28\""));
+    assert!(html.contains("September 2026 ▾"));
+    assert!(html.contains("headlineSmallEmphasized"));
+    assert!(html.contains("headlineLargeEmphasized"));
+    assert!(html.contains("data-button-group=\"connected\""));
+    assert!(html.contains("data-slider-range=\"1\""));
+    assert!(html.contains("data-datepicker-docked=\"1\""));
+    assert!(html.contains("data-settings-scene=\"1\""));
+    assert!(html.contains("data-settings-block=\"volume\""));
+    assert!(html.contains("data-search=\"1\""));
+    assert!(html.contains("Hinted search text"));
+    assert!(html.contains("data-search-view=\"1\""));
+    assert!(html.contains("data-timepicker=\"1\""));
+    assert!(html.contains("data-dial=\"minute\""));
+    assert!(html.contains("data-progress=\"indeterminate\""));
+    assert!(html.contains("data-progress=\"ptr\""));
+    assert!(html.contains("data-nav-rail=\"1\""));
+    assert!(html.contains("data-range-interactive=\"1\""));
+    assert!(html.contains("data-dismiss-outside=\"1\""));
+    assert!(html.contains("data-docked-month"));
+    assert!(html.contains("displaySmallEmphasized"));
+    assert!(html.contains("data-datepicker-popup=\"open\""));
+    assert!(html.contains("titleMediumEmphasized"));
+    assert!(html.contains("Sound &amp; notifications") || html.contains("Sound & notifications"));
+    assert!(html.contains("Date of birth"));
+    assert!(html.contains("Price range"));
+    assert!(html.contains("data-role=\"leading\""));
     assert!(html.contains("data-sheet=\"modal\""));
     assert!(html.contains("data-menu=\"1\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
@@ -424,6 +489,15 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-motion=\"emphasized\""));
     assert!(html.contains("data-fab-size=\"extended\""));
     assert!(html.contains("data-field=\"filled-edit\""));
+    assert!(html.contains("data-carousel=\"1\""));
+    assert!(html.contains("data-progress=\"wavy\""));
+    assert!(html.contains("data-search-activity=\"1\""));
+    assert!(html.contains("data-search-input"));
+    assert!(html.contains("data-hand-path=\"1\""));
+    assert!(html.contains("data-notch-path="));
+    assert!(html.contains("data-nav-rail-expanded=\"1\""));
+    assert!(html.contains("data-rail-fab=\"1\""));
+    assert!(html.contains("data-docked-grid=\"1\""));
 }
 
 #[test]
@@ -456,6 +530,12 @@ fn inventory_covers_claimed_and_followups() {
         "Badge",
         "Date picker",
         "Motion tokens",
+        "Button group",
+        "Typography",
+        "Search",
+        "Time picker",
+        "Navigation rail",
+        "Carousel",
     ] {
         assert!(
             INVENTORY
@@ -473,11 +553,15 @@ fn dialog_sheet_menu_tokens() {
     let d = dialog::resolve(&theme);
     assert_eq!(d.corners.top_left, 28.0);
     assert_eq!(d.container, theme.color.surface_container_high);
-    assert_eq!(d.headline_style.name, "headlineSmall");
+    assert_eq!(d.headline_style.name, "headlineSmallEmphasized");
+    assert_eq!(d.headline_style.weight, 500);
     assert_eq!(d.supporting_style.name, "bodyMedium");
     assert_eq!(d.action, theme.color.primary);
     assert_eq!(d.elevation_dp, 6.0);
     assert_eq!(d.min_width_dp, 280.0);
+    assert_eq!(dialog::RESET_ACCOUNTS.len(), 3);
+    assert!(dialog::RESET_SUPPORTING.contains("The following accounts"));
+    assert_eq!(dialog::account_initials("leevilanuevanotes@google.com"), "L");
 
     let sheet = bottom_sheet::resolve(&theme, true);
     assert_eq!(sheet.corners.top_left, 28.0);
@@ -502,6 +586,7 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.track_h, 16.0);
     assert_eq!(s.handle_w, 4.0);
     assert_eq!(s.handle_h, 44.0);
+    assert_eq!(s.handle_h_visual, 28.0);
     assert_eq!(s.gap_dp, 6.0);
     assert_eq!(s.stop_dp, 4.0);
     assert_eq!(s.active, theme.color.primary);
@@ -509,9 +594,28 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(s.value, 0.4);
     assert_eq!(s.stop_count, 2);
     assert_eq!(slider::stop_fractions(5), vec![0.0, 0.25, 0.5, 0.75, 1.0]);
-    let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 11);
-    assert_eq!(alarm.stop_count, 11);
-    assert_eq!(slider::segmented_stop_counts(0.52, 11).0, 6);
+    let alarm = slider::resolve_with_stops(&theme, 0.52, InteractionState::Enabled, 13);
+    assert_eq!(alarm.stop_count, 13);
+    assert_eq!(slider::OVERVIEW_ROWS[1].stop_count, 13);
+    assert_eq!(slider::OVERVIEW_ROWS[0].label, "Call volume");
+    assert_eq!(slider::segmented_stop_counts(0.52, 13).0, 7);
+    let range = slider::resolve_range(
+        &theme,
+        slider::RANGE_DEMO_START,
+        slider::RANGE_DEMO_END,
+        InteractionState::Enabled,
+    );
+    assert_eq!(range.start, 0.20);
+    assert_eq!(range.end, 0.75);
+    assert_eq!(range.track.track_h, 16.0);
+    assert_eq!(slider::RANGE_HERO_LABEL, "Price range");
+    let (s, e) = slider::nudge_start(0.20, 0.75, slider::RANGE_STEP);
+    assert!((s - 0.25).abs() < 1e-5 && (e - 0.75).abs() < 1e-5);
+    let (s, e) = slider::nudge_end(0.20, 0.75, -slider::RANGE_STEP);
+    assert!((s - 0.20).abs() < 1e-5 && (e - 0.70).abs() < 1e-5);
+    let (s, e) = slider::move_nearest(0.20, 0.75, 0.10);
+    assert!((s - 0.10).abs() < 1e-5 && (e - 0.75).abs() < 1e-5);
+    assert!(slider::range_value_label(0.2, 0.75).contains("20"));
     let pressed = slider::resolve(&theme, 0.4, InteractionState::Pressed);
     assert_eq!(pressed.handle_w, 2.0);
 
@@ -540,7 +644,8 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(a.day_dp, 40.0);
     assert_eq!(a.corners.top_left, 28.0);
     assert_eq!(a.container, theme.color.surface_container_high);
-    assert_eq!(a.day_selected_container, theme.color.primary);
+    assert_eq!(a.date_style.name, "headlineLargeEmphasized");
+    assert_eq!(a.date_style.weight, 500);
     // 2026-09-01 is Tuesday → Sunday=0 → 2; Monday=0 → 1
     assert!(date_picker::WEEK_STARTS_ON_SUNDAY);
     assert_eq!(date_picker::WEEKDAYS[0], "S");
@@ -576,6 +681,36 @@ fn date_picker_grid_and_weekday() {
         .find(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected);
     assert!(fifteenth.is_some());
     assert!(cells.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
+    assert_eq!(date_picker::month_nav_label(2026, 9), "September 2026 ▾");
+    assert_eq!(date_picker::DOCKED_FIELD_LABEL, "Date of birth");
+    assert!(date_picker::DOCKED_OPEN_BY_DEFAULT);
+    assert!(date_picker::DOCKED_DISMISS_ON_SELECT);
+    assert!(date_picker::DOCKED_DISMISS_ON_OUTSIDE);
+    assert_eq!(
+        date_picker::docked_field_value(date_picker::RANGE_DEMO_START),
+        "Sep 15, 2026"
+    );
+    assert_eq!(
+        date_picker::header_range_label(date_picker::RANGE_DEMO_START, date_picker::RANGE_DEMO_END),
+        "Sep 15 – Sep 21"
+    );
+    let range = date_picker::month_grid_range(
+        2026,
+        9,
+        date_picker::RANGE_DEMO_START,
+        date_picker::RANGE_DEMO_END,
+        today,
+    );
+    assert!(
+        range
+            .iter()
+            .any(|(d, k)| *d == 18 && *k == date_picker::DayKind::InRange)
+    );
+    assert!(
+        range
+            .iter()
+            .any(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected)
+    );
 }
 
 #[test]
@@ -595,6 +730,17 @@ fn text_field_editor_insert_backspace_caret() {
     assert_eq!(ed.interaction_state(), InteractionState::ErrorFocused);
     assert!(text_field::looks_like_email("a@b.c"));
     assert!(!text_field::looks_like_email("not-an-email"));
+}
+
+#[test]
+fn desktop_type_fallbacks_keep_word_gaps() {
+    assert_eq!(typography::FONT_FAMILY, "Roboto");
+    assert_eq!(typography::FONT_FAMILY_DESKTOP, "Liberation Sans");
+    assert_eq!(typography::words("Call volume"), vec!["Call", "volume"]);
+    assert_eq!(typography::WORD_GAP_DP, 6.0);
+    assert_eq!(typography::words("Reset settings?"), vec!["Reset", "settings?"]);
+    let family = typography::desktop_font_family();
+    assert!(family == "Roboto" || family == "Liberation Sans");
 }
 
 #[test]
@@ -636,4 +782,93 @@ fn fab_baseline_sizes() {
     assert_eq!(ext.height_dp, 56.0);
     assert_eq!(ext.min_width_dp, Some(80.0));
     assert!(ext.width_dp.is_none());
+}
+
+#[test]
+fn connected_button_group_tokens() {
+    let theme = Theme::light();
+    assert_eq!(button_group::CONNECTED_GAP_DP, 2.0);
+    assert_eq!(button_group::INNER_CORNER_DP, 8.0);
+    assert_eq!(button_group::DEMO_SEGMENTS.len(), 3);
+    let leading = button_group::resolve_segment(&theme, 0, 3, false, false);
+    assert_eq!(leading.corners.top_left, 20.0);
+    assert_eq!(leading.corners.top_right, 8.0);
+    let selected = button_group::resolve_segment(&theme, 1, 3, true, false);
+    assert_eq!(selected.corners.top_left, 8.0);
+    assert_eq!(selected.container, theme.color.primary);
+    assert_eq!(selected.label_style.name, "labelLargeEmphasized");
+    let pressed = button_group::resolve_segment(&theme, 0, 3, true, true);
+    assert_eq!(pressed.corners.top_left, 8.0);
+    assert_eq!(button_group::SETTINGS_SCENE_TITLE, "Sound & notifications");
+    assert_eq!(button_group::SETTINGS_VOLUME_TITLE, "Volume");
+    assert_eq!(button_group::SETTINGS_QUIET_HOURS_TITLE, "Quiet hours");
+    assert_eq!(button_group::SETTINGS_GROUP_GAP_DP, 24.0);
+    assert_eq!(button_group::SETTINGS_PAD_DP, 16.0);
+}
+
+#[test]
+fn search_bar_and_time_picker_tokens() {
+    let theme = Theme::light();
+    let search = search::resolve(&theme);
+    assert_eq!(search.bar.height_dp, 56.0);
+    assert_eq!(search.bar.corners.top_left, 28.0);
+    assert_eq!(search.bar.container, theme.color.surface_container_high);
+    assert_eq!(search::PLACEHOLDER, "Hinted search text");
+    let view = search::resolve_view(&theme);
+    assert_eq!(view.header_h_dp, 72.0);
+    assert_eq!(search::SUGGESTIONS.len(), 4);
+    assert!(search::VIEW_OPEN_BY_DEFAULT);
+    assert_eq!(search::filter_suggestions("").len(), 4);
+    assert_eq!(search::filter_suggestions("app"), vec!["App"]);
+    assert_eq!(search::apply_search_key("", "a"), "a");
+    assert_eq!(search::apply_search_key("ab", "backspace"), "a");
+    assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
+    let time = time_picker::resolve(&theme);
+    assert_eq!(time.clock_dp, 256.0);
+    assert_eq!(time.number_dp, 48.0);
+    assert_eq!(time.time_style.name, "displaySmallEmphasized");
+    assert_eq!(time.time_style.weight, 500);
+    assert_eq!(time.container, theme.color.surface_container_high);
+    assert_eq!(
+        time_picker::header_label(6, 30, time_picker::DayPeriod::Pm),
+        "6:30 PM"
+    );
+    assert_eq!(time_picker::select_hour(6, 9), 9);
+    assert_eq!(time_picker::select_minute(30, 17), 15);
+    assert_eq!(time_picker::DEMO_PERIOD.toggle(), time_picker::DayPeriod::Am);
+    assert_eq!(time_picker::DEMO_DIAL, time_picker::DialFace::Minute);
+    let (x, y) = time_picker::hour_offset(12, 256.0, 48.0);
+    assert!(x > 80.0 && x < 130.0, "12 should sit near top center, x={x}");
+    assert!(y < 20.0, "12 should sit near top, y={y}");
+    let (mx, my) = time_picker::minute_offset(30, 256.0, 48.0);
+    assert!(mx > 80.0 && mx < 130.0, "30 sits bottom-center-ish x={mx}");
+    assert!(my > 180.0, "30 sits near bottom, y={my}");
+    assert!((time_picker::hand_angle_deg(time_picker::DialFace::Minute, 6, 30) - 180.0).abs() < 0.01);
+    let quad = time_picker::hand_quad(256.0, time_picker::DialFace::Minute, 6, 30, 48.0);
+    assert_eq!(quad.len(), 4);
+    assert!(time_picker::hand_svg_d(256.0, time_picker::DialFace::Minute, 6, 30, 48.0).starts_with('M'));
+    let (s, e) = slider::drag_thumb(0.2, 0.75, slider::RangeThumb::Start, 0.4);
+    assert!((s - 0.4).abs() < 1e-5);
+    assert_eq!(e, 0.75);
+    let (s, e, thumb) = slider::apply_arrow(0.2, 0.75, slider::RangeThumb::End, "left").unwrap();
+    assert!((e - 0.70).abs() < 1e-5);
+    assert_eq!(s, 0.2);
+    assert_eq!(thumb, slider::RangeThumb::End);
+    assert!((slider::fraction_from_local_x(70.0, 280.0) - 0.25).abs() < 1e-5);
+    let rail = navigation_rail::resolve(&theme);
+    assert_eq!(rail.width_dp, 80.0);
+    assert_eq!(navigation_rail::INDICATOR_W_DP, 56.0);
+    assert_eq!(navigation_rail::DESTINATIONS.len(), 3);
+    assert_eq!(navigation_rail::EXPANDED_WIDTH_DP, 220.0);
+    assert_eq!(
+        navigation_rail::resolve_mode(&theme, navigation_rail::RailMode::Expanded).width_dp,
+        220.0
+    );
+    assert_eq!(navigation_rail::DESTINATION_BADGES[1], Some(3));
+    let car = carousel::resolve(&theme);
+    assert_eq!(car.large_w_dp, 256.0);
+    assert_eq!(car.small_w_dp, 120.0);
+    assert_eq!(car.corners.top_left, 28.0);
+    assert_eq!(carousel::item_width_dp(0, 0), 256.0);
+    assert_eq!(carousel::item_width_dp(1, 0), 120.0);
 }

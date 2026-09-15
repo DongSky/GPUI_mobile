@@ -23,6 +23,17 @@ pub const OUTLINE_FOCUSED_DP: f32 = 2.0;
 pub const SUPPORTING_GAP_DP: f32 = 4.0;
 pub const ICON_DP: f32 = 24.0;
 pub const NOTCH_PAD_DP: f32 = 4.0;
+/// Distance from the left outline to the start of the notched label.
+/// Matches HTML `<legend>` `margin-left: 8px` so GPUI and fieldset line up.
+pub const NOTCH_START_DP: f32 = 8.0;
+
+/// Width of the top-outline *cutout* for `label` (bodySmall-ish glyph width).
+/// Mapping paints left-stroke | gap+label | right-stroke so the border is
+/// actually interrupted, not just a label drawn on top of a full stroke.
+pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
+    let em = label_size_sp * 0.52;
+    (label.chars().count() as f32 * em + NOTCH_PAD_DP * 2.0).max(28.0)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextFieldVariant {
@@ -57,6 +68,8 @@ pub struct TextFieldAppearance {
     pub leading_icon: Argb,
     pub trailing_icon: Argb,
     pub caret: Argb,
+    /// Parent/page fill used to erase the outline under a floating label.
+    pub cutout_fill: Argb,
 }
 
 pub fn resolve(
@@ -186,6 +199,152 @@ pub fn resolve(
             c.on_surface_variant
         },
         caret: if error { c.error } else { c.primary },
+        cutout_fill: c.background,
+    }
+}
+
+/// Shared notch geometry for desktop GPUI / Android / HTML paint tricks.
+/// Mapping paints left-stroke | gap+label | right-stroke so the border is
+/// actually interrupted (Compose OutlinedTextField / HTML fieldset), not a
+/// label overlay on a continuous stroke.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NotchCutout {
+    pub start_dp: f32,
+    pub width_dp: f32,
+    pub stroke_dp: f32,
+    pub label_h_dp: f32,
+}
+
+pub fn notch_cutout(label: &str, appearance: &TextFieldAppearance) -> NotchCutout {
+    let stroke = appearance
+        .field
+        .outline
+        .map(|(_, w)| w)
+        .unwrap_or(OUTLINE_DP)
+        .max(1.0);
+    NotchCutout {
+        start_dp: NOTCH_START_DP,
+        width_dp: notch_width_dp(label, appearance.label_style.size_sp),
+        stroke_dp: stroke,
+        label_h_dp: appearance.label_style.line_height_sp,
+    }
+}
+
+/// Frame geometry for painting a 4dp rounded outline that actually meets the
+/// 1–2dp stroke (corner *tiles*, not a stroke-height bar with fake rounding).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NotchFrame {
+    pub start_dp: f32,
+    pub width_dp: f32,
+    pub stroke_dp: f32,
+    pub radius_dp: f32,
+    pub label_h_dp: f32,
+    pub field_h_dp: f32,
+}
+
+impl NotchFrame {
+    pub fn top_lead_dp(self) -> f32 {
+        (self.start_dp - self.radius_dp).max(0.0)
+    }
+
+    pub fn middle_h_dp(self) -> f32 {
+        (self.field_h_dp - self.radius_dp * 2.0).max(24.0)
+    }
+
+    pub fn inner_radius_dp(self) -> f32 {
+        (self.radius_dp - self.stroke_dp).max(0.0)
+    }
+
+    /// Height of the top-outline cutout. Fieldset only interrupts the stroke,
+    /// not a full label-tall hole.
+    pub fn notch_gap_h_dp(self) -> f32 {
+        self.stroke_dp.max(1.0)
+    }
+
+    /// Label origin relative to the field's top-left (legend sitting on the
+    /// top stroke, like HTML fieldset).
+    pub fn label_origin_dp(self) -> (f32, f32) {
+        let x = self.radius_dp + self.top_lead_dp();
+        let y = self.stroke_dp / 2.0 - self.label_h_dp / 2.0;
+        (x, y)
+    }
+
+    /// Centerline verbs for a notched rounded-rect stroke (clockwise, open at
+    /// the top-edge cutout). Shared by HTML SVG and GPUI `PathBuilder`.
+    pub fn outline_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
+        let s = self.stroke_dp.max(1.0);
+        let r = self.radius_dp.max(s);
+        let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
+        let h = self.field_h_dp.max(r * 2.0);
+        let half = s / 2.0;
+        let notch_l = self.start_dp.max(half);
+        let notch_r = (self.start_dp + self.width_dp).min(w - r);
+        vec![
+            OutlineVerb::Move(notch_r, half),
+            OutlineVerb::Line(w - r, half),
+            OutlineVerb::Arc {
+                to_x: w - half,
+                to_y: r,
+                radius: r - half,
+            },
+            OutlineVerb::Line(w - half, h - r),
+            OutlineVerb::Arc {
+                to_x: w - r,
+                to_y: h - half,
+                radius: r - half,
+            },
+            OutlineVerb::Line(r, h - half),
+            OutlineVerb::Arc {
+                to_x: half,
+                to_y: h - r,
+                radius: r - half,
+            },
+            OutlineVerb::Line(half, r),
+            OutlineVerb::Arc {
+                to_x: r,
+                to_y: half,
+                radius: r - half,
+            },
+            OutlineVerb::Line(notch_l, half),
+        ]
+    }
+
+    pub fn outline_svg_d(self, width_dp: f32) -> String {
+        let mut d = String::new();
+        for v in self.outline_verbs(width_dp) {
+            match v {
+                OutlineVerb::Move(x, y) => d.push_str(&format!("M{x:.2},{y:.2}")),
+                OutlineVerb::Line(x, y) => d.push_str(&format!(" L{x:.2},{y:.2}")),
+                OutlineVerb::Arc {
+                    to_x,
+                    to_y,
+                    radius,
+                } => d.push_str(&format!(
+                    " A{radius:.2},{radius:.2} 0 0 1 {to_x:.2},{to_y:.2}"
+                )),
+            }
+        }
+        d
+    }
+}
+
+/// One step of a notched outline path.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum OutlineVerb {
+    Move(f32, f32),
+    Line(f32, f32),
+    Arc { to_x: f32, to_y: f32, radius: f32 },
+}
+
+pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {
+    let cut = notch_cutout(label, appearance);
+    NotchFrame {
+        start_dp: cut.start_dp,
+        width_dp: cut.width_dp,
+        stroke_dp: cut.stroke_dp,
+        radius_dp: appearance.field.corners.top_left.max(cut.stroke_dp),
+        label_h_dp: cut.label_h_dp,
+        field_h_dp: appearance.field.height_dp,
     }
 }
 

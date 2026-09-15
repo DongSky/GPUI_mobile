@@ -1,6 +1,8 @@
 pub mod badge;
 pub mod bottom_sheet;
 pub mod button;
+pub mod carousel;
+pub mod button_group;
 pub mod card;
 pub mod checkbox;
 pub mod chip;
@@ -12,13 +14,16 @@ pub mod icon_button;
 pub mod list;
 pub mod menu;
 pub mod navigation_bar;
+pub mod navigation_rail;
 pub mod progress;
 pub mod radio;
 pub mod slider;
+pub mod search;
 pub mod snackbar;
 pub mod switch;
 pub mod tabs;
 pub mod text_field;
+pub mod time_picker;
 pub mod top_app_bar;
 
 use crate::argb::Argb;

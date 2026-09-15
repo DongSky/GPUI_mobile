@@ -22,6 +22,8 @@ pub enum DayKind {
     Today,
     InMonth,
     OutOfMonth,
+    /// Interior of a selected date range (not the start/end endpoints).
+    InRange,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -36,6 +38,8 @@ pub struct DatePickerAppearance {
     pub day_selected: Argb,
     pub day_today_outline: Argb,
     pub day_out: Argb,
+    pub day_range_container: Argb,
+    pub day_range: Argb,
     pub elevation_dp: f32,
     pub day_dp: f32,
     pub year_style: TypeStyle,
@@ -60,10 +64,12 @@ pub fn resolve(theme: &Theme) -> DatePickerAppearance {
             .on_surface
             .with_alpha(crate::state::DISABLED_CONTENT_OPACITY)
             .composite_over(c.surface_container_high),
+        day_range_container: c.secondary_container,
+        day_range: c.on_secondary_container,
         elevation_dp: theme.elevation.level3,
         day_dp: DAY_DP,
         year_style: theme.typography.label_large,
-        date_style: theme.typography.headline_large,
+        date_style: theme.typography.headline_large.emphasized(),
         weekday_style: theme.typography.body_small,
         day_style: theme.typography.body_large,
     }
@@ -196,6 +202,97 @@ pub fn header_date_label(date: CivilDate) -> String {
         .copied()
         .unwrap_or("?");
     format!("{}, {} {}", WEEKDAYS_FULL[wd.min(6)], mon, date.day)
+}
+
+pub fn header_date_short(date: CivilDate) -> String {
+    let mon = MONTHS_SHORT
+        .get((date.month.saturating_sub(1)) as usize)
+        .copied()
+        .unwrap_or("?");
+    format!("{} {}", mon, date.day)
+}
+
+/// Official overview range-hero sample (interactive modal stays single-date).
+pub const RANGE_HERO_TITLE: &str = "Depart – Return dates";
+pub const RANGE_DEMO_START: CivilDate = CivilDate {
+    year: 2026,
+    month: 9,
+    day: 15,
+};
+pub const RANGE_DEMO_END: CivilDate = CivilDate {
+    year: 2026,
+    month: 9,
+    day: 21,
+};
+
+/// Official overview range hero headline, e.g. "Aug 17 – Aug 23".
+pub fn header_range_label(start: CivilDate, end: CivilDate) -> String {
+    format!(
+        "{} – {}",
+        header_date_short(start),
+        header_date_short(end)
+    )
+}
+
+pub fn month_nav_label(year: i32, month: u32) -> String {
+    format!("{} ▾", month_title(year, month))
+}
+
+/// Compose docked date picker: outlined field + calendar attached below
+/// (https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary#DatePickerDocked).
+pub const DOCKED_FIELD_LABEL: &str = "Date of birth";
+/// Catalog starts with the popup open so Visual QA can see the anchored sheet.
+pub const DOCKED_OPEN_BY_DEFAULT: bool = true;
+/// Selecting a day writes the field and dismisses (desktop/Android popup).
+pub const DOCKED_DISMISS_ON_SELECT: bool = true;
+/// Clicking outside the field+popup dismisses (desktop/HTML/Android).
+pub const DOCKED_DISMISS_ON_OUTSIDE: bool = true;
+
+pub fn docked_field_value(date: CivilDate) -> String {
+    format!("{}, {}", header_date_short(date), date.year)
+}
+
+fn date_ord(d: CivilDate) -> i32 {
+    d.year * 400 + d.month as i32 * 32 + d.day as i32
+}
+
+pub fn date_in_range_interior(day: CivilDate, start: CivilDate, end: CivilDate) -> bool {
+    let o = date_ord(day);
+    o > date_ord(start) && o < date_ord(end)
+}
+
+pub fn month_grid_range(
+    year: i32,
+    month: u32,
+    start: CivilDate,
+    end: CivilDate,
+    today: CivilDate,
+) -> [(u32, DayKind); 42] {
+    let raw = month_grid(year, month);
+    let mut out = raw;
+    for (i, (day, kind)) in raw.iter().enumerate() {
+        if *kind != DayKind::InMonth {
+            continue;
+        }
+        let date = CivilDate {
+            year,
+            month,
+            day: *day,
+        };
+        out[i] = (
+            *day,
+            if date == start || date == end {
+                DayKind::Selected
+            } else if date_in_range_interior(date, start, end) {
+                DayKind::InRange
+            } else if date == today {
+                DayKind::Today
+            } else {
+                DayKind::InMonth
+            },
+        );
+    }
+    out
 }
 
 pub fn month_grid_classified(

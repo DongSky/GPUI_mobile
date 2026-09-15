@@ -80,6 +80,9 @@ pub struct SliderAppearance {
     pub track_corner: f32,
     pub handle_w: f32,
     pub handle_h: f32,
+    /// Painted handle height. Token `handle_h` stays the 44dp touch target;
+    /// official overview photos are closer to track + 12dp (~28dp on XS).
+    pub handle_h_visual: f32,
     pub gap_dp: f32,
     pub inner_corner: f32,
     pub stop_dp: f32,
@@ -117,7 +120,7 @@ pub const OVERVIEW_ROWS: [OverviewRow; 4] = [
         icon: "⏰",
         label: "Alarm volume",
         value: 0.52,
-        stop_count: 11,
+        stop_count: 13,
     },
     OverviewRow {
         icon: "🔔",
@@ -192,6 +195,7 @@ pub fn resolve_size(
         track_corner: size.track_corner(),
         handle_w,
         handle_h: size.handle_h(),
+        handle_h_visual: size.track_h() + 12.0,
         gap_dp: GAP_DP,
         inner_corner: INNER_CORNER_DP,
         stop_dp: STOP_DP,
@@ -227,4 +231,166 @@ pub fn resolve_size_with_stops(
     let mut a = resolve_size(theme, size, value, state);
     a.stop_count = stop_count.max(2);
     a
+}
+
+/// Dual-handle range slider (M3 Expressive / official dual-thumb pattern).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RangeSliderAppearance {
+    pub track: SliderAppearance,
+    pub start: f32,
+    pub end: f32,
+}
+
+pub const RANGE_DEMO_START: f32 = 0.20;
+pub const RANGE_DEMO_END: f32 = 0.75;
+pub const RANGE_HERO_LABEL: &str = "Price range";
+pub const RANGE_STEP: f32 = 0.05;
+pub const RANGE_MIN_SPAN: f32 = 0.05;
+
+pub fn clamp_range(start: f32, end: f32) -> (f32, f32) {
+    let start = start.clamp(0.0, 1.0 - RANGE_MIN_SPAN);
+    let end = end.clamp(start + RANGE_MIN_SPAN, 1.0);
+    (start, end)
+}
+
+pub fn nudge_start(start: f32, end: f32, delta: f32) -> (f32, f32) {
+    clamp_range(start + delta, end)
+}
+
+pub fn nudge_end(start: f32, end: f32, delta: f32) -> (f32, f32) {
+    clamp_range(start, end + delta)
+}
+
+/// Move the nearest thumb to `value` (0..=1). Used by track taps.
+pub fn move_nearest(start: f32, end: f32, value: f32) -> (f32, f32) {
+    let value = value.clamp(0.0, 1.0);
+    if (value - start).abs() <= (value - end).abs() {
+        clamp_range(value, end)
+    } else {
+        clamp_range(start, value)
+    }
+}
+
+pub fn range_value_label(start: f32, end: f32) -> String {
+    format!(
+        "{} · {:.0}–{:.0}%",
+        RANGE_HERO_LABEL,
+        start * 100.0,
+        end * 100.0
+    )
+}
+
+/// Which handle is being dragged or keyboard-focused.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangeThumb {
+    Start,
+    End,
+}
+
+impl RangeThumb {
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Start => Self::End,
+            Self::End => Self::Start,
+        }
+    }
+}
+
+/// Legacy 5% overlay used before local-X mapping. Kept for tests.
+pub const RANGE_DRAG_CELLS: u32 = 21;
+/// Catalog track width (desktop). Android uses 240dp.
+pub const RANGE_TRACK_W_DP: f32 = 280.0;
+
+pub fn nearest_thumb(start: f32, end: f32, fraction: f32) -> RangeThumb {
+    if (fraction - start).abs() <= (fraction - end).abs() {
+        RangeThumb::Start
+    } else {
+        RangeThumb::End
+    }
+}
+
+/// Pointer-drag: move `thumb` to `fraction` (0..=1) without crossing.
+pub fn drag_thumb(start: f32, end: f32, thumb: RangeThumb, fraction: f32) -> (f32, f32) {
+    match thumb {
+        RangeThumb::Start => clamp_range(fraction, end),
+        RangeThumb::End => clamp_range(start, fraction),
+    }
+}
+
+pub fn nudge_thumb(start: f32, end: f32, thumb: RangeThumb, delta: f32) -> (f32, f32) {
+    match thumb {
+        RangeThumb::Start => nudge_start(start, end, delta),
+        RangeThumb::End => nudge_end(start, end, delta),
+    }
+}
+
+/// Keep the v6 5% click-step: inactive rails nudge the adjacent thumb,
+/// handles step that thumb forward, active span moves the nearest thumb.
+pub fn click_step(start: f32, end: f32, fraction: f32) -> (f32, f32) {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let pad = RANGE_STEP * 0.8;
+    if (fraction - start).abs() <= pad {
+        nudge_start(start, end, RANGE_STEP)
+    } else if (fraction - end).abs() <= pad {
+        nudge_end(start, end, RANGE_STEP)
+    } else if fraction < start {
+        nudge_start(start, end, -RANGE_STEP)
+    } else if fraction > end {
+        nudge_end(start, end, -RANGE_STEP)
+    } else {
+        move_nearest(start, end, (start + end) * 0.5)
+    }
+}
+
+pub fn drag_cell_fraction(index: u32) -> f32 {
+    let n = RANGE_DRAG_CELLS.saturating_sub(1).max(1);
+    (index as f32 / n as f32).clamp(0.0, 1.0)
+}
+
+/// Map a pointer's local X (hitbox left = 0) onto 0..=1.
+pub fn fraction_from_local_x(x: f32, width: f32) -> f32 {
+    if width <= 0.0 {
+        0.0
+    } else {
+        (x / width).clamp(0.0, 1.0)
+    }
+}
+
+/// Arrow / vim keys nudge the focused thumb. `left`/`right`/`h`/`l`.
+pub fn apply_arrow(
+    start: f32,
+    end: f32,
+    focus: RangeThumb,
+    key: &str,
+) -> Option<(f32, f32, RangeThumb)> {
+    let delta = match key {
+        "left" | "h" | "-" => -RANGE_STEP,
+        "right" | "l" | "=" | "+" => RANGE_STEP,
+        "up" | "k" => {
+            let (s, e) = nudge_thumb(start, end, RangeThumb::Start, RANGE_STEP);
+            return Some((s, e, RangeThumb::Start));
+        }
+        "down" | "j" => {
+            let (s, e) = nudge_thumb(start, end, RangeThumb::End, -RANGE_STEP);
+            return Some((s, e, RangeThumb::End));
+        }
+        _ => return None,
+    };
+    let (s, e) = nudge_thumb(start, end, focus, delta);
+    Some((s, e, focus))
+}
+
+pub fn resolve_range(
+    theme: &Theme,
+    start: f32,
+    end: f32,
+    state: InteractionState,
+) -> RangeSliderAppearance {
+    let start = start.clamp(0.0, 1.0);
+    let end = end.clamp(start, 1.0);
+    RangeSliderAppearance {
+        track: resolve(theme, (start + end) * 0.5, state),
+        start,
+        end,
+    }
 }

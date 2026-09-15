@@ -13,14 +13,29 @@ pub const MIN_WIDTH_DP: f32 = 280.0;
 pub const ICON_DP: f32 = 24.0;
 pub const SCRIM_OPACITY: f32 = 0.32;
 
-/// Guidelines basic-dialog anatomy (icon + headline + supporting + text actions).
+/// Guidelines basic-dialog anatomy (icon + headline + supporting + account list + text actions).
 pub const RESET_HEADLINE: &str = "Reset settings?";
 pub const RESET_SUPPORTING: &str =
-    "This will reset your app preferences back to their default settings. You can't undo this action.";
+    "This will reset your app preferences back to their default settings. The following accounts will also be signed out:";
 /// Refresh-style glyph; official guidelines use a circular-arrows icon.
 pub const RESET_ICON: &str = "↻";
 pub const RESET_CANCEL: &str = "Cancel";
 pub const RESET_ACCEPT: &str = "Accept";
+
+/// Official guidelines Reset settings account list (anatomy callout 5).
+pub const RESET_ACCOUNTS: [&str; 3] = [
+    "leevilanuevanotes@google.com",
+    "alloalejandro@google.com",
+    "oliortega@google.com",
+];
+
+pub fn account_initials(email: &str) -> String {
+    email
+        .chars()
+        .next()
+        .map(|c| c.to_ascii_uppercase().to_string())
+        .unwrap_or_else(|| "?".into())
+}
 
 /// Overview list-dialog hero (Phone ringtone).
 pub const RINGTONE_HEADLINE: &str = "Phone ringtone";
@@ -58,7 +73,7 @@ pub fn resolve(theme: &Theme) -> DialogAppearance {
         elevation_dp: theme.elevation.level3,
         pad_dp: PAD_DP,
         min_width_dp: MIN_WIDTH_DP,
-        headline_style: theme.typography.headline_small,
+        headline_style: theme.typography.headline_small.emphasized(),
         supporting_style: theme.typography.body_medium,
         action_style: theme.typography.label_large,
     }
