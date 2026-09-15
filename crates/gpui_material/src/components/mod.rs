@@ -29,6 +29,7 @@ pub mod tabs;
 pub mod text_field;
 pub mod time_picker;
 pub mod toolbar;
+pub mod tooltip;
 pub mod top_app_bar;
 
 use crate::argb::Argb;

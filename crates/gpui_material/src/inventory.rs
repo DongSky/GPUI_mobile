@@ -197,10 +197,17 @@ pub const INVENTORY: &[ComponentEntry] = &[
     },
     ComponentEntry {
         name: "Navigation bar",
-        material: "Navigation bar",
+        material: "Flexible / short navigation bar (Expressive)",
         docs: "https://m3.material.io/components/navigation-bar/specs",
         parity: Parity::Done,
-        notes: "80dp; active indicator 64×32; 3 destinations in catalog",
+        notes: "Flexible 64dp (baseline 80dp not recommended); compact vertical 56×32 indicator + secondary label; medium horizontal 40dp pill + on-secondary-container label; surface-container elev 2",
+    },
+    ComponentEntry {
+        name: "Tooltip",
+        material: "Plain + rich tooltips",
+        docs: "https://m3.material.io/components/tooltips/specs",
+        parity: Parity::Done,
+        notes: "Plain inverse-surface 24dp extra-small + bodySmall; rich surface-container medium elev 2 + titleSmall/bodyMedium + two labelLarge actions; Add to library / Learn more hero. Banner is not on the current Expressive component list",
     },
     ComponentEntry {
         name: "Navigation rail",

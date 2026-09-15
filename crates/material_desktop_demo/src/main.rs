@@ -25,7 +25,7 @@ use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, fab_menu, icon_button, menu, navigation_bar, navigation_rail,
-    photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar,
+    photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, tooltip, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -757,6 +757,10 @@ fn catalog_body(
         .child(desktop_media_scene(this, theme, cx))
         .child(section_title(theme, "Snackbar"))
         .child(desktop_mail_snack(this, theme, cx))
+        .child(section_title(theme, "Navigation bar"))
+        .child(desktop_nav_bars(theme))
+        .child(section_title(theme, "Tooltip"))
+        .child(desktop_tooltips(theme))
         .child(section_title(theme, "Top app bar"))
         .child(desktop_app_bar_scene(this, theme, cx))
         .child(section_title(theme, "Bottom sheet"))
@@ -2472,7 +2476,7 @@ fn desktop_mail_snack(
                         .flex_col()
                         .items_center()
                         .justify_center()
-                        .gap(px(4.))
+                        .gap(px(nav.icon_label_gap_dp))
                         .text_color(paint(if active {
                             nav.active_label
                         } else {
@@ -2480,8 +2484,8 @@ fn desktop_mail_snack(
                         }))
                         .child(
                             div()
-                                .w(px(navigation_bar::INDICATOR_W_DP))
-                                .h(px(navigation_bar::INDICATOR_H_DP))
+                                .w(px(nav.indicator_w_dp))
+                                .h(px(nav.indicator_h_dp))
                                 .rounded(px(16.))
                                 .bg(paint(if active {
                                     nav.active_indicator
@@ -2496,6 +2500,175 @@ fn desktop_mail_snack(
                         .child(dest.label)
                 }))
         })
+}
+
+fn desktop_nav_bars(theme: &Theme) -> impl IntoElement {
+    let compact = navigation_bar::resolve(theme);
+    let medium = navigation_bar::resolve_horizontal(theme);
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(desktop_nav_row(&compact, navigation_bar::COMPACT_DESTS.as_slice()))
+        .child(desktop_nav_row(&medium, navigation_bar::MEDIUM_DESTS.as_slice()))
+}
+
+fn desktop_nav_row(
+    nav: &navigation_bar::NavBarAppearance,
+    dests: &[&'static str],
+) -> impl IntoElement {
+    let horizontal = nav.layout == navigation_bar::NavBarLayout::Horizontal;
+    div()
+        .h(px(nav.height_dp))
+        .w_full()
+        .bg(paint(nav.container))
+        .flex()
+        .items_center()
+        .when(horizontal, |el| el.justify_center().gap(px(8.)))
+        .children(dests.iter().enumerate().map(|(i, label)| {
+            let active = i == 0;
+            let item = div()
+                .when(!horizontal, |el| el.flex_1())
+                .h_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(paint(if active {
+                    nav.active_label
+                } else {
+                    nav.inactive_label
+                }));
+            if horizontal {
+                item.child(
+                    div()
+                        .h(px(nav.indicator_h_dp))
+                        .px(px(nav.indicator_pad_h_dp))
+                        .rounded(px(nav.indicator_h_dp / 2.0))
+                        .gap(px(nav.icon_label_gap_dp))
+                        .flex()
+                        .items_center()
+                        .bg(paint(if active {
+                            nav.active_indicator
+                        } else {
+                            nav.container
+                        }))
+                        .text_color(paint(if active {
+                            nav.active_icon
+                        } else {
+                            nav.inactive_icon
+                        }))
+                        .child(if active { "●" } else { "○" })
+                        .child(*label),
+                )
+            } else {
+                item.flex_col()
+                    .gap(px(nav.icon_label_gap_dp))
+                    .child(
+                        div()
+                            .w(px(nav.indicator_w_dp))
+                            .h(px(nav.indicator_h_dp))
+                            .rounded(px(16.))
+                            .bg(paint(if active {
+                                nav.active_indicator
+                            } else {
+                                nav.container
+                            }))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .text_color(paint(if active {
+                                nav.active_icon
+                            } else {
+                                nav.inactive_icon
+                            }))
+                            .child(if active { "●" } else { "○" }),
+                    )
+                    .child(*label)
+            }
+        }))
+}
+
+fn desktop_tooltips(theme: &Theme) -> impl IntoElement {
+    let plain = tooltip::resolve_plain(theme);
+    let rich = tooltip::resolve_rich(theme);
+    let anchor = icon_button::resolve(
+        theme,
+        icon_button::IconButtonVariant::Tonal,
+        InteractionState::Enabled,
+    );
+    div()
+        .flex()
+        .flex_wrap()
+        .gap(px(32.))
+        .items_end()
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .gap(px(tooltip::ANCHOR_GAP_DP))
+                .child(
+                    div()
+                        .h(px(plain.min_height_dp))
+                        .px(px(plain.pad_start_dp))
+                        .py(px(plain.pad_top_dp))
+                        .rounded(px(plain.corners.top_left))
+                        .bg(paint(plain.container))
+                        .text_color(paint(plain.supporting))
+                        .text_size(px(plain.supporting_style.size_sp))
+                        .flex()
+                        .items_center()
+                        .child(tooltip::PLAIN_TEXT),
+                )
+                .child(
+                    div()
+                        .w(px(anchor.height_dp))
+                        .h(px(anchor.height_dp))
+                        .rounded(px(anchor.corners.top_left))
+                        .bg(paint(anchor.container))
+                        .text_color(paint(anchor.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(tooltip::PLAIN_ANCHOR),
+                ),
+        )
+        .child(
+            div()
+                .w(px(280.))
+                .px(px(rich.pad_start_dp))
+                .pt(px(rich.pad_top_dp))
+                .pb(px(rich.pad_bottom_dp))
+                .rounded(px(rich.corners.top_left))
+                .bg(paint(rich.container))
+                .shadow_sm()
+                .flex()
+                .flex_col()
+                .gap(px(4.))
+                .child(
+                    div()
+                        .text_size(px(rich.subhead_style.unwrap().size_sp))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(paint(rich.subhead.unwrap()))
+                        .child(tooltip::RICH_SUBHEAD),
+                )
+                .child(
+                    div()
+                        .text_size(px(rich.supporting_style.size_sp))
+                        .text_color(paint(rich.supporting))
+                        .child(tooltip::RICH_SUPPORTING),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .justify_end()
+                        .gap(px(16.))
+                        .pt(px(8.))
+                        .text_color(paint(rich.action.unwrap()))
+                        .child(tooltip::RICH_ACTION_PRIMARY)
+                        .child(tooltip::RICH_ACTION_SECONDARY),
+                ),
+        )
 }
 
 fn desktop_media_scene(
@@ -4527,8 +4700,8 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, fab_menu, navigation_rail, progress, search, side_sheet, slider,
-                split_button, text_field, time_picker, toolbar, top_app_bar,
+                button, button_group, carousel, dialog, fab_menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
+                split_button, text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
@@ -4661,5 +4834,13 @@ mod tests {
         assert_eq!(top_app_bar::resolve_scene(&theme, 1.0).height_dp, 64.0);
         assert_eq!(side_sheet::resolve_scene(&theme).width_dp, 256.0);
         assert_eq!(side_sheet::HEADLINE, "Filters");
+        assert_eq!(navigation_bar::resolve(&theme).height_dp, 64.0);
+        assert_eq!(
+            navigation_bar::resolve_horizontal(&theme).indicator_h_dp,
+            40.0
+        );
+        assert_eq!(tooltip::resolve_plain(&theme).min_height_dp, 24.0);
+        assert_eq!(tooltip::resolve_rich(&theme).max_width_dp, 320.0);
+        assert_eq!(tooltip::PLAIN_TEXT, "Add to library");
     }
 }

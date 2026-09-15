@@ -3,7 +3,7 @@
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
     fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
-    tabs, text_field, time_picker, toolbar, top_app_bar,
+    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -70,6 +70,7 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&chips(theme));
     body.push_str(&cards(theme));
     body.push_str(&chrome(theme));
+    body.push_str(&tooltips_section(theme));
     body.push_str(&app_bars(theme));
     body.push_str(&progress_section(theme));
     body.push_str(&dialogs(theme));
@@ -389,11 +390,39 @@ a {{ color: var(--primary); }}
   justify-content: space-between; min-width: 280px;
 }}
 .nav {{
-  width: 100%; max-width: 420px; height: 80px; border-radius: 0;
-  justify-content: space-around; padding: 12px 0 16px;
+  width: 100%; max-width: 420px; height: 64px; border-radius: 0;
+  justify-content: space-around; padding: 8px 0 6px;
 }}
-.nav .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; }}
-.nav .ind {{ width: 64px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.nav .dest {{ display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }}
+.nav .ind {{ width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.nav[data-layout="horizontal"] {{
+  max-width: 720px; justify-content: center; gap: 8px; padding: 12px 16px;
+}}
+.nav[data-layout="horizontal"] .dest {{ flex-direction: row; gap: 0; }}
+.nav[data-layout="horizontal"] .ind {{
+  width: auto; height: 40px; padding: 0 16px; gap: 4px;
+  display: flex; align-items: center; justify-content: center; white-space: nowrap;
+}}
+.tooltip-stage {{
+  display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end; padding: 16px 0;
+}}
+.tooltip-anchor {{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}}
+.tooltip-plain {{
+  min-height: 24px; min-width: 40px; max-width: 200px;
+  padding: 4px 8px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 16px;
+}}
+.tooltip-rich {{
+  max-width: 320px; padding: 12px 16px 8px; border-radius: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}}
+.tooltip-rich .sub {{ font-size: 14px; line-height: 20px; font-weight: 500; }}
+.tooltip-rich .body {{ font-size: 14px; line-height: 20px; }}
+.tooltip-rich .acts {{ display: flex; gap: 16px; justify-content: flex-end; padding-top: 8px; }}
+.tooltip-rich .acts span {{ font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; }}
 .nav-rail {{
   width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
   padding: 16px 0; border-radius: 0; position: relative;
@@ -561,15 +590,15 @@ table.inv th {{ font-weight: 500; }}
 .mail-row .subj {{ font-size: 14px; line-height: 20px; opacity: 0.8; }}
 .mail-time {{ font-size: 12px; line-height: 16px; opacity: 0.7; flex: 0 0 auto; }}
 .inbox-nav {{
-  height: 80px; display: flex; align-items: flex-start; justify-content: space-around;
-  flex: 0 0 auto; flex-wrap: nowrap; overflow: hidden; padding-top: 8px;
+  height: 64px; display: flex; align-items: flex-start; justify-content: space-around;
+  flex: 0 0 auto; flex-wrap: nowrap; overflow: hidden; padding-top: 6px;
 }}
 .inbox-nav .dest {{
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   font-size: 12px; flex: 1 1 0; min-width: 0; max-width: 80px;
 }}
 .inbox-nav .ind {{
-  width: 64px; height: 32px; border-radius: 16px;
+  width: 56px; height: 32px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; line-height: 16px;
 }}
@@ -2710,6 +2739,27 @@ fn chrome(theme: &Theme) -> String {
         ));
     }
     let nav_bar = navigation_bar::resolve(theme);
+    let nav_h = navigation_bar::resolve_horizontal(theme);
+    let mut horizontal = String::new();
+    for (i, label) in navigation_bar::MEDIUM_DESTS.iter().enumerate() {
+        let active = i == 0;
+        let fg = if active {
+            nav_h.active_label.css_hex()
+        } else {
+            nav_h.inactive_label.css_hex()
+        };
+        let icon = if active { "●" } else { "○" };
+        let ind = if active {
+            format!("background:{};", nav_h.active_indicator.css_hex())
+        } else {
+            String::new()
+        };
+        horizontal.push_str(&format!(
+            r#"<div class="dest" data-nav-item="{label}" style="color:{fg}"><div class="ind" style="{ind}height:{h}px;padding:0 {pad}px">{icon} {label}</div></div>"#,
+            h = nav_h.indicator_h_dp,
+            pad = nav_h.indicator_pad_h_dp,
+        ));
+    }
     let mut inbox_nav = String::new();
     for (i, dest) in snackbar::INBOX_NAV.iter().enumerate() {
         let active = i == 0;
@@ -2754,17 +2804,21 @@ fn chrome(theme: &Theme) -> String {
     <span style="color:{act};font-weight:500">{scene_act}</span>
     <span class="snack-close" data-snackbar-close="1" style="color:{close}">{x}</span>
   </div>
-  <div class="inbox-nav" data-inbox-nav="1" style="background:{nbg}">{inbox_nav}</div>
+  <div class="inbox-nav" data-inbox-nav="1" data-nav-flexible="1" style="background:{nbg};height:{nh}px">{inbox_nav}</div>
 </div>
 <div class="snack" data-snackbar="token" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" style="background:{sbg};color:{sfg};border-radius:{sr}px;margin-top:16px">
   <span>{msg}</span>
   <span style="color:{act};font-weight:500">{action}</span>
 </div>
 <h2>Navigation bar</h2>
-<div class="nav" data-navbar="1" style="background:{nbg}">
-  <div class="dest" style="color:{nact}"><div class="ind" style="background:{ind}">●</div>Home</div>
-  <div class="dest" style="color:{nin}">○<span>Search</span></div>
-  <div class="dest" style="color:{nin}">○<span>Profile</span></div>
+<p class="note">Expressive flexible / short bar is 64dp. Baseline 80dp is not recommended. Compact uses vertical items (56×32 indicator); medium uses a 40dp horizontal pill. <a href="https://m3.material.io/components/navigation-bar/specs">spec</a></p>
+<div class="nav" data-navbar="1" data-layout="vertical" data-hero="nav-bar" data-nav-height="{nh}" style="background:{nbg};height:{nh}px">
+  <div class="dest" data-nav-item="Home" style="color:{nact}"><div class="ind" style="background:{ind};width:{iw}px;height:{ih}px">●</div>Home</div>
+  <div class="dest" data-nav-item="Search" style="color:{nin}"><div class="ind" style="width:{iw}px;height:{ih}px">○</div>Search</div>
+  <div class="dest" data-nav-item="Profile" style="color:{nin}"><div class="ind" style="width:{iw}px;height:{ih}px">○</div>Profile</div>
+</div>
+<div class="nav" data-navbar="horizontal" data-layout="horizontal" data-hero="nav-bar-horizontal" data-nav-height="{nh}" style="background:{hnbg};height:{nh}px">
+  {horizontal}
 </div>
 <h2>Navigation rail</h2>
 <p class="note">Interactive rail: FAB toggles collapsed 80dp / expanded 220dp modal with a 32% scrim; destinations stay selectable. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
@@ -2795,12 +2849,72 @@ fn chrome(theme: &Theme) -> String {
         nact = nav.active_label.css_hex(),
         ind = nav.active_indicator.css_hex(),
         nin = nav.inactive_label.css_hex(),
+        nh = nav.height_dp,
+        iw = nav.indicator_w_dp,
+        ih = nav.indicator_h_dp,
+        hnbg = nav_h.container.css_hex(),
+        horizontal = horizontal,
         rbg = rail.container.css_hex(),
         ew = expanded.width_dp,
         rail_dests = rail_dests,
         fab = fab,
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,
+    )
+}
+
+fn tooltips_section(theme: &Theme) -> String {
+    let plain = tooltip::resolve_plain(theme);
+    let rich = tooltip::resolve_rich(theme);
+    let anchor = icon_button::resolve(
+        theme,
+        icon_button::IconButtonVariant::Tonal,
+        crate::state::InteractionState::Enabled,
+    );
+    format!(
+        r#"<h2>Tooltip</h2>
+<p class="note">Plain labels icon-only controls (inverse surface, 24dp). Rich adds a subhead, supporting text, and up to two text buttons (surface-container, medium corners, elev 2). <a href="https://m3.material.io/components/tooltips/specs">spec</a></p>
+<div class="tooltip-stage" data-hero="tooltip">
+  <div class="tooltip-anchor" data-tooltip-plain="1">
+    <div class="tooltip-plain" data-tooltip="plain" data-tooltip-text="{plain_text}" style="background:{pbg};color:{pfg};min-height:{ph}px;max-width:{pmw}px;padding:{ppv}px {pph}px;border-radius:{pr}px">{plain_text}</div>
+    <button class="icon-btn" data-tooltip-anchor="1" style="background:{abg};color:{afg};width:{asz}px;height:{asz}px;border-radius:{ar}px">{ag}</button>
+  </div>
+  <div class="tooltip-rich" data-tooltip="rich" data-tooltip-subhead="{sub}" style="background:{rbg};color:{rfg};max-width:{rmw}px;padding:{rpt}px {rph}px {rpb}px;border-radius:{rr}px;box-shadow:{rsh}">
+    <div class="sub" data-tooltip-sub="1" style="color:{rsub}">{sub}</div>
+    <div class="body" data-tooltip-body="1">{body}</div>
+    <div class="acts">
+      <span data-tooltip-action="learn" style="color:{ract}">{learn}</span>
+      <span data-tooltip-action="dismiss" style="color:{ract}">{dismiss}</span>
+    </div>
+  </div>
+</div>"#,
+        plain_text = tooltip::PLAIN_TEXT,
+        pbg = plain.container.css_hex(),
+        pfg = plain.supporting.css_hex(),
+        ph = plain.min_height_dp,
+        pmw = plain.max_width_dp,
+        ppv = plain.pad_top_dp,
+        pph = plain.pad_start_dp,
+        pr = plain.corners.top_left,
+        abg = anchor.container.css_hex(),
+        afg = anchor.content.css_hex(),
+        asz = anchor.height_dp,
+        ar = anchor.corners.top_left,
+        ag = tooltip::PLAIN_ANCHOR,
+        sub = tooltip::RICH_SUBHEAD,
+        body = tooltip::RICH_SUPPORTING,
+        learn = tooltip::RICH_ACTION_PRIMARY,
+        dismiss = tooltip::RICH_ACTION_SECONDARY,
+        rbg = rich.container.css_hex(),
+        rfg = rich.supporting.css_hex(),
+        rmw = rich.max_width_dp,
+        rpt = rich.pad_top_dp,
+        rph = rich.pad_start_dp,
+        rpb = rich.pad_bottom_dp,
+        rr = rich.corners.top_left,
+        rsh = ElevationLevels::css_shadow(rich.elevation_dp),
+        rsub = rich.subhead.unwrap_or(rich.supporting).css_hex(),
+        ract = rich.action.unwrap_or(theme.color.primary).css_hex(),
     )
 }
 

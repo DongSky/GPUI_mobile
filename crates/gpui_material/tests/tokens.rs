@@ -3,7 +3,7 @@
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
     fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, side_sheet, slider, snackbar, split_button, switch,
-    tabs, text_field, time_picker, toolbar, top_app_bar,
+    tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
 use gpui_material::motion;
@@ -475,9 +475,47 @@ fn card_chip_fab_chrome_tokens() {
     assert!(closed.dismissed());
 
     let nav = navigation_bar::resolve(&theme);
-    assert_eq!(nav.height_dp, 80.0);
+    assert_eq!(nav.height_dp, 64.0);
+    assert_eq!(nav.layout, navigation_bar::NavBarLayout::Vertical);
+    assert_eq!(nav.indicator_w_dp, 56.0);
+    assert_eq!(nav.indicator_h_dp, 32.0);
     assert_eq!(nav.container, theme.color.surface_container);
     assert_eq!(nav.active_indicator, theme.color.secondary_container);
+    assert_eq!(nav.active_label, theme.color.secondary);
+    assert_eq!(nav.elevation_dp, 3.0);
+    assert_eq!(navigation_bar::TALL_HEIGHT_DP, 80.0);
+    let nav_h = navigation_bar::resolve_horizontal(&theme);
+    assert_eq!(nav_h.layout, navigation_bar::NavBarLayout::Horizontal);
+    assert_eq!(nav_h.indicator_h_dp, 40.0);
+    assert_eq!(nav_h.indicator_pad_h_dp, 16.0);
+    assert_eq!(nav_h.active_label, theme.color.on_secondary_container);
+    assert_eq!(navigation_bar::MEDIUM_DESTS.len(), 4);
+    assert!(navigation_bar::is_flexible_height(nav.height_dp));
+
+    let plain = tooltip::resolve_plain(&theme);
+    assert_eq!(plain.min_height_dp, 24.0);
+    assert_eq!(plain.max_width_dp, 200.0);
+    assert_eq!(plain.container, theme.color.inverse_surface);
+    assert_eq!(plain.supporting, theme.color.inverse_on_surface);
+    assert_eq!(plain.supporting_style.name, "bodySmall");
+    assert_eq!(plain.corners.top_left, 4.0);
+    let rich = tooltip::resolve_rich(&theme);
+    assert_eq!(rich.max_width_dp, 320.0);
+    assert_eq!(rich.pad_top_dp, 12.0);
+    assert_eq!(rich.pad_bottom_dp, 8.0);
+    assert_eq!(rich.pad_start_dp, 16.0);
+    assert_eq!(rich.container, theme.color.surface_container);
+    assert_eq!(rich.supporting, theme.color.on_surface_variant);
+    assert_eq!(rich.subhead, Some(theme.color.on_surface_variant));
+    assert_eq!(rich.action, Some(theme.color.primary));
+    assert_eq!(rich.elevation_dp, 3.0);
+    assert_eq!(rich.corners.top_left, 12.0);
+    assert_eq!(rich.subhead_style.unwrap().name, "titleSmall");
+    assert_eq!(rich.action_style.unwrap().name, "labelLarge");
+    assert_eq!(tooltip::PLAIN_TEXT, "Add to library");
+    assert_eq!(tooltip::RICH_ACTION_PRIMARY, "Learn more");
+    assert!(tooltip::has_actions(tooltip::TooltipKind::Rich));
+    assert!(!tooltip::has_actions(tooltip::TooltipKind::Plain));
 
     let d = divider::resolve(&theme, true);
     assert_eq!(d.thickness_dp, 1.0);
@@ -509,6 +547,20 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-switch=\"true\""));
     assert!(html.contains("data-card=\"elevated\""));
     assert!(html.contains("data-navbar=\"1\""));
+    assert!(html.contains("data-navbar=\"horizontal\""));
+    assert!(html.contains("data-layout=\"vertical\""));
+    assert!(html.contains("data-layout=\"horizontal\""));
+    assert!(html.contains("data-hero=\"nav-bar\""));
+    assert!(html.contains("data-hero=\"nav-bar-horizontal\""));
+    assert!(html.contains("data-nav-flexible=\"1\""));
+    assert!(html.contains("data-nav-height=\"64\""));
+    assert!(html.contains("data-hero=\"tooltip\""));
+    assert!(html.contains("data-tooltip=\"plain\""));
+    assert!(html.contains("data-tooltip=\"rich\""));
+    assert!(html.contains("data-tooltip-text=\"Add to library\""));
+    assert!(html.contains("data-tooltip-subhead=\"Rich tooltip\""));
+    assert!(html.contains("data-tooltip-action=\"learn\""));
+    assert!(html.contains("Learn more"));
     assert!(html.contains("labelLarge"));
     assert!(html.contains("data-dialog=\"basic\""));
     assert!(html.contains("data-dialog=\"list\""));
@@ -743,6 +795,7 @@ fn inventory_covers_claimed_and_followups() {
         "Split button",
         "Toolbar",
         "Side sheet",
+        "Tooltip",
     ] {
         assert!(
             INVENTORY
