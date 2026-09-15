@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Assist / filter / input / suggestion chips",
         docs: "https://m3.material.io/components/chips/specs",
         parity: Parity::Done,
-        notes: "32dp; Filter/Input Expressive ChipShapes morph 12/16/8 + selected check; tonal leading icon on-surface-variant; ElevatedFilterChip surface-container-low elev 1; Assist/Suggestion stay full-round",
+        notes: "32dp; Filter/Input Expressive ChipShapes morph 12/16/8 + selected check + live rememberAnimatedShape press interpolation; tonal leading icon on-surface-variant; ElevatedFilterChip surface-container-low elev 1; InputChip 24dp avatar + compact 4dp arrangement; Assist/Suggestion stay full-round",
     },
     ComponentEntry {
         name: "Card",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Menus",
         docs: "https://m3.material.io/components/menus/specs",
         parity: Parity::Done,
-        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + GPUI/catalog hover-open 200ms (MenuOpenDelay) + WAI-ARIA typeahead; overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; overflow/split trailing menus use the same grouped 2dp + More flyout (not a single 16dp shell); horizontal 2dp pills (selected full-round) + icon-only 52dp",
+        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + GPUI/catalog hover-open 200ms (MenuOpenDelay) + WAI-ARIA typeahead (cascade autofocus when overflow/split/overlay opens); overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; overflow/split trailing menus use the same grouped 2dp + More flyout (not a single 16dp shell); horizontal 2dp pills (selected full-round) + icon-only 52dp",
     },
     ComponentEntry {
         name: "Slider",

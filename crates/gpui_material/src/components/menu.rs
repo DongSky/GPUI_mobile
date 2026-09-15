@@ -641,6 +641,30 @@ pub const OVERLAY_ANCHOR_GAP_DP: f32 = 8.0;
 /// hosts wait this long before opening the End flyout; click / keyboard stay
 /// immediate.
 pub const HOVER_OPEN_DELAY_MS: u64 = 200;
+/// WAI-ARIA typeahead: hosts auto-focus the cascade (`tab_index`) when a
+/// grouped overflow / split / overlay popup opens so letter keys hit the menu
+/// without an extra click.
+pub const TYPEAHEAD_AUTOFOCUS: bool = true;
+
+/// Which mounted popup should receive typeahead after it opens.
+pub fn typeahead_autofocus_kind(
+    overlay_open: bool,
+    standard_overflow_open: bool,
+    connected_overflow_open: bool,
+    split_open: bool,
+) -> Option<GroupedPopupKind> {
+    if overlay_open {
+        Some(GroupedPopupKind::Overlay)
+    } else if standard_overflow_open {
+        Some(GroupedPopupKind::StandardOverflow)
+    } else if connected_overflow_open {
+        Some(GroupedPopupKind::ConnectedOverflow)
+    } else if split_open {
+        Some(GroupedPopupKind::Split)
+    } else {
+        None
+    }
+}
 
 pub fn parent_item_count() -> usize {
     VERTICAL_GROUPS.iter().map(|group| group.len()).sum()

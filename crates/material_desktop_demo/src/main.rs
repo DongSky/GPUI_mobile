@@ -15,11 +15,11 @@
 
 use gpui::prelude::*;
 use gpui::{
-    Animation, AnimationExt, App, Bounds, Context, FillOptions, FillRule, FontWeight, IntoElement,
-    KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement, PathBuilder,
-    PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString, StrokeOptions, Styled, TextRun,
-    TitlebarOptions, Window, WindowBounds, WindowKind, WindowOptions, black, canvas, div, point,
-    px, size,
+    Animation, AnimationExt, App, Bounds, Context, FillOptions, FillRule, FocusHandle, FontWeight,
+    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
+    PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString, Stateful,
+    StrokeOptions, Styled, TextRun, TitlebarOptions, Window, WindowBounds, WindowKind,
+    WindowOptions, black, canvas, div, point, px, size,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -378,6 +378,9 @@ struct CatalogView {
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
     carousel_fling_at: Option<Instant>,
+    typeahead_focus: FocusHandle,
+    typeahead_host: Option<LiveMenuHost>,
+    chip_pressed: Option<u32>,
     snack_state: snackbar::SnackbarState,
     snack_at: Instant,
     fab_menu_open: bool,
@@ -425,6 +428,19 @@ impl CatalogView {
             LiveMenuHost::ConnectedOverflow => &mut self.connected_overflow_menu,
             LiveMenuHost::Split => &mut self.split_menu,
         }
+    }
+
+    fn focus_typeahead(
+        &mut self,
+        host: LiveMenuHost,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !menu::TYPEAHEAD_AUTOFOCUS {
+            return;
+        }
+        self.typeahead_host = Some(host);
+        self.typeahead_focus.focus(window, cx);
     }
 
     fn hover_live_parent(&mut self, host: LiveMenuHost, index: usize, cx: &mut Context<Self>) {
@@ -844,7 +860,7 @@ fn catalog_body(
         .child(desktop_list_reorder(this, theme, cx))
         .child(desktop_media_scene(this, theme, cx))
         .child(section_title(theme, "Chips"))
-        .child(desktop_chips(theme))
+        .child(desktop_chips(this, theme, cx))
         .child(section_title(theme, "Menu"))
         .child(desktop_menus(this, theme, cx))
         .child(section_title(theme, "Snackbar"))
@@ -906,9 +922,10 @@ fn catalog_body(
                     button::ButtonVariant::Tonal,
                     InteractionState::Enabled,
                     "Menu",
-                    cx.listener(|this, _, _, cx| {
+                    cx.listener(|this, _, window, cx| {
                         this.overlay = Overlay::Menu;
                         this.overlay_menu = menu::OverlayMenuSession::overlay();
+                        this.focus_typeahead(LiveMenuHost::Overlay, window, cx);
                         cx.notify();
                     }),
                 )),
@@ -1016,25 +1033,42 @@ fn desktop_icon_button_toggles(theme: &Theme) -> impl IntoElement {
         )
 }
 
-fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
-    let a = chip::resolve_demo(theme, demo);
+fn paint_chip(theme: &Theme, demo: chip::ChipDemo, id: u32, pressed: bool) -> Stateful<gpui::Div> {
+    let state = if pressed {
+        InteractionState::Pressed
+    } else {
+        demo.state
+    };
+    let a = chip::resolve_style(
+        theme,
+        demo.variant,
+        demo.color,
+        demo.selected,
+        state,
+        demo.leading,
+        demo.avatar,
+    );
+    let r = chip::animated_corner_dp(theme, demo.variant, demo.selected, chip::press_t(state));
     let lead = chip::demo_leading_icon(demo);
+    let avatar = chip::demo_avatar(demo);
     let trail = chip::trailing_icon(demo.variant);
     let ico = a.secondary_content.unwrap_or(a.content);
     div()
+        .id(SharedString::from(format!("chip-{id}")))
         .h(px(a.height_dp))
         .pl(px(a.pad_start_dp))
         .pr(px(a.pad_end_dp))
-        .rounded(px(a.corners.top_left))
+        .rounded(px(r))
         .bg(paint(a.container))
         .text_color(paint(a.content))
         .flex()
         .items_center()
-        .gap(px(chip::ICON_GAP_DP))
+        .gap(px(chip::demo_icon_gap_dp(demo)))
         .when(a.elevation_dp > 0.0, |el| el.shadow_sm())
         .when(a.outline.is_some(), |el| {
             el.border_1().border_color(paint(a.outline.unwrap().0))
         })
+        .children(avatar.map(|kind| photo_avatar(kind, chip::AVATAR_DP)))
         .children(lead.map(|g| {
             div()
                 .w(px(chip::ICON_DP))
@@ -1058,7 +1092,73 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
         }))
 }
 
-fn desktop_chips(theme: &Theme) -> impl IntoElement {
+fn bind_chip_press(
+    el: Stateful<gpui::Div>,
+    id: u32,
+    cx: &mut Context<CatalogView>,
+) -> Stateful<gpui::Div> {
+    el.on_mouse_down(
+        MouseButton::Left,
+        cx.listener(move |this, _, _, cx| {
+            this.chip_pressed = Some(id);
+            cx.notify();
+        }),
+    )
+    .on_mouse_up(
+        MouseButton::Left,
+        cx.listener(move |this, _, _, cx| {
+            this.chip_pressed = None;
+            cx.notify();
+        }),
+    )
+}
+
+fn desktop_chips(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let pressed = this.chip_pressed;
+    let filter: Vec<_> = chip::FILTER_HERO
+        .iter()
+        .enumerate()
+        .map(|(i, demo)| {
+            let id = 10 + i as u32;
+            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+        })
+        .collect();
+    let tonal: Vec<_> = chip::TONAL_FILTER_HERO
+        .iter()
+        .enumerate()
+        .map(|(i, demo)| {
+            let id = 20 + i as u32;
+            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+        })
+        .collect();
+    let elevated: Vec<_> = chip::ELEVATED_FILTER_HERO
+        .iter()
+        .enumerate()
+        .map(|(i, demo)| {
+            let id = 30 + i as u32;
+            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+        })
+        .collect();
+    let input: Vec<_> = chip::INPUT_HERO
+        .iter()
+        .enumerate()
+        .map(|(i, demo)| {
+            let id = 40 + i as u32;
+            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+        })
+        .collect();
+    let avatars: Vec<_> = chip::INPUT_AVATAR_HERO
+        .iter()
+        .enumerate()
+        .map(|(i, demo)| {
+            let id = 50 + i as u32;
+            bind_chip_press(paint_chip(theme, *demo, id, pressed == Some(id)), id, cx)
+        })
+        .collect();
     div()
         .flex()
         .flex_col()
@@ -1069,11 +1169,7 @@ fn desktop_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(
-                    chip::FILTER_HERO
-                        .iter()
-                        .map(|demo| paint_chip(theme, *demo)),
-                ),
+                .children(filter),
         )
         .child(
             div()
@@ -1081,11 +1177,7 @@ fn desktop_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(
-                    chip::TONAL_FILTER_HERO
-                        .iter()
-                        .map(|demo| paint_chip(theme, *demo)),
-                ),
+                .children(tonal),
         )
         .child(
             div()
@@ -1093,11 +1185,7 @@ fn desktop_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(
-                    chip::ELEVATED_FILTER_HERO
-                        .iter()
-                        .map(|demo| paint_chip(theme, *demo)),
-                ),
+                .children(elevated),
         )
         .child(
             div()
@@ -1105,7 +1193,15 @@ fn desktop_chips(theme: &Theme) -> impl IntoElement {
                 .flex_wrap()
                 .gap(px(8.))
                 .items_center()
-                .children(chip::INPUT_HERO.iter().map(|demo| paint_chip(theme, *demo))),
+                .children(input),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(avatars),
         )
 }
 
@@ -1254,6 +1350,9 @@ fn apply_live_menu_action(
                 this.split_menu = menu::OverlayMenuSession::split();
             }
         }
+        if this.typeahead_host == Some(host) {
+            this.typeahead_host = None;
+        }
     }
     cx.notify();
 }
@@ -1389,6 +1488,10 @@ fn desktop_live_cascade(
     div()
         .id(host.id())
         .tab_index(0)
+        .when(
+            menu::TYPEAHEAD_AUTOFOCUS && this.typeahead_host == Some(host),
+            |el| el.track_focus(&this.typeahead_focus),
+        )
         .flex()
         .flex_row()
         .items_end()
@@ -1612,11 +1715,14 @@ fn standard_button_group(
                         .items_center()
                         .justify_center()
                         .child(button_group::STANDARD_OVERFLOW_GLYPH)
-                        .on_click(cx.listener(|this, _, _, cx| {
+                        .on_click(cx.listener(|this, _, window, cx| {
                             this.standard_overflow_open = !this.standard_overflow_open;
                             if this.standard_overflow_open {
                                 this.standard_overflow_menu =
                                     menu::OverlayMenuSession::standard_overflow();
+                                this.focus_typeahead(LiveMenuHost::StandardOverflow, window, cx);
+                            } else if this.typeahead_host == Some(LiveMenuHost::StandardOverflow) {
+                                this.typeahead_host = None;
                             }
                             cx.notify();
                         })),
@@ -1717,12 +1823,16 @@ fn connected_icon_group(
                             el.border_1().border_color(paint(color))
                         })
                         .child(glyph)
-                        .on_click(cx.listener(move |this, _, _, cx| {
+                        .on_click(cx.listener(move |this, _, window, cx| {
                             if overflow {
                                 this.overflow_open = !this.overflow_open;
                                 if this.overflow_open {
                                     this.connected_overflow_menu =
                                         menu::OverlayMenuSession::connected_overflow();
+                                    this.focus_typeahead(LiveMenuHost::ConnectedOverflow, window, cx);
+                                } else if this.typeahead_host == Some(LiveMenuHost::ConnectedOverflow)
+                                {
+                                    this.typeahead_host = None;
                                 }
                             } else {
                                 this.icon_selected = i;
@@ -1804,10 +1914,13 @@ fn desktop_split_button(
                         .items_center()
                         .justify_center()
                         .child(split_button::caret(this.split_open))
-                        .on_click(cx.listener(|this, _, _, cx| {
+                        .on_click(cx.listener(|this, _, window, cx| {
                             this.split_open = !this.split_open;
                             if this.split_open {
                                 this.split_menu = menu::OverlayMenuSession::split();
+                                this.focus_typeahead(LiveMenuHost::Split, window, cx);
+                            } else if this.typeahead_host == Some(LiveMenuHost::Split) {
+                                this.typeahead_host = None;
                             }
                             cx.notify();
                         })),
@@ -5744,7 +5857,7 @@ fn main() {
                 ..Default::default()
             },
             |_, cx| {
-                cx.new(|_| CatalogView {
+                cx.new(|cx| CatalogView {
                     dark: false,
                     taps: 0,
                     checked: true,
@@ -5807,6 +5920,9 @@ fn main() {
                     carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
                     carousel_fling_at: None,
+                    typeahead_focus: cx.focus_handle(),
+                    typeahead_host: None,
+                    chip_pressed: None,
                     snack_state: snackbar::SnackbarState::short(),
                     snack_at: Instant::now(),
                     fab_menu_open: fab_menu::DEMO_EXPANDED,
@@ -6098,6 +6214,21 @@ mod tests {
         assert_eq!(chip::SELECTED_CORNER_DP, 16.0);
         assert_eq!(chip::PRESSED_CORNER_DP, 8.0);
         assert_eq!(chip::FILTER_HERO[1].label, "Washer");
+        assert_eq!(chip::AVATAR_DP, 24.0);
+        assert!(chip::INPUT_AVATAR_HERO[0].has_avatar());
+        assert_eq!(
+            chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, false, 0.0),
+            12.0
+        );
+        assert_eq!(
+            chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, false, 1.0),
+            8.0
+        );
+        assert!(menu::TYPEAHEAD_AUTOFOCUS);
+        assert_eq!(
+            menu::typeahead_autofocus_kind(false, true, false, false),
+            Some(menu::GroupedPopupKind::StandardOverflow)
+        );
         let washer = chip::resolve(
             &theme,
             chip::ChipVariant::Filter,

@@ -5,12 +5,16 @@
 //!
 //! Baseline Assist / Suggestion stay 32dp full-round. Expressive FilterChip
 //! and InputChip morph `ChipShapes`: CornerMedium rest, CornerFull selected,
-//! CornerSmall pressed. Expressive FilterChip defaults to tonal leading-icon
-//! colors (`ChipsTokens.UnselectedLeadingIconColor` = on-surface-variant).
-//! ElevatedFilterChip uses surface-container-low + elevation 1 and no outline.
+//! CornerSmall pressed. Live press interpolates those CornerBasedShapes
+//! (`rememberAnimatedShape` / spatial-fast). Expressive FilterChip defaults
+//! to tonal leading-icon colors (`ChipsTokens.UnselectedLeadingIconColor` =
+//! on-surface-variant). ElevatedFilterChip uses surface-container-low +
+//! elevation 1 and no outline. InputChip may paint a 24dp avatar (takes
+//! precedence over a leading icon) with compact 4dp arrangement.
 
 use crate::argb::Argb;
 use crate::components::Appearance;
+use super::photo_stub::PhotoKind;
 use crate::shape::Corners;
 use crate::state::{
     DISABLED_CONTAINER_OPACITY, InteractionState, apply_state_layer, resolve_content,
@@ -29,8 +33,16 @@ pub const TRAILING_PAD_END_DP: f32 = 8.0;
 pub const ICON_DP: f32 = 18.0;
 /// `FilterChipDefaults.HorizontalSpacing`.
 pub const ICON_GAP_DP: f32 = 8.0;
-/// `FilterChipDefaults.CompactHorizontalSpacing`.
+/// `FilterChipDefaults.CompactHorizontalSpacing` / InputChip avatar arrangement.
 pub const COMPACT_ICON_GAP_DP: f32 = 4.0;
+/// `InputChipDefaults.AvatarSize` / `InputChipTokens.AvatarSize`.
+pub const AVATAR_DP: f32 = 24.0;
+/// Compose `contentPadding(hasAvatar=true)` start inset.
+pub const AVATAR_PAD_START_DP: f32 = 4.0;
+/// Licensed camera still for the InputChip avatar hero (Compose `avatar`).
+pub const INPUT_AVATAR_KIND: PhotoKind = PhotoKind::PortraitSofia;
+/// Official-style InputChip person label paired with [`INPUT_AVATAR_KIND`].
+pub const INPUT_AVATAR_LABEL: &str = "Sofia";
 /// Compose `Shapes.defaultChipShapes.shape` = `ShapeTokens.CornerMedium`.
 pub const UNSELECTED_CORNER_DP: f32 = 12.0;
 /// `selectedShape` = `ShapeTokens.CornerFull` (half of 32dp).
@@ -114,6 +126,7 @@ pub const FILTER_HERO: [ChipDemo; 3] = [
         selected: false,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Filter,
@@ -122,6 +135,7 @@ pub const FILTER_HERO: [ChipDemo; 3] = [
         selected: true,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Filter,
@@ -130,6 +144,7 @@ pub const FILTER_HERO: [ChipDemo; 3] = [
         selected: false,
         state: InteractionState::Pressed,
         leading: None,
+        avatar: None,
     },
 ];
 
@@ -142,6 +157,7 @@ pub const ELEVATED_FILTER_HERO: [ChipDemo; 3] = [
         selected: false,
         state: InteractionState::Enabled,
         leading: Some(LEADING_GLYPH),
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Filter,
@@ -150,6 +166,7 @@ pub const ELEVATED_FILTER_HERO: [ChipDemo; 3] = [
         selected: true,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Filter,
@@ -158,6 +175,7 @@ pub const ELEVATED_FILTER_HERO: [ChipDemo; 3] = [
         selected: false,
         state: InteractionState::Pressed,
         leading: Some(LEADING_GLYPH),
+        avatar: None,
     },
 ];
 
@@ -170,6 +188,7 @@ pub const TONAL_FILTER_HERO: [ChipDemo; 2] = [
         selected: false,
         state: InteractionState::Enabled,
         leading: Some(LEADING_GLYPH),
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Filter,
@@ -178,6 +197,7 @@ pub const TONAL_FILTER_HERO: [ChipDemo; 2] = [
         selected: true,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
     },
 ];
 
@@ -190,6 +210,7 @@ pub const INPUT_HERO: [ChipDemo; 2] = [
         selected: false,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
     },
     ChipDemo {
         variant: ChipVariant::Input,
@@ -198,6 +219,29 @@ pub const INPUT_HERO: [ChipDemo; 2] = [
         selected: true,
         state: InteractionState::Enabled,
         leading: None,
+        avatar: None,
+    },
+];
+
+/// Compose `InputChip(avatar = …)` — 24dp still + compact 4dp arrangement.
+pub const INPUT_AVATAR_HERO: [ChipDemo; 2] = [
+    ChipDemo {
+        variant: ChipVariant::Input,
+        color: ChipColor::Flat,
+        label: INPUT_AVATAR_LABEL,
+        selected: false,
+        state: InteractionState::Enabled,
+        leading: None,
+        avatar: Some(INPUT_AVATAR_KIND),
+    },
+    ChipDemo {
+        variant: ChipVariant::Input,
+        color: ChipColor::Flat,
+        label: INPUT_AVATAR_LABEL,
+        selected: true,
+        state: InteractionState::Enabled,
+        leading: None,
+        avatar: Some(INPUT_AVATAR_KIND),
     },
 ];
 
@@ -209,25 +253,64 @@ pub struct ChipDemo {
     pub selected: bool,
     pub state: InteractionState,
     pub leading: Option<&'static str>,
+    /// InputChip `avatar` slot. Takes precedence over [`Self::leading`].
+    pub avatar: Option<PhotoKind>,
 }
 
-/// Compose `ChipShapes` corner for this variant / selection / interaction.
+impl ChipDemo {
+    pub const fn has_avatar(self) -> bool {
+        self.avatar.is_some() && matches!(self.variant, ChipVariant::Input)
+    }
+}
+
+/// Discrete Compose `ChipShapes` corner (rest / selected / pressed).
 pub fn corner_dp(
     theme: &Theme,
     variant: ChipVariant,
     selected: bool,
     state: InteractionState,
 ) -> f32 {
-    if !variant.morphs() {
-        return HEIGHT_DP / 2.0;
-    }
+    animated_corner_dp(theme, variant, selected, press_t(state))
+}
+
+/// `1` while pressed, else `0` — catalog / hosts feed this into
+/// [`animated_corner_dp`] (`rememberAnimatedShape`).
+pub fn press_t(state: InteractionState) -> f32 {
     if matches!(state, InteractionState::Pressed) {
-        theme.shapes.small
-    } else if selected {
+        1.0
+    } else {
+        0.0
+    }
+}
+
+/// Rest or selected `ChipShapes` corner (pressed is applied by [`animated_corner_dp`]).
+pub fn rest_corner_dp(theme: &Theme, variant: ChipVariant, selected: bool) -> f32 {
+    if !variant.morphs() {
         HEIGHT_DP / 2.0
+    } else if selected {
+        SELECTED_CORNER_DP
     } else {
         theme.shapes.medium
     }
+}
+
+/// Compose `rememberAnimatedShape`: spatial-fast lerp from rest/selected toward
+/// `pressedShape` (CornerSmall 8). `press_t` is linear time in `[0, 1]`.
+pub fn animated_corner_dp(
+    theme: &Theme,
+    variant: ChipVariant,
+    selected: bool,
+    press_t: f32,
+) -> f32 {
+    let rest = rest_corner_dp(theme, variant, selected);
+    if !variant.morphs() {
+        return rest;
+    }
+    let pressed = theme.shapes.small;
+    let t = theme.motion.spatial_fast_at(press_t.clamp(0.0, 1.0));
+    let lo = rest.min(pressed);
+    let hi = rest.max(pressed);
+    (rest + (pressed - rest) * t).clamp(lo, hi)
 }
 
 /// Selected FilterChip shows a leading check; demos may supply a rest icon.
@@ -248,7 +331,32 @@ pub fn leading_icon_with(
 }
 
 pub fn demo_leading_icon(demo: ChipDemo) -> Option<&'static str> {
-    leading_icon_with(demo.variant, demo.selected, demo.leading)
+    if demo.has_avatar() {
+        None
+    } else {
+        leading_icon_with(demo.variant, demo.selected, demo.leading)
+    }
+}
+
+pub fn demo_avatar(demo: ChipDemo) -> Option<PhotoKind> {
+    if demo.has_avatar() {
+        demo.avatar
+    } else {
+        None
+    }
+}
+
+/// `HorizontalSpacing` (8) or `CompactHorizontalSpacing` (4) when an avatar is shown.
+pub fn icon_gap_dp(has_avatar: bool) -> f32 {
+    if has_avatar {
+        COMPACT_ICON_GAP_DP
+    } else {
+        ICON_GAP_DP
+    }
+}
+
+pub fn demo_icon_gap_dp(demo: ChipDemo) -> f32 {
+    icon_gap_dp(demo.has_avatar())
 }
 
 /// InputChip shows a trailing close (selected or not).
@@ -265,7 +373,18 @@ pub fn pad_start_dp(variant: ChipVariant, selected: bool) -> f32 {
 }
 
 pub fn pad_start_with(variant: ChipVariant, selected: bool, leading: Option<&'static str>) -> f32 {
-    if leading_icon_with(variant, selected, leading).is_some() {
+    pad_start_avatar(variant, selected, leading, None)
+}
+
+pub fn pad_start_avatar(
+    variant: ChipVariant,
+    selected: bool,
+    leading: Option<&'static str>,
+    avatar: Option<PhotoKind>,
+) -> f32 {
+    if avatar.is_some() && matches!(variant, ChipVariant::Input) {
+        AVATAR_PAD_START_DP
+    } else if leading_icon_with(variant, selected, leading).is_some() {
         LEADING_PAD_START_DP
     } else {
         PAD_H_DP
@@ -306,6 +425,7 @@ pub fn resolve_demo(theme: &Theme, demo: ChipDemo) -> Appearance {
         demo.selected,
         demo.state,
         demo.leading,
+        demo.avatar,
     )
 }
 
@@ -315,7 +435,7 @@ pub fn resolve(
     selected: bool,
     state: InteractionState,
 ) -> Appearance {
-    resolve_style(theme, variant, ChipColor::Flat, selected, state, None)
+    resolve_style(theme, variant, ChipColor::Flat, selected, state, None, None)
 }
 
 pub fn resolve_style(
@@ -325,6 +445,7 @@ pub fn resolve_style(
     selected: bool,
     state: InteractionState,
     leading: Option<&'static str>,
+    avatar: Option<PhotoKind>,
 ) -> Appearance {
     let c = theme.color;
     let elevated = color.elevated() && variant.morphs();
@@ -397,7 +518,7 @@ pub fn resolve_style(
         )),
         outline,
         elevation_dp,
-        pad_start_dp: pad_start_with(variant, selected, leading),
+        pad_start_dp: pad_start_avatar(variant, selected, leading, avatar),
         pad_end_dp: pad_end_dp(variant),
         pad_top_dp: 0.0,
         pad_bottom_dp: 0.0,

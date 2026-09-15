@@ -867,6 +867,18 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-chip-label=\"Pets\""));
     assert!(html.contains("data-chip-label=\"Wifi\""));
     assert!(html.contains("data-chip-label=\"Portland\""));
+    assert!(html.contains("data-chip-label=\"Sofia\""));
+    assert!(html.contains("data-chip-avatar=\"1\""));
+    assert!(html.contains("data-chip-avatar-size=\"24\""));
+    assert!(html.contains("data-chip-compact=\"1\""));
+    assert!(html.contains("data-chip-press=\"1\""));
+    assert!(html.contains("data-chip-rest-r=\"12\""));
+    assert!(html.contains("data-chip-sel-r=\"16\""));
+    assert!(html.contains("--press-r:8px"));
+    assert!(html.contains("rememberAnimatedShape"));
+    assert!(html.contains("data-hero-chip=\"input-avatar\""));
+    assert!(html.contains("data-typeahead-autofocus=\"1\""));
+    assert!(html.contains("function focusTypeahead"));
     assert!(html.contains("data-chip-r=\"12\""));
     assert!(html.contains("data-chip-r=\"16\""));
     assert!(html.contains("data-chip-r=\"8\""));
@@ -988,6 +1000,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("check")
             && e.notes.contains("ElevatedFilterChip")
             && e.notes.contains("tonal")
+            && e.notes.contains("rememberAnimatedShape")
+            && e.notes.contains("avatar")
+            && e.notes.contains("4dp")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Navigation rail"
@@ -1007,6 +1022,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("overflow")
             && e.notes.contains("200ms")
             && e.notes.contains("GPUI")
+            && e.notes.contains("autofocus")
     }));
     assert!(
         !INVENTORY
@@ -1359,6 +1375,62 @@ fn expressive_chip_tokens() {
     assert_eq!(chip::FILTER_HERO[2].label, "Pets");
     assert_eq!(chip::FILTER_HERO[2].state, InteractionState::Pressed);
     assert_eq!(chip::INPUT_HERO[0].label, "Portland");
+    assert_eq!(chip::AVATAR_DP, 24.0);
+    assert_eq!(chip::AVATAR_PAD_START_DP, 4.0);
+    assert_eq!(chip::INPUT_AVATAR_LABEL, "Sofia");
+    assert_eq!(chip::INPUT_AVATAR_KIND.label(), "sofia");
+    assert!(chip::INPUT_AVATAR_HERO[0].has_avatar());
+    assert_eq!(
+        chip::demo_avatar(chip::INPUT_AVATAR_HERO[0]),
+        Some(chip::INPUT_AVATAR_KIND)
+    );
+    assert_eq!(chip::demo_icon_gap_dp(chip::INPUT_AVATAR_HERO[0]), 4.0);
+    assert_eq!(chip::icon_gap_dp(false), 8.0);
+    let avatar_off = chip::resolve_demo(&theme, chip::INPUT_AVATAR_HERO[0]);
+    assert_eq!(avatar_off.pad_start_dp, chip::AVATAR_PAD_START_DP);
+    assert_eq!(avatar_off.pad_end_dp, chip::TRAILING_PAD_END_DP);
+    assert_eq!(
+        chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, false, 0.0),
+        theme.shapes.medium
+    );
+    assert_eq!(
+        chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, true, 0.0),
+        chip::SELECTED_CORNER_DP
+    );
+    assert_eq!(
+        chip::animated_corner_dp(&theme, chip::ChipVariant::Filter, false, 1.0),
+        theme.shapes.small
+    );
+    let samples: [f32; 9] = core::array::from_fn(|i| {
+        chip::animated_corner_dp(
+            &theme,
+            chip::ChipVariant::Filter,
+            false,
+            (i + 1) as f32 / 10.0,
+        )
+    });
+    assert!(
+        samples
+            .iter()
+            .any(|v| *v > theme.shapes.small && *v < theme.shapes.medium),
+        "rememberAnimatedShape should pass through interior corners, got {samples:?}"
+    );
+    assert_eq!(chip::press_t(InteractionState::Pressed), 1.0);
+    assert_eq!(chip::press_t(InteractionState::Enabled), 0.0);
+    assert!(menu::TYPEAHEAD_AUTOFOCUS);
+    assert_eq!(
+        menu::typeahead_autofocus_kind(false, true, false, false),
+        Some(menu::GroupedPopupKind::StandardOverflow)
+    );
+    assert_eq!(
+        menu::typeahead_autofocus_kind(false, false, true, false),
+        Some(menu::GroupedPopupKind::ConnectedOverflow)
+    );
+    assert_eq!(
+        menu::typeahead_autofocus_kind(false, false, false, true),
+        Some(menu::GroupedPopupKind::Split)
+    );
+    assert_eq!(menu::typeahead_autofocus_kind(false, false, false, false), None);
     assert!(chip::ChipVariant::Filter.morphs());
     assert!(chip::ChipVariant::Input.morphs());
     assert!(!chip::ChipVariant::Assist.morphs());

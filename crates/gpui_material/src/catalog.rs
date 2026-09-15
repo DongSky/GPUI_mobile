@@ -165,6 +165,7 @@ a {{ color: var(--primary); }}
 }}
 .btn:active {{ border-radius: var(--press-r, 8px) !important; }}
 .icon-btn:active {{ border-radius: var(--press-r, 8px) !important; }}
+.chip[data-chip-morph="1"]:active {{ border-radius: var(--press-r, 8px) !important; }}
 .btn-group {{
   display: flex; gap: {gap}px; align-items: stretch; flex-wrap: wrap;
 }}
@@ -390,10 +391,14 @@ a {{ color: var(--primary); }}
 }}
 .chip {{
   height: 32px; padding: 0 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
-  gap: 8px; box-sizing: border-box;
+  gap: 8px; box-sizing: border-box; cursor: pointer;
   transition: border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
+.chip[data-chip-compact="1"] {{ gap: 4px; }}
 .chip .chip-ico {{ width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }}
+.chip .chip-av {{
+  width: 24px; height: 24px; border-radius: 12px; flex: 0 0 24px; overflow: hidden;
+}}
 .menu-anchor-stage {{
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   position: relative; min-width: 360px; padding: 24px;
@@ -968,6 +973,28 @@ table.inv th {{ font-weight: 500; }}
 <body>
 {body}
 <script>
+function focusTypeahead(menu) {{
+  if (!menu) return;
+  menu.setAttribute("tabindex", "0");
+  menu.setAttribute("data-typeahead-autofocus", "1");
+  try {{ menu.focus({{ preventScroll: true }}); }} catch (e) {{ menu.focus(); }}
+}}
+document.querySelectorAll(".chip[data-chip-morph='1']").forEach(function (chip) {{
+  chip.addEventListener("click", function () {{
+    var on = chip.getAttribute("data-selected") === "1";
+    var next = !on;
+    chip.setAttribute("data-selected", next ? "1" : "0");
+    var r = chip.getAttribute(next ? "data-chip-sel-r" : "data-chip-rest-r");
+    if (r) chip.style.borderRadius = r + "px";
+    var bg = chip.getAttribute(next ? "data-sel-bg" : "data-idle-bg");
+    var fg = chip.getAttribute(next ? "data-sel-fg" : "data-idle-fg");
+    var bd = chip.getAttribute(next ? "data-sel-bd" : "data-idle-bd");
+    if (bg) chip.style.background = bg;
+    if (fg) chip.style.color = fg;
+    if (bd) chip.style.border = bd;
+    chip.setAttribute("data-chip-press", "1");
+  }});
+}});
 document.querySelectorAll("[data-editor] input").forEach(function (input) {{
   function sync() {{
     var wrap = input.closest("[data-editor]");
@@ -1050,6 +1077,7 @@ document.querySelectorAll("[data-button-group='standard']").forEach(function (gr
         var open = menu.getAttribute("data-open") === "1";
         menu.setAttribute("data-open", open ? "0" : "1");
         menu.style.display = open ? "none" : "flex";
+        if (!open) focusTypeahead(menu);
       }}
     }});
   }}
@@ -1063,6 +1091,7 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
           var open = menu.getAttribute("data-open") === "1";
           menu.setAttribute("data-open", open ? "0" : "1");
           menu.style.display = open ? "none" : "flex";
+          if (!open) focusTypeahead(menu);
         }}
         return;
       }}
@@ -1668,6 +1697,7 @@ document.querySelectorAll("[data-split]").forEach(function (split) {{
     var open = split.getAttribute("data-open") !== "1";
     split.setAttribute("data-open", open ? "1" : "0");
     trail.textContent = open ? "▴" : "▾";
+    if (open) focusTypeahead(split.querySelector("[data-overflow-cascade], [data-split-cascade]"));
   }});
 }});
 document.addEventListener("click", function () {{
@@ -3324,10 +3354,38 @@ fn paint_list_reorder(theme: &Theme) -> String {
 
 fn paint_chip(theme: &Theme, demo: chip::ChipDemo, attrs: &str) -> String {
     let a = chip::resolve_demo(theme, demo);
+    let idle = chip::resolve_style(
+        theme,
+        demo.variant,
+        demo.color,
+        false,
+        InteractionState::Enabled,
+        demo.leading,
+        demo.avatar,
+    );
+    let sel_a = chip::resolve_style(
+        theme,
+        demo.variant,
+        demo.color,
+        true,
+        InteractionState::Enabled,
+        demo.leading,
+        demo.avatar,
+    );
     let ico = a.secondary_content.unwrap_or(a.content).css_hex();
     let lead = chip::demo_leading_icon(demo)
         .map(|g| {
             format!(r#"<span class="chip-ico" data-chip-lead="1" style="color:{ico}">{g}</span>"#)
+        })
+        .unwrap_or_default();
+    let avatar = chip::demo_avatar(demo)
+        .map(|kind| {
+            format!(
+                r#"<div class="chip-av" data-chip-avatar="1" data-chip-avatar-size="{size}" data-photo="{label}">{inner}</div>"#,
+                size = chip::AVATAR_DP,
+                label = kind.label(),
+                inner = paint_avatar(kind, chip::AVATAR_DP),
+            )
         })
         .unwrap_or_default();
     let trail = chip::trailing_icon(demo.variant)
@@ -3335,29 +3393,41 @@ fn paint_chip(theme: &Theme, demo: chip::ChipDemo, attrs: &str) -> String {
             format!(r#"<span class="chip-ico" data-chip-trail="1" style="color:{ico}">{g}</span>"#)
         })
         .unwrap_or_default();
+    let rest_r = chip::rest_corner_dp(theme, demo.variant, false);
+    let sel_r = chip::rest_corner_dp(theme, demo.variant, true);
+    let press_r = chip::PRESSED_CORNER_DP;
     format!(
-        r#"<div class="chip" data-chip="{v}" data-chip-label="{label}" data-chip-style="{style}" data-chip-elev="{elev}" data-selected="{sel}" data-chip-state="{st}" data-chip-r="{r}" data-chip-morph="{morph}" {attrs} style="background:{bg};color:{fg};border:{bd};border-radius:{rad};padding-left:{ps}px;padding-right:{pe}px;box-shadow:{sh}">{lead}{label}{trail}</div>"#,
+        r#"<div class="chip" data-chip="{v}" data-chip-label="{label}" data-chip-style="{style}" data-chip-elev="{elev}" data-selected="{sel}" data-chip-state="{st}" data-chip-r="{r}" data-chip-morph="{morph}" data-chip-press="{press}" data-chip-rest-r="{rest_r}" data-chip-sel-r="{sel_r}" data-chip-compact="{compact}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-bd="{ibd}" data-sel-bg="{sbg}" data-sel-fg="{sfg}" data-sel-bd="{sbd}" {attrs} style="--press-r:{press_r}px;background:{bg};color:{fg};border:{bd};border-radius:{rad};padding-left:{ps}px;padding-right:{pe}px;gap:{gap}px;box-shadow:{sh}">{avatar}{lead}{label}{trail}</div>"#,
         v = demo.variant.label(),
         style = demo.color.label(),
         elev = a.elevation_dp,
         label = demo.label,
-        sel = demo.selected,
+        sel = if demo.selected { "1" } else { "0" },
         st = demo.state.label(),
         r = a.corners.top_left,
         morph = if demo.variant.morphs() { "1" } else { "0" },
+        press = if demo.variant.morphs() { "1" } else { "0" },
+        compact = if demo.has_avatar() { "1" } else { "0" },
         bg = a.container.css_hex(),
         fg = a.content.css_hex(),
         bd = a.outline_css(),
         rad = a.corners.css(),
         ps = a.pad_start_dp,
         pe = a.pad_end_dp,
+        gap = chip::demo_icon_gap_dp(demo),
         sh = ElevationLevels::css_shadow(a.elevation_dp),
+        ibg = idle.container.css_hex(),
+        ifg = idle.content.css_hex(),
+        ibd = idle.outline_css(),
+        sbg = sel_a.container.css_hex(),
+        sfg = sel_a.content.css_hex(),
+        sbd = sel_a.outline_css(),
     )
 }
 
 fn chips(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Chips</h2><p class=\"note\">Expressive FilterChip / InputChip morph Compose <code>ChipShapes</code>: CornerMedium 12 rest, CornerFull selected, CornerSmall 8 pressed. Flat filter is outlined (outline-variant). Tonal leading icons use on-surface-variant (<code>ChipsTokens.UnselectedLeadingIconColor</code>). ElevatedFilterChip is surface-container-low · elev 1 · no outline (<code>tonalElevatedFilterChipColors</code>). Selected filter shows a leading check; input keeps a trailing close. Assist / suggestion stay 32dp full-round baseline. <a href=\"https://m3.material.io/components/chips/specs\">spec</a></p>",
+        "<h2>Chips</h2><p class=\"note\">Expressive FilterChip / InputChip morph Compose <code>ChipShapes</code>: CornerMedium 12 rest, CornerFull selected, CornerSmall 8 pressed. Live press interpolates those corners (<code>rememberAnimatedShape</code> / spatial-fast). Flat filter is outlined (outline-variant). Tonal leading icons use on-surface-variant (<code>ChipsTokens.UnselectedLeadingIconColor</code>). ElevatedFilterChip is surface-container-low · elev 1 · no outline (<code>tonalElevatedFilterChipColors</code>). Selected filter shows a leading check; input keeps a trailing close. InputChip avatar is 24dp + compact 4dp arrangement. Assist / suggestion stay 32dp full-round baseline. <a href=\"https://m3.material.io/components/chips/specs\">spec</a></p>",
     );
     out.push_str("<div class=\"hero-card\" data-hero=\"chips\">");
     out.push_str("<div class=\"state-body\" data-chip-row=\"filter\">");
@@ -3371,6 +3441,14 @@ fn chips(theme: &Theme) -> String {
     out.push_str("</div><div class=\"state-body\" data-chip-row=\"input\">");
     for demo in chip::INPUT_HERO {
         out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="input""#));
+    }
+    out.push_str("</div><div class=\"state-body\" data-chip-row=\"input-avatar\">");
+    for demo in chip::INPUT_AVATAR_HERO {
+        out.push_str(&paint_chip(
+            theme,
+            demo,
+            r#"data-hero-chip="input-avatar" data-chip-avatar-row="1""#,
+        ));
     }
     out.push_str("</div></div>");
     out.push_str("<div class=\"hero-card\" data-hero=\"chips-elevated\">");
@@ -3405,6 +3483,7 @@ fn chips(theme: &Theme) -> String {
                 selected,
                 state: InteractionState::Enabled,
                 leading: None,
+                avatar: None,
             };
             out.push_str(&paint_chip(theme, demo, r#"data-chip-matrix="1""#));
         }
@@ -4398,13 +4477,18 @@ fn paint_grouped_overflow(
     let scheme = menu::MenuScheme::Standard;
     let display = if visible { "flex" } else { "none" };
     format!(
-        r#"<div class="{class}" role="menu" data-overflow-cascade="1" data-popup-kind="{kind}" data-open="{open}" data-flyout="0" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" data-grouped="1"{extra} style="display:{display};gap:{gap}px">
+        r#"<div class="{class}" role="menu" data-overflow-cascade="1" data-popup-kind="{kind}" data-open="{open}" data-flyout="0" data-typeahead="1" data-typeahead-autofocus="{af}" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" data-grouped="1"{extra} style="display:{display};gap:{gap}px">
   {parent}
   {flyout}
 </div>"#,
         class = class_name,
         kind = kind.label(),
         open = if visible { "1" } else { "0" },
+        af = if visible && menu::TYPEAHEAD_AUTOFOCUS {
+            "1"
+        } else {
+            "0"
+        },
         gap = menu::SUBMENU_GAP_DP,
         delay = menu::HOVER_OPEN_DELAY_MS,
         extra = extra_attrs,
@@ -4565,7 +4649,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; overflow and split trailing menus use the same grouped 2dp shell + More flyout (not a single 16dp surface). More hover opens the End flyout after 200ms on catalog JS and GPUI hosts (click/keyboard stay immediate; More does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; overflow and split trailing menus use the same grouped 2dp shell + More flyout (not a single 16dp surface). More hover opens the End flyout after 200ms on catalog JS and GPUI hosts (click/keyboard stay immediate; More does not dismiss). Hover-open + WAI-ARIA typeahead (cascade autofocus when overflow/split opens). Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}
