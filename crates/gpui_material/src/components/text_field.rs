@@ -268,6 +268,72 @@ impl NotchFrame {
         let y = self.stroke_dp / 2.0 - self.label_h_dp / 2.0;
         (x, y)
     }
+
+    /// Centerline verbs for a notched rounded-rect stroke (clockwise, open at
+    /// the top-edge cutout). Shared by HTML SVG and GPUI `PathBuilder`.
+    pub fn outline_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
+        let s = self.stroke_dp.max(1.0);
+        let r = self.radius_dp.max(s);
+        let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
+        let h = self.field_h_dp.max(r * 2.0);
+        let half = s / 2.0;
+        let notch_l = self.start_dp.max(half);
+        let notch_r = (self.start_dp + self.width_dp).min(w - r);
+        vec![
+            OutlineVerb::Move(notch_r, half),
+            OutlineVerb::Line(w - r, half),
+            OutlineVerb::Arc {
+                to_x: w - half,
+                to_y: r,
+                radius: r - half,
+            },
+            OutlineVerb::Line(w - half, h - r),
+            OutlineVerb::Arc {
+                to_x: w - r,
+                to_y: h - half,
+                radius: r - half,
+            },
+            OutlineVerb::Line(r, h - half),
+            OutlineVerb::Arc {
+                to_x: half,
+                to_y: h - r,
+                radius: r - half,
+            },
+            OutlineVerb::Line(half, r),
+            OutlineVerb::Arc {
+                to_x: r,
+                to_y: half,
+                radius: r - half,
+            },
+            OutlineVerb::Line(notch_l, half),
+        ]
+    }
+
+    pub fn outline_svg_d(self, width_dp: f32) -> String {
+        let mut d = String::new();
+        for v in self.outline_verbs(width_dp) {
+            match v {
+                OutlineVerb::Move(x, y) => d.push_str(&format!("M{x:.2},{y:.2}")),
+                OutlineVerb::Line(x, y) => d.push_str(&format!(" L{x:.2},{y:.2}")),
+                OutlineVerb::Arc {
+                    to_x,
+                    to_y,
+                    radius,
+                } => d.push_str(&format!(
+                    " A{radius:.2},{radius:.2} 0 0 1 {to_x:.2},{to_y:.2}"
+                )),
+            }
+        }
+        d
+    }
+}
+
+/// One step of a notched outline path.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum OutlineVerb {
+    Move(f32, f32),
+    Line(f32, f32),
+    Arc { to_x: f32, to_y: f32, radius: f32 },
 }
 
 pub fn notch_frame(label: &str, appearance: &TextFieldAppearance) -> NotchFrame {

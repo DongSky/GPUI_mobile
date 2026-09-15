@@ -1,6 +1,7 @@
 pub mod badge;
 pub mod bottom_sheet;
 pub mod button;
+pub mod carousel;
 pub mod button_group;
 pub mod card;
 pub mod checkbox;

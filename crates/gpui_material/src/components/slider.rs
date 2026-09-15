@@ -296,7 +296,10 @@ impl RangeThumb {
     }
 }
 
+/// Legacy 5% overlay used before local-X mapping. Kept for tests.
 pub const RANGE_DRAG_CELLS: u32 = 21;
+/// Catalog track width (desktop). Android uses 240dp.
+pub const RANGE_TRACK_W_DP: f32 = 280.0;
 
 pub fn nearest_thumb(start: f32, end: f32, fraction: f32) -> RangeThumb {
     if (fraction - start).abs() <= (fraction - end).abs() {
@@ -342,6 +345,15 @@ pub fn click_step(start: f32, end: f32, fraction: f32) -> (f32, f32) {
 pub fn drag_cell_fraction(index: u32) -> f32 {
     let n = RANGE_DRAG_CELLS.saturating_sub(1).max(1);
     (index as f32 / n as f32).clamp(0.0, 1.0)
+}
+
+/// Map a pointer's local X (hitbox left = 0) onto 0..=1.
+pub fn fraction_from_local_x(x: f32, width: f32) -> f32 {
+    if width <= 0.0 {
+        0.0
+    } else {
+        (x / width).clamp(0.0, 1.0)
+    }
 }
 
 /// Arrow / vim keys nudge the focused thumb. `left`/`right`/`h`/`l`.

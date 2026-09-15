@@ -183,7 +183,7 @@ pub fn hand_end(clock_dp: f32, face: DialFace, hour: u8, minute: u8, number_dp: 
     (x + number_dp / 2.0, y + number_dp / 2.0)
 }
 
-/// Small dots from the hub toward the selected number (GPUI analog hand).
+/// Small dots from the hub toward the selected number (legacy GPUI fallback).
 pub fn hand_dots(
     clock_dp: f32,
     face: DialFace,
@@ -204,4 +204,42 @@ pub fn hand_dots(
             )
         })
         .collect()
+}
+
+/// Filled quadrilateral for the analog selector hand (hub → selected number).
+pub fn hand_quad(
+    clock_dp: f32,
+    face: DialFace,
+    hour: u8,
+    minute: u8,
+    number_dp: f32,
+) -> [(f32, f32); 4] {
+    let (ex, ey) = hand_end(clock_dp, face, hour, minute, number_dp);
+    let cx = clock_dp / 2.0;
+    let cy = clock_dp / 2.0;
+    let dx = ex - cx;
+    let dy = ey - cy;
+    let len = (dx * dx + dy * dy).sqrt().max(1.0);
+    let nx = -dy / len * (HAND_THICKNESS_DP / 2.0);
+    let ny = dx / len * (HAND_THICKNESS_DP / 2.0);
+    [
+        (cx + nx, cy + ny),
+        (ex + nx, ey + ny),
+        (ex - nx, ey - ny),
+        (cx - nx, cy - ny),
+    ]
+}
+
+pub fn hand_svg_d(
+    clock_dp: f32,
+    face: DialFace,
+    hour: u8,
+    minute: u8,
+    number_dp: f32,
+) -> String {
+    let q = hand_quad(clock_dp, face, hour, minute, number_dp);
+    format!(
+        "M{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} L{:.2},{:.2} Z",
+        q[0].0, q[0].1, q[1].0, q[1].1, q[2].0, q[2].1, q[3].0, q[3].1
+    )
 }

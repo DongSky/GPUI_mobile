@@ -15,21 +15,24 @@
 
 use gpui::prelude::*;
 use gpui::{
-    div, px, size, App, Bounds, Context, FontWeight, IntoElement, KeyDownEvent, MouseButton,
-    MouseMoveEvent, ParentElement, Render, SharedString, Styled, TitlebarOptions, Window,
-    WindowBounds, WindowOptions,
+    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FontWeight,
+    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
+    PathBuilder, Render, SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    button, button_group, checkbox, dialog, icon_button, navigation_rail, progress, radio, search,
-    slider, switch, tabs, text_field, top_app_bar,
+    badge, button, button_group, carousel, checkbox, dialog, icon_button, navigation_rail, progress,
+    radio, search, slider, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
 use gpui_material::{Argb, InteractionState};
 use gpui_platform::application;
+use std::cell::Cell;
+use std::rc::Rc;
+use std::time::Duration;
 
 fn paint(c: Argb) -> gpui::Rgba {
     gpui::Rgba {
@@ -80,8 +83,10 @@ struct CatalogView {
     range_drag: Option<slider::RangeThumb>,
     range_focus: slider::RangeThumb,
     range_moved: bool,
+    range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
     search_open: bool,
+    search_query: String,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -354,6 +359,8 @@ fn catalog_body(
         .child(range_slider_hero(this, theme, cx))
         .child(section_title(theme, "Progress"))
         .child(progress_heroes(theme))
+        .child(section_title(theme, "Carousel"))
+        .child(carousel_hero(theme))
         .child(
             div()
                 .text_size(px(12.))
@@ -526,51 +533,12 @@ fn range_slider_hero(
         InteractionState::Enabled,
     );
     let t = range.track;
-    let total = 280.0;
+    let total = slider::RANGE_TRACK_W_DP;
     let left = (total * range.start).max(12.0);
     let mid = (total * (range.end - range.start)).max(16.0);
-    let cells = (0..slider::RANGE_DRAG_CELLS).map(|i| {
-        let frac = slider::drag_cell_fraction(i);
-        div()
-            .id(SharedString::from(format!("range-cell-{i}")))
-            .flex_1()
-            .h_full()
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, _, _, cx| {
-                    this.range_focus =
-                        slider::nearest_thumb(this.range_start, this.range_end, frac);
-                    this.range_drag = Some(this.range_focus);
-                    this.range_moved = false;
-                    cx.notify();
-                }),
-            )
-            .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
-                if ev.dragging() {
-                    if let Some(thumb) = this.range_drag {
-                        let (s, e) =
-                            slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
-                        this.range_start = s;
-                        this.range_end = e;
-                        this.range_moved = true;
-                        cx.notify();
-                    }
-                }
-            }))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                if this.range_moved {
-                    this.range_drag = None;
-                    this.range_moved = false;
-                    cx.notify();
-                    return;
-                }
-                let (s, e) = slider::click_step(this.range_start, this.range_end, frac);
-                this.range_start = s;
-                this.range_end = e;
-                this.range_drag = None;
-                cx.notify();
-            }))
-    });
+    let hit = this.range_hit.clone();
+    let hit_move = this.range_hit.clone();
+    let hit_click = this.range_hit.clone();
     div()
         .id("range-slider")
         .tab_index(0)
@@ -605,9 +573,54 @@ fn range_slider_hero(
         ))
         .child(
             div()
+                .id("range-track")
                 .relative()
                 .w(px(total))
                 .h(px(t.target_dp))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, ev: &MouseDownEvent, _, cx| {
+                        let (origin, w) = hit.get();
+                        let frac =
+                            slider::fraction_from_local_x(f32::from(ev.position.x) - origin, w);
+                        this.range_focus =
+                            slider::nearest_thumb(this.range_start, this.range_end, frac);
+                        this.range_drag = Some(this.range_focus);
+                        this.range_moved = false;
+                        cx.notify();
+                    }),
+                )
+                .on_mouse_move(cx.listener(move |this, ev: &MouseMoveEvent, _, cx| {
+                    if ev.dragging() {
+                        if let Some(thumb) = this.range_drag {
+                            let (origin, w) = hit_move.get();
+                            let frac =
+                                slider::fraction_from_local_x(f32::from(ev.position.x) - origin, w);
+                            let (s, e) =
+                                slider::drag_thumb(this.range_start, this.range_end, thumb, frac);
+                            this.range_start = s;
+                            this.range_end = e;
+                            this.range_moved = true;
+                            cx.notify();
+                        }
+                    }
+                }))
+                .on_click(cx.listener(move |this, ev: &gpui::ClickEvent, _, cx| {
+                    if this.range_moved {
+                        this.range_drag = None;
+                        this.range_moved = false;
+                        cx.notify();
+                        return;
+                    }
+                    let (origin, w) = hit_click.get();
+                    let frac =
+                        slider::fraction_from_local_x(f32::from(ev.position().x) - origin, w);
+                    let (s, e) = slider::click_step(this.range_start, this.range_end, frac);
+                    this.range_start = s;
+                    this.range_end = e;
+                    this.range_drag = None;
+                    cx.notify();
+                }))
                 .child(
                     div()
                         .w(px(total))
@@ -652,16 +665,23 @@ fn range_slider_hero(
                                 .bg(paint(t.inactive)),
                         ),
                 )
-                .child(
-                    div()
-                        .absolute()
-                        .top(px(0.))
-                        .left(px(0.))
-                        .w(px(total))
-                        .h(px(t.target_dp))
-                        .flex()
-                        .children(cells),
-                ),
+                .child({
+                    let hit = this.range_hit.clone();
+                    canvas(
+                        move |bounds, _, _| {
+                            hit.set((
+                                f32::from(bounds.origin.x),
+                                f32::from(bounds.size.width).max(1.0),
+                            ));
+                        },
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .w(px(total))
+                    .h(px(t.target_dp))
+                }),
         )
 }
 
@@ -1559,65 +1579,80 @@ fn search_bar_hero(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = search::resolve(theme);
-    let view = search::resolve_view(theme);
-    let bar = div()
-        .id("search-bar")
-        .w_full()
-        .h(px(a.bar.height_dp))
-        .px(px(a.bar.pad_start_dp))
-        .rounded(px(a.bar.corners.top_left))
-        .bg(paint(a.bar.container))
-        .flex()
-        .items_center()
-        .gap(px(search::GAP_DP))
-        .child(
-            div()
-                .w(px(search::ICON_DP))
-                .h(px(search::ICON_DP))
-                .flex()
-                .items_center()
-                .justify_center()
-                .text_color(paint(a.leading_icon))
-                .child(search::LEADING_ICON),
-        )
-        .child(
-            div()
-                .flex_1()
-                .text_size(px(a.placeholder_style.size_sp))
-                .text_color(paint(a.placeholder))
-                .child(search::PLACEHOLDER),
-        )
-        .child(
-            div()
-                .w(px(search::ICON_DP))
-                .text_color(paint(a.trailing_icon))
-                .child(search::TRAILING_MIC),
-        )
-        .child(
-            div()
-                .w(px(search::AVATAR_DP))
-                .h(px(search::AVATAR_DP))
-                .rounded(px(search::AVATAR_DP / 2.0))
-                .bg(paint(a.avatar))
-                .text_color(paint(a.avatar_label))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child("A"),
-        )
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.search_open = !this.search_open;
-            cx.notify();
-        }));
+    let view = if this.search_open {
+        search::resolve_activity(theme)
+    } else {
+        search::resolve_view(theme)
+    };
+    let suggestions = search::filter_suggestions(&this.search_query);
+    let query_label = search::query_display(&this.search_query).to_string();
+    let bar = (!this.search_open).then(|| {
+        div()
+            .id("search-bar")
+            .w_full()
+            .h(px(a.bar.height_dp))
+            .px(px(a.bar.pad_start_dp))
+            .rounded(px(a.bar.corners.top_left))
+            .bg(paint(a.bar.container))
+            .flex()
+            .items_center()
+            .gap(px(search::GAP_DP))
+            .child(
+                div()
+                    .w(px(search::ICON_DP))
+                    .h(px(search::ICON_DP))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_color(paint(a.leading_icon))
+                    .child(search::LEADING_ICON),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(a.placeholder_style.size_sp))
+                    .text_color(paint(a.placeholder))
+                    .child(search::PLACEHOLDER),
+            )
+            .child(
+                div()
+                    .w(px(search::ICON_DP))
+                    .text_color(paint(a.trailing_icon))
+                    .child(search::TRAILING_MIC),
+            )
+            .child(
+                div()
+                    .w(px(search::AVATAR_DP))
+                    .h(px(search::AVATAR_DP))
+                    .rounded(px(search::AVATAR_DP / 2.0))
+                    .bg(paint(a.avatar))
+                    .text_color(paint(a.avatar_label))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child("A"),
+            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.search_open = true;
+                cx.notify();
+            }))
+            .into_any_element()
+    });
     let sheet = this.search_open.then(|| {
         div()
+            .id("search-activity")
             .w_full()
-            .mt(px(8.))
+            .min_h(px(search::ACTIVITY_MIN_H_DP))
             .rounded(px(view.corners.top_left))
             .bg(paint(view.container))
-            .shadow_md()
             .flex()
             .flex_col()
+            .tab_index(0)
+            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
+                this.search_query =
+                    search::apply_search_key(&this.search_query, &ev.keystroke.key);
+                cx.notify();
+            }))
             .child(
                 div()
                     .h(px(view.header_h_dp))
@@ -1632,19 +1667,24 @@ fn search_bar_hero(
                             .child(search::VIEW_BACK)
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.search_open = false;
+                                this.search_query.clear();
                                 cx.notify();
                             })),
                     )
                     .child(
                         div()
                             .flex_1()
-                            .text_color(paint(view.placeholder))
-                            .child(search::PLACEHOLDER),
+                            .text_color(paint(if this.search_query.is_empty() {
+                                view.placeholder
+                            } else {
+                                view.input
+                            }))
+                            .child(query_label),
                     )
                     .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC)),
             )
             .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
-            .children(search::SUGGESTIONS.iter().enumerate().map(|(i, label)| {
+            .children(suggestions.into_iter().enumerate().map(|(i, label)| {
                 div()
                     .id(SharedString::from(format!("search-sug-{i}")))
                     .h(px(view.suggestion_h_dp))
@@ -1658,7 +1698,7 @@ fn search_bar_hero(
                             .text_color(paint(view.suggestion_icon))
                             .child(if i == 0 { "⌕" } else { "◌" }),
                     )
-                    .child(*label)
+                    .child(label)
             }))
             .into_any_element()
     });
@@ -1666,7 +1706,7 @@ fn search_bar_hero(
         .w_full()
         .flex()
         .flex_col()
-        .child(bar)
+        .children(bar)
         .children(sheet)
 }
 
@@ -1693,7 +1733,15 @@ fn time_picker_hero(
             })
             .collect(),
     };
-    let dots = time_picker::hand_dots(clock, this.time_dial, this.time_hour, this.time_minute, number);
+    let quad = time_picker::hand_quad(
+        clock,
+        this.time_dial,
+        this.time_hour,
+        this.time_minute,
+        number,
+    );
+    let hub = (clock / 2.0, clock / 2.0);
+    let hand_color = paint(a.hand);
     div()
         .w_full()
         .p(px(time_picker::CONTAINER_PAD_DP))
@@ -1813,26 +1861,52 @@ fn time_picker_hero(
                 .rounded(px(clock / 2.0))
                 .bg(paint(a.clock))
                 .child(
-                    div()
-                        .absolute()
-                        .left(px(clock / 2.0 - time_picker::HAND_HUB_DP / 2.0))
-                        .top(px(clock / 2.0 - time_picker::HAND_HUB_DP / 2.0))
-                        .w(px(time_picker::HAND_HUB_DP))
-                        .h(px(time_picker::HAND_HUB_DP))
-                        .rounded(px(time_picker::HAND_HUB_DP / 2.0))
-                        .bg(paint(a.hand)),
+                    canvas(
+                        move |_, _, _| {},
+                        move |bounds, _, window, _| {
+                            let mut builder = PathBuilder::fill();
+                            for (i, (x, y)) in quad.iter().enumerate() {
+                                let p = point(
+                                    bounds.origin.x + px(*x),
+                                    bounds.origin.y + px(*y),
+                                );
+                                if i == 0 {
+                                    builder.move_to(p);
+                                } else {
+                                    builder.line_to(p);
+                                }
+                            }
+                            builder.close();
+                            if let Ok(path) = builder.build() {
+                                window.paint_path(path, hand_color);
+                            }
+                            let mut hub_b = PathBuilder::fill();
+                            let r = time_picker::HAND_HUB_DP / 2.0;
+                            let n = 12u32;
+                            for i in 0..n {
+                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                                let p = point(
+                                    bounds.origin.x + px(hub.0 + r * ang.cos()),
+                                    bounds.origin.y + px(hub.1 + r * ang.sin()),
+                                );
+                                if i == 0 {
+                                    hub_b.move_to(p);
+                                } else {
+                                    hub_b.line_to(p);
+                                }
+                            }
+                            hub_b.close();
+                            if let Ok(path) = hub_b.build() {
+                                window.paint_path(path, hand_color);
+                            }
+                        },
+                    )
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .w(px(clock))
+                    .h(px(clock)),
                 )
-                .children(dots.into_iter().enumerate().map(|(i, (x, y))| {
-                    div()
-                        .id(SharedString::from(format!("hand-dot-{i}")))
-                        .absolute()
-                        .left(px(x))
-                        .top(px(y))
-                        .w(px(time_picker::HAND_THICKNESS_DP * 2.0))
-                        .h(px(time_picker::HAND_THICKNESS_DP * 2.0))
-                        .rounded(px(time_picker::HAND_THICKNESS_DP))
-                        .bg(paint(a.hand))
-                }))
                 .children(labels.into_iter().map(|(value, label, x, y, selected)| {
                     let face = this.time_dial;
                     div()
@@ -1875,7 +1949,17 @@ fn time_picker_hero(
 }
 
 fn nav_rail_hero(theme: &Theme) -> impl IntoElement {
-    let rail = navigation_rail::resolve(theme);
+    div()
+        .flex()
+        .gap(px(24.))
+        .items_start()
+        .child(nav_rail_column(theme, navigation_rail::RailMode::Collapsed))
+        .child(nav_rail_column(theme, navigation_rail::RailMode::Expanded))
+}
+
+fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoElement {
+    let rail = navigation_rail::resolve_mode(theme, mode);
+    let expanded = mode == navigation_rail::RailMode::Expanded;
     div()
         .w(px(rail.width_dp))
         .pt(px(navigation_rail::PAD_TOP_DP))
@@ -1884,49 +1968,97 @@ fn nav_rail_hero(theme: &Theme) -> impl IntoElement {
         .flex_col()
         .items_center()
         .gap(px(navigation_rail::DEST_GAP_DP))
+        .child(
+            div()
+                .w(px(navigation_rail::FAB_SLOT_DP))
+                .h(px(navigation_rail::FAB_SLOT_DP))
+                .rounded(px(16.))
+                .bg(paint(rail.fab))
+                .text_color(paint(rail.fab_icon))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("+"),
+        )
         .children(
             navigation_rail::DESTINATIONS
                 .iter()
                 .zip(navigation_rail::DESTINATION_ICONS.iter())
+                .zip(navigation_rail::DESTINATION_BADGES.iter())
                 .enumerate()
-                .map(|(i, (label, icon))| {
+                .map(|(i, ((label, icon), badge))| {
                     let active = i == 0;
-                    div()
+                    let mut dest = div()
                         .w(px(rail.width_dp))
+                        .relative()
                         .flex()
-                        .flex_col()
-                        .items_center()
                         .gap(px(4.))
-                        .child(
+                        .items_center();
+                    dest = if expanded {
+                        dest.flex_row().justify_start().px(px(12.))
+                    } else {
+                        dest.flex_col().justify_center()
+                    };
+                    dest = dest.child(
+                        div()
+                            .w(px(navigation_rail::INDICATOR_W_DP))
+                            .h(px(navigation_rail::INDICATOR_H_DP))
+                            .rounded(px(navigation_rail::INDICATOR_H_DP / 2.0))
+                            .bg(paint(if active {
+                                rail.active_indicator
+                            } else {
+                                rail.container
+                            }))
+                            .text_color(paint(if active {
+                                rail.active_icon
+                            } else {
+                                rail.inactive_icon
+                            }))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(*icon),
+                    );
+                    dest = dest.child(
+                        div()
+                            .text_size(px(rail.label_style.size_sp))
+                            .text_color(paint(if active {
+                                rail.active_label
+                            } else {
+                                rail.inactive_label
+                            }))
+                            .child(*label),
+                    );
+                    match badge {
+                        Some(0) => dest.child(
                             div()
-                                .w(px(navigation_rail::INDICATOR_W_DP))
-                                .h(px(navigation_rail::INDICATOR_H_DP))
-                                .rounded(px(navigation_rail::INDICATOR_H_DP / 2.0))
-                                .bg(paint(if active {
-                                    rail.active_indicator
-                                } else {
-                                    rail.container
-                                }))
-                                .text_color(paint(if active {
-                                    rail.active_icon
-                                } else {
-                                    rail.inactive_icon
-                                }))
+                                .absolute()
+                                .top(px(2.))
+                                .right(px(18.))
+                                .w(px(6.))
+                                .h(px(6.))
+                                .rounded(px(3.))
+                                .bg(paint(rail.badge)),
+                        ),
+                        Some(n) => dest.child(
+                            div()
+                                .absolute()
+                                .top(px(2.))
+                                .right(px(12.))
+                                .min_w(px(16.))
+                                .h(px(16.))
+                                .px(px(4.))
+                                .rounded(px(8.))
+                                .bg(paint(rail.badge))
+                                .text_color(paint(rail.badge_label))
+                                .text_size(px(10.))
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .child(*icon),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(rail.label_style.size_sp))
-                                .text_color(paint(if active {
-                                    rail.active_label
-                                } else {
-                                    rail.inactive_label
-                                }))
-                                .child(*label),
-                        )
+                                .child(badge::label_for_count(*n)),
+                        ),
+                        None => dest,
+                    }
                 }),
         )
 }
@@ -1935,6 +2067,12 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
     let lin = progress::linear(theme, 0.6);
     let indet = progress::linear_indeterminate(theme);
     let ptr = progress::pull_to_refresh(theme);
+    let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
+    let span = indet.head_span;
+    let ind_color = paint(indet.indicator);
+    let wave_color = paint(wave.indicator);
+    let wave_w = wave.width_dp;
+    let wave_h = wave.height_dp;
     div()
         .w_full()
         .flex()
@@ -1955,18 +2093,66 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
         )
         .child(
             div()
+                .w(px(wave_w))
+                .h(px(wave_h))
+                .bg(paint(wave.track))
+                .with_animation(
+                    "wavy-progress",
+                    Animation::new(Duration::from_millis(wave.duration_ms as u64)).repeat(),
+                    move |this, delta| {
+                        this.child(
+                            canvas(
+                                move |_, _, _| {},
+                                move |bounds, _, window, _| {
+                                    let pts = progress::wave_polyline(
+                                        wave_w,
+                                        wave_h,
+                                        progress::WAVE_DEMO_PROGRESS,
+                                        delta,
+                                    );
+                                    let mut builder = PathBuilder::stroke(px(progress::WAVE_STROKE_DP));
+                                    for (i, (x, y)) in pts.iter().enumerate() {
+                                        let p = point(
+                                            bounds.origin.x + px(*x),
+                                            bounds.origin.y + px(*y),
+                                        );
+                                        if i == 0 {
+                                            builder.move_to(p);
+                                        } else {
+                                            builder.line_to(p);
+                                        }
+                                    }
+                                    if let Ok(path) = builder.build() {
+                                        window.paint_path(path, wave_color);
+                                    }
+                                },
+                            )
+                            .w(px(wave_w))
+                            .h(px(wave_h)),
+                        )
+                    },
+                ),
+        )
+        .child(
+            div()
                 .relative()
                 .w(px(240.))
                 .h(px(indet.height_dp))
                 .rounded(px(2.))
                 .bg(paint(indet.track))
-                .child(
-                    div()
-                        .absolute()
-                        .left(px(240. * 0.3))
-                        .h_full()
-                        .w(px(240. * indet.head_span))
-                        .bg(paint(indet.indicator)),
+                .with_animation(
+                    "indet-head",
+                    Animation::new(Duration::from_millis(indet.duration_ms as u64)).repeat(),
+                    move |this, delta| {
+                        this.child(
+                            div()
+                                .absolute()
+                                .left(px(-80.0 + delta * 320.0))
+                                .h_full()
+                                .w(px(240.0 * span))
+                                .bg(ind_color),
+                        )
+                    },
                 ),
         )
         .child(
@@ -1999,6 +2185,33 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                     paint(theme.color.on_surface_variant),
                 )),
         )
+}
+
+fn carousel_hero(theme: &Theme) -> impl IntoElement {
+    let a = carousel::resolve(theme);
+    div()
+        .w_full()
+        .flex()
+        .gap(px(a.gap_dp))
+        .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
+            let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
+            let (bg, fg) = if i == carousel::DEMO_INDEX {
+                (a.container, a.label)
+            } else {
+                (a.neighbor, theme.color.on_secondary_container)
+            };
+            div()
+                .w(px(w))
+                .h(px(a.height_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(bg))
+                .p(px(16.))
+                .flex()
+                .items_end()
+                .text_color(paint(fg))
+                .font_weight(type_weight(a.label_style))
+                .child(*label)
+        }))
 }
 
 fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
@@ -2041,42 +2254,6 @@ fn spaced_line(text: impl AsRef<str>, size: f32, color: gpui::Rgba) -> gpui::Any
     row.into_any_element()
 }
 
-fn notch_corner(
-    tl: bool,
-    tr: bool,
-    br: bool,
-    bl: bool,
-    frame: text_field::NotchFrame,
-    outline: gpui_material::Argb,
-    fill: gpui_material::Argb,
-) -> impl IntoElement {
-    let r = frame.radius_dp;
-    let s = frame.stroke_dp;
-    let inner = frame.inner_radius_dp();
-    let inner_sz = (r - s).max(0.0);
-    let mut tile = div().w(px(r)).h(px(r)).bg(paint(outline));
-    if tl {
-        tile = tile.rounded_tl(px(r)).pt(px(s)).pl(px(s));
-    } else if tr {
-        tile = tile.rounded_tr(px(r)).pt(px(s)).pr(px(s));
-    } else if bl {
-        tile = tile.rounded_bl(px(r)).pb(px(s)).pl(px(s));
-    } else if br {
-        tile = tile.rounded_br(px(r)).pb(px(s)).pr(px(s));
-    }
-    let mut hole = div().w(px(inner_sz)).h(px(inner_sz)).bg(paint(fill));
-    if tl {
-        hole = hole.rounded_tl(px(inner));
-    } else if tr {
-        hole = hole.rounded_tr(px(inner));
-    } else if bl {
-        hole = hole.rounded_bl(px(inner));
-    } else if br {
-        hole = hole.rounded_br(px(inner));
-    }
-    tile.child(hole)
-}
-
 fn outlined_notched_field(
     id: &'static str,
     field: &text_field::TextFieldAppearance,
@@ -2086,87 +2263,102 @@ fn outlined_notched_field(
 ) -> impl IntoElement {
     let outline = field.field.outline.unwrap_or((field.label, 1.0));
     let frame = text_field::notch_frame(label.as_ref(), field);
-    let stroke = frame.stroke_dp;
-    let radius = frame.radius_dp;
     let fill = field.field.container;
-    let middle_h = frame.middle_h_dp();
-    let gap_h = frame.notch_gap_h_dp();
+    let cut = field.cutout_fill;
     let (lx, ly) = frame.label_origin_dp();
+    let stroke_color = paint(outline.0);
+    let stroke_w = frame.stroke_dp;
+    let verbs = frame.outline_verbs(280.0);
+    let h = field.field.height_dp;
+    let radius = frame.radius_dp;
     div()
         .id(id)
         .relative()
-        .flex()
-        .flex_col()
         .w_full()
+        .h(px(h))
         .on_click(on_click)
         .child(
             div()
-                .flex()
-                .flex_row()
-                .items_start()
-                .h(px(radius))
-                .child(notch_corner(true, false, false, false, frame, outline.0, fill))
-                .child(
-                    div()
-                        .w(px(frame.top_lead_dp()))
-                        .h(px(radius))
-                        .flex()
-                        .flex_col()
-                        .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
-                )
-                .child(
-                    div()
-                        .w(px(frame.width_dp))
-                        .h(px(gap_h))
-                        .bg(paint(fill)),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .h(px(radius))
-                        .flex()
-                        .flex_col()
-                        .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
-                )
-                .child(notch_corner(false, true, false, false, frame, outline.0, fill)),
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .rounded(px(radius))
+                .bg(paint(fill)),
+        )
+        .child(
+            canvas(
+                move |_, _, _| {},
+                move |bounds, _, window, _| {
+                    let w = f32::from(bounds.size.width);
+                    let verbs = if (w - 280.0).abs() > 1.0 {
+                        text_field::NotchFrame {
+                            start_dp: frame.start_dp,
+                            width_dp: frame.width_dp,
+                            stroke_dp: frame.stroke_dp,
+                            radius_dp: frame.radius_dp,
+                            label_h_dp: frame.label_h_dp,
+                            field_h_dp: frame.field_h_dp,
+                        }
+                        .outline_verbs(w)
+                    } else {
+                        verbs.clone()
+                    };
+                    let mut builder = PathBuilder::stroke(px(stroke_w));
+                    for v in verbs {
+                        match v {
+                            text_field::OutlineVerb::Move(x, y) => {
+                                builder.move_to(point(
+                                    bounds.origin.x + px(x),
+                                    bounds.origin.y + px(y),
+                                ));
+                            }
+                            text_field::OutlineVerb::Line(x, y) => {
+                                builder.line_to(point(
+                                    bounds.origin.x + px(x),
+                                    bounds.origin.y + px(y),
+                                ));
+                            }
+                            text_field::OutlineVerb::Arc {
+                                to_x,
+                                to_y,
+                                radius,
+                            } => {
+                                builder.arc_to(
+                                    point(px(radius), px(radius)),
+                                    px(0.),
+                                    false,
+                                    true,
+                                    point(bounds.origin.x + px(to_x), bounds.origin.y + px(to_y)),
+                                );
+                            }
+                        }
+                    }
+                    if let Ok(path) = builder.build() {
+                        window.paint_path(path, stroke_color);
+                    }
+                },
+            )
+            .absolute()
+            .top(px(0.))
+            .left(px(0.))
+            .size_full(),
         )
         .child(
             div()
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .px(px(16.))
                 .flex()
-                .flex_row()
-                .h(px(middle_h))
-                .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0)))
+                .items_center()
                 .child(
                     div()
-                        .flex_1()
-                        .h(px(middle_h))
-                        .px(px(16.))
-                        .flex()
-                        .items_center()
-                        .bg(paint(fill))
-                        .child(
-                            div()
-                                .text_size(px(field.input_style.size_sp))
-                                .text_color(paint(field.input))
-                                .child(value),
-                        ),
-                )
-                .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0))),
-        )
-        .child(
-            div()
-                .flex()
-                .flex_row()
-                .items_end()
-                .h(px(radius))
-                .child(notch_corner(false, false, false, true, frame, outline.0, fill))
-                .child(
-                    div()
-                        .flex_1()
-                        .h(px(stroke))
-                        .bg(paint(outline.0)),
-                )
-                .child(notch_corner(false, false, true, false, frame, outline.0, fill)),
+                        .text_size(px(field.input_style.size_sp))
+                        .text_color(paint(field.input))
+                        .child(value),
+                ),
         )
         .child(
             div()
@@ -2178,7 +2370,7 @@ fn outlined_notched_field(
                 .flex()
                 .items_center()
                 .justify_center()
-                .bg(paint(fill))
+                .bg(paint(cut))
                 .child(
                     div()
                         .text_size(px(field.label_style.size_sp))
@@ -2343,8 +2535,10 @@ fn main() {
                     range_drag: None,
                     range_focus: slider::RangeThumb::Start,
                     range_moved: false,
+                    range_hit: Rc::new(Cell::new((0.0, slider::RANGE_TRACK_W_DP))),
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
+                    search_query: String::new(),
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
                     time_period: time_picker::DEMO_PERIOD,
@@ -2360,7 +2554,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use gpui_material::components::{
-        button, button_group, dialog, search, slider, text_field, time_picker,
+                button, button_group, carousel, dialog, search, slider, text_field, time_picker,
     };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
@@ -2438,5 +2632,9 @@ mod tests {
         assert_eq!(frame.stroke_dp, 2.0);
         assert_eq!(frame.top_lead_dp(), 4.0);
         assert_eq!(frame.notch_gap_h_dp(), 2.0);
+        assert!(frame.outline_svg_d(280.0).starts_with('M'));
+        assert_eq!(carousel::LARGE_W_DP, 256.0);
+        assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
+        assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);
     }
 }

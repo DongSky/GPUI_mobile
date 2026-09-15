@@ -1,7 +1,7 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
     fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
     tabs, text_field, time_picker, top_app_bar,
 };
@@ -60,6 +60,7 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&date_pickers(theme));
     body.push_str(&search_section(theme));
     body.push_str(&time_picker_section(theme));
+    body.push_str(&carousel_section(theme));
     body.push_str(&motion_section(theme));
 
     format!(
@@ -161,6 +162,14 @@ a {{ color: var(--primary); }}
 .search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
 .search-view {{
   display: flex; flex-direction: column; max-width: 720px; overflow: hidden;
+  transition: border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.search-view[data-search-activity="1"] {{
+  border-radius: 0; max-width: none; min-height: 320px;
+}}
+.search-view input {{
+  border: none; outline: none; background: transparent; flex: 1;
+  font: 400 16px/24px Roboto, sans-serif; color: inherit;
 }}
 .search-view .sv-head {{
   display: flex; align-items: center; gap: 16px; padding: 0 16px;
@@ -186,10 +195,9 @@ a {{ color: var(--primary); }}
   position: absolute; display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
 }}
-.timepicker .hand {{
-  position: absolute; left: 50%; top: 50%; width: 2px; height: 38%;
-  margin-left: -1px; margin-top: -38%;
-  transform-origin: 50% 100%; border-radius: 1px; pointer-events: none;
+.timepicker .hand-svg {{
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  transform-origin: 50% 50%;
 }}
 .timepicker .hub {{
   position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
@@ -306,10 +314,36 @@ a {{ color: var(--primary); }}
 .nav .ind {{ width: 64px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
 .nav-rail {{
   width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
-  padding: 16px 0; border-radius: 0;
+  padding: 16px 0; border-radius: 0; position: relative;
 }}
-.nav-rail .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; width: 80px; }}
+.nav-rail .dest {{ display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; width: 80px; position: relative; }}
 .nav-rail .ind {{ width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }}
+.nav-rail .fab-slot {{
+  width: 56px; height: 56px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}}
+.nav-rail .dot {{
+  position: absolute; top: 2px; right: 18px; min-width: 16px; height: 16px;
+  border-radius: 8px; font-size: 10px; display: flex; align-items: center; justify-content: center;
+}}
+.nav-rail .dot.small {{ width: 6px; height: 6px; min-width: 6px; right: 22px; top: 6px; }}
+.nav-rail.expanded {{ width: 220px; align-items: stretch; }}
+.nav-rail.expanded .dest {{
+  width: auto; flex-direction: row; justify-content: flex-start;
+  padding: 0 12px; gap: 8px;
+}}
+.carousel {{ display: flex; gap: 8px; overflow: hidden; max-width: 720px; }}
+.carousel .tile {{
+  height: 168px; border-radius: 28px; display: flex; align-items: flex-end;
+  padding: 16px; font-weight: 700; flex: 0 0 auto;
+}}
+.wave {{ width: 240px; height: 16px; overflow: hidden; margin: 12px 0; }}
+.wave svg {{ display: block; width: 240px; height: 16px; }}
+.wave .wave-path {{ animation: m3wave 1200ms linear infinite; }}
+@keyframes m3wave {{
+  from {{ transform: translateX(0); }}
+  to {{ transform: translateX(-20px); }}
+}}
 .month-nav {{ display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; font-weight: 500; }}
 .month-nav button {{ border: none; background: transparent; cursor: pointer; font-size: 18px; padding: 4px 8px; color: inherit; }}
 table.inv {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
@@ -535,7 +569,7 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
     var hour = parseInt(picker.getAttribute("data-hour") || "6", 10);
     var minute = parseInt(picker.getAttribute("data-minute") || "30", 10);
     var deg = face === "minute" ? minute * 6 : hour * 30 + minute * 0.5;
-    var hand = picker.querySelector(".hand");
+    var hand = picker.querySelector(".hand-svg");
     if (hand) hand.style.transform = "rotate(" + deg + "deg)";
     picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
       el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
@@ -585,6 +619,61 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
     setOpen(dock.getAttribute("data-popup") !== "open");
   }});
   if (cal) cal.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
+  function daysInMonth(y, m) {{
+    return [31, ((y%4===0 && y%100!==0)||y%400===0)?29:28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m-1];
+  }}
+  function weekdaySunday0(y, m, d) {{
+    var t = [0,3,2,5,0,3,5,1,4,6,2,4];
+    var yy = y;
+    if (m < 3) yy -= 1;
+    return (yy + Math.floor(yy/4) - Math.floor(yy/100) + Math.floor(yy/400) + t[m-1] + d) % 7;
+  }}
+  function monthGrid(y, m) {{
+    var first = weekdaySunday0(y, m, 1);
+    var dim = daysInMonth(y, m);
+    var pm = m === 1 ? 12 : m - 1;
+    var py = m === 1 ? y - 1 : y;
+    var pdim = daysInMonth(py, pm);
+    var cells = [];
+    for (var i = 0; i < first; i++) cells.push([pdim - first + 1 + i, "OutOfMonth"]);
+    for (var d = 1; d <= dim; d++) cells.push([d, "InMonth"]);
+    while (cells.length < 42) cells.push([cells.length - first - dim + 1, "OutOfMonth"]);
+    return cells;
+  }}
+  function classify(y, m, day, kind) {{
+    var sy = parseInt(dock.getAttribute("data-selected-year") || "2026", 10);
+    var sm = parseInt(dock.getAttribute("data-selected-month") || "9", 10);
+    var sd = parseInt(dock.getAttribute("data-selected-day") || "15", 10);
+    var ty = parseInt(dock.getAttribute("data-today-year") || "2026", 10);
+    var tm = parseInt(dock.getAttribute("data-today-month") || "9", 10);
+    var td = parseInt(dock.getAttribute("data-today-day") || "11", 10);
+    if (kind !== "InMonth") return kind;
+    if (y === sy && m === sm && day === sd) return "Selected";
+    if (y === ty && m === tm && day === td) return "Today";
+    return "InMonth";
+  }}
+  function paintDockedGrid(y, m) {{
+    var grid = dock.querySelector("[data-docked-grid]");
+    if (!grid) return;
+    var selBg = dock.getAttribute("data-day-sel-bg") || "#6750A4";
+    var selFg = dock.getAttribute("data-day-sel-fg") || "#fff";
+    var todayBd = dock.getAttribute("data-day-today") || "#6750A4";
+    var inFg = dock.getAttribute("data-day-in") || "#1C1B1F";
+    var outFg = dock.getAttribute("data-day-out") || "#9a9a9a";
+    var html = "";
+    monthGrid(y, m).forEach(function (cell) {{
+      var day = cell[0];
+      var kind = classify(y, m, day, cell[1]);
+      var bg = "transparent", fg = inFg, outline = "none", radius = "20px";
+      if (kind === "Selected") {{ bg = selBg; fg = selFg; }}
+      else if (kind === "Today") {{ outline = "1px solid " + todayBd; }}
+      else if (kind === "OutOfMonth") {{ fg = outFg; }}
+      html += '<div class="day" data-day="'+day+'" data-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+outline+';border-radius:'+radius+'">'+day+'</div>';
+    }});
+    grid.innerHTML = html;
+    dock.setAttribute("data-year", String(y));
+    dock.setAttribute("data-month", String(m));
+  }}
   dock.querySelectorAll("[data-docked-month]").forEach(function (btn) {{
     btn.addEventListener("click", function (ev) {{
       ev.stopPropagation();
@@ -592,14 +681,13 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
       if (!label) return;
       var delta = parseInt(btn.getAttribute("data-docked-month") || "0", 10);
       var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-      var parts = (label.textContent || "September 2026").replace(" ▾","").split(" ");
-      var mi = months.indexOf(parts[0]);
-      var year = parseInt(parts[1] || "2026", 10);
-      if (mi < 0) mi = 8;
+      var year = parseInt(dock.getAttribute("data-year") || "2026", 10);
+      var mi = parseInt(dock.getAttribute("data-month") || "9", 10) - 1;
       mi += delta;
       while (mi < 0) {{ mi += 12; year -= 1; }}
       while (mi > 11) {{ mi -= 12; year += 1; }}
       label.textContent = months[mi] + " " + year + " ▾";
+      paintDockedGrid(year, mi + 1);
     }});
   }});
   document.addEventListener("click", function () {{
@@ -613,8 +701,22 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
     if (!view) return;
     var open = view.getAttribute("data-open") !== "1";
     view.setAttribute("data-open", open ? "1" : "0");
+    view.setAttribute("data-search-activity", open ? "1" : "0");
     view.style.display = open ? "flex" : "none";
+    bar.setAttribute("data-hidden", open ? "1" : "0");
   }});
+}});
+document.querySelectorAll("[data-search-input]").forEach(function (input) {{
+  input.addEventListener("input", function () {{
+    var view = input.closest("[data-search-view]");
+    if (!view) return;
+    var q = (input.value || "").trim().toLowerCase();
+    view.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
+      var label = (row.getAttribute("data-search-suggestion") || "").toLowerCase();
+      row.style.display = !q || label.indexOf(q) >= 0 ? "flex" : "none";
+    }});
+  }});
+  input.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
 }});
 </script>
 </body>
@@ -1149,8 +1251,10 @@ fn paint_outlined_field(
         .map(|(c, w)| (c.css_hex(), w))
         .unwrap_or_else(|| ("transparent".into(), 1.0));
     if a.notched {
+        let frame = text_field::notch_frame(label, a);
+        let d = frame.outline_svg_d(280.0);
         format!(
-            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
+            r#"<fieldset class="ol" data-notched="1" data-notch="cutout" data-notch-path="{d}" {attrs} style="border:{ow}px solid {oc};border-radius:{r}px;color:{inp}">
   <legend style="color:{lab};padding:0 {pad}px">{label}</legend>
   {inner_html}
 </fieldset>"#,
@@ -1158,6 +1262,7 @@ fn paint_outlined_field(
             inp = a.input.css_hex(),
             lab = a.label.css_hex(),
             pad = text_field::NOTCH_PAD_DP,
+            d = d,
         )
     } else {
         format!(
@@ -1485,24 +1590,45 @@ fn chrome(theme: &Theme) -> String {
     let nav = navigation_bar::resolve(theme);
     let rail = navigation_rail::resolve(theme);
     let mut rail_dests = String::new();
-    for (i, (label, icon)) in navigation_rail::DESTINATIONS
+    for (i, ((label, icon), badge)) in navigation_rail::DESTINATIONS
         .iter()
         .zip(navigation_rail::DESTINATION_ICONS.iter())
+        .zip(navigation_rail::DESTINATION_BADGES.iter())
         .enumerate()
     {
+        let badge_html = match badge {
+            Some(0) => format!(
+                r#"<span class="dot small" style="background:{bg}"></span>"#,
+                bg = rail.badge.css_hex()
+            ),
+            Some(n) => format!(
+                r#"<span class="dot" style="background:{bg};color:{fg}">{n}</span>"#,
+                bg = rail.badge.css_hex(),
+                fg = rail.badge_label.css_hex(),
+            ),
+            None => String::new(),
+        };
         if i == 0 {
             rail_dests.push_str(&format!(
-                r#"<div class="dest" style="color:{fg}"><div class="ind" style="background:{ind}">{icon}</div>{label}</div>"#,
+                r#"<div class="dest" style="color:{fg}"><div class="ind" style="background:{ind}">{icon}</div>{label}{badge}</div>"#,
                 fg = rail.active_label.css_hex(),
                 ind = rail.active_indicator.css_hex(),
+                badge = badge_html,
             ));
         } else {
             rail_dests.push_str(&format!(
-                r#"<div class="dest" style="color:{fg}">{icon}<span>{label}</span></div>"#,
+                r#"<div class="dest" style="color:{fg}"><div class="ind">{icon}{badge}</div><span>{label}</span></div>"#,
                 fg = rail.inactive_label.css_hex(),
+                badge = badge_html,
             ));
         }
     }
+    let fab = format!(
+        r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">+</div>"#,
+        bg = rail.fab.css_hex(),
+        fg = rail.fab_icon.css_hex(),
+    );
+    let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
     format!(
         r#"<h2>Snackbar</h2>
 <div class="snack" data-snackbar="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
@@ -1516,8 +1642,11 @@ fn chrome(theme: &Theme) -> String {
   <div class="dest" style="color:{nin}">○<span>Profile</span></div>
 </div>
 <h2>Navigation rail</h2>
-<p class="note">80dp vertical destinations, 56×32 active indicator. Catalog stub — no collapsed/expanded modal. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
-<div class="nav-rail" data-nav-rail="1" data-hero="nav-rail" style="background:{rbg}">{rail_dests}</div>"#,
+<p class="note">Collapsed 80dp plus expanded 220dp modal with FAB slot and destination badges. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<div style="display:flex;gap:24px;align-items:flex-start">
+  <div class="nav-rail" data-nav-rail="1" data-hero="nav-rail" data-rail-mode="collapsed" style="background:{rbg}">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail-expanded="1" data-rail-mode="expanded" style="background:{ebg};width:{ew}px">{fab}{rail_dests}</div>
+</div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
         sr = snack.corners.top_left,
@@ -1527,7 +1656,10 @@ fn chrome(theme: &Theme) -> String {
         ind = nav.active_indicator.css_hex(),
         nin = nav.inactive_label.css_hex(),
         rbg = rail.container.css_hex(),
+        ebg = expanded.container.css_hex(),
+        ew = expanded.width_dp,
         rail_dests = rail_dests,
+        fab = fab,
     )
 }
 
@@ -1537,11 +1669,19 @@ fn progress_section(theme: &Theme) -> String {
     let indet = progress::linear_indeterminate(theme);
     let circ_i = progress::circular_indeterminate(theme);
     let ptr = progress::pull_to_refresh(theme);
+    let wave = progress::wavy(theme, progress::WAVE_DEMO_PROGRESS);
+    let wave_d = progress::wave_svg_d(wave.width_dp, wave.height_dp, wave.progress, 0.0);
     format!(
         r#"<h2>Progress</h2>
-<p class="note">Determinate plus indeterminate / pull-to-refresh. HTML animates with spatial/effects springs; GPUI paints a static busy frame. <a href="https://m3.material.io/components/progress-indicators/specs">spec</a></p>
+<p class="note">Determinate, wavy determinate, indeterminate / pull-to-refresh. HTML CSS + GPUI Animation clock. <a href="https://m3.material.io/components/progress-indicators/specs">spec</a></p>
 <div class="linear" data-progress="linear" style="background:{track}"><i style="width:{p}%;background:{ind}"></i></div>
 <div class="circ" data-progress="circular" style="background:conic-gradient({cind} {ang}deg, {ctrack} 0deg)"></div>
+<div class="wave" data-progress="wavy" data-hero="progress-wavy">
+  <svg viewBox="0 0 {ww} {wh}" width="{ww}" height="{wh}" aria-hidden="true">
+    <path d="M0,{mid} H{ww}" stroke="{wtrack}" stroke-width="{wsw}" fill="none"/>
+    <path class="wave-path" d="{wd}" stroke="{wind}" stroke-width="{wsw}" fill="none" stroke-linecap="round"/>
+  </svg>
+</div>
 <h3>indeterminate</h3>
 <div class="linear indet" data-progress="indeterminate" data-hero="progress-indet" style="background:{itrack};margin:12px 0"><i style="width:{span}%;background:{iind}"></i></div>
 <div class="circ indet" data-progress="circular-indet" style="background:conic-gradient({ciind} {arc}deg, {citrack} 0deg)"></div>
@@ -1567,6 +1707,13 @@ fn progress_section(theme: &Theme) -> String {
         parc = ptr.arc_deg,
         ptrack = ptr.track.css_hex(),
         plabel = progress::PTR_LABEL,
+        ww = wave.width_dp,
+        wh = wave.height_dp,
+        mid = wave.height_dp / 2.0,
+        wtrack = wave.track.css_hex(),
+        wind = wave.indicator.css_hex(),
+        wsw = wave.stroke_dp,
+        wd = wave_d,
     )
 }
 
@@ -1991,7 +2138,7 @@ fn date_pickers(theme: &Theme) -> String {
     <button class="btn" style="background:transparent;color:{act}">OK</button>
   </div>
 </div>
-<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1">
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1" data-year="2026" data-month="9" data-selected-year="2026" data-selected-month="9" data-selected-day="15" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}">
   {docked_field}
   <div class="cal dialog" data-datepicker-popup="open" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
     <div class="month-nav">
@@ -2000,7 +2147,7 @@ fn date_pickers(theme: &Theme) -> String {
       <button type="button" data-docked-month="1" aria-label="Next month">&gt;</button>
     </div>
     <div class="week">{week}</div>
-    <div class="grid">{grid}</div>
+    <div class="grid" data-docked-grid="1">{grid}</div>
   </div>
 </div>"#,
         bg = a.container.css_hex(),
@@ -2023,6 +2170,11 @@ fn date_pickers(theme: &Theme) -> String {
             date_picker::RANGE_DEMO_START.month
         ),
         act = theme.color.primary.css_hex(),
+        selbg = a.day_selected_container.css_hex(),
+        selfg = a.day_selected.css_hex(),
+        todaybd = a.day_today_outline.css_hex(),
+        infg = a.day.css_hex(),
+        outfg = a.day_out.css_hex(),
         docked_field = paint_outlined_field(
             &text_field::resolve(
                 theme,
@@ -2042,7 +2194,7 @@ fn date_pickers(theme: &Theme) -> String {
 
 fn search_section(theme: &Theme) -> String {
     let a = search::resolve(theme);
-    let view = search::resolve_view(theme);
+    let view = search::resolve_activity(theme);
     let mut rows = String::new();
     for (i, label) in search::SUGGESTIONS.iter().enumerate() {
         rows.push_str(&format!(
@@ -2055,17 +2207,17 @@ fn search_section(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Search</h2>
-<p class="note">Docked 56dp full-round bar plus expanded search view/sheet (back, input, suggestions). Tap the bar to toggle. <a href="https://m3.material.io/components/search/specs">spec</a></p>
+<p class="note">Docked 56dp full-round bar morphs into a full-screen search activity (0dp corners, surface). Type to filter suggestions. <a href="https://m3.material.io/components/search/specs">spec</a></p>
 <div class="search-bar" data-search="1" data-hero="search" style="background:{bg};color:{hint};height:{h}px;border-radius:{r}px">
   <div class="ico" aria-hidden="true" style="color:{lead}">{lead_ico}</div>
   <div class="hint">{placeholder}</div>
   <div class="ico" aria-hidden="true">{mic}</div>
   <div class="avatar" style="background:{abg};color:{afg}">A</div>
 </div>
-<div class="search-view" data-search-view="1" data-open="1" data-hero="search-view" style="background:{vbg};border-radius:{vr}px;box-shadow:{vsh};margin-top:12px">
+<div class="search-view" data-search-view="1" data-search-activity="1" data-open="1" data-hero="search-view" style="background:{vbg};border-radius:{vr}px;box-shadow:{vsh};margin-top:12px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="ico" aria-hidden="true">{back}</div>
-    <div class="hint" style="flex:1;color:{vph}">{placeholder}</div>
+    <input class="hint" data-search-input="1" placeholder="{placeholder}" style="color:{vph}"/>
     <div class="ico">{mic}</div>
   </div>
   <div style="height:1px;background:{vdiv}"></div>
@@ -2158,10 +2310,12 @@ fn time_picker_section(theme: &Theme) -> String {
     } else {
         (a.period_idle_container.css_hex(), a.period_idle.css_hex())
     };
-    let hand_deg = time_picker::hand_angle_deg(
+    let hand_d = time_picker::hand_svg_d(
+        a.clock_dp,
         time_picker::DEMO_DIAL,
         time_picker::DEMO_HOUR,
         time_picker::DEMO_MINUTE,
+        a.number_dp,
     );
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
     format!(
@@ -2181,7 +2335,9 @@ fn time_picker_section(theme: &Theme) -> String {
     </div>
   </div>
   <div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
-    <div class="hand" style="background:{hand};transform:rotate({deg}deg)"></div>
+    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
+      <path d="{handd}" fill="{hand}"/>
+    </svg>
     <div class="hub" style="background:{hand}"></div>
     {hours}{minutes}
   </div>
@@ -2213,17 +2369,45 @@ fn time_picker_section(theme: &Theme) -> String {
         hours = hours,
         minutes = minutes,
         hand = a.hand.css_hex(),
-        deg = hand_deg,
+        handd = hand_d,
     )
 }
 
 fn motion_section(theme: &Theme) -> String {
     format!(
         r#"<h2>Motion</h2>
-<p class="note">Expressive spatial <code>{ease}</code> ({sd}ms) + effects springs. Button / connected-group press morph uses the same CSS transition. GPUI has no shared animation clock.</p>
+<p class="note">Expressive spatial <code>{ease}</code> ({sd}ms) + effects springs. Button / connected-group press morph uses the same CSS transition. GPUI Animation clock drives indeterminate + wavy progress.</p>
 <div class="motion-box" data-motion="emphasized" style="background:{p}"></div>"#,
         ease = theme.motion.spatial_fast,
         sd = theme.motion.spatial_fast_ms,
         p = theme.color.primary.css_hex(),
+    )
+}
+
+fn carousel_section(theme: &Theme) -> String {
+    let a = carousel::resolve(theme);
+    let mut tiles = String::new();
+    for (i, label) in carousel::ITEMS.iter().enumerate() {
+        let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
+        let bg = if i == carousel::DEMO_INDEX {
+            a.container.css_hex()
+        } else {
+            a.neighbor.css_hex()
+        };
+        let fg = if i == carousel::DEMO_INDEX {
+            a.label.css_hex()
+        } else {
+            theme.color.on_secondary_container.css_hex()
+        };
+        tiles.push_str(&format!(
+            r#"<div class="tile" data-carousel-item="{i}" style="width:{w}px;background:{bg};color:{fg};border-radius:{r}px">{label}</div>"#,
+            r = a.corners.top_left,
+        ));
+    }
+    format!(
+        r#"<h2>Carousel</h2>
+<p class="note">Hero large item (256dp) plus smaller neighbors (120dp), extra-large 28dp corners. Catalog stub — no snap physics. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
+<div class="carousel" data-carousel="1" data-hero="carousel">{tiles}</div>"#,
+        tiles = tiles,
     )
 }

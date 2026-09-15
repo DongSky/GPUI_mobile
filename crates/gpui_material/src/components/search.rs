@@ -26,6 +26,9 @@ pub const SUGGESTION_H_DP: f32 = 56.0;
 pub const SUGGESTIONS: [&str; 4] = ["App", "Shortcut", "Recent search", "Setting"];
 /// Catalog starts expanded so Visual QA can see the sheet without a tap.
 pub const VIEW_OPEN_BY_DEFAULT: bool = true;
+/// Expanded view uses 0dp corners + surface (full-screen search activity).
+pub const ACTIVITY_CORNER_DP: f32 = 0.0;
+pub const ACTIVITY_MIN_H_DP: f32 = 320.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchAppearance {
@@ -100,5 +103,52 @@ pub fn resolve_view(theme: &Theme) -> SearchViewAppearance {
         suggestion_h_dp: SUGGESTION_H_DP,
         title_style: theme.typography.body_large,
         suggestion_style: theme.typography.body_large,
+    }
+}
+
+pub fn resolve_activity(theme: &Theme) -> SearchViewAppearance {
+    let mut a = resolve_view(theme);
+    a.container = theme.color.surface;
+    a.corners = crate::shape::Corners::all(ACTIVITY_CORNER_DP);
+    a.elevation_dp = 0.0;
+    a
+}
+
+pub fn filter_suggestions(query: &str) -> Vec<&'static str> {
+    let q = query.trim().to_ascii_lowercase();
+    if q.is_empty() {
+        SUGGESTIONS.to_vec()
+    } else {
+        SUGGESTIONS
+            .iter()
+            .copied()
+            .filter(|s| s.to_ascii_lowercase().contains(&q))
+            .collect()
+    }
+}
+
+pub fn apply_search_key(query: &str, key: &str) -> String {
+    let mut chars: Vec<char> = query.chars().collect();
+    match key {
+        "backspace" | "delete" => {
+            chars.pop();
+        }
+        "space" => chars.push(' '),
+        k if k.len() == 1 => {
+            let ch = k.chars().next().unwrap();
+            if !ch.is_control() {
+                chars.push(ch);
+            }
+        }
+        _ => {}
+    }
+    chars.into_iter().collect()
+}
+
+pub fn query_display(query: &str) -> &str {
+    if query.is_empty() {
+        PLACEHOLDER
+    } else {
+        query
     }
 }

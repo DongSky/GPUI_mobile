@@ -103,3 +103,63 @@ pub fn pull_to_refresh(theme: &Theme) -> IndeterminateCircular {
     a.stroke_dp = PTR_STROKE_DP;
     a
 }
+
+pub const WAVE_AMPLITUDE_DP: f32 = 3.0;
+pub const WAVE_WAVELENGTH_DP: f32 = 20.0;
+pub const WAVE_POINTS: usize = 48;
+pub const WAVE_STROKE_DP: f32 = 4.0;
+pub const WAVE_HEIGHT_DP: f32 = 16.0;
+pub const WAVE_WIDTH_DP: f32 = 240.0;
+pub const WAVE_DEMO_PROGRESS: f32 = 0.6;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WavyProgress {
+    pub width_dp: f32,
+    pub height_dp: f32,
+    pub stroke_dp: f32,
+    pub track: Argb,
+    pub indicator: Argb,
+    pub progress: f32,
+    pub duration_ms: u16,
+}
+
+pub fn wavy(theme: &Theme, progress: f32) -> WavyProgress {
+    WavyProgress {
+        width_dp: WAVE_WIDTH_DP,
+        height_dp: WAVE_HEIGHT_DP,
+        stroke_dp: WAVE_STROKE_DP,
+        track: theme.color.secondary_container,
+        indicator: theme.color.primary,
+        progress: progress.clamp(0.0, 1.0),
+        duration_ms: theme.motion.effects_default_ms.saturating_mul(6),
+    }
+}
+
+/// Sine-wave polyline for the determinate wavy indicator (`phase` in 0..=1).
+pub fn wave_polyline(width: f32, height: f32, progress: f32, phase: f32) -> Vec<(f32, f32)> {
+    let usable = (width * progress.clamp(0.0, 1.0)).max(1.0);
+    let n = WAVE_POINTS.max(2);
+    (0..=n)
+        .map(|i| {
+            let t = i as f32 / n as f32;
+            let x = t * usable;
+            let y = height / 2.0
+                + WAVE_AMPLITUDE_DP
+                    * (std::f32::consts::TAU * (x / WAVE_WAVELENGTH_DP + phase)).sin();
+            (x, y)
+        })
+        .collect()
+}
+
+pub fn wave_svg_d(width: f32, height: f32, progress: f32, phase: f32) -> String {
+    let pts = wave_polyline(width, height, progress, phase);
+    let mut d = String::new();
+    for (i, (x, y)) in pts.iter().enumerate() {
+        if i == 0 {
+            d.push_str(&format!("M{x:.2},{y:.2}"));
+        } else {
+            d.push_str(&format!(" L{x:.2},{y:.2}"));
+        }
+    }
+    d
+}

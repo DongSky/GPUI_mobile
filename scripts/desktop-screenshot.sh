@@ -138,20 +138,21 @@ if grep -q "Failed to create surface" "$LOG" 2>/dev/null; then
 fi
 
 sleep 1
-# Catalog window is ~720×880. Grab the DISPLAY root as a stand-in if we cannot
-# locate the window geometry.
-GEOM="720x880+0+0"
+# Catalog window is ~720×880. ffmpeg x11grab wants DISPLAY+X,Y (e.g. :1+1200,85).
+GEOM="720x880"
+GRAB="${DISPLAY}+0,0"
 if command -v xdotool >/dev/null 2>&1; then
   WID=$(timeout 2 xdotool search --name "Material 3 desktop" | head -n1 || true)
   if [ -n "${WID:-}" ]; then
     eval "$(timeout 2 xdotool getwindowgeometry --shell "$WID" 2>/dev/null || true)"
     if [ -n "${WIDTH:-}" ] && [ -n "${HEIGHT:-}" ]; then
-      GEOM="${WIDTH}x${HEIGHT}+${X}+${Y}"
+      GEOM="${WIDTH}x${HEIGHT}"
+      GRAB="${DISPLAY}+${X:-0},${Y:-0}"
     fi
   fi
 fi
 
-timeout 8 ffmpeg -y -f x11grab -video_size "${GEOM%%+*}" -i "${DISPLAY}${GEOM#*+}" \
+timeout 8 ffmpeg -y -f x11grab -video_size "$GEOM" -i "$GRAB" \
   -frames:v 1 -update 1 "$OUT" >/dev/null 2>&1 || \
 timeout 8 ffmpeg -y -f x11grab -i "$DISPLAY" -frames:v 1 -update 1 "$OUT" >/dev/null 2>&1
 

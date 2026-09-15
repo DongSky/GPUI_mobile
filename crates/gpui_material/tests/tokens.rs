@@ -1,7 +1,7 @@
 //! Golden tests against androidx Material 3 token values (v0_210 palette / type scale).
 
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, card, checkbox, chip, date_picker, dialog, divider,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
     fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
     tabs, text_field, time_picker, top_app_bar,
 };
@@ -284,6 +284,9 @@ fn text_field_metrics_and_error_focus() {
     assert_eq!(frame.top_lead_dp(), 4.0);
     assert_eq!(frame.notch_gap_h_dp(), 2.0);
     assert_eq!(frame.inner_radius_dp(), 2.0);
+    let d = frame.outline_svg_d(280.0);
+    assert!(d.starts_with('M'));
+    assert!(d.contains(" A"));
     assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
 
@@ -407,6 +410,10 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(indet.head_span, progress::INDETERMINATE_SPAN);
     assert_eq!(indet.indicator, theme.color.primary);
     assert_eq!(progress::pull_to_refresh(&theme).size_dp, 40.0);
+    let wave = progress::wavy(&theme, 0.6);
+    assert_eq!(wave.height_dp, 16.0);
+    assert_eq!(wave.indicator, theme.color.primary);
+    assert!(progress::wave_polyline(240.0, 16.0, 0.6, 0.0).len() > 8);
 }
 
 #[test]
@@ -482,6 +489,15 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-motion=\"emphasized\""));
     assert!(html.contains("data-fab-size=\"extended\""));
     assert!(html.contains("data-field=\"filled-edit\""));
+    assert!(html.contains("data-carousel=\"1\""));
+    assert!(html.contains("data-progress=\"wavy\""));
+    assert!(html.contains("data-search-activity=\"1\""));
+    assert!(html.contains("data-search-input"));
+    assert!(html.contains("data-hand-path=\"1\""));
+    assert!(html.contains("data-notch-path="));
+    assert!(html.contains("data-nav-rail-expanded=\"1\""));
+    assert!(html.contains("data-rail-fab=\"1\""));
+    assert!(html.contains("data-docked-grid=\"1\""));
 }
 
 #[test]
@@ -519,6 +535,7 @@ fn inventory_covers_claimed_and_followups() {
         "Search",
         "Time picker",
         "Navigation rail",
+        "Carousel",
     ] {
         assert!(
             INVENTORY
@@ -801,6 +818,11 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(view.header_h_dp, 72.0);
     assert_eq!(search::SUGGESTIONS.len(), 4);
     assert!(search::VIEW_OPEN_BY_DEFAULT);
+    assert_eq!(search::filter_suggestions("").len(), 4);
+    assert_eq!(search::filter_suggestions("app"), vec!["App"]);
+    assert_eq!(search::apply_search_key("", "a"), "a");
+    assert_eq!(search::apply_search_key("ab", "backspace"), "a");
+    assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
     assert_eq!(time.number_dp, 48.0);
@@ -822,6 +844,9 @@ fn search_bar_and_time_picker_tokens() {
     assert!(mx > 80.0 && mx < 130.0, "30 sits bottom-center-ish x={mx}");
     assert!(my > 180.0, "30 sits near bottom, y={my}");
     assert!((time_picker::hand_angle_deg(time_picker::DialFace::Minute, 6, 30) - 180.0).abs() < 0.01);
+    let quad = time_picker::hand_quad(256.0, time_picker::DialFace::Minute, 6, 30, 48.0);
+    assert_eq!(quad.len(), 4);
+    assert!(time_picker::hand_svg_d(256.0, time_picker::DialFace::Minute, 6, 30, 48.0).starts_with('M'));
     let (s, e) = slider::drag_thumb(0.2, 0.75, slider::RangeThumb::Start, 0.4);
     assert!((s - 0.4).abs() < 1e-5);
     assert_eq!(e, 0.75);
@@ -829,8 +854,21 @@ fn search_bar_and_time_picker_tokens() {
     assert!((e - 0.70).abs() < 1e-5);
     assert_eq!(s, 0.2);
     assert_eq!(thumb, slider::RangeThumb::End);
+    assert!((slider::fraction_from_local_x(70.0, 280.0) - 0.25).abs() < 1e-5);
     let rail = navigation_rail::resolve(&theme);
     assert_eq!(rail.width_dp, 80.0);
     assert_eq!(navigation_rail::INDICATOR_W_DP, 56.0);
     assert_eq!(navigation_rail::DESTINATIONS.len(), 3);
+    assert_eq!(navigation_rail::EXPANDED_WIDTH_DP, 220.0);
+    assert_eq!(
+        navigation_rail::resolve_mode(&theme, navigation_rail::RailMode::Expanded).width_dp,
+        220.0
+    );
+    assert_eq!(navigation_rail::DESTINATION_BADGES[1], Some(3));
+    let car = carousel::resolve(&theme);
+    assert_eq!(car.large_w_dp, 256.0);
+    assert_eq!(car.small_w_dp, 120.0);
+    assert_eq!(car.corners.top_left, 28.0);
+    assert_eq!(carousel::item_width_dp(0, 0), 256.0);
+    assert_eq!(carousel::item_width_dp(1, 0), 120.0);
 }
