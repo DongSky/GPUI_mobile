@@ -12,9 +12,9 @@
 //!   press uses the common-button pressed radius. Compose:
 //!   `ButtonGroupDefaults.connectedLeading/Middle/TrailingButtonShapes`.
 
+use crate::components::Appearance;
 use crate::components::button::{self, ButtonSize, ButtonVariant};
 use crate::components::icon_button::{self, IconButtonVariant};
-use crate::components::Appearance;
 use crate::shape::Corners;
 use crate::state::InteractionState;
 use crate::theme::Theme;
@@ -36,6 +36,8 @@ pub const STANDARD_SELECTED: usize = 1;
 /// Compose `ButtonGroupDefaults.OverflowIndicator`: filled icon button at
 /// the trailing edge. Hidden children (align extras) land in the menu.
 pub const STANDARD_OVERFLOW_GLYPH: &str = "⋮";
+/// Hidden children for the standard OverflowIndicator. The popup is a grouped
+/// Expressive menu (`menu::STANDARD_OVERFLOW_GROUPS`: Left/Right/Justify + More ›).
 pub const STANDARD_OVERFLOW_ITEMS: [&str; 3] = ["Left", "Right", "Justify"];
 pub const STANDARD_OVERFLOW_OPEN: bool = true;
 
@@ -47,6 +49,8 @@ pub const ICON_SEGMENTS: [&str; 3] = ["✎", "🖼", "＋"];
 pub const ICON_SELECTED: usize = 0;
 pub const ICON_MIN_W_DP: f32 = 48.0;
 pub const OVERFLOW_GLYPH: &str = "⋮";
+/// Hidden children for the connected icon overflow. Popup is grouped
+/// (`menu::CONNECTED_OVERFLOW_GROUPS`: Cut/Copy/Paste + More ›).
 pub const OVERFLOW_ITEMS: [&str; 3] = ["Cut", "Copy", "Paste"];
 pub const OVERFLOW_OPEN: bool = true;
 

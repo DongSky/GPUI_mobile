@@ -661,6 +661,12 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-standard-overflow-btn=\"1\""));
     assert!(html.contains("data-standard-overflow-item=\"Left\""));
     assert!(html.contains("data-standard-overflow-item=\"Justify\""));
+    assert!(html.contains("data-overflow-cascade"));
+    assert!(html.contains("data-popup-kind=\"standard-overflow\""));
+    assert!(html.contains("data-popup-kind=\"connected-overflow\""));
+    assert!(html.contains("data-popup-kind=\"split\""));
+    assert!(html.contains("data-hover-delay=\"200\""));
+    assert!(html.contains("data-grouped=\"1\""));
     assert!(html.contains("data-licensed-camera=\"1\""));
     assert!(html.contains("data-photo-license=\"CC0\""));
     assert!(html.contains("data-photo-license=\"Unsplash License\""));
@@ -960,6 +966,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Standard")
             && e.notes.contains("0.15")
             && e.notes.contains("OverflowIndicator")
+            && e.notes.contains("More")
     }));
     assert!(
         INVENTORY
@@ -996,6 +1003,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("overlay")
             && e.notes.contains("More")
             && e.notes.contains("unscrimmed")
+            && e.notes.contains("overflow")
     }));
     assert!(
         !INVENTORY
@@ -1279,6 +1287,26 @@ fn expressive_menu_overlay_session() {
     let cascade = menu::OverlayMenuSession::cascade();
     assert!(cascade.submenu_open);
     assert_eq!(cascade.parent_focus(), menu::MenuFocus::Inactive);
+
+    let mut overflow = menu::OverlayMenuSession::standard_overflow();
+    assert_eq!(overflow.kind, menu::GroupedPopupKind::StandardOverflow);
+    assert_eq!(overflow.kind.groups().len(), 2);
+    assert_eq!(overflow.kind.item_count(), 4);
+    assert_eq!(overflow.kind.item_at(0).unwrap().2.label, "Left");
+    assert_eq!(overflow.kind.item_at(2).unwrap().2.label, "Justify");
+    assert_eq!(overflow.click_parent(3), menu::OverlayMenuAction::Stay);
+    assert!(overflow.submenu_open);
+    assert_eq!(overflow.apply_key("s"), menu::OverlayMenuAction::Stay);
+    assert_eq!(overflow.submenu_hi, 1);
+
+    let connected = menu::OverlayMenuSession::connected_overflow();
+    assert_eq!(connected.kind.item_at(0).unwrap().2.label, "Cut");
+    let split = menu::OverlayMenuSession::split();
+    assert_eq!(split.kind.item_at(0).unwrap().2.label, "Add to cart");
+    assert_eq!(split.kind.item_at(1).unwrap().2.label, "Save for later");
+    assert_eq!(menu::HOVER_OPEN_DELAY_MS, 200);
+    assert_eq!(menu::SPLIT_ITEMS.len(), 2);
+    assert_eq!(menu::ALIGN_ITEMS.len(), 3);
 }
 
 #[test]
@@ -1763,6 +1791,8 @@ fn fab_menu_split_button_toolbar_tokens() {
     assert_eq!(trail.corners.top_right, 20.0);
     assert_eq!(split_button::caret(true), split_button::CARET_OPEN);
     assert_eq!(split_button::DEMO_MENU.len(), 2);
+    assert_eq!(menu::SPLIT_ITEMS[0].label, split_button::DEMO_MENU[0]);
+    assert_eq!(menu::SPLIT_ITEMS[1].label, split_button::DEMO_MENU[1]);
     let outlined = split_button::resolve_leading(
         &theme,
         split_button::SplitButtonVariant::Outlined,

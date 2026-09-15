@@ -200,6 +200,123 @@ pub const MORE_ITEMS: [MenuDemoItem; 1] = [MenuDemoItem {
 
 pub const VERTICAL_GROUPS: [&[MenuDemoItem]; 3] = [&STYLE_ITEMS, &EDIT_ITEMS, &MORE_ITEMS];
 
+/// Standard button-group overflow children (Compose OverflowIndicator extras).
+pub const ALIGN_ITEMS: [MenuDemoItem; 3] = [
+    MenuDemoItem {
+        icon: "⬅",
+        label: "Left",
+        shortcut: "",
+        submenu: false,
+    },
+    MenuDemoItem {
+        icon: "➡",
+        label: "Right",
+        shortcut: "",
+        submenu: false,
+    },
+    MenuDemoItem {
+        icon: "☰",
+        label: "Justify",
+        shortcut: "",
+        submenu: false,
+    },
+];
+pub const STANDARD_OVERFLOW_GROUPS: [&[MenuDemoItem]; 2] = [&ALIGN_ITEMS, &MORE_ITEMS];
+
+/// Connected icon-row overflow children (Cut / Copy / Paste).
+pub const CONNECTED_OVERFLOW_GROUPS: [&[MenuDemoItem]; 2] = [&EDIT_ITEMS, &MORE_ITEMS];
+
+/// Split trailing related actions.
+pub const SPLIT_ITEMS: [MenuDemoItem; 2] = [
+    MenuDemoItem {
+        icon: "+",
+        label: "Add to cart",
+        shortcut: "",
+        submenu: false,
+    },
+    MenuDemoItem {
+        icon: "🔖",
+        label: "Save for later",
+        shortcut: "",
+        submenu: false,
+    },
+];
+pub const SPLIT_MENU_GROUPS: [&[MenuDemoItem]; 2] = [&SPLIT_ITEMS, &MORE_ITEMS];
+
+/// Which grouped tree an overlay / overflow / split popup uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroupedPopupKind {
+    /// Italic / Bold / Underline + Cut / Copy / Paste + More.
+    Overlay,
+    /// Left / Right / Justify + More (standard OverflowIndicator).
+    StandardOverflow,
+    /// Cut / Copy / Paste + More (connected icon overflow).
+    ConnectedOverflow,
+    /// Add to cart / Save for later + More (split trailing).
+    Split,
+}
+
+impl GroupedPopupKind {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Overlay => "overlay",
+            Self::StandardOverflow => "standard-overflow",
+            Self::ConnectedOverflow => "connected-overflow",
+            Self::Split => "split",
+        }
+    }
+
+    pub fn groups(self) -> &'static [&'static [MenuDemoItem]] {
+        match self {
+            Self::Overlay => &VERTICAL_GROUPS,
+            Self::StandardOverflow => &STANDARD_OVERFLOW_GROUPS,
+            Self::ConnectedOverflow => &CONNECTED_OVERFLOW_GROUPS,
+            Self::Split => &SPLIT_MENU_GROUPS,
+        }
+    }
+
+    pub fn item_count(self) -> usize {
+        self.groups().iter().map(|group| group.len()).sum()
+    }
+
+    pub fn item_at(self, index: usize) -> Option<(usize, usize, MenuDemoItem)> {
+        let mut n = 0;
+        for (gi, group) in self.groups().iter().enumerate() {
+            for (i, item) in group.iter().enumerate() {
+                if n == index {
+                    return Some((gi, i, *item));
+                }
+                n += 1;
+            }
+        }
+        None
+    }
+
+    pub fn labels(self) -> Vec<&'static str> {
+        self.groups()
+            .iter()
+            .flat_map(|group| group.iter().map(|item| item.label))
+            .collect()
+    }
+
+    pub fn more_index(self) -> usize {
+        self.item_count().saturating_sub(1)
+    }
+
+    pub fn is_submenu_trigger(self, index: usize) -> bool {
+        self.item_at(index)
+            .map(|(_, _, item)| item.submenu)
+            .unwrap_or(false)
+    }
+
+    pub fn default_parent_hi(self) -> usize {
+        match self {
+            Self::Overlay => STYLE_SELECTED,
+            Self::StandardOverflow | Self::ConnectedOverflow | Self::Split => 0,
+        }
+    }
+}
+
 /// Nested flyout from More › (first letters cycle on typeahead `s`).
 pub const SUBMENU_ITEMS: [MenuDemoItem; 3] = [
     MenuDemoItem {
@@ -520,6 +637,9 @@ pub const OVERLAY_USES_SCRIM: bool = false;
 pub const OVERLAY_ANCHOR_LABEL: &str = "Menu";
 /// Gap between the anchor control and the grouped popup.
 pub const OVERLAY_ANCHOR_GAP_DP: f32 = 8.0;
+/// Compose nested-menu hover-to-open (`MenuOpenDelay`). Catalog JS waits this
+/// long before opening the End flyout; click / keyboard stay immediate.
+pub const HOVER_OPEN_DELAY_MS: u64 = 200;
 
 pub fn parent_item_count() -> usize {
     VERTICAL_GROUPS.iter().map(|group| group.len()).sum()
@@ -581,9 +701,10 @@ pub enum OverlayMenuAction {
     Dismiss,
 }
 
-/// Live GPUI overlay + cascade: grouped parent, End flyout, typeahead.
+/// Live GPUI overlay + cascade + overflow/split: grouped parent, End flyout, typeahead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OverlayMenuSession {
+    pub kind: GroupedPopupKind,
     pub submenu_open: bool,
     pub parent_hi: usize,
     pub submenu_hi: usize,
@@ -591,24 +712,47 @@ pub struct OverlayMenuSession {
 }
 
 impl OverlayMenuSession {
+    fn new(kind: GroupedPopupKind, submenu_open: bool, parent_hi: usize) -> Self {
+        Self {
+            kind,
+            submenu_open,
+            parent_hi,
+            submenu_hi: SUBMENU_SELECTED,
+            committed: if submenu_open {
+                OverlayMenuCommit::Submenu(SUBMENU_SELECTED)
+            } else {
+                OverlayMenuCommit::Parent(parent_hi)
+            },
+        }
+    }
+
     /// Overlay default: grouped surfaces only (clicking More must not dismiss).
     pub fn overlay() -> Self {
-        Self {
-            submenu_open: OVERLAY_FLYOUT_OPEN,
-            parent_hi: STYLE_SELECTED,
-            submenu_hi: SUBMENU_SELECTED,
-            committed: OverlayMenuCommit::Parent(STYLE_SELECTED),
-        }
+        Self::new(
+            GroupedPopupKind::Overlay,
+            OVERLAY_FLYOUT_OPEN,
+            STYLE_SELECTED,
+        )
     }
 
     /// Catalog cascade hero default-open for anatomy screenshots.
     pub fn cascade() -> Self {
-        Self {
-            submenu_open: CASCADE_OPEN,
-            parent_hi: MORE_INDEX,
-            submenu_hi: SUBMENU_SELECTED,
-            committed: OverlayMenuCommit::Submenu(SUBMENU_SELECTED),
-        }
+        Self::new(GroupedPopupKind::Overlay, CASCADE_OPEN, MORE_INDEX)
+    }
+
+    /// Standard OverflowIndicator popup: Left / Right / Justify + More.
+    pub fn standard_overflow() -> Self {
+        Self::new(GroupedPopupKind::StandardOverflow, false, 0)
+    }
+
+    /// Connected icon overflow: Cut / Copy / Paste + More.
+    pub fn connected_overflow() -> Self {
+        Self::new(GroupedPopupKind::ConnectedOverflow, false, 0)
+    }
+
+    /// Split trailing popup: Add to cart / Save for later + More.
+    pub fn split() -> Self {
+        Self::new(GroupedPopupKind::Split, false, 0)
     }
 
     pub fn parent_focus(self) -> MenuFocus {
@@ -639,7 +783,7 @@ impl OverlayMenuSession {
 
     pub fn hover_parent(&mut self, index: usize) {
         self.parent_hi = index;
-        self.submenu_open = is_submenu_trigger(index);
+        self.submenu_open = self.kind.is_submenu_trigger(index);
         if self.submenu_open {
             self.submenu_hi = SUBMENU_SELECTED;
         }
@@ -651,7 +795,7 @@ impl OverlayMenuSession {
 
     pub fn click_parent(&mut self, index: usize) -> OverlayMenuAction {
         self.parent_hi = index;
-        if is_submenu_trigger(index) {
+        if self.kind.is_submenu_trigger(index) {
             self.submenu_open = true;
             self.submenu_hi = SUBMENU_SELECTED;
             OverlayMenuAction::Stay
@@ -675,7 +819,7 @@ impl OverlayMenuSession {
             let cur = self.submenu_hi as isize;
             self.submenu_hi = ((cur + delta).rem_euclid(n)) as usize;
         } else {
-            let n = parent_item_count() as isize;
+            let n = self.kind.item_count() as isize;
             if n == 0 {
                 return;
             }
@@ -691,7 +835,7 @@ impl OverlayMenuSession {
                 self.submenu_hi = i;
             }
         } else {
-            let labels = parent_labels();
+            let labels = self.kind.labels();
             if let Some(i) = typeahead_index(&labels, self.parent_hi, ch) {
                 self.parent_hi = i;
             }
@@ -702,7 +846,7 @@ impl OverlayMenuSession {
     pub fn apply_key(&mut self, key: &str) -> OverlayMenuAction {
         match key {
             "right" | "arrowright" => {
-                if is_submenu_trigger(self.parent_hi) {
+                if self.kind.is_submenu_trigger(self.parent_hi) {
                     self.submenu_open = true;
                     self.submenu_hi = SUBMENU_SELECTED;
                 }
@@ -710,12 +854,12 @@ impl OverlayMenuSession {
             }
             "left" | "arrowleft" if self.submenu_open => {
                 self.submenu_open = false;
-                self.parent_hi = MORE_INDEX;
+                self.parent_hi = self.kind.more_index();
                 OverlayMenuAction::Stay
             }
             "escape" if self.submenu_open => {
                 self.submenu_open = false;
-                self.parent_hi = MORE_INDEX;
+                self.parent_hi = self.kind.more_index();
                 OverlayMenuAction::Stay
             }
             "escape" => OverlayMenuAction::Dismiss,

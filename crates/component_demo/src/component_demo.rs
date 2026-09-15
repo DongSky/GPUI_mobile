@@ -273,6 +273,37 @@ enum Overlay {
     Menu,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LiveMenuHost {
+    Overlay,
+    Cascade,
+    StandardOverflow,
+    ConnectedOverflow,
+    Split,
+}
+
+impl LiveMenuHost {
+    fn prefix(self) -> &'static str {
+        match self {
+            Self::Overlay => "ov",
+            Self::Cascade => "cas",
+            Self::StandardOverflow => "stdov",
+            Self::ConnectedOverflow => "iconov",
+            Self::Split => "split",
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Self::Overlay => "menu-overlay-cascade",
+            Self::Cascade => "menu-cascade",
+            Self::StandardOverflow => "std-overflow-cascade",
+            Self::ConnectedOverflow => "icon-overflow-cascade",
+            Self::Split => "split-menu-cascade",
+        }
+    }
+}
+
 struct CatalogView {
     dark: bool,
     taps: usize,
@@ -282,6 +313,9 @@ struct CatalogView {
     overlay: Overlay,
     overlay_menu: menu::OverlayMenuSession,
     cascade_menu: menu::OverlayMenuSession,
+    standard_overflow_menu: menu::OverlayMenuSession,
+    connected_overflow_menu: menu::OverlayMenuSession,
+    split_menu: menu::OverlayMenuSession,
     slider: f32,
     ringtone: usize,
     tab_primary: usize,
@@ -351,6 +385,26 @@ impl CatalogView {
         self.time_hand_from =
             time_picker::hand_angle_deg(self.time_dial, self.time_hour, self.time_minute);
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
+    }
+
+    fn live_menu(&self, host: LiveMenuHost) -> menu::OverlayMenuSession {
+        match host {
+            LiveMenuHost::Overlay => self.overlay_menu,
+            LiveMenuHost::Cascade => self.cascade_menu,
+            LiveMenuHost::StandardOverflow => self.standard_overflow_menu,
+            LiveMenuHost::ConnectedOverflow => self.connected_overflow_menu,
+            LiveMenuHost::Split => self.split_menu,
+        }
+    }
+
+    fn live_menu_mut(&mut self, host: LiveMenuHost) -> &mut menu::OverlayMenuSession {
+        match host {
+            LiveMenuHost::Overlay => &mut self.overlay_menu,
+            LiveMenuHost::Cascade => &mut self.cascade_menu,
+            LiveMenuHost::StandardOverflow => &mut self.standard_overflow_menu,
+            LiveMenuHost::ConnectedOverflow => &mut self.connected_overflow_menu,
+            LiveMenuHost::Split => &mut self.split_menu,
+        }
     }
 
     fn tick_carousel_fling(&mut self, cx: &mut Context<Self>) {
@@ -695,12 +749,14 @@ fn catalog_body(
         )
         .child(android_connected_group(theme, this.group_selected, cx))
         .child(android_standard_group(
+            this,
             theme,
             this.standard_selected,
             this.standard_overflow_open,
             cx,
         ))
         .child(android_icon_group(
+            this,
             theme,
             this.icon_selected,
             this.overflow_open,
@@ -1862,17 +1918,30 @@ fn android_live_menu_item(
 
 fn apply_live_menu_action(
     this: &mut CatalogView,
-    overlay: bool,
+    host: LiveMenuHost,
     action: menu::OverlayMenuAction,
     cx: &mut Context<CatalogView>,
 ) {
-    if overlay
-        && matches!(
-            action,
-            menu::OverlayMenuAction::Commit | menu::OverlayMenuAction::Dismiss
-        )
-    {
-        this.overlay = Overlay::None;
+    if matches!(
+        action,
+        menu::OverlayMenuAction::Commit | menu::OverlayMenuAction::Dismiss
+    ) {
+        match host {
+            LiveMenuHost::Overlay => this.overlay = Overlay::None,
+            LiveMenuHost::Cascade => {}
+            LiveMenuHost::StandardOverflow => {
+                this.standard_overflow_open = false;
+                this.standard_overflow_menu = menu::OverlayMenuSession::standard_overflow();
+            }
+            LiveMenuHost::ConnectedOverflow => {
+                this.overflow_open = false;
+                this.connected_overflow_menu = menu::OverlayMenuSession::connected_overflow();
+            }
+            LiveMenuHost::Split => {
+                this.split_open = false;
+                this.split_menu = menu::OverlayMenuSession::split();
+            }
+        }
     }
     cx.notify();
 }
@@ -1881,13 +1950,13 @@ fn android_live_parent(
     theme: &Theme,
     session: menu::OverlayMenuSession,
     cx: &mut Context<CatalogView>,
-    overlay: bool,
+    host: LiveMenuHost,
 ) -> impl IntoElement {
-    let groups = menu::VERTICAL_GROUPS;
+    let groups = session.kind.groups();
     let group_count = groups.len();
     let scheme = menu::MenuScheme::Standard;
     let focus = session.parent_focus();
-    let prefix = if overlay { "ov" } else { "cas" };
+    let prefix = host.prefix();
     div()
         .flex()
         .flex_col()
@@ -1931,26 +2000,14 @@ fn android_live_parent(
                         item,
                         a,
                         cx.listener(move |this, _, _, cx| {
-                            let action = if overlay {
-                                this.overlay_menu.click_parent(index)
-                            } else {
-                                this.cascade_menu.click_parent(index)
-                            };
-                            apply_live_menu_action(this, overlay, action, cx);
+                            let action = this.live_menu_mut(host).click_parent(index);
+                            apply_live_menu_action(this, host, action, cx);
                         }),
                         cx.listener(move |this, _, _, cx| {
-                            if overlay {
-                                let was = this.overlay_menu;
-                                this.overlay_menu.hover_parent(index);
-                                if this.overlay_menu != was {
-                                    cx.notify();
-                                }
-                            } else {
-                                let was = this.cascade_menu;
-                                this.cascade_menu.hover_parent(index);
-                                if this.cascade_menu != was {
-                                    cx.notify();
-                                }
+                            let was = this.live_menu(host);
+                            this.live_menu_mut(host).hover_parent(index);
+                            if this.live_menu(host) != was {
+                                cx.notify();
                             }
                         }),
                     )
@@ -1962,12 +2019,12 @@ fn android_live_flyout(
     theme: &Theme,
     session: menu::OverlayMenuSession,
     cx: &mut Context<CatalogView>,
-    overlay: bool,
+    host: LiveMenuHost,
 ) -> impl IntoElement {
     let scheme = menu::MenuScheme::Standard;
     let shell = menu::resolve_submenu(theme, scheme);
     let count = menu::SUBMENU_ITEMS.len();
-    let prefix = if overlay { "ov" } else { "cas" };
+    let prefix = host.prefix();
     let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = menu::SUBMENU_ITEMS
         .iter()
         .enumerate()
@@ -2003,19 +2060,11 @@ fn android_live_flyout(
                 item,
                 a,
                 cx.listener(move |this, _, _, cx| {
-                    let action = if overlay {
-                        this.overlay_menu.click_submenu(i)
-                    } else {
-                        this.cascade_menu.click_submenu(i)
-                    };
-                    apply_live_menu_action(this, overlay, action, cx);
+                    let action = this.live_menu_mut(host).click_submenu(i);
+                    apply_live_menu_action(this, host, action, cx);
                 }),
                 cx.listener(move |this, _, _, cx| {
-                    if overlay {
-                        this.overlay_menu.submenu_hi = i;
-                    } else {
-                        this.cascade_menu.submenu_hi = i;
-                    }
+                    this.live_menu_mut(host).submenu_hi = i;
                     cx.notify();
                 }),
             )
@@ -2026,44 +2075,31 @@ fn android_live_cascade(
     this: &CatalogView,
     theme: &Theme,
     cx: &mut Context<CatalogView>,
-    overlay: bool,
+    host: LiveMenuHost,
 ) -> impl IntoElement {
-    let session = if overlay {
-        this.overlay_menu
-    } else {
-        this.cascade_menu
-    };
-    let id = if overlay {
-        "menu-overlay-cascade"
-    } else {
-        "menu-cascade"
-    };
+    let session = this.live_menu(host);
     div()
-        .id(id)
+        .id(host.id())
         .tab_index(0)
         .flex()
         .flex_row()
         .items_end()
         .gap(px(menu::SUBMENU_GAP_DP))
         .on_key_down(cx.listener(move |this, ev: &KeyDownEvent, _, cx| {
-            let action = if overlay {
-                this.overlay_menu.apply_key(&ev.keystroke.key)
-            } else {
-                this.cascade_menu.apply_key(&ev.keystroke.key)
-            };
-            apply_live_menu_action(this, overlay, action, cx);
+            let action = this.live_menu_mut(host).apply_key(&ev.keystroke.key);
+            apply_live_menu_action(this, host, action, cx);
         }))
-        .when(!overlay, |el| {
+        .when(host != LiveMenuHost::Overlay, |el| {
             el.on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
                 if !*hovered {
-                    this.cascade_menu.hover_leave();
+                    this.live_menu_mut(host).hover_leave();
                     cx.notify();
                 }
             }))
         })
-        .child(android_live_parent(theme, session, cx, overlay))
+        .child(android_live_parent(theme, session, cx, host))
         .when(session.submenu_open, |el| {
-            el.child(android_live_flyout(theme, session, cx, overlay))
+            el.child(android_live_flyout(theme, session, cx, host))
         })
 }
 
@@ -2256,7 +2292,7 @@ fn android_menus(
                 .child(android_horizontal_menu(theme))
                 .child(android_horizontal_icons(theme)),
         )
-        .child(android_live_cascade(this, theme, cx, false))
+        .child(android_live_cascade(this, theme, cx, LiveMenuHost::Cascade))
 }
 
 fn menu_overlay(
@@ -2300,7 +2336,7 @@ fn menu_overlay(
                         .items_center()
                         .child(menu::OVERLAY_ANCHOR_LABEL),
                 )
-                .child(android_live_cascade(this, theme, cx, true)),
+                .child(android_live_cascade(this, theme, cx, LiveMenuHost::Overlay)),
         )
 }
 
@@ -3336,7 +3372,6 @@ fn android_split_button(
         button::ButtonSize::Small,
         this.split_open,
     );
-    let shell = menu::resolve_menu(theme);
     div()
         .flex()
         .flex_row()
@@ -3385,28 +3420,15 @@ fn android_split_button(
                         .child(split_button::caret(this.split_open))
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.split_open = !this.split_open;
+                            if this.split_open {
+                                this.split_menu = menu::OverlayMenuSession::split();
+                            }
                             cx.notify();
                         })),
                 ),
         )
         .when(this.split_open, |el| {
-            el.child(
-                div()
-                    .min_w(px(160.))
-                    .rounded(px(shell.corners.top_left))
-                    .bg(paint(shell.container))
-                    .children(split_button::DEMO_MENU.iter().map(|label| {
-                        let item = menu::resolve_item(theme, false, InteractionState::Enabled);
-                        div()
-                            .h(px(item.height_dp))
-                            .px(px(12.))
-                            .bg(paint(item.container))
-                            .text_color(paint(item.label))
-                            .flex()
-                            .items_center()
-                            .child(*label)
-                    })),
-            )
+            el.child(android_live_cascade(this, theme, cx, LiveMenuHost::Split))
         })
 }
 
@@ -4836,13 +4858,13 @@ fn android_icon_button_toggles(theme: &Theme) -> impl IntoElement {
 }
 
 fn android_standard_group(
+    this: &CatalogView,
     theme: &Theme,
     selected: usize,
     overflow_open: bool,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let ov = button_group::resolve_standard_overflow(theme, false);
-    let shell = menu::resolve_menu(theme);
     div()
         .flex()
         .flex_row()
@@ -4894,34 +4916,21 @@ fn android_standard_group(
                         .child(button_group::STANDARD_OVERFLOW_GLYPH)
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.standard_overflow_open = !this.standard_overflow_open;
+                            if this.standard_overflow_open {
+                                this.standard_overflow_menu =
+                                    menu::OverlayMenuSession::standard_overflow();
+                            }
                             cx.notify();
                         })),
                 ),
         )
         .when(overflow_open, |el| {
-            el.child(
-                div()
-                    .min_w(px(140.))
-                    .rounded(px(shell.corners.top_left))
-                    .bg(paint(shell.container))
-                    .children(
-                        button_group::STANDARD_OVERFLOW_ITEMS
-                            .iter()
-                            .enumerate()
-                            .map(|(i, label)| {
-                                let item =
-                                    menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-                                div()
-                                    .h(px(item.height_dp))
-                                    .px(px(12.))
-                                    .bg(paint(item.container))
-                                    .text_color(paint(item.label))
-                                    .flex()
-                                    .items_center()
-                                    .child(*label)
-                            }),
-                    ),
-            )
+            el.child(android_live_cascade(
+                this,
+                theme,
+                cx,
+                LiveMenuHost::StandardOverflow,
+            ))
         })
 }
 
@@ -4970,13 +4979,13 @@ fn android_connected_group(
 }
 
 fn android_icon_group(
+    this: &CatalogView,
     theme: &Theme,
     selected: usize,
     overflow_open: bool,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let count = button_group::icon_group_count();
-    let menu = menu::resolve_menu(theme);
     div()
         .flex()
         .flex_row()
@@ -5012,6 +5021,10 @@ fn android_icon_group(
                         .on_click(cx.listener(move |this, _, _, cx| {
                             if overflow {
                                 this.overflow_open = !this.overflow_open;
+                                if this.overflow_open {
+                                    this.connected_overflow_menu =
+                                        menu::OverlayMenuSession::connected_overflow();
+                                }
                             } else {
                                 this.icon_selected = i;
                             }
@@ -5020,29 +5033,12 @@ fn android_icon_group(
                 })),
         )
         .when(overflow_open, |el| {
-            el.child(
-                div()
-                    .min_w(px(140.))
-                    .rounded(px(menu.corners.top_left))
-                    .bg(paint(menu.container))
-                    .children(
-                        button_group::OVERFLOW_ITEMS
-                            .iter()
-                            .enumerate()
-                            .map(|(i, label)| {
-                                let item =
-                                    menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-                                div()
-                                    .h(px(item.height_dp))
-                                    .px(px(12.))
-                                    .bg(paint(item.container))
-                                    .text_color(paint(item.label))
-                                    .flex()
-                                    .items_center()
-                                    .child(*label)
-                            }),
-                    ),
-            )
+            el.child(android_live_cascade(
+                this,
+                theme,
+                cx,
+                LiveMenuHost::ConnectedOverflow,
+            ))
         })
 }
 
@@ -5298,9 +5294,10 @@ fn android_settings_scene(
                 ))
                 .child(android_connected_group(theme, this.group_selected, cx))
                 .child(android_icon_group(
+                    this,
                     theme,
                     this.icon_selected,
-                    this.overflow_open,
+                    false,
                     cx,
                 )),
         )
@@ -5749,6 +5746,9 @@ fn android_main(app: AndroidApp) {
                 overlay: Overlay::None,
                 overlay_menu: menu::OverlayMenuSession::overlay(),
                 cascade_menu: menu::OverlayMenuSession::cascade(),
+                standard_overflow_menu: menu::OverlayMenuSession::standard_overflow(),
+                connected_overflow_menu: menu::OverlayMenuSession::connected_overflow(),
+                split_menu: menu::OverlayMenuSession::split(),
                 slider: slider::OVERVIEW_ROWS[3].value,
                 ringtone: 2,
                 tab_primary: tabs::SCENE_SELECTED,

@@ -81,7 +81,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Standard + connected button groups (Expressive)",
         docs: "https://m3.material.io/components/button-groups/specs",
         parity: Parity::Done,
-        notes: "Standard: 12dp gap, ExpandedRatio 0.15 neighbor morph, Start/Center/End tonal→filled square + trailing filled OverflowIndicator (Left/Right/Justify). Connected: 2dp gap, 8dp inner, full-round outer; Day/Week/Month + icon row with overflow",
+        notes: "Standard: 12dp gap, ExpandedRatio 0.15 neighbor morph, Start/Center/End tonal→filled square + trailing filled OverflowIndicator (Left/Right/Justify + More › grouped 2dp flyout). Connected: 2dp gap, 8dp inner, full-round outer; Day/Week/Month + icon row with Cut/Copy/Paste + More overflow",
     },
     ComponentEntry {
         name: "Icon button",
@@ -109,7 +109,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Split buttons (Expressive)",
         docs: "https://m3.material.io/components/split-button/specs",
         parity: Parity::Done,
-        notes: "Leading action + trailing menu, 2dp gap; outer full-round, inner 4dp rest / 12dp press (S); open trailing goes full-round + pressed layer; licensed enamel-mugs still product card ($7.49)",
+        notes: "Leading action + trailing menu, 2dp gap; outer full-round, inner 4dp rest / 12dp press (S); open trailing goes full-round + pressed layer; trailing menu is grouped 2dp (Add to cart / Save for later + More › Share/Save/Sort); licensed enamel-mugs still product card ($7.49)",
     },
     ComponentEntry {
         name: "Toolbar",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Menus",
         docs: "https://m3.material.io/components/menus/specs",
         parity: Parity::Done,
-        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + hover-open + WAI-ARIA typeahead; overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; horizontal 2dp pills (selected full-round) + icon-only 52dp",
+        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; submenu flyout MenuAnchorPosition.End + ActiveContainerShape 24 / InactiveContainerShape 8 morph + hover-open (200ms) + WAI-ARIA typeahead; overlay is an unscrimmed anchored popup (no 32% scrim), grouped default, More opens End flyout (does not dismiss) + live typeahead; overflow/split trailing menus use the same grouped 2dp + More flyout (not a single 16dp shell); horizontal 2dp pills (selected full-round) + icon-only 52dp",
     },
     ComponentEntry {
         name: "Slider",

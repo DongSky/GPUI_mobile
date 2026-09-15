@@ -574,6 +574,12 @@ a {{ color: var(--primary); }}
 .overflow-menu {{
   position: relative; display: flex; align-items: flex-start; gap: 8px;
 }}
+.overflow-cascade {{
+  display: flex; flex-direction: row; align-items: flex-end; gap: 4px;
+  position: relative; min-width: 200px;
+}}
+.overflow-cascade[data-open="0"] {{ display: none; }}
+.overflow-cascade[data-flyout="0"] .menu-flyout {{ display: none; }}
 .snack {{
   min-height: 48px; padding: 0 16px; gap: 16px; justify-content: space-between;
   min-width: 280px;
@@ -907,8 +913,10 @@ table.inv th {{ font-weight: 500; }}
 }}
 .split-menu {{
   position: absolute; top: calc(100% + 4px); right: 0; z-index: 3;
-  min-width: 160px;
+  display: flex; flex-direction: row; align-items: flex-end; gap: 4px;
+  min-width: 200px;
 }}
+.split-menu[data-flyout="0"] .menu-flyout {{ display: none; }}
 .split[data-open="0"] .split-menu {{ display: none; }}
 .toolbar {{
   display: inline-flex; align-items: center; height: 64px; padding: 0 8px; gap: 4px;
@@ -1669,11 +1677,14 @@ document.addEventListener("click", function () {{
     if (trail) trail.textContent = "▾";
   }});
 }});
-document.querySelectorAll("[data-menu-cascade]").forEach(function (cascade) {{
-  var flyout = cascade.querySelector("[data-menu-submenu]");
-  var trigger = cascade.querySelector("[data-submenu-trigger]");
-  function itemList(root) {{
-    return root ? Array.prototype.slice.call(root.querySelectorAll("[data-menu-item]")) : [];
+document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
+  var flyout = root.querySelector("[data-menu-submenu]");
+  var trigger = root.querySelector("[data-submenu-trigger]");
+  var delay = Number(root.getAttribute("data-hover-delay") || "0");
+  var hoverTimer = null;
+  var flyAttr = root.hasAttribute("data-overflow-cascade") ? "data-flyout" : "data-open";
+  function itemList(node) {{
+    return node ? Array.prototype.slice.call(node.querySelectorAll("[data-menu-item]")) : [];
   }}
   function setHi(items, idx) {{
     items.forEach(function (el, i) {{
@@ -1681,11 +1692,11 @@ document.querySelectorAll("[data-menu-cascade]").forEach(function (cascade) {{
     }});
   }}
   function applyOpen(open) {{
-    cascade.setAttribute("data-open", open ? "1" : "0");
-    cascade.setAttribute("data-menu-focus-parent", open ? "inactive" : "rest");
+    root.setAttribute(flyAttr, open ? "1" : "0");
+    root.setAttribute("data-menu-focus-parent", open ? "inactive" : "rest");
     if (flyout) flyout.style.display = open ? "flex" : "none";
     if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
-    cascade.querySelectorAll("[data-r-rest]").forEach(function (g) {{
+    root.querySelectorAll("[data-r-rest]").forEach(function (g) {{
       var r = open ? g.getAttribute("data-r-inactive") : g.getAttribute("data-r-rest");
       if (r) g.style.borderRadius = r;
     }});
@@ -1701,90 +1712,52 @@ document.querySelectorAll("[data-menu-cascade]").forEach(function (cascade) {{
     }}
     return from;
   }}
-  cascade.addEventListener("mouseenter", function () {{ applyOpen(true); }});
-  cascade.addEventListener("mouseleave", function () {{ applyOpen(false); }});
-  if (trigger) {{
-    trigger.style.cursor = "pointer";
-    trigger.addEventListener("click", function (ev) {{
-      ev.stopPropagation();
-      applyOpen(cascade.getAttribute("data-open") !== "1");
-    }});
+  function openSoon() {{
+    if (delay <= 0) {{ applyOpen(true); return; }}
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(function () {{ applyOpen(true); }}, delay);
   }}
-  cascade.setAttribute("tabindex", "0");
-  cascade.addEventListener("keydown", function (ev) {{
-    var open = cascade.getAttribute("data-open") === "1";
-    var parentItems = itemList(cascade.querySelector("[data-menu-parent]"));
-    var subItems = itemList(flyout);
-    var items = open ? subItems : parentItems;
-    var cur = items.findIndex(function (el) {{ return el.getAttribute("data-menu-hi") === "1"; }});
-    if (ev.key === "ArrowRight") {{
-      applyOpen(true);
-      setHi(subItems, 0);
-      ev.preventDefault();
-    }} else if (ev.key === "ArrowLeft" || ev.key === "Escape") {{
-      applyOpen(false);
-      setHi(parentItems, parentItems.length - 1);
-      ev.preventDefault();
-    }} else if (ev.key === "ArrowDown") {{
-      var next = cur < 0 ? 0 : (cur + 1) % items.length;
-      setHi(items, next);
-      ev.preventDefault();
-    }} else if (ev.key === "ArrowUp") {{
-      var prev = cur < 0 ? items.length - 1 : (cur - 1 + items.length) % items.length;
-      setHi(items, prev);
-      ev.preventDefault();
-    }} else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {{
-      var hit = typeahead(items, cur < 0 ? items.length - 1 : cur, ev.key);
-      if (hit >= 0) setHi(items, hit);
-      ev.preventDefault();
-    }}
+  function cancelHover() {{
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
+  }}
+  var hoverWhole = root.hasAttribute("data-menu-cascade") && !root.hasAttribute("data-menu-overlay");
+  if (hoverWhole) {{
+    root.addEventListener("mouseenter", openSoon);
+  }} else if (trigger) {{
+    trigger.addEventListener("mouseenter", openSoon);
+  }}
+  root.addEventListener("mouseleave", function () {{
+    cancelHover();
+    applyOpen(false);
   }});
-}});
-document.querySelectorAll("[data-menu-overlay]").forEach(function (overlay) {{
-  var flyout = overlay.querySelector("[data-menu-submenu]");
-  var trigger = overlay.querySelector("[data-submenu-trigger]");
-  function itemList(root) {{
-    return root ? Array.prototype.slice.call(root.querySelectorAll("[data-menu-item]")) : [];
-  }}
-  function setHi(items, idx) {{
-    items.forEach(function (el, i) {{
-      el.setAttribute("data-menu-hi", i === idx ? "1" : "0");
-    }});
-  }}
-  function applyOpen(open) {{
-    overlay.setAttribute("data-open", open ? "1" : "0");
-    overlay.setAttribute("data-menu-focus-parent", open ? "inactive" : "rest");
-    if (flyout) flyout.style.display = open ? "flex" : "none";
-    if (trigger) trigger.setAttribute("aria-expanded", open ? "true" : "false");
-    overlay.querySelectorAll("[data-r-rest]").forEach(function (g) {{
-      var r = open ? g.getAttribute("data-r-inactive") : g.getAttribute("data-r-rest");
-      if (r) g.style.borderRadius = r;
-    }});
-  }}
-  function typeahead(items, from, ch) {{
-    if (!items.length) return from;
-    var needle = ch.toLowerCase();
-    var start = ((from < 0 ? -1 : from) + 1) % items.length;
-    for (var step = 0; step < items.length; step++) {{
-      var i = (start + step) % items.length;
-      var label = (items[i].getAttribute("data-menu-item") || "").charAt(0).toLowerCase();
-      if (label === needle) return i;
-    }}
-    return from;
-  }}
   if (trigger) {{
     trigger.style.cursor = "pointer";
-    trigger.addEventListener("mouseenter", function () {{ applyOpen(true); }});
     trigger.addEventListener("click", function (ev) {{
       ev.stopPropagation();
-      applyOpen(overlay.getAttribute("data-open") !== "1");
+      cancelHover();
+      applyOpen(root.getAttribute(flyAttr) !== "1");
     }});
   }}
-  overlay.addEventListener("mouseleave", function () {{ applyOpen(false); }});
-  overlay.setAttribute("tabindex", "0");
-  overlay.addEventListener("keydown", function (ev) {{
-    var open = overlay.getAttribute("data-open") === "1";
-    var parentItems = itemList(overlay.querySelector("[data-menu-parent]"));
+  root.querySelectorAll("[data-menu-item]:not([data-submenu-trigger])").forEach(function (el) {{
+    el.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      if (root.hasAttribute("data-overflow-cascade")) {{
+        root.setAttribute("data-open", "0");
+        root.style.display = "none";
+      }}
+      var split = root.closest("[data-split]");
+      if (split) {{
+        split.setAttribute("data-open", "0");
+        var trail = split.querySelector("[data-split-trail]");
+        if (trail) trail.textContent = "▾";
+      }}
+    }});
+  }});
+  root.setAttribute("tabindex", "0");
+  root.addEventListener("keydown", function (ev) {{
+    var open = root.getAttribute(flyAttr) === "1";
+    var parentItems = itemList(root.querySelector("[data-menu-parent]"));
     var subItems = itemList(flyout);
     var items = open ? subItems : parentItems;
     var cur = items.findIndex(function (el) {{ return el.getAttribute("data-menu-hi") === "1"; }});
@@ -1978,7 +1951,6 @@ fn type_section(theme: &Theme) -> String {
 fn paint_standard_group(theme: &Theme, selected: usize, overflow_open: bool) -> String {
     let count = button_group::STANDARD_SEGMENTS.len();
     let ov = button_group::resolve_standard_overflow(theme, false);
-    let menu = menu::resolve_menu(theme);
     let mut parts = String::from(
         r#"<div class="overflow-menu" data-standard-overflow="1" data-hero="button-group-standard">"#,
     );
@@ -2036,25 +2008,14 @@ fn paint_standard_group(theme: &Theme, selected: usize, overflow_open: bool) -> 
         glyph = button_group::STANDARD_OVERFLOW_GLYPH,
     ));
     parts.push_str("</div>");
-    let display = if overflow_open { "flex" } else { "none" };
-    parts.push_str(&format!(
-        r#"<div class="menu" data-overflow-menu="1" data-standard-overflow-menu="1" data-open="{open}" style="display:{display};background:{bg};border-radius:{r}px;box-shadow:{sh}">"#,
-        open = if overflow_open { "1" } else { "0" },
-        display = display,
-        bg = menu.container.css_hex(),
-        r = menu.corners.top_left,
-        sh = ElevationLevels::css_shadow(menu.elevation_dp),
+    parts.push_str(&paint_grouped_overflow(
+        theme,
+        menu::GroupedPopupKind::StandardOverflow,
+        overflow_open,
+        "overflow-cascade",
+        r#" data-overflow-menu="1" data-standard-overflow-menu="1""#,
     ));
-    for (i, label) in button_group::STANDARD_OVERFLOW_ITEMS.iter().enumerate() {
-        let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-        parts.push_str(&format!(
-            r#"<div class="menu-item" data-overflow-item="{label}" data-standard-overflow-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
-            bg = item.container.css_hex(),
-            fg = item.label.css_hex(),
-            h = item.height_dp,
-        ));
-    }
-    parts.push_str("</div></div>");
+    parts.push_str("</div>");
     parts
 }
 
@@ -2108,7 +2069,6 @@ fn paint_connected_group(theme: &Theme, selected: usize) -> String {
 
 fn paint_icon_group(theme: &Theme, selected: usize, overflow_open: bool) -> String {
     let count = button_group::icon_group_count();
-    let menu = menu::resolve_menu(theme);
     let mut parts = String::from(r#"<div class="overflow-menu" data-hero="button-group-icons">"#);
     parts.push_str(r#"<div class="btn-group" data-button-group="icons" data-icon-group="1">"#);
     for i in 0..count {
@@ -2154,25 +2114,14 @@ fn paint_icon_group(theme: &Theme, selected: usize, overflow_open: bool) -> Stri
         ));
     }
     parts.push_str("</div>");
-    let display = if overflow_open { "flex" } else { "none" };
-    parts.push_str(&format!(
-        r#"<div class="menu" data-overflow-menu="1" data-open="{open}" style="display:{display};background:{bg};border-radius:{r}px;box-shadow:{sh}">"#,
-        open = if overflow_open { "1" } else { "0" },
-        display = display,
-        bg = menu.container.css_hex(),
-        r = menu.corners.top_left,
-        sh = ElevationLevels::css_shadow(menu.elevation_dp),
+    parts.push_str(&paint_grouped_overflow(
+        theme,
+        menu::GroupedPopupKind::ConnectedOverflow,
+        overflow_open,
+        "overflow-cascade",
+        r#" data-overflow-menu="1""#,
     ));
-    for (i, label) in button_group::OVERFLOW_ITEMS.iter().enumerate() {
-        let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
-        parts.push_str(&format!(
-            r#"<div class="menu-item" data-overflow-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
-            bg = item.container.css_hex(),
-            fg = item.label.css_hex(),
-            h = item.height_dp,
-        ));
-    }
-    parts.push_str("</div></div>");
+    parts.push_str("</div>");
     parts
 }
 
@@ -2326,7 +2275,7 @@ fn buttons(theme: &Theme) -> String {
         button_group::STANDARD_SELECTED,
         button_group::STANDARD_OVERFLOW_OPEN,
     ));
-    out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square. Trailing filled overflow indicator (Compose OverflowIndicator) holds Left / Right / Justify.</p>");
+    out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square. Trailing filled OverflowIndicator opens a grouped 2dp menu (Left / Right / Justify + More › Share/Save/Sort flyout).</p>");
     out.push_str("<h3>connected button group</h3>");
     out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
     out.push_str("<h3>connected icon row + overflow</h3>");
@@ -2335,7 +2284,7 @@ fn buttons(theme: &Theme) -> String {
         button_group::ICON_SELECTED,
         button_group::OVERFLOW_OPEN,
     ));
-    out.push_str("<p class=\"note\">Expressive connected group: 2dp gap, 8dp inner corners, full-round outer. Selected segment morphs toward square (checkedShape). Click to restyle.</p></div>");
+    out.push_str("<p class=\"note\">Expressive connected group: 2dp gap, 8dp inner corners, full-round outer. Selected segment morphs toward square (checkedShape). Overflow opens Cut / Copy / Paste + More › grouped flyout. Click to restyle.</p></div>");
     for variant in button::ButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
         for state in InteractionState::ALL_COMMON {
@@ -2649,22 +2598,18 @@ fn paint_split(
 ) -> String {
     let lead = split_button::resolve_leading(theme, variant, size, false);
     let trail = split_button::resolve_trailing(theme, variant, size, open);
-    let shell = menu::resolve_menu(theme);
-    let mut items = String::new();
-    for label in split_button::DEMO_MENU {
-        let a = menu::resolve_item(theme, false, InteractionState::Enabled);
-        items.push_str(&format!(
-            r#"<div class="menu-item" data-split-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
-            bg = a.container.css_hex(),
-            fg = a.label.css_hex(),
-            h = a.height_dp,
-        ));
-    }
+    let items = paint_grouped_overflow(
+        theme,
+        menu::GroupedPopupKind::Split,
+        true,
+        "split-menu overflow-cascade",
+        r#" data-split-menu="1" data-split-cascade="1""#,
+    );
     format!(
         r#"<div class="split" data-split="{v}" data-split-size="{s}" data-open="{open}" data-hero="split-button">
   <button class="split-lead" data-split-lead="1" style="background:{lbg};color:{lfg};border:{lbd};border-radius:{lr};height:{lh}px;padding:0 {lpad}px;font-size:{lfs}px;box-shadow:{lsh}">{icon} {label}</button>
   <button class="split-trail" data-split-trail="1" style="background:{tbg};color:{tfg};border:{tbd};border-radius:{tr};height:{th}px;min-width:{tw}px;padding:0 {tpad}px;font-size:{tfs}px;box-shadow:{tsh}">{caret}</button>
-  <div class="split-menu menu" data-split-menu="1" style="background:{mbg};border-radius:{mr}px;box-shadow:{msh}">{items}</div>
+  {items}
 </div>"#,
         v = variant.label(),
         s = size.label(),
@@ -2691,16 +2636,13 @@ fn paint_split(
         tfs = split_button::trailing_icon_dp(size),
         tsh = ElevationLevels::css_shadow(trail.elevation_dp),
         caret = split_button::caret(open),
-        mbg = shell.container.css_hex(),
-        mr = shell.corners.top_left,
-        msh = ElevationLevels::css_shadow(shell.elevation_dp),
         items = items,
     )
 }
 
 fn split_button_section(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Split button</h2><p class=\"note\">M3 Expressive: leading action + trailing menu, 2dp gap, outer full-round, inner 4dp rest / 12dp press (S). Official overview is an enamel-mugs product card. <a href=\"https://m3.material.io/components/split-button/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"split-button\">",
+        "<h2>Split button</h2><p class=\"note\">M3 Expressive: leading action + trailing menu, 2dp gap, outer full-round, inner 4dp rest / 12dp press (S). Trailing menu is a grouped 2dp popup (Add to cart / Save for later + More ›). Official overview is an enamel-mugs product card. <a href=\"https://m3.material.io/components/split-button/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"split-button\">",
     );
     out.push_str(&format!(
         r#"<div class="product-card" data-split-scene="1" data-hero="split-button">
@@ -4352,10 +4294,28 @@ fn paint_menu_item_row(
     )
 }
 
+fn overflow_leaf_extra(kind: menu::GroupedPopupKind, item: &menu::MenuDemoItem) -> String {
+    if item.submenu {
+        return String::new();
+    }
+    let label = esc(item.label);
+    match kind {
+        menu::GroupedPopupKind::StandardOverflow => {
+            format!(r#" data-overflow-item="{label}" data-standard-overflow-item="{label}""#)
+        }
+        menu::GroupedPopupKind::ConnectedOverflow => {
+            format!(r#" data-overflow-item="{label}""#)
+        }
+        menu::GroupedPopupKind::Split => format!(r#" data-split-item="{label}""#),
+        menu::GroupedPopupKind::Overlay => String::new(),
+    }
+}
+
 fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
     paint_vertical_menu_focus(
         theme,
         scheme,
+        menu::GroupedPopupKind::Overlay,
         menu::MenuFocus::Rest,
         false,
         r#" data-menu="1" data-hero="menu""#,
@@ -4365,18 +4325,22 @@ fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
 fn paint_vertical_menu_focus(
     theme: &Theme,
     scheme: menu::MenuScheme,
+    kind: menu::GroupedPopupKind,
     focus: menu::MenuFocus,
     submenu_open: bool,
     stack_attrs: &str,
 ) -> String {
-    let groups = menu::VERTICAL_GROUPS;
+    let groups = kind.groups();
+    let selected_index = kind.default_parent_hi();
     let mut stack = format!(
-        r#"<div class="menu-stack" role="menu"{attrs} data-menu-scheme="{scheme}" data-menu-axis="vertical" data-menu-gap="{gap}" data-menu-focus="{focus}" data-menu-parent="1">"#,
+        r#"<div class="menu-stack" role="menu"{attrs} data-menu-scheme="{scheme}" data-menu-axis="vertical" data-menu-gap="{gap}" data-menu-focus="{focus}" data-menu-parent="1" data-popup-kind="{kind}">"#,
         attrs = stack_attrs,
         scheme = scheme.label(),
         gap = menu::GROUP_GAP_DP,
         focus = focus.label(),
+        kind = kind.label(),
     );
+    let mut flat = 0usize;
     for (gi, group) in groups.iter().enumerate() {
         let rest = menu::resolve_group(theme, scheme, gi, groups.len());
         let shell = menu::resolve_group_focus(theme, scheme, gi, groups.len(), focus);
@@ -4391,7 +4355,7 @@ fn paint_vertical_menu_focus(
             pad = shell.pad_dp,
         ));
         for (i, item) in group.iter().enumerate() {
-            let selected = gi == 0 && i == menu::STYLE_SELECTED;
+            let selected = flat == selected_index && !item.submenu;
             let state = if item.submenu && submenu_open {
                 InteractionState::Hovered
             } else {
@@ -4406,20 +4370,55 @@ fn paint_vertical_menu_focus(
                 selected,
                 state,
             );
-            let extra = if item.submenu {
+            let mut extra = if item.submenu {
                 format!(
                     r#" data-submenu-trigger="1" aria-haspopup="menu" aria-expanded="{exp}""#,
                     exp = if submenu_open { "true" } else { "false" },
                 )
             } else {
-                String::new()
+                overflow_leaf_extra(kind, item)
             };
+            extra.push_str(&format!(r#" data-menu-flat="{flat}""#));
             stack.push_str(&paint_menu_item_row(item, &a, selected, &extra));
+            flat += 1;
         }
         stack.push_str("</div>");
     }
     stack.push_str("</div>");
     stack
+}
+
+fn paint_grouped_overflow(
+    theme: &Theme,
+    kind: menu::GroupedPopupKind,
+    visible: bool,
+    class_name: &str,
+    extra_attrs: &str,
+) -> String {
+    let scheme = menu::MenuScheme::Standard;
+    let display = if visible { "flex" } else { "none" };
+    format!(
+        r#"<div class="{class}" role="menu" data-overflow-cascade="1" data-popup-kind="{kind}" data-open="{open}" data-flyout="0" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" data-grouped="1"{extra} style="display:{display};gap:{gap}px">
+  {parent}
+  {flyout}
+</div>"#,
+        class = class_name,
+        kind = kind.label(),
+        open = if visible { "1" } else { "0" },
+        gap = menu::SUBMENU_GAP_DP,
+        delay = menu::HOVER_OPEN_DELAY_MS,
+        extra = extra_attrs,
+        display = display,
+        parent = paint_vertical_menu_focus(
+            theme,
+            scheme,
+            kind,
+            menu::MenuFocus::Rest,
+            false,
+            r#" data-menu-parent="1""#,
+        ),
+        flyout = paint_submenu_flyout(theme, scheme),
+    )
 }
 
 fn paint_submenu_flyout(theme: &Theme, scheme: menu::MenuScheme) -> String {
@@ -4453,13 +4452,21 @@ fn paint_submenu_flyout(theme: &Theme, scheme: menu::MenuScheme) -> String {
 fn paint_submenu_cascade(theme: &Theme) -> String {
     let scheme = menu::MenuScheme::Standard;
     format!(
-        r#"<div class="menu-cascade" data-hero="menu-submenu" data-menu-cascade="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" style="gap:{gap}px">
+        r#"<div class="menu-cascade" data-hero="menu-submenu" data-menu-cascade="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" style="gap:{gap}px">
   {parent}
   {flyout}
 </div>"#,
         open = if menu::CASCADE_OPEN { "1" } else { "0" },
         gap = menu::SUBMENU_GAP_DP,
-        parent = paint_vertical_menu_focus(theme, scheme, menu::MenuFocus::Inactive, true, "",),
+        delay = menu::HOVER_OPEN_DELAY_MS,
+        parent = paint_vertical_menu_focus(
+            theme,
+            scheme,
+            menu::GroupedPopupKind::Overlay,
+            menu::MenuFocus::Inactive,
+            true,
+            "",
+        ),
         flyout = paint_submenu_flyout(theme, scheme),
     )
 }
@@ -4474,13 +4481,14 @@ fn paint_overlay_menu(theme: &Theme) -> String {
     format!(
         r#"<div class="menu-anchor-stage" data-hero="menu-overlay" data-menu-overlay-stage="1" data-scrim="{scrim}" data-anchored="1">
   <button class="btn" data-menu-anchor="1" data-menu-anchor-label="{label}" style="background:{abg};color:{afg};border:none;min-width:64px;height:{ah}px;padding:0 16px;border-radius:{ar}px;font-size:14px">{label}</button>
-  <div class="menu-overlay" data-hero="menu-overlay" data-menu-overlay="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-overlay-flyout="1" data-anchored="1" data-scrim="{scrim}" style="gap:{gap}px">
+  <div class="menu-overlay" data-hero="menu-overlay" data-menu-overlay="1" data-open="{open}" data-typeahead="1" data-menu-keyboard="1" data-menu-gap="{gap}" data-hover-delay="{delay}" data-overlay-flyout="1" data-anchored="1" data-scrim="{scrim}" style="gap:{gap}px">
   {parent}
   {flyout}
 </div>
 </div>"#,
         open = if menu::OVERLAY_FLYOUT_OPEN { "1" } else { "0" },
         gap = menu::SUBMENU_GAP_DP,
+        delay = menu::HOVER_OPEN_DELAY_MS,
         scrim = if menu::OVERLAY_USES_SCRIM { "1" } else { "0" },
         label = menu::OVERLAY_ANCHOR_LABEL,
         abg = anchor.container.css_hex(),
@@ -4490,6 +4498,7 @@ fn paint_overlay_menu(theme: &Theme) -> String {
         parent = paint_vertical_menu_focus(
             theme,
             scheme,
+            menu::GroupedPopupKind::Overlay,
             menu::MenuFocus::Rest,
             false,
             r#" data-menu-parent="1""#,
@@ -4556,7 +4565,7 @@ fn paint_horizontal_icons(theme: &Theme) -> String {
 fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; More hover/click opens the End flyout (does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Nested submenu flies out at MenuAnchorPosition.End; focused ActiveContainerShape 24, parent InactiveContainerShape 8. Overlay menus are unscrimmed popups next to a Menu anchor; overflow and split trailing menus use the same grouped 2dp shell + More flyout (not a single 16dp surface). More hover/click opens the End flyout after 200ms (does not dismiss). Hover-open + WAI-ARIA typeahead. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
 <div class="hero-card" data-hero="menu">
   <div class="menu-row">
     {standard}

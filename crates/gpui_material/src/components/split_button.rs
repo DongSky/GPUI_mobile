@@ -7,8 +7,8 @@
 //! the trailing button to full and keeps a pressed state layer — container
 //! colors do not change on selection.
 
-use crate::components::button::{self, ButtonSize, ButtonVariant};
 use crate::components::Appearance;
+use crate::components::button::{self, ButtonSize, ButtonVariant};
 use crate::shape::Corners;
 use crate::state::InteractionState;
 use crate::theme::Theme;
@@ -20,6 +20,8 @@ pub const CARET_OPEN: &str = "▴";
 
 pub const DEMO_LABEL: &str = "$7.49";
 pub const DEMO_LEADING_ICON: &str = "+";
+/// Trailing related actions. The popup is grouped (`menu::SPLIT_MENU_GROUPS`:
+/// these two + More › Share/Save/Sort).
 pub const DEMO_MENU: [&str; 2] = ["Add to cart", "Save for later"];
 pub const DEMO_OPEN: bool = false;
 /// Official overview: enamel-mugs product card.
@@ -47,12 +49,7 @@ pub enum SplitButtonVariant {
 }
 
 impl SplitButtonVariant {
-    pub const ALL: [Self; 4] = [
-        Self::Filled,
-        Self::Tonal,
-        Self::Elevated,
-        Self::Outlined,
-    ];
+    pub const ALL: [Self; 4] = [Self::Filled, Self::Tonal, Self::Elevated, Self::Outlined];
 
     pub const fn label(self) -> &'static str {
         match self {
@@ -116,12 +113,7 @@ pub const fn trailing_pad_h_dp(size: ButtonSize) -> f32 {
     }
 }
 
-pub fn corners(
-    role: SplitRole,
-    size: ButtonSize,
-    pressed: bool,
-    trailing_open: bool,
-) -> Corners {
+pub fn corners(role: SplitRole, size: ButtonSize, pressed: bool, trailing_open: bool) -> Corners {
     let outer = size.height_dp() / 2.0;
     if trailing_open && matches!(role, SplitRole::Trailing) {
         return Corners::all(outer);
@@ -201,9 +193,5 @@ pub fn resolve_trailing(
 }
 
 pub fn caret(open: bool) -> &'static str {
-    if open {
-        CARET_OPEN
-    } else {
-        CARET_CLOSED
-    }
+    if open { CARET_OPEN } else { CARET_CLOSED }
 }
