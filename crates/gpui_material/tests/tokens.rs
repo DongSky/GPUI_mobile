@@ -880,6 +880,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Quick results"));
     assert!(html.contains(r#"data-search-status-label="1""#));
     assert!(html.contains(r#"aria-live="polite""#));
+    assert!(html.contains(r#"data-search-docked-stage="1""#));
+    assert!(html.contains(r#"data-search-scrim="1""#));
+    assert!(html.contains(r#"data-search-scrim-layer="1""#));
+    assert!(html.contains(r#"data-docked-min-h="240""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
@@ -1159,6 +1163,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("fullscreen")
             && e.notes.contains("Quick results")
             && e.notes.contains("Results")
+            && e.notes.contains("240")
+            && e.notes.contains("scrim")
     }));
     assert!(INVENTORY
         .iter()
@@ -2736,6 +2742,21 @@ fn search_bar_and_time_picker_tokens() {
         search::list_status("App", false),
         search::SearchListStatus::Results
     );
+    assert_eq!(search::DOCKED_MIN_H_DP, 240.0);
+    assert!((search::docked_max_h_dp(720.0) - 480.0).abs() < 0.01);
+    assert_eq!(search::docked_height_dp(100.0, 720.0), 240.0);
+    assert_eq!(search::docked_height_dp(500.0, 720.0), 480.0);
+    assert_eq!(search::docked_width_dp(800.0), 720.0);
+    assert_eq!(search::SCRIM_OPACITY, 0.32);
+    assert!(search::uses_docked_scrim(
+        search::SearchExpandedLayout::Docked,
+        true
+    ));
+    assert!(!search::uses_docked_scrim(
+        search::SearchExpandedLayout::FullScreen,
+        true
+    ));
+    assert!(search::dismiss_on_scrim());
     assert_eq!(
         search::SearchListStatus::QuickResults.heading(),
         Some(search::QUICK_RESULTS_LABEL)

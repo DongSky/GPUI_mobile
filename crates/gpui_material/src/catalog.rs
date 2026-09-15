@@ -204,10 +204,27 @@ a {{ color: var(--primary); }}
 .search-morph[data-open="0"] {{
   margin: 0 16px; transform: scale(0.94);
 }}
+.search-docked-stage {{
+  position: relative; max-width: 720px; min-height: 480px; border-radius: 16px;
+  overflow: hidden; margin: 8px 0 16px;
+}}
+.search-docked-backdrop {{
+  position: absolute; inset: 0; padding: 72px 24px 24px; z-index: 0;
+  display: flex; flex-direction: column; gap: 12px; pointer-events: none;
+}}
+.search-docked-backdrop .search-docked-line {{
+  height: 12px; border-radius: 6px; opacity: 0.35;
+}}
+.search-docked-scrim {{
+  position: absolute; inset: 0; z-index: 1; cursor: pointer;
+}}
+.search-docked-stage .search-morph {{
+  position: relative; z-index: 2;
+}}
 .search-morph[data-search-style="contained"][data-width-class="medium"],
 .search-morph[data-search-style="contained"][data-search-expanded="docked"][data-open="1"],
 .search-view[data-search-style="contained"][data-search-expanded="docked"] {{
-  border-radius: 28px; max-width: 720px; min-height: 280px; margin: 12px; transform: none;
+  border-radius: 28px; max-width: 720px; min-height: 240px; max-height: 480px; margin: 12px; transform: none;
 }}
 .search-morph[data-search-style="contained"][data-width-class="medium"][data-open="0"] {{
   margin: 24px; min-height: 56px; transform: none;
@@ -252,6 +269,9 @@ a {{ color: var(--primary); }}
   max-height: 480px; opacity: 1; overflow: hidden;
   transition: max-height 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90),
     opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.search-morph[data-search-expanded="docked"][data-open="1"] .sv-list {{
+  overflow-y: auto; max-height: 424px;
 }}
 .search-morph .sv-group {{ display: flex; flex-direction: column; }}
 .search-morph .sv-group + .sv-group {{ margin-top: 8px; }}
@@ -2064,7 +2084,8 @@ document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
           view.style.marginLeft = open ? "0" : "16px";
           view.style.marginRight = open ? "0" : "16px";
         }} else {{
-          view.style.minHeight = open ? "280px" : "56px";
+          view.style.minHeight = open ? "240px" : "56px";
+          view.style.maxHeight = open ? "480px" : "56px";
           view.style.borderRadius = "28px";
           view.style.marginLeft = open ? "12px" : "24px";
           view.style.marginRight = open ? "12px" : "24px";
@@ -2142,6 +2163,14 @@ document.querySelectorAll("[data-search-input]").forEach(function (input) {{
     syncSearchStatus(input.closest("[data-search-view]"), input);
   }});
   input.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
+}});
+document.querySelectorAll("[data-search-scrim-layer]").forEach(function (scrim) {{
+  scrim.addEventListener("click", function () {{
+    var stage = scrim.closest("[data-search-docked-stage]");
+    var view = stage ? stage.querySelector("[data-search-view]") : null;
+    if (!view || view.getAttribute("data-open") !== "1") return;
+    view.click();
+  }});
 }});
 document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
   row.style.cursor = "pointer";
@@ -6182,10 +6211,37 @@ fn paint_contained_search_state(
     )
 }
 
+fn paint_docked_search_stage(theme: &Theme, inner: &str) -> String {
+    let scrim = search::docked_scrim(theme).css_hex();
+    let line = theme.color.on_surface.css_hex();
+    format!(
+        r#"<div class="search-docked-stage" data-search-docked-stage="1" data-search-scrim="1" data-docked-min-h="{min_h}" data-docked-max-frac="{frac}" data-docked-min-w="{min_w}" data-docked-max-w="{max_w}" style="min-height:{sh}px;max-width:{mw}px;background:{bg}">
+  <div class="search-docked-backdrop" aria-hidden="true">
+    <div class="search-docked-line" style="background:{line};width:48%"></div>
+    <div class="search-docked-line" style="background:{line};width:72%"></div>
+    <div class="search-docked-line" style="background:{line};width:36%"></div>
+  </div>
+  <div class="search-docked-scrim" data-search-scrim-layer="1" style="background:{scrim}"></div>
+  {inner}
+</div>"#,
+        min_h = search::DOCKED_MIN_H_DP,
+        frac = search::DOCKED_MAX_SCREEN_FRAC,
+        min_w = search::DOCKED_MIN_W_DP,
+        max_w = search::DOCKED_MAX_W_DP,
+        sh = search::docked_max_h_dp(search::DEMO_SCREEN_H_DP),
+        mw = search::DOCKED_MAX_W_DP,
+        bg = theme.color.surface.css_hex(),
+        line = line,
+        scrim = scrim,
+        inner = inner,
+    )
+}
+
 fn search_section(theme: &Theme) -> String {
     let activity = search::resolve_activity(theme);
     let compact = paint_contained_search(theme, search::WindowWidthClass::Compact, true);
-    let docked = paint_contained_search(theme, search::WindowWidthClass::Medium, false);
+    let docked_inner = paint_contained_search(theme, search::WindowWidthClass::Medium, false);
+    let docked = paint_docked_search_stage(theme, &docked_inner);
     let submitted = search::pick_suggestion(search::DEMO_QUERY, 0).unwrap_or("App");
     let quick = paint_contained_search_state(
         theme,
@@ -6206,7 +6262,7 @@ fn search_section(theme: &Theme) -> String {
 <p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions). Queried search shows a <code>Quick results</code> status while typing and a <code>Results</code> label after submit (query stays visible, not focused). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
-<p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin.</p>
+<p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
 {docked}
 <h3>queried (Quick results / Results)</h3>
 <p class="note">Focused typing uses a Quick results status and a live region. Submitted search uses a Results label; the input text remains visible but is not focused.</p>

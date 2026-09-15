@@ -4744,9 +4744,12 @@ fn search_bar_hero(
     let list = div()
         .flex()
         .flex_col()
+        .when(open, |el| {
+            el.max_h(px(search::docked_list_max_h_dp(search::DEMO_SCREEN_H_DP)))
+        })
         .children(list_children)
         .into_any_element();
-    div()
+    let morph = div()
         .id("search-morph")
         .relative()
         .w_full()
@@ -4769,6 +4772,7 @@ fn search_bar_hero(
                 let frame =
                     search::contained_frame_eased_layout(search_layout, linear, suggestion_count);
                 this.min_h(px(frame.height_dp))
+                    .max_h(px(search::docked_max_h_dp(search::DEMO_SCREEN_H_DP)))
                     .rounded(px(frame.corner_dp))
                     .ml(px(frame.margin_dp))
                     .mr(px(frame.margin_dp))
@@ -4790,7 +4794,38 @@ fn search_bar_hero(
                     },
                 )
                 .child(list),
+        );
+    div()
+        .id("search-docked-stage")
+        .relative()
+        .w_full()
+        .min_h(px(if open {
+            search::docked_max_h_dp(search::DEMO_SCREEN_H_DP)
+        } else {
+            search::HEIGHT_DP
+        }))
+        .when(
+            open && search::uses_docked_scrim(search_layout, true),
+            |el| {
+                el.child(
+                    div()
+                        .id("search-docked-scrim")
+                        .absolute()
+                        .top(px(0.))
+                        .left(px(0.))
+                        .size_full()
+                        .bg(paint(search::docked_scrim(theme)))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if search::dismiss_on_scrim() {
+                                this.search_open = false;
+                                this.search.set_focus(false);
+                                cx.notify();
+                            }
+                        })),
+                )
+            },
         )
+        .child(morph)
 }
 
 fn time_scroll_hero(
@@ -7389,6 +7424,12 @@ mod tests {
             search::list_status("App", false),
             search::SearchListStatus::Results
         );
+        assert_eq!(search::DOCKED_MIN_H_DP, 240.0);
+        assert!(search::uses_docked_scrim(
+            search::SearchExpandedLayout::Docked,
+            true
+        ));
+        assert_eq!(search::SCRIM_OPACITY, 0.32);
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);

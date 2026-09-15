@@ -581,6 +581,18 @@ pub const COMPACT_MAX_WIDTH_DP: f32 = 600.0;
 pub const DEMO_COMPACT_WIDTH_DP: f32 = 360.0;
 /// Tablet / medium catalog column (docked).
 pub const DEMO_MEDIUM_WIDTH_DP: f32 = 720.0;
+/// Catalog / desktop tablet stage used to compute the docked ⅔ height cap.
+pub const DEMO_SCREEN_H_DP: f32 = 720.0;
+/// Specs: docked container min height.
+pub const DOCKED_MIN_H_DP: f32 = 240.0;
+/// Specs: docked container max = ⅔ of screen height.
+pub const DOCKED_MAX_SCREEN_FRAC: f32 = 2.0 / 3.0;
+/// Specs: docked container min width.
+pub const DOCKED_MIN_W_DP: f32 = 360.0;
+/// Specs: docked container max width.
+pub const DOCKED_MAX_W_DP: f32 = 720.0;
+/// Docked search covers main content with the same 32% scrim as dialogs.
+pub const SCRIM_OPACITY: f32 = crate::components::dialog::SCRIM_OPACITY;
 /// Catalog hero uses compact (phone) so expanded search is full-screen.
 pub const DEMO_WIDTH_CLASS: WindowWidthClass = WindowWidthClass::Compact;
 
@@ -634,6 +646,41 @@ impl SearchExpandedLayout {
             Self::Docked => "docked",
         }
     }
+
+    /// Docked opens a list over a scrim; full-screen replaces the page.
+    pub const fn uses_scrim(self) -> bool {
+        matches!(self, Self::Docked)
+    }
+}
+
+pub fn docked_max_h_dp(screen_h_dp: f32) -> f32 {
+    screen_h_dp * DOCKED_MAX_SCREEN_FRAC
+}
+
+/// Specs clamp: min 240dp, max ⅔ of the window.
+pub fn docked_height_dp(content_h_dp: f32, screen_h_dp: f32) -> f32 {
+    content_h_dp.clamp(DOCKED_MIN_H_DP, docked_max_h_dp(screen_h_dp))
+}
+
+pub fn docked_width_dp(available_w_dp: f32) -> f32 {
+    available_w_dp.clamp(DOCKED_MIN_W_DP, DOCKED_MAX_W_DP)
+}
+
+/// List viewport under the pinned 56dp bar (results scroll beneath the bar).
+pub fn docked_list_max_h_dp(screen_h_dp: f32) -> f32 {
+    (docked_max_h_dp(screen_h_dp) - CONTAINED_HEADER_DP).max(0.0)
+}
+
+pub fn uses_docked_scrim(layout: SearchExpandedLayout, focused: bool) -> bool {
+    layout.uses_scrim() && focused
+}
+
+pub fn docked_scrim(theme: &Theme) -> crate::argb::Argb {
+    theme.color.scrim.with_alpha(SCRIM_OPACITY)
+}
+
+pub fn dismiss_on_scrim() -> bool {
+    true
 }
 
 pub fn contained_margin_dp(focused: bool) -> f32 {
@@ -674,7 +721,7 @@ pub fn contained_height_dp_layout(
     let list =
         CONTAINED_HEADER_DP + suggestion_list_h_dp(suggestion_count, SUGGESTION_GROUPS.len());
     match layout {
-        SearchExpandedLayout::Docked => list,
+        SearchExpandedLayout::Docked => docked_height_dp(list, DEMO_SCREEN_H_DP),
         SearchExpandedLayout::FullScreen => list.max(ACTIVITY_MIN_H_DP),
     }
 }
