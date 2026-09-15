@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Assist / filter / input / suggestion chips",
         docs: "https://m3.material.io/components/chips/specs",
         parity: Parity::Done,
-        notes: "32dp height; selected filter/input use secondary container",
+        notes: "32dp; Filter/Input Expressive ChipShapes morph 12/16/8 + selected check; Assist/Suggestion stay full-round",
     },
     ComponentEntry {
         name: "Card",

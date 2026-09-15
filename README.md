@@ -37,7 +37,7 @@ follow the **current** [Material 3 / Expressive](https://m3.material.io) site
 | Checkbox | Checkbox | done | 18dp / 2dp corners / 48dp target; checked, unchecked, indeterminate | [spec](https://m3.material.io/components/checkbox/specs) |
 | Radio | Radio button | done | 20dp / 48dp target | [spec](https://m3.material.io/components/radio-button/specs) |
 | Switch | Switch | done | 52×32 track; 16/24dp thumb | [spec](https://m3.material.io/components/switch/specs) |
-| Chip | Assist / filter / input / suggestion chips | done | 32dp height; selected filter/input use secondary container | [spec](https://m3.material.io/components/chips/specs) |
+| Chip | Assist / filter / input / suggestion chips | done | 32dp; Filter/Input Expressive ChipShapes morph (medium 12 / full selected / small 8 pressed) + selected check; Assist/Suggestion stay full-round | [spec](https://m3.material.io/components/chips/specs) |
 | Card | Elevated / filled / outlined cards | done | 12dp corners, 16dp padding | [spec](https://m3.material.io/components/cards/specs) |
 | Divider | Divider | done | 1dp outline-variant; full-bleed and inset | [spec](https://m3.material.io/components/divider/specs) |
 | Progress | Linear and circular progress indicators | done | Determinate + wavy + Expressive 7-shape morph loading + contained PTR + WaitProgress determinate morph + circular/PTR StrokeCap::Round | [spec](https://m3.material.io/components/progress-indicators/specs) |

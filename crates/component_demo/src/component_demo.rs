@@ -566,12 +566,6 @@ fn catalog_body(
         icon_button::IconButtonVariant::Standard,
         InteractionState::Enabled,
     );
-    let chip_a = chip::resolve(
-        theme,
-        chip::ChipVariant::Filter,
-        true,
-        InteractionState::Enabled,
-    );
     let card_e = card::resolve(
         theme,
         card::CardVariant::Elevated,
@@ -889,22 +883,12 @@ fn catalog_body(
             Some("Supporting text that can wrap onto a second line"),
         ))
         .child(section_title(theme, "Chips · cards · FAB"))
+        .child(android_chips(theme))
         .child(
             div()
                 .flex()
                 .gap(px(8.))
                 .items_center()
-                .child(
-                    div()
-                        .h(px(chip_a.height_dp))
-                        .px(px(chip_a.pad_start_dp))
-                        .rounded(px(chip_a.corners.top_left))
-                        .bg(paint(chip_a.container))
-                        .text_color(paint(chip_a.content))
-                        .flex()
-                        .items_center()
-                        .child("Filter"),
-                )
                 .child(
                     div()
                         .w(px(icon.width_dp.unwrap_or(icon.height_dp)))
@@ -1891,6 +1875,67 @@ fn android_horizontal_icons(theme: &Theme) -> impl IntoElement {
                         .justify_center()
                         .child(*glyph)
                 }),
+        )
+}
+
+fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
+    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
+    let lead = chip::leading_icon(demo.variant, demo.selected);
+    let trail = chip::trailing_icon(demo.variant);
+    div()
+        .h(px(a.height_dp))
+        .px(px(a.pad_start_dp.min(a.pad_end_dp)))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.content))
+        .flex()
+        .items_center()
+        .gap(px(chip::ICON_GAP_DP))
+        .when(a.outline.is_some(), |el| {
+            el.border_1()
+                .border_color(paint(a.outline.unwrap().0))
+        })
+        .children(lead.map(|g| {
+            div()
+                .w(px(chip::ICON_DP))
+                .h(px(chip::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(g)
+        }))
+        .child(demo.label)
+        .children(trail.map(|g| {
+            div()
+                .w(px(chip::ICON_DP))
+                .h(px(chip::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(g)
+        }))
+}
+
+fn android_chips(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(chip::FILTER_HERO.iter().map(|demo| paint_chip(theme, *demo))),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(chip::INPUT_HERO.iter().map(|demo| paint_chip(theme, *demo))),
         )
 }
 

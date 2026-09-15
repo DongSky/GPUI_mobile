@@ -442,6 +442,8 @@ fn card_chip_fab_chrome_tokens() {
     );
     assert_eq!(filter.height_dp, 32.0);
     assert_eq!(filter.container, theme.color.secondary_container);
+    assert_eq!(filter.corners.top_left, chip::SELECTED_CORNER_DP);
+    assert_eq!(filter.pad_start_dp, chip::LEADING_PAD_START_DP);
 
     let fab = fab::resolve(&theme, fab::FabVariant::Primary, InteractionState::Enabled);
     assert_eq!(fab.height_dp, 56.0);
@@ -822,6 +824,19 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-icon-width-w=\"52\""));
     assert!(html.contains("data-icon-width-w=\"48\""));
     assert!(html.contains("data-icon-width-w=\"72\""));
+    assert!(html.contains("data-hero=\"chips\""));
+    assert!(html.contains("data-chip-morph=\"1\""));
+    assert!(html.contains("data-hero-chip=\"filter\""));
+    assert!(html.contains("data-hero-chip=\"input\""));
+    assert!(html.contains("data-chip-label=\"Elevator\""));
+    assert!(html.contains("data-chip-label=\"Washer\""));
+    assert!(html.contains("data-chip-label=\"Pets\""));
+    assert!(html.contains("data-chip-label=\"Portland\""));
+    assert!(html.contains("data-chip-r=\"12\""));
+    assert!(html.contains("data-chip-r=\"16\""));
+    assert!(html.contains("data-chip-r=\"8\""));
+    assert!(html.contains("data-chip-lead=\"1\""));
+    assert!(html.contains("data-chip-trail=\"1\""));
     assert!(html.contains("data-hero=\"icon-buttons-toggle\""));
     assert!(html.contains("data-icon-toggle=\"unselected\""));
     assert!(html.contains("data-icon-toggle=\"selected\""));
@@ -921,6 +936,12 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("wide")
             && e.notes.contains("toggle")
             && e.notes.contains("IconToggleButton")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Chip"
+            && e.notes.contains("ChipShapes")
+            && e.notes.contains("12/16/8")
+            && e.notes.contains("check")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1107,6 +1128,98 @@ fn expressive_menu_tokens() {
     );
     assert_eq!(icon_on.height_dp, 52.0);
     assert_eq!(icon_on.corners.top_left, 999.0);
+}
+
+#[test]
+fn expressive_chip_tokens() {
+    let theme = Theme::light();
+    assert_eq!(chip::HEIGHT_DP, 32.0);
+    assert_eq!(chip::UNSELECTED_CORNER_DP, 12.0);
+    assert_eq!(chip::SELECTED_CORNER_DP, 16.0);
+    assert_eq!(chip::PRESSED_CORNER_DP, 8.0);
+    assert_eq!(chip::ICON_DP, 18.0);
+    assert_eq!(chip::ICON_GAP_DP, 8.0);
+    assert_eq!(chip::COMPACT_ICON_GAP_DP, 4.0);
+    assert_eq!(chip::LEADING_PAD_START_DP, 8.0);
+    assert_eq!(chip::TRAILING_PAD_END_DP, 8.0);
+    assert_eq!(chip::FILTER_HERO[0].label, "Elevator");
+    assert_eq!(chip::FILTER_HERO[1].label, "Washer");
+    assert_eq!(chip::FILTER_HERO[1].selected, true);
+    assert_eq!(chip::FILTER_HERO[2].label, "Pets");
+    assert_eq!(chip::FILTER_HERO[2].state, InteractionState::Pressed);
+    assert_eq!(chip::INPUT_HERO[0].label, "Portland");
+    assert!(chip::ChipVariant::Filter.morphs());
+    assert!(chip::ChipVariant::Input.morphs());
+    assert!(!chip::ChipVariant::Assist.morphs());
+    assert!(!chip::ChipVariant::Suggestion.morphs());
+    assert_eq!(
+        chip::leading_icon(chip::ChipVariant::Filter, true),
+        Some(chip::CHECK_GLYPH)
+    );
+    assert_eq!(chip::trailing_icon(chip::ChipVariant::Input), Some(chip::CLOSE_GLYPH));
+
+    let filter_off = chip::resolve(
+        &theme,
+        chip::ChipVariant::Filter,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(filter_off.corners.top_left, theme.shapes.medium);
+    assert_eq!(filter_off.outline, Some((theme.color.outline, 1.0)));
+    assert_eq!(filter_off.pad_start_dp, chip::PAD_H_DP);
+
+    let filter_on = chip::resolve(
+        &theme,
+        chip::ChipVariant::Filter,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(filter_on.corners.top_left, chip::SELECTED_CORNER_DP);
+    assert_eq!(filter_on.container, theme.color.secondary_container);
+    assert_eq!(filter_on.content, theme.color.on_secondary_container);
+    assert_eq!(filter_on.outline, None);
+    assert_eq!(filter_on.pad_start_dp, chip::LEADING_PAD_START_DP);
+
+    let filter_press = chip::resolve(
+        &theme,
+        chip::ChipVariant::Filter,
+        false,
+        InteractionState::Pressed,
+    );
+    assert_eq!(filter_press.corners.top_left, theme.shapes.small);
+
+    let input_off = chip::resolve(
+        &theme,
+        chip::ChipVariant::Input,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(input_off.corners.top_left, theme.shapes.medium);
+    assert_eq!(input_off.pad_end_dp, chip::TRAILING_PAD_END_DP);
+
+    let input_on = chip::resolve(
+        &theme,
+        chip::ChipVariant::Input,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(input_on.corners.top_left, chip::SELECTED_CORNER_DP);
+    assert_eq!(input_on.container, theme.color.secondary_container);
+
+    let assist = chip::resolve(
+        &theme,
+        chip::ChipVariant::Assist,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(assist.corners.top_left, 16.0);
+    let suggestion = chip::resolve(
+        &theme,
+        chip::ChipVariant::Suggestion,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(suggestion.corners.top_left, 16.0);
 }
 
 #[test]

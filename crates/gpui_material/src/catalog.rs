@@ -388,7 +388,12 @@ a {{ color: var(--primary); }}
   border-top: none;
   border-bottom-width: 8px; border-bottom-style: solid;
 }}
-.chip {{ height: 32px; padding: 0 16px; border-radius: 16px; font-size: 14px; font-weight: 500; }}
+.chip {{
+  height: 32px; padding: 0 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
+  gap: 8px; box-sizing: border-box;
+  transition: border-radius 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
+}}
+.chip .chip-ico {{ width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }}
 .card-demo {{
   width: 220px; min-height: 88px; border-radius: 12px; padding: 16px;
   flex-direction: column; align-items: flex-start; justify-content: center;
@@ -3183,27 +3188,67 @@ fn paint_list_reorder(theme: &Theme) -> String {
     out
 }
 
+fn paint_chip(theme: &Theme, demo: chip::ChipDemo, attrs: &str) -> String {
+    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
+    let lead = chip::leading_icon(demo.variant, demo.selected)
+        .map(|g| format!(r#"<span class="chip-ico" data-chip-lead="1">{g}</span>"#))
+        .unwrap_or_default();
+    let trail = chip::trailing_icon(demo.variant)
+        .map(|g| format!(r#"<span class="chip-ico" data-chip-trail="1">{g}</span>"#))
+        .unwrap_or_default();
+    format!(
+        r#"<div class="chip" data-chip="{v}" data-chip-label="{label}" data-selected="{sel}" data-chip-state="{st}" data-chip-r="{r}" data-chip-morph="{morph}" {attrs} style="background:{bg};color:{fg};border:{bd};border-radius:{rad};padding-left:{ps}px;padding-right:{pe}px">{lead}{label}{trail}</div>"#,
+        v = demo.variant.label(),
+        label = demo.label,
+        sel = demo.selected,
+        st = demo.state.label(),
+        r = a.corners.top_left,
+        morph = if demo.variant.morphs() { "1" } else { "0" },
+        bg = a.container.css_hex(),
+        fg = a.content.css_hex(),
+        bd = a.outline_css(),
+        rad = a.corners.css(),
+        ps = a.pad_start_dp,
+        pe = a.pad_end_dp,
+    )
+}
+
 fn chips(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Chips</h2><div class=\"state-body\">");
+    let mut out = String::from(
+        "<h2>Chips</h2><p class=\"note\">Expressive FilterChip / InputChip morph Compose <code>ChipShapes</code>: CornerMedium 12 rest, CornerFull selected, CornerSmall 8 pressed. Selected filter shows a leading check; input keeps a trailing close. Assist / suggestion stay 32dp full-round baseline. <a href=\"https://m3.material.io/components/chips/specs\">spec</a></p>",
+    );
+    out.push_str("<div class=\"hero-card\" data-hero=\"chips\">");
+    out.push_str("<div class=\"state-body\" data-chip-row=\"filter\">");
+    for demo in chip::FILTER_HERO {
+        out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="filter""#));
+    }
+    out.push_str("</div><div class=\"state-body\" data-chip-row=\"input\">");
+    for demo in chip::INPUT_HERO {
+        out.push_str(&paint_chip(theme, demo, r#"data-hero-chip="input""#));
+    }
+    out.push_str("</div></div>");
+    out.push_str("<div class=\"state-body\">");
     for variant in chip::ChipVariant::ALL {
         for selected in [false, true] {
             if matches!(variant, chip::ChipVariant::Assist) && selected {
                 continue;
             }
-            let a = chip::resolve(theme, variant, selected, InteractionState::Enabled);
-            out.push_str(&format!(
-                "<div class=\"chip\" data-chip=\"{v}\" data-selected=\"{sel}\" style=\"background:{bg};color:{fg};border:{bd}\">{label}</div>",
-                v = variant.label(),
-                sel = selected,
-                bg = a.container.css_hex(),
-                fg = a.content.css_hex(),
-                bd = a.outline_css(),
-                label = if selected {
-                    format!("{} · selected", variant.label())
+            let demo = chip::ChipDemo {
+                variant,
+                label: if selected {
+                    match variant {
+                        chip::ChipVariant::Filter => "filter · selected",
+                        chip::ChipVariant::Input => "input · selected",
+                        chip::ChipVariant::Suggestion => "suggestion · selected",
+                        chip::ChipVariant::Assist => "assist",
+                    }
                 } else {
-                    variant.label().into()
+                    variant.label()
                 },
-            ));
+                selected,
+                state: InteractionState::Enabled,
+            };
+            out.push_str(&paint_chip(theme, demo, r#"data-chip-matrix="1""#));
         }
     }
     out.push_str("</div>");

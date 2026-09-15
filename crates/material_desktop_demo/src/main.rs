@@ -24,7 +24,7 @@ use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail,
+    badge, bottom_sheet, button, button_group, carousel, checkbox, chip, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail,
     photo_stub, progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar, tooltip, top_app_bar,
     Appearance,
 };
@@ -762,6 +762,8 @@ fn catalog_body(
         .child(desktop_list_swipe(this, theme, cx))
         .child(desktop_list_reorder(this, theme, cx))
         .child(desktop_media_scene(this, theme, cx))
+        .child(section_title(theme, "Chips"))
+        .child(desktop_chips(theme))
         .child(section_title(theme, "Menu"))
         .child(desktop_menus(theme))
         .child(section_title(theme, "Snackbar"))
@@ -924,6 +926,67 @@ fn desktop_icon_button_toggles(theme: &Theme) -> impl IntoElement {
                     );
                     paint_icon_button_glyph(&a, selection.glyph())
                 })),
+        )
+}
+
+fn paint_chip(theme: &Theme, demo: chip::ChipDemo) -> impl IntoElement {
+    let a = chip::resolve(theme, demo.variant, demo.selected, demo.state);
+    let lead = chip::leading_icon(demo.variant, demo.selected);
+    let trail = chip::trailing_icon(demo.variant);
+    div()
+        .h(px(a.height_dp))
+        .px(px(a.pad_start_dp.min(a.pad_end_dp)))
+        .rounded(px(a.corners.top_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.content))
+        .flex()
+        .items_center()
+        .gap(px(chip::ICON_GAP_DP))
+        .when(a.outline.is_some(), |el| {
+            el.border_1()
+                .border_color(paint(a.outline.unwrap().0))
+        })
+        .children(lead.map(|g| {
+            div()
+                .w(px(chip::ICON_DP))
+                .h(px(chip::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(g)
+        }))
+        .child(demo.label)
+        .children(trail.map(|g| {
+            div()
+                .w(px(chip::ICON_DP))
+                .h(px(chip::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(g)
+        }))
+}
+
+fn desktop_chips(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(chip::FILTER_HERO.iter().map(|demo| paint_chip(theme, *demo))),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap(px(8.))
+                .items_center()
+                .children(chip::INPUT_HERO.iter().map(|demo| paint_chip(theme, *demo))),
         )
 }
 
@@ -5366,7 +5429,7 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
+                button, button_group, carousel, chip, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
                 split_button, text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
@@ -5584,5 +5647,33 @@ mod tests {
             InteractionState::Enabled,
         );
         assert_eq!(week.corners.top_left, 999.0);
+        assert_eq!(chip::HEIGHT_DP, 32.0);
+        assert_eq!(chip::UNSELECTED_CORNER_DP, 12.0);
+        assert_eq!(chip::SELECTED_CORNER_DP, 16.0);
+        assert_eq!(chip::PRESSED_CORNER_DP, 8.0);
+        assert_eq!(chip::FILTER_HERO[1].label, "Washer");
+        let washer = chip::resolve(
+            &theme,
+            chip::ChipVariant::Filter,
+            true,
+            InteractionState::Enabled,
+        );
+        assert_eq!(washer.container, theme.color.secondary_container);
+        assert_eq!(washer.corners.top_left, 16.0);
+        assert_eq!(washer.pad_start_dp, 8.0);
+        let elevator = chip::resolve(
+            &theme,
+            chip::ChipVariant::Filter,
+            false,
+            InteractionState::Enabled,
+        );
+        assert_eq!(elevator.corners.top_left, 12.0);
+        let pets = chip::resolve(
+            &theme,
+            chip::ChipVariant::Filter,
+            false,
+            InteractionState::Pressed,
+        );
+        assert_eq!(pets.corners.top_left, 8.0);
     }
 }
