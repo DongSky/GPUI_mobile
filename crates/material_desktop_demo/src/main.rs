@@ -24,8 +24,8 @@ use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, icon_button, menu, navigation_rail,
-    progress, radio, search, slider, snackbar, switch, tabs, text_field, top_app_bar,
+    badge, bottom_sheet, button, button_group, carousel, checkbox, dialog, fab_menu, icon_button, menu, navigation_bar, navigation_rail,
+    progress, radio, search, slider, snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -298,6 +298,8 @@ struct CatalogView {
     carousel_fling_at: Option<Instant>,
     snack_state: snackbar::SnackbarState,
     snack_at: Instant,
+    fab_menu_open: bool,
+    split_open: bool,
     last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
@@ -544,6 +546,8 @@ fn catalog_body(
             this.overflow_open,
             cx,
         ))
+        .child(section_title(theme, "Split button"))
+        .child(desktop_split_button(this, theme, cx))
         .child(section_title(theme, "Icon buttons"))
         .child(
             div()
@@ -568,6 +572,10 @@ fn catalog_body(
                         .child("★")
                 })),
         )
+        .child(section_title(theme, "FAB menu"))
+        .child(desktop_fab_menu(this, theme, cx))
+        .child(section_title(theme, "Toolbars"))
+        .child(desktop_toolbar(theme))
         .child(section_title(theme, "Text fields"))
         .child(field_block(
             "hero-empty-filled",
@@ -876,6 +884,193 @@ fn connected_icon_group(
                     )),
             )
         })
+}
+
+fn desktop_split_button(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let lead = split_button::resolve_leading(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        false,
+    );
+    let trail = split_button::resolve_trailing(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        this.split_open,
+    );
+    let shell = menu::resolve_menu(theme);
+    div()
+        .flex()
+        .flex_row()
+        .items_start()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(split_button::GAP_DP))
+                .child(
+                    div()
+                        .id("split-lead")
+                        .h(px(lead.height_dp))
+                        .px(px(lead.pad_start_dp))
+                        .rounded_tl(px(lead.corners.top_left))
+                        .rounded_tr(px(lead.corners.top_right))
+                        .rounded_br(px(lead.corners.bottom_right))
+                        .rounded_bl(px(lead.corners.bottom_left))
+                        .bg(paint(lead.container))
+                        .text_color(paint(lead.content))
+                        .flex()
+                        .items_center()
+                        .child(format!(
+                            "{} {}",
+                            split_button::DEMO_LEADING_ICON,
+                            split_button::DEMO_LABEL
+                        )),
+                )
+                .child(
+                    div()
+                        .id("split-trail")
+                        .h(px(trail.height_dp))
+                        .w(px(trail
+                            .min_width_dp
+                            .unwrap_or(split_button::TRAILING_MIN_W_DP)))
+                        .rounded_tl(px(trail.corners.top_left))
+                        .rounded_tr(px(trail.corners.top_right))
+                        .rounded_br(px(trail.corners.bottom_right))
+                        .rounded_bl(px(trail.corners.bottom_left))
+                        .bg(paint(trail.container))
+                        .text_color(paint(trail.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(split_button::caret(this.split_open))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.split_open = !this.split_open;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .when(this.split_open, |el| {
+            el.child(
+                div()
+                    .min_w(px(160.))
+                    .rounded(px(shell.corners.top_left))
+                    .bg(paint(shell.container))
+                    .children(split_button::DEMO_MENU.iter().map(|label| {
+                        let item = menu::resolve_item(theme, false, InteractionState::Enabled);
+                        div()
+                            .h(px(item.height_dp))
+                            .px(px(12.))
+                            .bg(paint(item.container))
+                            .text_color(paint(item.label))
+                            .flex()
+                            .items_center()
+                            .child(*label)
+                    })),
+            )
+        })
+}
+
+fn desktop_fab_menu(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let color = fab_menu::FabMenuColor::Primary;
+    let item = fab_menu::resolve_item(theme, color);
+    let close = fab_menu::resolve_close(theme, color, this.fab_menu_open);
+    div()
+        .flex()
+        .flex_col()
+        .items_end()
+        .gap(px(fab_menu::ITEM_GAP_DP))
+        .when(this.fab_menu_open, |el| {
+            el.children(fab_menu::DEMO_ITEMS.iter().map(|(icon, label)| {
+                div()
+                    .h(px(item.height_dp))
+                    .px(px(item.pad_h_dp))
+                    .rounded(px(item.corners.top_left))
+                    .bg(paint(item.container))
+                    .text_color(paint(item.content))
+                    .flex()
+                    .items_center()
+                    .gap(px(item.icon_gap_dp))
+                    .child(*icon)
+                    .child(*label)
+            }))
+        })
+        .child(
+            div()
+                .id("fab-menu-close")
+                .w(px(close.size_dp))
+                .h(px(close.size_dp))
+                .rounded(px(close.corners.top_left))
+                .bg(paint(close.container))
+                .text_color(paint(close.content))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(close.glyph)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.fab_menu_open = !this.fab_menu_open;
+                    cx.notify();
+                })),
+        )
+}
+
+fn desktop_toolbar(theme: &Theme) -> impl IntoElement {
+    let a = toolbar::resolve(
+        theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Vibrant,
+        toolbar::ToolbarAxis::Horizontal,
+    );
+    let icon = toolbar::resolve_icon(theme, toolbar::ToolbarColor::Vibrant);
+    let fab = toolbar::resolve_fab(theme, toolbar::ToolbarColor::Vibrant);
+    div()
+        .flex()
+        .items_center()
+        .gap(px(toolbar::FAB_GAP_DP))
+        .child(
+            div()
+                .h(px(a.height_dp))
+                .px(px(a.pad_h_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+                .flex()
+                .items_center()
+                .gap(px(a.item_gap_dp))
+                .children(toolbar::DEMO_ICONS.iter().map(|glyph| {
+                    div()
+                        .w(px(icon.height_dp))
+                        .h(px(icon.height_dp))
+                        .rounded(px(icon.corners.top_left))
+                        .bg(paint(icon.container))
+                        .text_color(paint(icon.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(*glyph)
+                })),
+        )
+        .child(
+            div()
+                .w(px(fab.width_dp.unwrap_or(fab.height_dp)))
+                .h(px(fab.height_dp))
+                .rounded(px(fab.corners.top_left))
+                .bg(paint(fab.container))
+                .text_color(paint(fab.content))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(toolbar::DEMO_FAB),
+        )
 }
 
 fn range_slider_hero(
@@ -2016,6 +2211,18 @@ fn desktop_mail_snack(
         .flex_col()
         .child(
             div()
+                .h(px(snackbar::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(snackbar::STATUS_TIME)
+                .child("5G · 100%"),
+        )
+        .child(
+            div()
                 .h(px(56.))
                 .px(px(16.))
                 .flex()
@@ -2026,15 +2233,42 @@ fn desktop_mail_snack(
                     paint(theme.color.on_surface),
                 )),
         )
-        .children(snackbar::MAIL_ROWS.into_iter().map(|(from, subj)| {
+        .children(snackbar::MAIL_ROWS.iter().enumerate().map(|(i, row)| {
             div()
-                .h(px(64.))
+                .h(px(72.))
                 .px(px(16.))
                 .flex()
-                .flex_col()
-                .justify_center()
-                .child(spaced_line(from, 16.0, paint(theme.color.on_surface)))
-                .child(spaced_line(subj, 14.0, paint(theme.color.on_surface_variant)))
+                .items_center()
+                .gap(px(12.))
+                .child(
+                    div()
+                        .w(px(snackbar::AVATAR_DP))
+                        .h(px(snackbar::AVATAR_DP))
+                        .rounded(px(snackbar::AVATAR_DP / 2.0))
+                        .bg(paint(snackbar::mail_avatar_fill(theme, i)))
+                        .text_color(paint(snackbar::mail_avatar_on(theme, i)))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(row.initials),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .flex()
+                        .flex_col()
+                        .child(spaced_line(row.from, 16.0, paint(theme.color.on_surface)))
+                        .child(spaced_line(
+                            row.subject,
+                            14.0,
+                            paint(theme.color.on_surface_variant),
+                        )),
+                )
+                .child(spaced_line(
+                    row.time,
+                    12.0,
+                    paint(theme.color.on_surface_variant),
+                ))
         }))
         .when(this.snack_state.visible, |el| {
             el.child(
@@ -2085,6 +2319,46 @@ fn desktop_mail_snack(
                     })),
             )
         })
+        .child({
+            let nav = navigation_bar::resolve(theme);
+            div()
+                .h(px(nav.height_dp))
+                .w_full()
+                .bg(paint(nav.container))
+                .flex()
+                .children(snackbar::INBOX_NAV.iter().enumerate().map(|(i, (icon, label))| {
+                    let active = i == 0;
+                    div()
+                        .flex_1()
+                        .h_full()
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .justify_center()
+                        .gap(px(4.))
+                        .text_color(paint(if active {
+                            nav.active_label
+                        } else {
+                            nav.inactive_label
+                        }))
+                        .child(
+                            div()
+                                .w(px(navigation_bar::INDICATOR_W_DP))
+                                .h(px(navigation_bar::INDICATOR_H_DP))
+                                .rounded(px(16.))
+                                .bg(paint(if active {
+                                    nav.active_indicator
+                                } else {
+                                    nav.container
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(*icon),
+                        )
+                        .child(*label)
+                }))
+        })
 }
 
 fn desktop_media_scene(
@@ -2103,6 +2377,18 @@ fn desktop_media_scene(
         .bg(paint(theme.color.surface))
         .flex()
         .flex_col()
+        .child(
+            div()
+                .h(px(tabs::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(tabs::STATUS_TIME)
+                .child("5G · 100%"),
+        )
         .child(
             div()
                 .h(px(56.))
@@ -2198,6 +2484,18 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
         .flex_col()
         .child(
             div()
+                .h(px(bottom_sheet::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(bottom_sheet::STATUS_TIME)
+                .child("5G · 100%"),
+        )
+        .child(
+            div()
                 .p(px(8.))
                 .flex()
                 .flex_wrap()
@@ -2238,6 +2536,35 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                     theme.typography.title_medium.size_sp,
                     paint(a.content),
                 ))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(16.))
+                        .pb(px(8.))
+                        .flex()
+                        .gap(px(12.))
+                        .children(bottom_sheet::PEOPLE.iter().enumerate().map(|(i, (ini, name))| {
+                            div()
+                                .w(px(bottom_sheet::PEOPLE_DP))
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap(px(4.))
+                                .child(
+                                    div()
+                                        .w(px(40.))
+                                        .h(px(40.))
+                                        .rounded(px(20.))
+                                        .bg(paint(bottom_sheet::people_fill(theme, i)))
+                                        .text_color(paint(bottom_sheet::people_on(theme, i)))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(*ini),
+                                )
+                                .child(*name)
+                        })),
+                )
                 .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
                     div()
                         .w_full()
@@ -3772,6 +4099,8 @@ fn main() {
                     carousel_fling_at: None,
                     snack_state: snackbar::SnackbarState::short(),
                     snack_at: Instant::now(),
+                    fab_menu_open: fab_menu::DEMO_EXPANDED,
+                    split_open: split_button::DEMO_OPEN,
                     last_catalog_ime: None,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
@@ -3795,8 +4124,8 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, navigation_rail, progress, search, slider,
-                text_field, time_picker,
+                button, button_group, carousel, dialog, fab_menu, navigation_rail, progress, search, slider,
+                split_button, text_field, time_picker, toolbar,
     };
     use gpui_material::theme::Theme;
     use gpui_material::InteractionState;
@@ -3907,5 +4236,20 @@ mod tests {
         assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);
+        assert_eq!(
+            fab_menu::resolve_item(&theme, fab_menu::FabMenuColor::Primary).height_dp,
+            56.0
+        );
+        assert_eq!(split_button::GAP_DP, 2.0);
+        assert_eq!(
+            toolbar::resolve(
+                &theme,
+                toolbar::ToolbarKind::Floating,
+                toolbar::ToolbarColor::Vibrant,
+                toolbar::ToolbarAxis::Horizontal,
+            )
+            .height_dp,
+            64.0
+        );
     }
 }

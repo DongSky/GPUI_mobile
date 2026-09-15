@@ -24,16 +24,63 @@ pub const SCENE_MESSAGE: &str = "Email archived";
 pub const SCENE_ACTION: &str = "Undo";
 pub const CLOSE_GLYPH: &str = "✕";
 pub const HAS_CLOSE: bool = true;
-pub const MAIL_ROWS: [(&str, &str); 3] = [
-    ("Alex Rivera", "Design sync notes"),
-    ("Jordan Lee", "Q3 planning"),
-    ("Sam Chen", "Invoice #1842"),
+
+/// Official Inbox row: avatar initials + sender + subject + timestamp.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MailRow {
+    pub initials: &'static str,
+    pub from: &'static str,
+    pub subject: &'static str,
+    pub time: &'static str,
+}
+
+pub const MAIL_ROWS: [MailRow; 3] = [
+    MailRow {
+        initials: "AR",
+        from: "Alex Rivera",
+        subject: "Design sync notes",
+        time: "9:41",
+    },
+    MailRow {
+        initials: "JL",
+        from: "Jordan Lee",
+        subject: "Q3 planning",
+        time: "8:12",
+    },
+    MailRow {
+        initials: "SC",
+        from: "Sam Chen",
+        subject: "Invoice #1842",
+        time: "Yesterday",
+    },
 ];
+pub const INBOX_NAV: [(&str, &str); 3] = [("✉", "Inbox"), ("★", "Starred"), ("👤", "Profile")];
+pub const STATUS_H_DP: f32 = 24.0;
+pub const STATUS_TIME: &str = "9:41";
+pub const AVATAR_DP: f32 = 40.0;
 pub const PHONE_W_DP: f32 = 360.0;
-pub const PHONE_H_DP: f32 = 420.0;
+pub const PHONE_H_DP: f32 = 520.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
 pub const PHONE_BEZEL_DP: f32 = 12.0;
 pub const CLOSE_DP: f32 = 24.0;
+
+pub fn mail_avatar_fill(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.primary_container,
+        1 => c.secondary_container,
+        _ => c.tertiary_container,
+    }
+}
+
+pub fn mail_avatar_on(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 3 {
+        0 => c.on_primary_container,
+        1 => c.on_secondary_container,
+        _ => c.on_tertiary_container,
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SnackbarAppearance {

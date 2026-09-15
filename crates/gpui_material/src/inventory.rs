@@ -98,6 +98,27 @@ pub const INVENTORY: &[ComponentEntry] = &[
         notes: "Expressive regular 56 / medium 80 / large 96 / small-extended; 40dp small FAB deprecated",
     },
     ComponentEntry {
+        name: "FAB menu",
+        material: "FAB menu (Expressive)",
+        docs: "https://m3.material.io/components/fab-menu/specs",
+        parity: Parity::Done,
+        notes: "2–6 item pills 56dp full-round + 56dp close FAB; 8dp close gap / 4dp item gap; primary/secondary/tertiary sets; Document / Message / Folder hero",
+    },
+    ComponentEntry {
+        name: "Split button",
+        material: "Split buttons (Expressive)",
+        docs: "https://m3.material.io/components/split-button/specs",
+        parity: Parity::Done,
+        notes: "Leading action + trailing menu, 2dp gap; outer full-round, inner 4dp rest / 12dp press (S); open trailing goes full-round + pressed layer; $7.49 + Add to cart / Save for later",
+    },
+    ComponentEntry {
+        name: "Toolbar",
+        material: "Floating / docked toolbars (Expressive)",
+        docs: "https://m3.material.io/components/toolbars/specs",
+        parity: Parity::Done,
+        notes: "Floating 64dp full-round surface-container / vibrant primary-container + paired FAB; docked full-width; horizontal + vertical; 8dp pad / 4dp item gap",
+    },
+    ComponentEntry {
         name: "Text field",
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
@@ -172,7 +193,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Snackbar",
         docs: "https://m3.material.io/components/snackbar/specs",
         parity: Parity::Done,
-        notes: "Inverse surface 48dp; in-app Inbox scene (Email archived + Undo + close); timeout 4s/10s + swipe 72dp",
+        notes: "Inverse surface 48dp; Inbox scene with avatars/timestamps/bottom nav + Email archived / Undo / close; timeout 4s/10s + swipe 72dp",
     },
     ComponentEntry {
         name: "Navigation bar",
@@ -200,7 +221,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Bottom sheets",
         docs: "https://m3.material.io/components/bottom-sheets/specs",
         parity: Parity::Done,
-        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; official share sheet over photo grid + standard no-scrim sheet",
+        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; share sheet over photo grid with people row + standard no-scrim sheet",
     },
     ComponentEntry {
         name: "Menu",
@@ -221,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Tabs",
         docs: "https://m3.material.io/components/tabs/specs",
         parity: Parity::Done,
-        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone scene (Video/Photos/Audio)",
+        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone scene (status bar + Video/Photos/Audio)",
     },
     ComponentEntry {
         name: "Badge",

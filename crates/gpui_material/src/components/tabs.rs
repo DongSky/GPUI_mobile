@@ -20,8 +20,10 @@ pub const SCENE_LABELS: [&str; 3] = ["Video", "Photos", "Audio"];
 pub const SCENE_TILES: [&str; 6] = ["Dawn", "Peak", "Cove", "Trail", "Bloom", "Mist"];
 pub const SCENE_TILE_H_DP: f32 = 96.0;
 pub const SCENE_TILE_CORNER_DP: f32 = 16.0;
+pub const STATUS_H_DP: f32 = 24.0;
+pub const STATUS_TIME: &str = "9:41";
 pub const PHONE_W_DP: f32 = 360.0;
-pub const PHONE_H_DP: f32 = 520.0;
+pub const PHONE_H_DP: f32 = 560.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
 pub const PHONE_BEZEL_DP: f32 = 12.0;
 

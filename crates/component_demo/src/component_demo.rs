@@ -16,8 +16,8 @@ use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider, fab,
-    icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider,
-    snackbar, switch, tabs, text_field, top_app_bar, Appearance,
+    fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider,
+    snackbar, split_button, switch, tabs, text_field, toolbar, top_app_bar, Appearance,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -276,6 +276,8 @@ struct CatalogView {
     carousel_fling_at: Option<Instant>,
     snack_state: snackbar::SnackbarState,
     snack_at: Instant,
+    fab_menu_open: bool,
+    split_open: bool,
     last_catalog_ime: Option<[f32; 4]>,
     time_hour: u8,
     time_minute: u8,
@@ -653,6 +655,8 @@ fn catalog_body(
             this.overflow_open,
             cx,
         ))
+        .child(section_title(theme, "Split button"))
+        .child(android_split_button(this, theme, cx))
         .child(section_title(theme, "Text fields"))
         .child(
             div()
@@ -866,6 +870,10 @@ fn catalog_body(
                         .child("+ Create"),
                 ),
         )
+        .child(section_title(theme, "FAB menu"))
+        .child(android_fab_menu(this, theme, cx))
+        .child(section_title(theme, "Toolbars"))
+        .child(android_toolbar(theme))
         .child(
             div()
                 .flex()
@@ -1634,6 +1642,35 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                         .text_color(paint(a.content))
                         .child(bottom_sheet::SHARE_TITLE),
                 )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(16.))
+                        .pb(px(8.))
+                        .flex()
+                        .gap(px(12.))
+                        .children(bottom_sheet::PEOPLE.iter().enumerate().map(|(i, (ini, name))| {
+                            div()
+                                .w(px(bottom_sheet::PEOPLE_DP))
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap(px(4.))
+                                .child(
+                                    div()
+                                        .w(px(40.))
+                                        .h(px(40.))
+                                        .rounded(px(20.))
+                                        .bg(paint(bottom_sheet::people_fill(theme, i)))
+                                        .text_color(paint(bottom_sheet::people_on(theme, i)))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(*ini),
+                                )
+                                .child(*name)
+                        })),
+                )
                 .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
                     div()
                         .w_full()
@@ -1722,6 +1759,18 @@ fn android_mail_snack(
         .flex_col()
         .child(
             div()
+                .h(px(snackbar::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(snackbar::STATUS_TIME)
+                .child("5G · 100%"),
+        )
+        .child(
+            div()
                 .h(px(56.))
                 .px(px(16.))
                 .flex()
@@ -1729,19 +1778,43 @@ fn android_mail_snack(
                 .text_color(paint(theme.color.on_surface))
                 .child(snackbar::SCENE_TITLE),
         )
-        .children(snackbar::MAIL_ROWS.into_iter().map(|(from, subj)| {
+        .children(snackbar::MAIL_ROWS.iter().enumerate().map(|(i, row)| {
             div()
-                .h(px(64.))
+                .h(px(72.))
                 .px(px(16.))
                 .flex()
-                .flex_col()
-                .justify_center()
-                .child(div().text_color(paint(theme.color.on_surface)).child(from))
+                .items_center()
+                .gap(px(12.))
                 .child(
                     div()
+                        .w(px(snackbar::AVATAR_DP))
+                        .h(px(snackbar::AVATAR_DP))
+                        .rounded(px(snackbar::AVATAR_DP / 2.0))
+                        .bg(paint(snackbar::mail_avatar_fill(theme, i)))
+                        .text_color(paint(snackbar::mail_avatar_on(theme, i)))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(row.initials),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .flex()
+                        .flex_col()
+                        .child(div().text_color(paint(theme.color.on_surface)).child(row.from))
+                        .child(
+                            div()
+                                .text_color(paint(theme.color.on_surface_variant))
+                                .text_size(px(14.))
+                                .child(row.subject),
+                        ),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
                         .text_color(paint(theme.color.on_surface_variant))
-                        .text_size(px(14.))
-                        .child(subj),
+                        .child(row.time),
                 )
         }))
         .child(
@@ -1788,6 +1861,46 @@ fn android_mail_snack(
                     cx.notify();
                 })),
         )
+        .child({
+            let nav = navigation_bar::resolve(theme);
+            div()
+                .h(px(nav.height_dp))
+                .w_full()
+                .bg(paint(nav.container))
+                .flex()
+                .children(snackbar::INBOX_NAV.iter().enumerate().map(|(i, (icon, label))| {
+                    let active = i == 0;
+                    div()
+                        .flex_1()
+                        .h_full()
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .justify_center()
+                        .gap(px(4.))
+                        .text_color(paint(if active {
+                            nav.active_label
+                        } else {
+                            nav.inactive_label
+                        }))
+                        .child(
+                            div()
+                                .w(px(navigation_bar::INDICATOR_W_DP))
+                                .h(px(navigation_bar::INDICATOR_H_DP))
+                                .rounded(px(16.))
+                                .bg(paint(if active {
+                                    nav.active_indicator
+                                } else {
+                                    nav.container
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(*icon),
+                        )
+                        .child(*label)
+                }))
+        })
 }
 
 fn android_media_scene(
@@ -1806,6 +1919,18 @@ fn android_media_scene(
         .bg(paint(theme.color.surface))
         .flex()
         .flex_col()
+        .child(
+            div()
+                .h(px(tabs::STATUS_H_DP))
+                .px(px(20.))
+                .flex()
+                .justify_between()
+                .items_center()
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface))
+                .child(tabs::STATUS_TIME)
+                .child("5G · 100%"),
+        )
         .child(
             div()
                 .h(px(56.))
@@ -1983,6 +2108,182 @@ fn fab_box(a: &Appearance, label: &'static str) -> impl IntoElement {
         .items_center()
         .justify_center()
         .child(label)
+}
+
+fn android_split_button(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let lead = split_button::resolve_leading(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        false,
+    );
+    let trail = split_button::resolve_trailing(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        this.split_open,
+    );
+    let shell = menu::resolve_menu(theme);
+    div()
+        .flex()
+        .flex_row()
+        .items_start()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(split_button::GAP_DP))
+                .child(
+                    div()
+                        .id("split-lead")
+                        .h(px(lead.height_dp))
+                        .px(px(lead.pad_start_dp))
+                        .rounded_tl(px(lead.corners.top_left))
+                        .rounded_tr(px(lead.corners.top_right))
+                        .rounded_br(px(lead.corners.bottom_right))
+                        .rounded_bl(px(lead.corners.bottom_left))
+                        .bg(paint(lead.container))
+                        .text_color(paint(lead.content))
+                        .flex()
+                        .items_center()
+                        .child(format!(
+                            "{} {}",
+                            split_button::DEMO_LEADING_ICON,
+                            split_button::DEMO_LABEL
+                        )),
+                )
+                .child(
+                    div()
+                        .id("split-trail")
+                        .h(px(trail.height_dp))
+                        .w(px(trail
+                            .min_width_dp
+                            .unwrap_or(split_button::TRAILING_MIN_W_DP)))
+                        .rounded_tl(px(trail.corners.top_left))
+                        .rounded_tr(px(trail.corners.top_right))
+                        .rounded_br(px(trail.corners.bottom_right))
+                        .rounded_bl(px(trail.corners.bottom_left))
+                        .bg(paint(trail.container))
+                        .text_color(paint(trail.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(split_button::caret(this.split_open))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.split_open = !this.split_open;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .when(this.split_open, |el| {
+            el.child(
+                div()
+                    .min_w(px(160.))
+                    .rounded(px(shell.corners.top_left))
+                    .bg(paint(shell.container))
+                    .children(split_button::DEMO_MENU.iter().map(|label| {
+                        let item = menu::resolve_item(theme, false, InteractionState::Enabled);
+                        div()
+                            .h(px(item.height_dp))
+                            .px(px(12.))
+                            .bg(paint(item.container))
+                            .text_color(paint(item.label))
+                            .flex()
+                            .items_center()
+                            .child(*label)
+                    })),
+            )
+        })
+}
+
+fn android_fab_menu(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let color = fab_menu::FabMenuColor::Primary;
+    let item = fab_menu::resolve_item(theme, color);
+    let close = fab_menu::resolve_close(theme, color, this.fab_menu_open);
+    div()
+        .flex()
+        .flex_col()
+        .items_end()
+        .gap(px(fab_menu::ITEM_GAP_DP))
+        .when(this.fab_menu_open, |el| {
+            el.children(fab_menu::DEMO_ITEMS.iter().map(|(icon, label)| {
+                div()
+                    .h(px(item.height_dp))
+                    .px(px(item.pad_h_dp))
+                    .rounded(px(item.corners.top_left))
+                    .bg(paint(item.container))
+                    .text_color(paint(item.content))
+                    .flex()
+                    .items_center()
+                    .gap(px(item.icon_gap_dp))
+                    .child(*icon)
+                    .child(*label)
+            }))
+        })
+        .child(
+            div()
+                .id("fab-menu-close")
+                .w(px(close.size_dp))
+                .h(px(close.size_dp))
+                .rounded(px(close.corners.top_left))
+                .bg(paint(close.container))
+                .text_color(paint(close.content))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(close.glyph)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.fab_menu_open = !this.fab_menu_open;
+                    cx.notify();
+                })),
+        )
+}
+
+fn android_toolbar(theme: &Theme) -> impl IntoElement {
+    let a = toolbar::resolve(
+        theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Vibrant,
+        toolbar::ToolbarAxis::Horizontal,
+    );
+    let icon = toolbar::resolve_icon(theme, toolbar::ToolbarColor::Vibrant);
+    let fab_a = toolbar::resolve_fab(theme, toolbar::ToolbarColor::Vibrant);
+    div()
+        .flex()
+        .items_center()
+        .gap(px(toolbar::FAB_GAP_DP))
+        .child(
+            div()
+                .h(px(a.height_dp))
+                .px(px(a.pad_h_dp))
+                .rounded(px(a.corners.top_left))
+                .bg(paint(a.container))
+                .flex()
+                .items_center()
+                .gap(px(a.item_gap_dp))
+                .children(toolbar::DEMO_ICONS.iter().map(|glyph| {
+                    div()
+                        .w(px(icon.height_dp))
+                        .h(px(icon.height_dp))
+                        .rounded(px(icon.corners.top_left))
+                        .bg(paint(icon.container))
+                        .text_color(paint(icon.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(*glyph)
+                })),
+        )
+        .child(fab_box(&fab_a, toolbar::DEMO_FAB))
 }
 
 fn onscreen_keys(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElement {
@@ -3987,6 +4288,8 @@ fn android_main(app: AndroidApp) {
                 carousel_fling_at: None,
                 snack_state: snackbar::SnackbarState::short(),
                 snack_at: Instant::now(),
+                fab_menu_open: fab_menu::DEMO_EXPANDED,
+                split_open: split_button::DEMO_OPEN,
                 last_catalog_ime: None,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,

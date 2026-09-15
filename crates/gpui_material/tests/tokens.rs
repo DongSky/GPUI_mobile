@@ -2,8 +2,8 @@
 
 use gpui_material::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
-    tabs, text_field, time_picker, top_app_bar,
+    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, split_button, switch,
+    tabs, text_field, time_picker, toolbar, top_app_bar,
 };
 use gpui_material::inventory::{Parity, INVENTORY};
 use gpui_material::motion;
@@ -415,6 +415,10 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(snackbar::SCENE_ACTION, "Undo");
     assert!(snackbar::HAS_CLOSE);
     assert_eq!(snackbar::MAIL_ROWS.len(), 3);
+    assert_eq!(snackbar::MAIL_ROWS[0].initials, "AR");
+    assert_eq!(snackbar::MAIL_ROWS[0].time, "9:41");
+    assert_eq!(snackbar::INBOX_NAV.len(), 3);
+    assert_eq!(snackbar::STATUS_TIME, "9:41");
     let mut snack_state = snackbar::SnackbarState::short();
     assert!(snack_state.visible);
     assert!(!snack_state.tick(1000.0));
@@ -481,8 +485,25 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-timeout-ms"));
     assert!(html.contains("data-swipe-dismiss"));
     assert!(html.contains("data-snackbar-close"));
+    assert!(html.contains("data-persist=\"1\""));
     assert!(html.contains("Email archived"));
-    assert!(html.contains("data-mail-scene"));
+    assert!(html.contains("data-mail-avatar"));
+    assert!(html.contains("data-mail-time"));
+    assert!(html.contains("data-inbox-nav"));
+    assert!(html.contains("data-status-bar"));
+    assert!(html.contains("data-share-people"));
+    assert!(html.contains("data-share-person"));
+    assert!(html.contains("data-fab-menu"));
+    assert!(html.contains("data-fab-item=\"Document\""));
+    assert!(html.contains("data-hero=\"fab-menu\""));
+    assert!(html.contains("data-split=\"filled\""));
+    assert!(html.contains("data-split-trail"));
+    assert!(html.contains("Add to cart"));
+    assert!(html.contains("data-hero=\"split-button\""));
+    assert!(html.contains("data-toolbar=\"floating\""));
+    assert!(html.contains("data-toolbar-color=\"vibrant\""));
+    assert!(html.contains("data-toolbar-fab"));
+    assert!(html.contains("data-hero=\"toolbar\""));
     assert!(html.contains("data-tabs=\"primary-icons\""));
     assert!(html.contains("data-media-scene"));
     assert!(html.contains("My saved media"));
@@ -634,6 +655,9 @@ fn inventory_covers_claimed_and_followups() {
         "Time picker",
         "Navigation rail",
         "Carousel",
+        "FAB menu",
+        "Split button",
+        "Toolbar",
     ] {
         assert!(
             INVENTORY
@@ -677,6 +701,8 @@ fn dialog_sheet_menu_tokens() {
     assert_eq!(bottom_sheet::SHARE_TITLE, "Share");
     assert_eq!(bottom_sheet::SHARE_ACTIONS.len(), 4);
     assert_eq!(bottom_sheet::PHOTO_GRID.len(), 6);
+    assert_eq!(bottom_sheet::PEOPLE.len(), 4);
+    assert_eq!(bottom_sheet::PEOPLE[0].1, "Alex");
     assert_eq!(
         bottom_sheet::photo_fill(&theme, 0),
         theme.color.primary_container
@@ -745,6 +771,7 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(tabs::SCENE_TITLE, "My saved media");
     assert_eq!(tabs::SCENE_LABELS, ["Video", "Photos", "Audio"]);
     assert_eq!(tabs::SCENE_TILES.len(), 6);
+    assert_eq!(tabs::STATUS_TIME, "9:41");
 
     let small = badge::resolve(&theme, badge::BadgeKind::Small);
     assert_eq!(small.size_dp, 6.0);
@@ -900,6 +927,94 @@ fn fab_baseline_sizes() {
     assert_eq!(ext.height_dp, 56.0);
     assert_eq!(ext.min_width_dp, Some(80.0));
     assert!(ext.width_dp.is_none());
+}
+
+#[test]
+fn fab_menu_split_button_toolbar_tokens() {
+    let theme = Theme::light();
+    let item = fab_menu::resolve_item(&theme, fab_menu::FabMenuColor::Primary);
+    assert_eq!(item.height_dp, 56.0);
+    assert_eq!(item.pad_h_dp, 24.0);
+    assert_eq!(item.icon_dp, 24.0);
+    assert_eq!(item.corners.top_left, 28.0);
+    assert_eq!(item.container, theme.color.primary_container);
+    assert_eq!(item.content, theme.color.on_primary_container);
+    assert_eq!(item.elevation_dp, 6.0);
+    assert_eq!(item.label_style.name, "titleMedium");
+    assert_eq!(fab_menu::ITEM_GAP_DP, 4.0);
+    assert_eq!(fab_menu::CLOSE_GAP_DP, 8.0);
+    assert_eq!(fab_menu::DEMO_ITEMS.len(), 3);
+    assert_eq!(fab_menu::DEMO_ITEMS[0].1, "Document");
+    let close = fab_menu::resolve_close(&theme, fab_menu::FabMenuColor::Primary, true);
+    assert_eq!(close.size_dp, 56.0);
+    assert_eq!(close.corners.top_left, 28.0);
+    assert_eq!(close.container, theme.color.primary);
+    assert_eq!(close.content, theme.color.on_primary);
+    assert_eq!(close.icon_dp, 20.0);
+    assert_eq!(close.glyph, fab_menu::CLOSE_GLYPH);
+    let closed = fab_menu::resolve_close(&theme, fab_menu::FabMenuColor::Primary, false);
+    assert_eq!(closed.container, theme.color.primary_container);
+    assert_eq!(closed.glyph, fab_menu::OPEN_GLYPH);
+    let sec = fab_menu::resolve_item(&theme, fab_menu::FabMenuColor::Secondary);
+    assert_eq!(sec.container, theme.color.secondary_container);
+
+    assert_eq!(split_button::GAP_DP, 2.0);
+    assert_eq!(split_button::inner_rest_dp(button::ButtonSize::Small), 4.0);
+    assert_eq!(split_button::inner_pressed_dp(button::ButtonSize::Small), 12.0);
+    assert_eq!(split_button::trailing_icon_dp(button::ButtonSize::Small), 22.0);
+    let lead = split_button::resolve_leading(
+        &theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        false,
+    );
+    assert_eq!(lead.height_dp, 40.0);
+    assert_eq!(lead.corners.top_left, 20.0);
+    assert_eq!(lead.corners.top_right, 4.0);
+    assert_eq!(lead.container, theme.color.primary);
+    let trail = split_button::resolve_trailing(
+        &theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        true,
+    );
+    assert_eq!(trail.corners.top_left, 20.0);
+    assert_eq!(trail.corners.top_right, 20.0);
+    assert_eq!(split_button::caret(true), split_button::CARET_OPEN);
+    assert_eq!(split_button::DEMO_MENU.len(), 2);
+    let outlined = split_button::resolve_leading(
+        &theme,
+        split_button::SplitButtonVariant::Outlined,
+        button::ButtonSize::Small,
+        false,
+    );
+    assert!(outlined.outline.is_some());
+
+    let bar = toolbar::resolve(
+        &theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Vibrant,
+        toolbar::ToolbarAxis::Horizontal,
+    );
+    assert_eq!(bar.height_dp, 64.0);
+    assert_eq!(bar.pad_h_dp, 8.0);
+    assert_eq!(bar.item_gap_dp, 4.0);
+    assert_eq!(bar.corners.top_left, 32.0);
+    assert_eq!(bar.container, theme.color.primary_container);
+    assert_eq!(bar.icon, theme.color.on_primary_container);
+    assert_eq!(bar.elevation_dp, 6.0);
+    let docked = toolbar::resolve(
+        &theme,
+        toolbar::ToolbarKind::Docked,
+        toolbar::ToolbarColor::Standard,
+        toolbar::ToolbarAxis::Horizontal,
+    );
+    assert_eq!(docked.container, theme.color.surface_container);
+    assert_eq!(docked.corners.top_left, 0.0);
+    assert_eq!(docked.elevation_dp, 0.0);
+    assert_eq!(toolbar::DEMO_ICONS.len(), 4);
+    let fab = toolbar::resolve_fab(&theme, toolbar::ToolbarColor::Vibrant);
+    assert_eq!(fab.height_dp, 56.0);
 }
 
 #[test]

@@ -2,8 +2,8 @@
 
 use crate::components::{
     badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog, divider,
-    fab, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, switch,
-    tabs, text_field, time_picker, top_app_bar,
+    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, radio, search, slider, snackbar, split_button, switch,
+    tabs, text_field, time_picker, toolbar, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -44,6 +44,9 @@ pub fn render_html(theme: &Theme) -> String {
     body.push_str(&buttons(theme));
     body.push_str(&icon_buttons(theme));
     body.push_str(&fabs(theme));
+    body.push_str(&fab_menu_section(theme));
+    body.push_str(&split_button_section(theme));
+    body.push_str(&toolbar_section(theme));
     body.push_str(&text_fields(theme));
     body.push_str(&selection(theme));
     body.push_str(&lists(theme));
@@ -520,16 +523,39 @@ table.inv th {{ font-weight: 500; }}
   height: 56px; display: flex; align-items: center; padding: 0 16px;
   font-size: 22px; line-height: 28px; font-weight: 500;
 }}
+.status-bar {{
+  height: 24px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; font-size: 12px; line-height: 16px; font-weight: 500;
+}}
 .mail-list {{ display: flex; flex-direction: column; flex: 1; }}
 .mail-row {{
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex; flex-direction: row; align-items: center; gap: 12px;
   min-height: 72px; padding: 8px 16px; border-bottom: 1px solid {outline_var};
 }}
+.mail-avatar {{
+  width: 40px; height: 40px; border-radius: 20px; flex: 0 0 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 500;
+}}
+.mail-meta {{ flex: 1; min-width: 0; display: flex; flex-direction: column; }}
 .mail-row .from {{ font-size: 16px; line-height: 24px; }}
 .mail-row .subj {{ font-size: 14px; line-height: 20px; opacity: 0.8; }}
+.mail-time {{ font-size: 12px; line-height: 16px; opacity: 0.7; flex: 0 0 auto; }}
+.inbox-nav {{
+  height: 80px; display: flex; align-items: center; justify-content: space-around;
+  flex: 0 0 auto;
+}}
+.inbox-nav .dest {{
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 12px;
+}}
+.inbox-nav .ind {{
+  width: 64px; height: 32px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+}}
 .phone .snack {{
-  position: absolute; left: 16px; right: 16px; bottom: 16px;
-  min-width: 0; z-index: 2;
+  position: relative; margin: 8px 16px; min-width: 0; z-index: 2;
+  flex: 0 0 auto; flex-wrap: nowrap; white-space: nowrap;
 }}
 .snack .snack-close {{
   width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
@@ -550,6 +576,49 @@ table.inv th {{ font-weight: 500; }}
 .share-tile {{
   min-height: 88px; border-radius: 12px; padding: 8px;
   display: flex; align-items: flex-end; font-size: 12px; font-weight: 500;
+}}
+.people-row {{
+  display: flex; gap: 12px; padding: 4px 16px 12px; overflow-x: auto;
+}}
+.people {{
+  width: 56px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 12px; line-height: 16px;
+}}
+.people .av {{
+  width: 40px; height: 40px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center; font-weight: 500;
+}}
+.fab-menu {{
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}}
+.fab-menu .fab-item {{
+  display: inline-flex; align-items: center; height: 56px; min-width: 56px;
+  padding: 0 24px; border-radius: 28px; gap: 8px; font-weight: 500;
+}}
+.fab-menu[data-expanded="0"] .fab-item {{
+  width: 0; min-width: 0; padding: 0; opacity: 0; overflow: hidden;
+  pointer-events: none;
+}}
+.split {{
+  display: inline-flex; align-items: stretch; gap: 2px; position: relative;
+}}
+.split .split-lead, .split .split-trail {{
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; font-family: Roboto, sans-serif; cursor: pointer;
+}}
+.split-menu {{
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 3;
+  min-width: 160px;
+}}
+.split[data-open="0"] .split-menu {{ display: none; }}
+.toolbar {{
+  display: inline-flex; align-items: center; height: 64px; padding: 0 8px; gap: 4px;
+}}
+.toolbar[data-axis="vertical"] {{
+  flex-direction: column; width: 64px; height: auto; padding: 8px 0;
+}}
+.toolbar-fab {{
+  display: inline-flex; align-items: center; gap: 8px;
 }}
 .share-stage .sheet {{
   position: relative; left: auto; right: auto; bottom: auto; max-width: none;
@@ -684,6 +753,7 @@ document.querySelectorAll("[data-media-scene]").forEach(function (scene) {{
 }});
 document.querySelectorAll("[data-snackbar]").forEach(function (bar) {{
   var remain = Number(bar.getAttribute("data-timeout-ms") || "4000");
+  var persist = bar.getAttribute("data-persist") === "1";
   var start = performance.now();
   var ox = 0;
   function paint() {{
@@ -699,7 +769,8 @@ document.querySelectorAll("[data-snackbar]").forEach(function (bar) {{
     if (now - start >= remain) {{ hide(); return; }}
     requestAnimationFrame(tick);
   }}
-  requestAnimationFrame(tick);
+  // Catalog snapshots keep the in-phone snack visible (official overview always shows it).
+  if (!persist) requestAnimationFrame(tick);
   var sx = null;
   bar.addEventListener("pointerdown", function (ev) {{ sx = ev.clientX; }});
   bar.addEventListener("pointermove", function (ev) {{
@@ -1119,6 +1190,41 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       }}
     }});
   }}
+}});
+document.querySelectorAll("[data-fab-menu]").forEach(function (menu) {{
+  var btn = menu.querySelector("[data-fab-close]");
+  if (!btn) return;
+  btn.style.cursor = "pointer";
+  btn.addEventListener("click", function () {{
+    var open = menu.getAttribute("data-expanded") !== "1";
+    menu.setAttribute("data-expanded", open ? "1" : "0");
+    btn.textContent = open ? menu.getAttribute("data-close-glyph") : menu.getAttribute("data-open-glyph");
+    var r = open ? menu.getAttribute("data-open-r") : menu.getAttribute("data-closed-r");
+    var bg = open ? menu.getAttribute("data-open-bg") : menu.getAttribute("data-closed-bg");
+    var fg = open ? menu.getAttribute("data-open-fg") : menu.getAttribute("data-closed-fg");
+    btn.style.borderRadius = r + "px";
+    btn.style.background = bg;
+    btn.style.color = fg;
+  }});
+}});
+document.querySelectorAll("[data-split]").forEach(function (split) {{
+  var trail = split.querySelector("[data-split-trail]");
+  if (!trail) return;
+  var menu = split.querySelector("[data-split-menu]");
+  if (menu) menu.addEventListener("click", function (ev) {{ ev.stopPropagation(); }});
+  trail.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var open = split.getAttribute("data-open") !== "1";
+    split.setAttribute("data-open", open ? "1" : "0");
+    trail.textContent = open ? "▴" : "▾";
+  }});
+}});
+document.addEventListener("click", function () {{
+  document.querySelectorAll("[data-split]").forEach(function (split) {{
+    split.setAttribute("data-open", "0");
+    var trail = split.querySelector("[data-split-trail]");
+    if (trail) trail.textContent = "▾";
+  }});
 }});
 </script>
 </body>
@@ -1688,6 +1794,267 @@ fn fabs(theme: &Theme) -> String {
     out
 }
 
+fn paint_fab_menu(theme: &Theme, color: fab_menu::FabMenuColor, expanded: bool) -> String {
+    let item = fab_menu::resolve_item(theme, color);
+    let close = fab_menu::resolve_close(theme, color, true);
+    let closed = fab_menu::resolve_close(theme, color, false);
+    let trigger = if expanded { &close } else { &closed };
+    let mut items = String::new();
+    for (icon, label) in fab_menu::DEMO_ITEMS {
+        items.push_str(&format!(
+            r#"<div class="fab-item" data-fab-item="{label}" style="background:{bg};color:{fg};box-shadow:{sh};font-size:{fs}px"><span>{icon}</span><span>{label}</span></div>"#,
+            bg = item.container.css_hex(),
+            fg = item.content.css_hex(),
+            sh = ElevationLevels::css_shadow(item.elevation_dp),
+            fs = item.label_style.size_sp,
+        ));
+    }
+    format!(
+        r#"<div class="fab-menu" data-fab-menu="{color}" data-hero="fab-menu" data-expanded="{exp}" data-open-glyph="{og}" data-close-glyph="{cg}" data-open-r="{or}" data-closed-r="{cr}" data-open-bg="{obg}" data-closed-bg="{cbg}" data-open-fg="{ofg}" data-closed-fg="{cfg}">
+  {items}
+  <div class="fab" data-fab-close="1" style="width:{sz}px;height:{sz}px;background:{bg};color:{fg};box-shadow:{sh};border-radius:{r}px;font-size:{fs}px">{glyph}</div>
+</div>"#,
+        color = color.label(),
+        exp = if expanded { "1" } else { "0" },
+        og = fab_menu::OPEN_GLYPH,
+        cg = fab_menu::CLOSE_GLYPH,
+        or = close.corners.top_left,
+        cr = closed.corners.top_left,
+        obg = close.container.css_hex(),
+        cbg = closed.container.css_hex(),
+        ofg = close.content.css_hex(),
+        cfg = closed.content.css_hex(),
+        items = items,
+        sz = trigger.size_dp,
+        bg = trigger.container.css_hex(),
+        fg = trigger.content.css_hex(),
+        sh = ElevationLevels::css_shadow(trigger.elevation_dp),
+        r = trigger.corners.top_left,
+        fs = trigger.icon_dp,
+        glyph = trigger.glyph,
+    )
+}
+
+fn fab_menu_section(theme: &Theme) -> String {
+    let mut out = String::from(
+        "<h2>FAB menu</h2><p class=\"note\">M3 Expressive: 2–6 related actions from a FAB. One 56dp menu size; close FAB morphs full-round to the solid set color. Replaces stacked small FABs. <a href=\"https://m3.material.io/components/fab-menu/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"fab-menu\">",
+    );
+    out.push_str("<div class=\"state-body\" style=\"align-items:flex-end;gap:32px\">");
+    out.push_str(&paint_fab_menu(
+        theme,
+        fab_menu::FabMenuColor::Primary,
+        fab_menu::DEMO_EXPANDED,
+    ));
+    out.push_str(&paint_fab_menu(theme, fab_menu::FabMenuColor::Secondary, false));
+    out.push_str(&paint_fab_menu(theme, fab_menu::FabMenuColor::Tertiary, false));
+    out.push_str("</div></div>");
+    out
+}
+
+fn paint_split(
+    theme: &Theme,
+    variant: split_button::SplitButtonVariant,
+    size: button::ButtonSize,
+    open: bool,
+) -> String {
+    let lead = split_button::resolve_leading(theme, variant, size, false);
+    let trail = split_button::resolve_trailing(theme, variant, size, open);
+    let shell = menu::resolve_menu(theme);
+    let mut items = String::new();
+    for label in split_button::DEMO_MENU {
+        let a = menu::resolve_item(theme, false, InteractionState::Enabled);
+        items.push_str(&format!(
+            r#"<div class="menu-item" data-split-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
+            bg = a.container.css_hex(),
+            fg = a.label.css_hex(),
+            h = a.height_dp,
+        ));
+    }
+    format!(
+        r#"<div class="split" data-split="{v}" data-split-size="{s}" data-open="{open}" data-hero="split-button">
+  <button class="split-lead" data-split-lead="1" style="background:{lbg};color:{lfg};border:{lbd};border-radius:{lr};height:{lh}px;padding:0 {lpad}px;font-size:{lfs}px;box-shadow:{lsh}">{icon} {label}</button>
+  <button class="split-trail" data-split-trail="1" style="background:{tbg};color:{tfg};border:{tbd};border-radius:{tr};height:{th}px;min-width:{tw}px;padding:0 {tpad}px;font-size:{tfs}px;box-shadow:{tsh}">{caret}</button>
+  <div class="split-menu menu" data-split-menu="1" style="background:{mbg};border-radius:{mr}px;box-shadow:{msh}">{items}</div>
+</div>"#,
+        v = variant.label(),
+        s = size.label(),
+        open = if open { "1" } else { "0" },
+        lbg = lead.container.css_hex(),
+        lfg = lead.content.css_hex(),
+        lbd = lead.outline_css(),
+        lr = lead.corners.css(),
+        lh = lead.height_dp,
+        lpad = lead.pad_start_dp,
+        lfs = lead.label_style.size_sp,
+        lsh = ElevationLevels::css_shadow(lead.elevation_dp),
+        icon = split_button::DEMO_LEADING_ICON,
+        label = split_button::DEMO_LABEL,
+        tbg = trail.container.css_hex(),
+        tfg = trail.content.css_hex(),
+        tbd = trail.outline_css(),
+        tr = trail.corners.css(),
+        th = trail.height_dp,
+        tw = trail.min_width_dp.unwrap_or(split_button::TRAILING_MIN_W_DP),
+        tpad = trail.pad_start_dp,
+        tfs = split_button::trailing_icon_dp(size),
+        tsh = ElevationLevels::css_shadow(trail.elevation_dp),
+        caret = split_button::caret(open),
+        mbg = shell.container.css_hex(),
+        mr = shell.corners.top_left,
+        msh = ElevationLevels::css_shadow(shell.elevation_dp),
+        items = items,
+    )
+}
+
+fn split_button_section(theme: &Theme) -> String {
+    let mut out = String::from(
+        "<h2>Split button</h2><p class=\"note\">M3 Expressive: leading action + trailing menu, 2dp gap, outer full-round, inner 4dp rest / 12dp press (S). Open trailing rounds to full. Filled / tonal / elevated / outlined. <a href=\"https://m3.material.io/components/split-button/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"split-button\">",
+    );
+    out.push_str("<div class=\"state-body\" style=\"align-items:flex-start\">");
+    out.push_str(&paint_split(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        false,
+    ));
+    out.push_str(&paint_split(
+        theme,
+        split_button::SplitButtonVariant::Filled,
+        button::ButtonSize::Small,
+        true,
+    ));
+    for variant in [
+        split_button::SplitButtonVariant::Tonal,
+        split_button::SplitButtonVariant::Elevated,
+        split_button::SplitButtonVariant::Outlined,
+    ] {
+        out.push_str(&paint_split(
+            theme,
+            variant,
+            button::ButtonSize::Small,
+            false,
+        ));
+    }
+    out.push_str("</div><h3>sizes</h3><div class=\"state-body\">");
+    for size in button::ButtonSize::ALL {
+        out.push_str(&paint_split(
+            theme,
+            split_button::SplitButtonVariant::Filled,
+            size,
+            false,
+        ));
+    }
+    out.push_str("</div></div>");
+    out
+}
+
+fn paint_toolbar(
+    theme: &Theme,
+    kind: toolbar::ToolbarKind,
+    color: toolbar::ToolbarColor,
+    axis: toolbar::ToolbarAxis,
+    with_fab: bool,
+) -> String {
+    let a = toolbar::resolve(theme, kind, color, axis);
+    let icon = toolbar::resolve_icon(theme, color);
+    let mut icons = String::new();
+    for glyph in toolbar::DEMO_ICONS {
+        icons.push_str(&format!(
+            r#"<div class="icon-btn" data-toolbar-icon="{glyph}" style="width:{w}px;height:{h}px;background:{bg};color:{fg};border-radius:{r}px">{glyph}</div>"#,
+            w = icon.width_dp.unwrap_or(icon.height_dp),
+            h = icon.height_dp,
+            bg = icon.container.css_hex(),
+            fg = icon.content.css_hex(),
+            r = icon.corners.top_left,
+        ));
+    }
+    let bar = format!(
+        r#"<div class="toolbar" data-toolbar="{kind}" data-toolbar-color="{color}" data-axis="{axis}" style="background:{bg};color:{fg};border-radius:{r};height:{h};padding:{pad};gap:{gap}px;box-shadow:{sh};flex-direction:{dir}">{icons}</div>"#,
+        kind = kind.label(),
+        color = color.label(),
+        axis = axis.label(),
+        bg = a.container.css_hex(),
+        fg = a.icon.css_hex(),
+        r = a.corners.css(),
+        h = if axis == toolbar::ToolbarAxis::Vertical {
+            "auto".into()
+        } else if kind == toolbar::ToolbarKind::Docked {
+            format!("{}px;width:100%;max-width:360px", a.height_dp)
+        } else {
+            format!("{}px", a.height_dp)
+        },
+        pad = if axis == toolbar::ToolbarAxis::Vertical {
+            format!("8px 0")
+        } else {
+            format!("0 {}px", a.pad_h_dp)
+        },
+        gap = a.item_gap_dp,
+        sh = ElevationLevels::css_shadow(a.elevation_dp),
+        dir = if axis == toolbar::ToolbarAxis::Vertical {
+            "column"
+        } else {
+            "row"
+        },
+        icons = icons,
+    );
+    if !with_fab {
+        return bar;
+    }
+    let fab = toolbar::resolve_fab(theme, color);
+    format!(
+        r#"<div class="toolbar-fab" data-toolbar-fab="1" data-hero="toolbar">
+  {bar}
+  <div class="fab" style="width:{w}px;height:{h}px;background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh}">{glyph}</div>
+</div>"#,
+        bar = bar,
+        w = fab.width_dp.unwrap_or(fab.height_dp),
+        h = fab.height_dp,
+        bg = fab.container.css_hex(),
+        fg = fab.content.css_hex(),
+        r = fab.corners.top_left,
+        sh = ElevationLevels::css_shadow(fab.elevation_dp),
+        glyph = toolbar::DEMO_FAB,
+    )
+}
+
+fn toolbar_section(theme: &Theme) -> String {
+    let mut out = String::from(
+        "<h2>Toolbars</h2><p class=\"note\">M3 Expressive: floating 64dp full-round over content, or docked full-width. Pair a FAB for the highest-priority action. Standard surface-container or vibrant primary-container. <a href=\"https://m3.material.io/components/toolbars/specs\">spec</a></p><div class=\"hero-card\" data-hero=\"toolbar\">",
+    );
+    out.push_str(&paint_toolbar(
+        theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Vibrant,
+        toolbar::ToolbarAxis::Horizontal,
+        true,
+    ));
+    out.push_str("<h3>standard + vertical</h3><div class=\"state-body\">");
+    out.push_str(&paint_toolbar(
+        theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Standard,
+        toolbar::ToolbarAxis::Horizontal,
+        false,
+    ));
+    out.push_str(&paint_toolbar(
+        theme,
+        toolbar::ToolbarKind::Floating,
+        toolbar::ToolbarColor::Standard,
+        toolbar::ToolbarAxis::Vertical,
+        true,
+    ));
+    out.push_str("</div><h3>docked</h3>");
+    out.push_str(&paint_toolbar(
+        theme,
+        toolbar::ToolbarKind::Docked,
+        toolbar::ToolbarColor::Standard,
+        toolbar::ToolbarAxis::Horizontal,
+        false,
+    ));
+    out.push_str("</div>");
+    out
+}
+
 fn paint_filled_field(
     a: &text_field::TextFieldAppearance,
     attrs: &str,
@@ -2120,23 +2487,56 @@ fn chrome(theme: &Theme) -> String {
     );
     let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
     let mut mail_rows = String::new();
-    for (from, subj) in snackbar::MAIL_ROWS {
+    for (i, row) in snackbar::MAIL_ROWS.iter().enumerate() {
         mail_rows.push_str(&format!(
-            r#"<div class="mail-row" data-mail-row="{from}"><span class="from">{from}</span><span class="subj" style="color:{sec}">{subj}</span></div>"#,
+            r#"<div class="mail-row" data-mail-row="{from}" data-mail-avatar="1" data-mail-time="{time}">
+  <span class="mail-avatar" style="background:{abg};color:{afg}">{ini}</span>
+  <span class="mail-meta"><span class="from">{from}</span><span class="subj" style="color:{sec}">{subj}</span></span>
+  <span class="mail-time" style="color:{sec}">{time}</span>
+</div>"#,
+            from = row.from,
+            time = row.time,
+            ini = row.initials,
+            subj = row.subject,
+            abg = snackbar::mail_avatar_fill(theme, i).css_hex(),
+            afg = snackbar::mail_avatar_on(theme, i).css_hex(),
             sec = theme.color.on_surface_variant.css_hex(),
+        ));
+    }
+    let nav_bar = navigation_bar::resolve(theme);
+    let mut inbox_nav = String::new();
+    for (i, (icon, label)) in snackbar::INBOX_NAV.iter().enumerate() {
+        let active = i == 0;
+        let fg = if active {
+            nav_bar.active_label.css_hex()
+        } else {
+            nav_bar.inactive_label.css_hex()
+        };
+        let ind = if active {
+            format!(
+                r#"style="background:{}"#,
+                nav_bar.active_indicator.css_hex()
+            )
+        } else {
+            String::new()
+        };
+        inbox_nav.push_str(&format!(
+            r#"<div class="dest" data-inbox-nav="{label}" style="color:{fg}"><div class="ind" {ind}>{icon}</div>{label}</div>"#,
         ));
     }
     format!(
         r#"<h2>Snackbar</h2>
 <p class="note">Official overview is an in-app Inbox with “Email archived”, Undo, and a close affordance. Inverse surface · 4s timeout · swipe 72dp. <a href="https://m3.material.io/components/snackbar/specs">spec</a></p>
 <div class="phone" data-mail-scene="1" data-hero="snackbar" style="height:{ph}px">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
   <div class="phone-bar">{title}</div>
   <div class="mail-list">{mail}</div>
-  <div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-snackbar-close-affordance="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
+  <div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-snackbar-close-affordance="1" data-persist="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
     <span>{scene_msg}</span>
     <span style="color:{act};font-weight:500">{scene_act}</span>
     <span class="snack-close" data-snackbar-close="1" style="color:{close}">{x}</span>
   </div>
+  <div class="inbox-nav" data-inbox-nav="1" style="background:{nbg}">{inbox_nav}</div>
 </div>
 <div class="snack" data-snackbar="token" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" style="background:{sbg};color:{sfg};border-radius:{sr}px;margin-top:16px">
   <span>{msg}</span>
@@ -2170,6 +2570,8 @@ fn chrome(theme: &Theme) -> String {
         title = snackbar::SCENE_TITLE,
         x = snackbar::CLOSE_GLYPH,
         mail = mail_rows,
+        inbox_nav = inbox_nav,
+        stime = snackbar::STATUS_TIME,
         ph = snackbar::PHONE_H_DP,
         nbg = nav.container.css_hex(),
         nact = nav.active_label.css_hex(),
@@ -2451,14 +2853,24 @@ fn sheets(theme: &Theme) -> String {
             r#"<div class="list-item" data-share-action="{label}" style="width:100%"><div class="h">{icon}  {label}</div></div>"#,
         ));
     }
+    let mut people = String::new();
+    for (i, (ini, name)) in bottom_sheet::PEOPLE.iter().enumerate() {
+        people.push_str(&format!(
+            r#"<div class="people" data-share-person="{name}"><div class="av" style="background:{bg};color:{fg}">{ini}</div>{name}</div>"#,
+            bg = bottom_sheet::people_fill(theme, i).css_hex(),
+            fg = bottom_sheet::people_on(theme, i).css_hex(),
+        ));
+    }
     format!(
         r#"<h2>Bottom sheet</h2>
 <p class="note">Official overview is a share sheet over photos. Modal extra-large top 28 · 32×4 handle · elevation 1. Standard (non-modal) sits on surface without a scrim. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
 <div class="phone share-stage" data-sheet-scene="1" data-hero="bottom-sheet" style="height:{ph}px;background:{surface}">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
   <div class="share-grid" data-share-grid="1">{photos}</div>
   <div class="sheet" data-sheet="modal" data-sheet-share="1" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg};position:relative">
     <div class="handle" style="width:{hw}px;height:{hh}px;background:{handle}"></div>
     <div class="list-item" style="width:100%"><div class="h">{share}</div></div>
+    <div class="people-row" data-share-people="1">{people}</div>
     {actions}
   </div>
 </div>
@@ -2469,6 +2881,8 @@ fn sheets(theme: &Theme) -> String {
         ph = bottom_sheet::PHONE_H_DP,
         surface = theme.color.surface.css_hex(),
         photos = photos,
+        people = people,
+        stime = bottom_sheet::STATUS_TIME,
         bg = modal.container.css_hex(),
         css = modal.corners.css(),
         sh = ElevationLevels::css_shadow(modal.elevation_dp),
@@ -2772,11 +3186,13 @@ fn tabs_section(theme: &Theme) -> String {
     out.push_str(&format!(
         r#"<h3>saved media</h3>
 <div class="phone" data-media-scene="1" data-hero="tabs" style="min-height:{ph}px">
+  <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
   <div class="phone-bar">{title}</div>
   <div class="tabs" data-tabs="saved-media" style="background:{bg};max-width:none">{tabs}</div>
   <div class="media-grid">{tiles}</div>
 </div>"#,
         ph = tabs::PHONE_H_DP,
+        stime = tabs::STATUS_TIME,
         title = tabs::SCENE_TITLE,
         bg = scene.container.css_hex(),
         tabs = scene_tabs,

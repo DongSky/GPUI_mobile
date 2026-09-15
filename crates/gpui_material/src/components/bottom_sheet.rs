@@ -21,8 +21,13 @@ pub const SHARE_ACTIONS: [(&str, &str); 4] = [
 pub const PHOTO_GRID: [&str; 6] = ["Lake", "Grove", "Dune", "Harbor", "Peak", "Cove"];
 pub const PHOTO_TILE_H_DP: f32 = 88.0;
 pub const PHOTO_TILE_CORNER_DP: f32 = 12.0;
+/// Official share sheet people row (avatars + Add).
+pub const PEOPLE: [(&str, &str); 4] = [("AR", "Alex"), ("JL", "Jordan"), ("SC", "Sam"), ("+", "Add")];
+pub const PEOPLE_DP: f32 = 56.0;
+pub const STATUS_H_DP: f32 = 24.0;
+pub const STATUS_TIME: &str = "9:41";
 pub const PHONE_W_DP: f32 = 360.0;
-pub const PHONE_H_DP: f32 = 560.0;
+pub const PHONE_H_DP: f32 = 620.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
 pub const PHONE_BEZEL_DP: f32 = 12.0;
 
@@ -78,4 +83,12 @@ pub fn photo_on(theme: &Theme, index: usize) -> Argb {
         1 => c.on_secondary_container,
         _ => c.on_tertiary_container,
     }
+}
+
+pub fn people_fill(theme: &Theme, index: usize) -> Argb {
+    photo_fill(theme, index)
+}
+
+pub fn people_on(theme: &Theme, index: usize) -> Argb {
+    photo_on(theme, index)
 }
