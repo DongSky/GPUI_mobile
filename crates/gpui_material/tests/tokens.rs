@@ -875,7 +875,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-picker-style="input""#));
     assert!(html.contains("data-time-input=\"1\""));
     assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
-    assert!(html.contains(r#"data-time-display="scroll""#));
+    assert!(html.contains(r#"data-time-display="input""#));
+    assert!(html.contains(r#"data-time-format="24""#));
+    assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
     assert!(html.contains(r#"data-scroll-field="minute""#));
     assert!(html.contains("data-dial=\"minute\""));
@@ -2745,11 +2747,36 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(
         time_picker::DEMO_DISPLAY_MODE,
-        time_picker::TimePickerDisplayMode::Scroll
+        time_picker::TimePickerDisplayMode::Input
     );
     assert_eq!(
         time_picker::DEMO_DISPLAY_MODE.toggle(),
-        time_picker::TimePickerDisplayMode::Input
+        time_picker::TimePickerDisplayMode::Scroll
+    );
+    assert_eq!(time_picker::DEMO_FORMAT, time_picker::TimeFormat::Hour24);
+    assert!(time_picker::DEMO_FORMAT.is_24_hour());
+    assert!(!time_picker::DEMO_FORMAT.shows_period());
+    assert_eq!(time_picker::demo_hour(time_picker::DEMO_FORMAT), 18);
+    assert_eq!(time_picker::to_hour24(6, time_picker::DayPeriod::Pm), 18);
+    assert_eq!(time_picker::to_hour12(18), (6, time_picker::DayPeriod::Pm));
+    assert_eq!(time_picker::to_hour24(12, time_picker::DayPeriod::Am), 0);
+    assert_eq!(time_picker::to_hour12(0), (12, time_picker::DayPeriod::Am));
+    assert_eq!(
+        time_picker::format_hour_field_for(18, time_picker::TimeFormat::Hour24),
+        "18"
+    );
+    assert_eq!(
+        time_picker::format_hour_field_for(0, time_picker::TimeFormat::Hour24),
+        "00"
+    );
+    assert_eq!(
+        time_picker::header_label_for(
+            18,
+            30,
+            time_picker::DayPeriod::Pm,
+            time_picker::TimeFormat::Hour24
+        ),
+        "18:30"
     );
     assert_eq!(
         time_picker::TimePickerDisplayMode::Scroll.toggle_icon(),
@@ -2769,7 +2796,10 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(input_a.field_style.name, "displayLargeEmphasized");
     let mut typed = time_picker::TimeInputState::demo();
-    assert_eq!(typed.hour_value(), Some(time_picker::DEMO_HOUR));
+    assert_eq!(
+        typed.hour_value(),
+        Some(time_picker::demo_hour(time_picker::DEMO_FORMAT))
+    );
     assert_eq!(typed.minute_value(), Some(time_picker::DEMO_MINUTE));
     assert!(typed.is_input_valid());
     typed.apply_key("backspace");
@@ -2777,6 +2807,15 @@ fn search_bar_and_time_picker_tokens() {
     typed.apply_key("9");
     assert_eq!(typed.hour_value(), Some(9));
     assert_eq!(typed.focus, time_picker::ScrollKind::Minute);
+    let mut midnight =
+        time_picker::TimeInputState::from_clock(0, 0, time_picker::TimeFormat::Hour24);
+    assert_eq!(midnight.hour.display(), "00");
+    assert_eq!(midnight.hour_value(), Some(0));
+    midnight.apply_key("backspace");
+    midnight.apply_key("backspace");
+    midnight.apply_key("2");
+    midnight.apply_key("3");
+    assert_eq!(midnight.hour_value(), Some(23));
     let mut scroll = time_picker::TimeScrollState::demo();
     let mut hour = time_picker::DEMO_HOUR;
     let mut minute = time_picker::DEMO_MINUTE;
@@ -2803,18 +2842,52 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(scroll.selected_style.name, "displayLargeEmphasized");
     assert_eq!(scroll.unselected_style.name, "displayMedium");
     let mut wheel = time_picker::TimeScrollState::demo();
-    assert_eq!(wheel.hour_value(), time_picker::DEMO_HOUR);
+    assert_eq!(
+        wheel.hour_value(),
+        time_picker::demo_hour(time_picker::DEMO_FORMAT)
+    );
     assert_eq!(wheel.minute_value(), time_picker::DEMO_MINUTE);
     assert!((time_picker::hour_index(6) - 5.0).abs() < 1e-5);
     assert_eq!(time_picker::hour_from_index(5), 6);
+    assert!((time_picker::hour_index_for(18, time_picker::TimeFormat::Hour24) - 18.0).abs() < 1e-5);
+    assert_eq!(
+        time_picker::hour_from_index_for(18, time_picker::TimeFormat::Hour24),
+        18
+    );
     assert_eq!(time_picker::minute_from_index(30), 30);
     assert_eq!(time_picker::wrap_index(-1, 12), 11);
     assert!((time_picker::wrap_offset(-0.25, 12) - 11.75).abs() < 1e-5);
     wheel.hour.apply_delta_dp(-time_picker::SCROLL_ITEM_H_DP);
-    assert_eq!(wheel.hour.selected_value(), 7);
+    assert_eq!(wheel.hour.selected_value(), 19);
     let mut wrap_h = time_picker::ScrollField::hour(12);
     wrap_h.apply_delta_dp(-time_picker::SCROLL_ITEM_H_DP);
     assert_eq!(wrap_h.selected_value(), 1);
+    let mut wrap24 = time_picker::ScrollField::hour_with(23, time_picker::TimeFormat::Hour24);
+    wrap24.apply_delta_dp(-time_picker::SCROLL_ITEM_H_DP);
+    assert_eq!(wrap24.selected_value(), 0);
+    let mut wrap24_zero = time_picker::ScrollField::hour_with(0, time_picker::TimeFormat::Hour24);
+    wrap24_zero.apply_delta_dp(time_picker::SCROLL_ITEM_H_DP);
+    assert_eq!(wrap24_zero.selected_value(), 23);
+    let mut fmt = time_picker::TimeFormat::Hour12;
+    let mut period = time_picker::DayPeriod::Pm;
+    let mut scroll12 =
+        time_picker::TimeScrollState::from_clock(6, 30, time_picker::TimeFormat::Hour12);
+    let mut input12 =
+        time_picker::TimeInputState::from_clock(6, 30, time_picker::TimeFormat::Hour12);
+    let mut hour12 = 6u8;
+    fmt = time_picker::apply_format_toggle(
+        fmt,
+        &mut period,
+        &mut scroll12,
+        &mut input12,
+        &mut hour12,
+        30,
+    );
+    assert_eq!(fmt, time_picker::TimeFormat::Hour24);
+    assert_eq!(hour12, 18);
+    assert!(!fmt.shows_period());
+    assert_eq!(scroll12.hour_value(), 18);
+    assert_eq!(input12.hour_value(), Some(18));
     time_picker::apply_wheel(&mut wheel.minute, time_picker::SCROLL_ITEM_H_DP);
     wheel.step_until_rest();
     assert!(wheel.resting());

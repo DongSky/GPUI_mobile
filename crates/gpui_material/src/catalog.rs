@@ -303,12 +303,17 @@ a {{ color: var(--primary); }}
 .time-expressive .time-display-head {{
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }}
-.time-expressive .time-display-toggle {{
+.time-expressive .time-display-actions {{
+  display: flex; align-items: center; gap: 4px;
+}}
+.time-expressive .time-display-toggle, .time-expressive .time-format-toggle {{
   width: 48px; height: 48px; border: none; background: transparent; cursor: pointer;
   font-size: 20px; line-height: 24px; border-radius: 24px;
 }}
+.time-expressive .time-format-toggle {{ font-weight: 700; font-size: 16px; }}
 .time-expressive[data-time-display="input"] [data-time-scroll] {{ display: none; }}
 .time-expressive[data-time-display="scroll"] [data-time-input] {{ display: none; }}
+.time-expressive[data-time-format="24"] .period {{ display: none; }}
 .time-input-row {{ display: flex; align-items: center; gap: 8px; }}
 .time-input-field {{
   width: 96px; height: 72px; border: none; border-radius: 28px; text-align: center;
@@ -1700,6 +1705,9 @@ document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
     else if (d < -count / 2) d += count;
     return d;
   }}
+  function hourValue(idx, count) {{
+    return count === 24 ? (idx % 24) : (idx % 12) + 1;
+  }}
   function paintField(field) {{
     var count = Number(field.getAttribute("data-count") || "12");
     var off = Number(field.getAttribute("data-offset") || "0");
@@ -1710,14 +1718,12 @@ document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
       var rel = Number(el.getAttribute("data-rel") || "0");
       var logical = base + rel;
       var idx = ((logical % count) + count) % count;
-      var value = kind === "hour" ? (idx % 12) + 1 : idx % 60;
+      var value = kind === "hour" ? hourValue(idx, count) : idx % 60;
       var y = (logical - off) * itemH + center;
       var dist = Math.abs(logical - off);
       var selected = dist < 0.5;
       var opacity = Math.max(0.28, Math.min(1, 1 - dist * 0.42));
-      var label = kind === "hour"
-        ? String(value).padStart(2, "0")
-        : String(value).padStart(2, "0");
+      var label = String(value).padStart(2, "0");
       el.style.top = y + "px";
       el.style.opacity = String(opacity);
       el.style.fontWeight = selected ? "500" : "400";
@@ -1730,17 +1736,20 @@ document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
     field.setAttribute("data-offset", String(off));
     var selectedIdx = Math.round(off);
     selectedIdx = ((selectedIdx % count) + count) % count;
-    var selectedVal = kind === "hour" ? (selectedIdx % 12) + 1 : selectedIdx % 60;
+    var selectedVal = kind === "hour" ? hourValue(selectedIdx, count) : selectedIdx % 60;
     hero.setAttribute(kind === "hour" ? "data-hour" : "data-minute", String(selectedVal));
   }}
   hero.querySelectorAll("[data-scroll-field]").forEach(function (field) {{
-    var count = Number(field.getAttribute("data-count") || "12");
     var vel = 0, dragging = false, lastY = 0, lastT = 0, raf = 0, last = 0;
+    function currentCount() {{
+      return Number(field.getAttribute("data-count") || "12");
+    }}
     function setOff(next) {{
-      field.setAttribute("data-offset", String(wrap(next, count)));
+      field.setAttribute("data-offset", String(wrap(next, currentCount())));
       paintField(field);
     }}
     function loop(now) {{
+      var count = currentCount();
       if (last) {{
         var dt = Math.min(0.05, (now - last) / 1000);
         var off = Number(field.getAttribute("data-offset") || "0");
@@ -1805,10 +1814,13 @@ document.querySelectorAll("[data-time-scroll]").forEach(function (hero) {{
         if (Math.abs(vel) > 1) return;
         var idx = Number(el.getAttribute("data-index") || "0");
         var off = Number(field.getAttribute("data-offset") || "0");
-        setOff(off + shortest(off, idx, count));
+        setOff(off + shortest(off, idx, currentCount()));
         vel = 0;
         kick();
       }});
+    }});
+    field.addEventListener("repaint-scroll", function () {{
+      paintField(field);
     }});
     paintField(field);
   }});
@@ -1834,16 +1846,64 @@ document.querySelectorAll("[data-scroll-display-mode-toggle]").forEach(function 
     if (input) input.style.display = mode === "input" ? "" : "none";
   }});
 }});
+document.querySelectorAll("[data-time-format-toggle]").forEach(function (btn) {{
+  btn.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var host = btn.closest("[data-time-format]");
+    if (!host) return;
+    var next = host.getAttribute("data-time-format") === "24" ? "12" : "24";
+    var scroll = host.querySelector("[data-time-scroll]");
+    var input = host.querySelector("[data-time-input]");
+    var src = scroll || input;
+    var hour = Number((src && src.getAttribute("data-hour")) || "18");
+    var period = (src && src.getAttribute("data-period")) || "PM";
+    if (next === "24") {{
+      if (period === "AM") hour = hour === 12 ? 0 : hour;
+      else hour = hour === 12 ? 12 : hour + 12;
+    }} else {{
+      if (hour === 0) {{ hour = 12; period = "AM"; }}
+      else if (hour < 12) {{ period = "AM"; }}
+      else if (hour === 12) {{ period = "PM"; }}
+      else {{ hour = hour - 12; period = "PM"; }}
+    }}
+    host.setAttribute("data-time-format", next);
+    btn.setAttribute("data-time-format", next);
+    btn.textContent = next === "24" ? "12" : "24";
+    btn.setAttribute("title", next === "24" ? "Switch to 12-hour" : "Switch to 24-hour");
+    function applyHour(el) {{
+      if (!el) return;
+      el.setAttribute("data-hour", String(hour));
+      el.setAttribute("data-period", period);
+    }}
+    applyHour(scroll);
+    applyHour(input);
+    if (scroll) {{
+      var hf = scroll.querySelector("[data-scroll-field='hour']");
+      if (hf) {{
+        hf.setAttribute("data-count", next === "24" ? "24" : "12");
+        hf.setAttribute("data-offset", next === "24" ? String(hour) : String(Math.max(0, hour - 1)));
+        hf.dispatchEvent(new Event("repaint-scroll"));
+      }}
+    }}
+    if (input) {{
+      var inH = input.querySelector("[data-time-input-field='hour']");
+      if (inH) inH.value = String(hour).padStart(2, "0");
+    }}
+  }});
+}});
 document.querySelectorAll("[data-time-input-field]").forEach(function (field) {{
   field.addEventListener("input", function () {{
     var raw = (field.value || "").replace(/\\D/g, "").slice(0, 2);
     var kind = field.getAttribute("data-time-input-field");
     var n = parseInt(raw || "0", 10);
-    if (kind === "hour" && n > 12) raw = raw.slice(0, 1);
+    var host = field.closest("[data-time-format]") || field.closest("[data-time-input]") || field.closest("[data-time-display]");
+    var maxHour = (host && host.getAttribute("data-time-format") === "24") ? 23 : 12;
+    if (kind === "hour" && n > maxHour) raw = raw.slice(0, 1);
     if (kind === "minute" && n > 59) raw = raw.slice(0, 1);
     field.value = raw;
-    var host = field.closest("[data-time-input]") || field.closest("[data-time-display]");
     if (host && raw.length === 2) host.setAttribute("data-" + kind, String(n));
+    var box = field.closest("[data-time-input]");
+    if (box && raw.length === 2) box.setAttribute("data-" + kind, String(parseInt(raw || "0", 10)));
   }});
 }});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
@@ -6084,13 +6144,17 @@ fn time_picker_section(theme: &Theme) -> String {
         )
     };
     let mode = time_picker::DEMO_DISPLAY_MODE;
+    let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="time-expressive dialog" data-time-display="{mode}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial remains below. <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div style="color:{hy};font-size:{ys}px">{title}</div>
-    <button class="time-display-toggle" data-scroll-display-mode-toggle="1" data-display-mode="{mode}" title="{tlabel}" style="color:{tg}">{ticon}</button>
+    <div class="time-display-actions">
+      <button class="time-format-toggle" data-time-format-toggle="1" data-time-format="{fmt}" title="{flabel}" style="color:{tg}">{ftext}</button>
+      <button class="time-display-toggle" data-scroll-display-mode-toggle="1" data-display-mode="{mode}" title="{tlabel}" style="color:{tg}">{ticon}</button>
+    </div>
   </div>
   <div class="time-scroll" data-time-scroll="1" data-time-picker-style="scroll" data-scroll-item-h="{ih}" data-scroll-fling-decay="{decay}" data-scroll-fling-rest="{rest}" data-scroll-snap="{snap}" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
     <div class="scroll-row">
@@ -6120,9 +6184,12 @@ fn time_picker_section(theme: &Theme) -> String {
         decay = time_picker::SCROLL_FLING_DECAY,
         rest = time_picker::SCROLL_FLING_REST,
         snap = time_picker::SCROLL_SNAP_STIFFNESS,
-        hour = time_picker::DEMO_HOUR,
+        hour = time_picker::demo_hour(format),
         minute = time_picker::DEMO_MINUTE,
         period = time_picker::DEMO_PERIOD.label(),
+        fmt = format.label(),
+        flabel = format.toggle_label(),
+        ftext = format.toggle_text(),
         bg = scroll.container.css_hex(),
         r = scroll.corners.top_left,
         sh = ElevationLevels::css_shadow(scroll.elevation_dp),

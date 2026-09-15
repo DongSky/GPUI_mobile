@@ -284,7 +284,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Time pickers (dial + TimeScroll + TimeInput)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. TimeInput 96×72 extra-large fields + ScrollDisplayModeToggle (⌨/◷ Scroll↔Input). Dial remains: 12-hour + minute polar face, analog hand spatial-fast lerp, wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
+        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h or 00–23 / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. TimeInput 96×72 extra-large fields + ScrollDisplayModeToggle (⌨/◷ Scroll↔Input). 24-hour (is24Hour) uses 00–23 and hides AM/PM. Dial remains: 12-hour + minute polar face, analog hand spatial-fast lerp, wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header; AM/PM",
     },
     ComponentEntry {
         name: "Carousel",

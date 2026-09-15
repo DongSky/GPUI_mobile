@@ -381,6 +381,7 @@ struct CatalogView {
     time_scroll_at: Option<Instant>,
     time_display: time_picker::TimePickerDisplayMode,
     time_input: time_picker::TimeInputState,
+    time_format: time_picker::TimeFormat,
 }
 
 impl CatalogView {
@@ -399,8 +400,18 @@ impl CatalogView {
 
     fn bump_time_hand(&mut self) {
         self.time_hand_from =
-            time_picker::hand_angle_deg(self.time_dial, self.time_hour, self.time_minute);
+            time_picker::hand_angle_deg(self.time_dial, self.time_dial_hour(), self.time_minute);
         self.time_hand_gen = self.time_hand_gen.wrapping_add(1);
+    }
+
+    fn time_dial_hour(&self) -> u8 {
+        time_picker::dial_clock_hour(self.time_hour, self.time_format, self.time_period)
+    }
+
+    fn sync_period_from_hour(&mut self) {
+        if self.time_format.is_24_hour() {
+            self.time_period = time_picker::to_hour12(self.time_hour).1;
+        }
     }
 
     fn live_menu(&self, host: LiveMenuHost) -> menu::OverlayMenuSession {
@@ -498,6 +509,7 @@ impl CatalogView {
         if self.time_scroll.resting() {
             self.time_hour = self.time_scroll.hour_value();
             self.time_minute = self.time_scroll.minute_value();
+            self.sync_period_from_hour();
             self.time_scroll_at = None;
             return;
         }
@@ -510,9 +522,22 @@ impl CatalogView {
         self.time_scroll.step_live(dt);
         self.time_hour = self.time_scroll.hour_value();
         self.time_minute = self.time_scroll.minute_value();
+        self.sync_period_from_hour();
         if self.time_scroll.needs_frame() {
             cx.notify();
         }
+    }
+
+    fn toggle_time_format(&mut self) {
+        self.time_format = time_picker::apply_format_toggle(
+            self.time_format,
+            &mut self.time_period,
+            &mut self.time_scroll,
+            &mut self.time_input,
+            &mut self.time_hour,
+            self.time_minute,
+        );
+        self.bump_time_hand();
     }
 
     fn toggle_time_display(&mut self) {
@@ -5485,6 +5510,7 @@ fn android_time_scroll(
                 let (h, m) = this.time_input.commit_or(this.time_hour, this.time_minute);
                 this.time_hour = h;
                 this.time_minute = m;
+                this.sync_period_from_hour();
                 cx.notify();
             }
         }))
@@ -5501,20 +5527,44 @@ fn android_time_scroll(
                 )
                 .child(
                     div()
-                        .id("scroll-display-mode-toggle")
-                        .w(px(time_picker::TOGGLE_SIZE_DP))
-                        .h(px(time_picker::TOGGLE_SIZE_DP))
-                        .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
                         .flex()
                         .items_center()
-                        .justify_center()
-                        .text_size(px(time_picker::TOGGLE_ICON_DP))
-                        .text_color(paint(input.toggle))
-                        .child(mode.toggle_icon())
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.toggle_time_display();
-                            cx.notify();
-                        })),
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .id("time-format-toggle")
+                                .w(px(time_picker::TOGGLE_SIZE_DP))
+                                .h(px(time_picker::TOGGLE_SIZE_DP))
+                                .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(16.))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(paint(input.toggle))
+                                .child(this.time_format.toggle_text())
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.toggle_time_format();
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .id("scroll-display-mode-toggle")
+                                .w(px(time_picker::TOGGLE_SIZE_DP))
+                                .h(px(time_picker::TOGGLE_SIZE_DP))
+                                .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(time_picker::TOGGLE_ICON_DP))
+                                .text_color(paint(input.toggle))
+                                .child(mode.toggle_icon())
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.toggle_time_display();
+                                    cx.notify();
+                                })),
+                        ),
                 ),
         )
         .when(!input_mode, |el| {
@@ -5543,7 +5593,9 @@ fn android_time_scroll(
                         time_picker::ScrollKind::Minute,
                         &a,
                     ))
-                    .child(android_period_column(this, cx, &a)),
+                    .when(this.time_format.shows_period(), |row| {
+                        row.child(android_period_column(this, cx, &a))
+                    }),
             )
         })
         .when(input_mode, |el| {
@@ -5620,39 +5672,41 @@ fn android_time_input(
             !hour_on,
             a,
         ))
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(time_picker::PERIOD_GAP_DP))
-                .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                    let selected = this.time_period == period;
-                    div()
-                        .id(SharedString::from(format!("input-{}", period.label())))
-                        .w(px(a.period_w_dp))
-                        .h(px(a.period_h_dp / 2.0 - 4.0))
-                        .rounded(px(8.))
-                        .bg(paint(if selected {
-                            a.period_selected_container
-                        } else {
-                            a.period_idle_container
-                        }))
-                        .text_color(paint(if selected {
-                            a.period_selected
-                        } else {
-                            a.period_idle
-                        }))
-                        .font_weight(type_weight(a.period_style))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(period.label())
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.time_period = period;
-                            cx.notify();
-                        }))
-                })),
-        )
+        .when(this.time_format.shows_period(), |row| {
+            row.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(time_picker::PERIOD_GAP_DP))
+                    .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                        let selected = this.time_period == period;
+                        div()
+                            .id(SharedString::from(format!("input-{}", period.label())))
+                            .w(px(a.period_w_dp))
+                            .h(px(a.period_h_dp / 2.0 - 4.0))
+                            .rounded(px(8.))
+                            .bg(paint(if selected {
+                                a.period_selected_container
+                            } else {
+                                a.period_idle_container
+                            }))
+                            .text_color(paint(if selected {
+                                a.period_selected
+                            } else {
+                                a.period_idle
+                            }))
+                            .font_weight(type_weight(a.period_style))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(period.label())
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.time_period = period;
+                                cx.notify();
+                            }))
+                    })),
+            )
+        })
 }
 
 fn android_time_input_field(
@@ -5721,6 +5775,7 @@ fn android_scroll_field(
             time_picker::apply_wheel(this.time_scroll.field_mut(kind), dy);
             this.time_hour = this.time_scroll.hour_value();
             this.time_minute = this.time_scroll.minute_value();
+            this.sync_period_from_hour();
             cx.notify();
         }))
         .children(slots.into_iter().map(|slot| {
@@ -5755,6 +5810,7 @@ fn android_scroll_field(
                     this.time_scroll.field_mut(kind).snap_to_index(index);
                     this.time_hour = this.time_scroll.hour_value();
                     this.time_minute = this.time_scroll.minute_value();
+                    this.sync_period_from_hour();
                     cx.notify();
                 }))
         }))
@@ -5773,7 +5829,7 @@ fn android_time_picker(
         DialFace::Hour => (1u8..=12)
             .map(|hour| {
                 let (x, y) = time_picker::hour_offset(hour, clock, number);
-                (hour, hour.to_string(), x, y, hour == this.time_hour)
+                (hour, hour.to_string(), x, y, hour == this.time_dial_hour())
             })
             .collect(),
         DialFace::Minute => time_picker::minute_labels()
@@ -5784,11 +5840,12 @@ fn android_time_picker(
             .collect(),
     };
     let from_angle = this.time_hand_from;
-    let to_angle = time_picker::hand_angle_deg(this.time_dial, this.time_hour, this.time_minute);
+    let to_angle =
+        time_picker::hand_angle_deg(this.time_dial, this.time_dial_hour(), this.time_minute);
     let hand_gen = this.time_hand_gen;
     let hand_ms = time_picker::hand_motion_ms(theme) as u64;
     let hour_live = hour_on;
-    let live_hour = this.time_hour;
+    let live_hour = this.time_dial_hour();
     let live_minute = this.time_minute;
     let hub = (clock / 2.0, clock / 2.0);
     let hand_color = paint(a.hand);
@@ -5814,7 +5871,7 @@ fn android_time_picker(
                             a.clock
                         }))
                         .text_color(paint(if hour_on { a.number_selected } else { a.header }))
-                        .child(time_picker::format_hour_field(this.time_hour))
+                        .child(time_picker::format_hour_field(this.time_dial_hour()))
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.bump_time_hand();
                             this.time_dial = DialFace::Hour;
@@ -6029,8 +6086,11 @@ fn android_time_picker(
                             this.bump_time_hand();
                             match face {
                                 DialFace::Hour => {
-                                    this.time_hour =
-                                        time_picker::select_hour(this.time_hour, value);
+                                    this.time_hour = time_picker::hour_from_dial(
+                                        time_picker::select_hour(this.time_dial_hour(), value),
+                                        this.time_period,
+                                        this.time_format,
+                                    );
                                     this.time_dial = DialFace::Minute;
                                 }
                                 DialFace::Minute => {
@@ -7144,7 +7204,7 @@ fn android_main(app: AndroidApp) {
                 split_open: split_button::DEMO_OPEN,
                 app_bar_collapse: 0.0,
                 last_catalog_ime: None,
-                time_hour: time_picker::DEMO_HOUR,
+                time_hour: time_picker::demo_hour(time_picker::DEMO_FORMAT),
                 time_minute: time_picker::DEMO_MINUTE,
                 time_period: time_picker::DEMO_PERIOD,
                 time_dial: time_picker::DEMO_DIAL,
@@ -7158,6 +7218,7 @@ fn android_main(app: AndroidApp) {
                 time_scroll_at: None,
                 time_display: time_picker::DEMO_DISPLAY_MODE,
                 time_input: time_picker::TimeInputState::demo(),
+                time_format: time_picker::DEMO_FORMAT,
             })
         })
         .expect("failed to open window");

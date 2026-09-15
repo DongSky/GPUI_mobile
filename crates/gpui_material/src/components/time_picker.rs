@@ -7,7 +7,8 @@
 //! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
 //! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
 //! and `ScrollFieldDefaults.ScrollFieldHeight` 200. `TimeInput` (96×72
-//! fields) + `ScrollDisplayModeToggle` switch Scroll ↔ Input. Dial remains.
+//! fields) + `ScrollDisplayModeToggle` switch Scroll ↔ Input. 24-hour
+//! (`is24Hour`) uses 00–23 and hides the AM/PM selector. Dial remains.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -23,6 +24,8 @@ pub const PERIOD_H_DP: f32 = 36.0;
 pub const PERIOD_GAP_DP: f32 = 8.0;
 pub const TITLE: &str = "Select time";
 pub const DEMO_HOUR: u8 = 6;
+/// 6:30 PM in 24-hour (`is24Hour`) — catalog / host TimeInput hero.
+pub const DEMO_HOUR_24: u8 = 18;
 pub const DEMO_MINUTE: u8 = 30;
 pub const MINUTE_STEP: u8 = 5;
 pub const HAND_THICKNESS_DP: f32 = 2.0;
@@ -405,8 +408,155 @@ impl TimePickerDisplayMode {
     }
 }
 
-/// Catalog / host hero starts on TimeScroll; toggle paints TimeInput.
-pub const DEMO_DISPLAY_MODE: TimePickerDisplayMode = TimePickerDisplayMode::Scroll;
+/// Catalog / host hero starts on 24-hour TimeInput; toggle still paints TimeScroll.
+pub const DEMO_DISPLAY_MODE: TimePickerDisplayMode = TimePickerDisplayMode::Input;
+
+/// Compose `TimePickerState.is24Hour` (system settings; 24h hides AM/PM).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimeFormat {
+    Hour12,
+    Hour24,
+}
+
+impl TimeFormat {
+    pub const ALL: [Self; 2] = [Self::Hour12, Self::Hour24];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Hour12 => "12",
+            Self::Hour24 => "24",
+        }
+    }
+
+    pub const fn is_24_hour(self) -> bool {
+        matches!(self, Self::Hour24)
+    }
+
+    pub const fn shows_period(self) -> bool {
+        matches!(self, Self::Hour12)
+    }
+
+    pub const fn hour_count(self) -> usize {
+        match self {
+            Self::Hour12 => HOUR_COUNT,
+            Self::Hour24 => HOUR24_COUNT,
+        }
+    }
+
+    pub const fn toggle_label(self) -> &'static str {
+        match self {
+            Self::Hour12 => "Switch to 24-hour",
+            Self::Hour24 => "Switch to 12-hour",
+        }
+    }
+
+    /// Label for the *other* format (12 when showing 24-hour).
+    pub const fn toggle_text(self) -> &'static str {
+        match self {
+            Self::Hour12 => "24",
+            Self::Hour24 => "12",
+        }
+    }
+
+    pub const fn hour_min(self) -> u8 {
+        match self {
+            Self::Hour12 => 1,
+            Self::Hour24 => 0,
+        }
+    }
+
+    pub const fn hour_max(self) -> u8 {
+        match self {
+            Self::Hour12 => 12,
+            Self::Hour24 => 23,
+        }
+    }
+
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Hour12 => Self::Hour24,
+            Self::Hour24 => Self::Hour12,
+        }
+    }
+}
+
+/// Catalog / host Expressive hero uses 24-hour TimeInput (no AM/PM).
+pub const DEMO_FORMAT: TimeFormat = TimeFormat::Hour24;
+
+pub fn demo_hour(format: TimeFormat) -> u8 {
+    match format {
+        TimeFormat::Hour12 => DEMO_HOUR,
+        TimeFormat::Hour24 => DEMO_HOUR_24,
+    }
+}
+
+pub fn to_hour24(hour12: u8, period: DayPeriod) -> u8 {
+    let h = hour12.clamp(1, 12);
+    match period {
+        DayPeriod::Am => {
+            if h == 12 {
+                0
+            } else {
+                h
+            }
+        }
+        DayPeriod::Pm => {
+            if h == 12 {
+                12
+            } else {
+                h + 12
+            }
+        }
+    }
+}
+
+pub fn to_hour12(hour24: u8) -> (u8, DayPeriod) {
+    let h = hour24.min(23);
+    if h == 0 {
+        (12, DayPeriod::Am)
+    } else if h < 12 {
+        (h, DayPeriod::Am)
+    } else if h == 12 {
+        (12, DayPeriod::Pm)
+    } else {
+        (h - 12, DayPeriod::Pm)
+    }
+}
+
+/// 12-hour face number for the analog dial (`is24Hour` still uses 1–12).
+pub fn dial_clock_hour(hour: u8, format: TimeFormat, _period: DayPeriod) -> u8 {
+    if format.is_24_hour() {
+        to_hour12(hour).0
+    } else {
+        hour.clamp(1, 12)
+    }
+}
+
+/// Map a dial tap (1–12 + AM/PM) into the active `TimeFormat` hour.
+pub fn hour_from_dial(hour12: u8, period: DayPeriod, format: TimeFormat) -> u8 {
+    if format.is_24_hour() {
+        to_hour24(hour12, period)
+    } else {
+        hour12.clamp(1, 12)
+    }
+}
+
+pub fn format_hour_field_for(hour: u8, format: TimeFormat) -> String {
+    format!("{:02}", hour.clamp(format.hour_min(), format.hour_max()))
+}
+
+pub fn header_label_for(hour: u8, minute: u8, period: DayPeriod, format: TimeFormat) -> String {
+    if format.is_24_hour() {
+        format!(
+            "{}:{}",
+            format_hour_field_for(hour, format),
+            format_minute_field(minute)
+        )
+    } else {
+        header_label(hour, minute, period)
+    }
+}
+
 /// Compose `TimePickerDialogDefaults.ScrollDisplayModeToggle` 48dp target.
 pub const TOGGLE_SIZE_DP: f32 = 48.0;
 pub const TOGGLE_ICON_DP: f32 = 24.0;
@@ -442,6 +592,7 @@ pub const SCROLL_FIELD_CORNER_DP: f32 = 28.0;
 /// Colon `offset(y = (-4).dp)` in the Compose time-selection sample.
 pub const SCROLL_COLON_OFFSET_Y_DP: f32 = -4.0;
 pub const HOUR_COUNT: usize = 12;
+pub const HOUR24_COUNT: usize = 24;
 pub const MINUTE_COUNT: usize = 60;
 /// Same LazyColumn-style decay as list swipe / carousel.
 pub const SCROLL_FLING_DECAY: f32 = 2.0;
@@ -477,6 +628,8 @@ impl ScrollKind {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScrollField {
     pub kind: ScrollKind,
+    /// Hour wheel uses this; minutes ignore it.
+    pub format: TimeFormat,
     /// Item-space offset; 0 centers index 0. Always wrapped into `0..count`.
     pub offset: f32,
     /// Items per second (positive = later values move toward center).
@@ -485,9 +638,14 @@ pub struct ScrollField {
 
 impl ScrollField {
     pub fn hour(hour: u8) -> Self {
+        Self::hour_with(hour, TimeFormat::Hour12)
+    }
+
+    pub fn hour_with(hour: u8, format: TimeFormat) -> Self {
         Self {
             kind: ScrollKind::Hour,
-            offset: hour_index(hour),
+            format,
+            offset: hour_index_for(hour, format),
             velocity: 0.0,
         }
     }
@@ -495,13 +653,17 @@ impl ScrollField {
     pub fn minute(minute: u8) -> Self {
         Self {
             kind: ScrollKind::Minute,
+            format: TimeFormat::Hour12,
             offset: minute_index(minute),
             velocity: 0.0,
         }
     }
 
     pub fn count(self) -> usize {
-        self.kind.count()
+        match self.kind {
+            ScrollKind::Hour => self.format.hour_count(),
+            ScrollKind::Minute => MINUTE_COUNT,
+        }
     }
 
     pub fn selected_index(self) -> usize {
@@ -510,7 +672,7 @@ impl ScrollField {
 
     pub fn selected_value(self) -> u8 {
         match self.kind {
-            ScrollKind::Hour => hour_from_index(self.selected_index()),
+            ScrollKind::Hour => hour_from_index_for(self.selected_index(), self.format),
             ScrollKind::Minute => minute_from_index(self.selected_index()),
         }
     }
@@ -582,14 +744,14 @@ impl ScrollField {
             let selected = dist < 0.5;
             let opacity = (1.0 - dist * 0.42).clamp(0.28, 1.0);
             let value = match self.kind {
-                ScrollKind::Hour => hour_from_index(index),
+                ScrollKind::Hour => hour_from_index_for(index, self.format),
                 ScrollKind::Minute => minute_from_index(index),
             };
             out.push(ScrollSlot {
                 index,
                 value,
                 label: match self.kind {
-                    ScrollKind::Hour => format_hour_field(value),
+                    ScrollKind::Hour => format_hour_field_for(value, self.format),
                     ScrollKind::Minute => format_minute_field(value),
                 },
                 y_dp: y,
@@ -615,14 +777,25 @@ pub struct ScrollSlot {
 pub struct TimeScrollState {
     pub hour: ScrollField,
     pub minute: ScrollField,
+    pub format: TimeFormat,
 }
 
 impl TimeScrollState {
     pub fn demo() -> Self {
+        Self::from_clock(demo_hour(DEMO_FORMAT), DEMO_MINUTE, DEMO_FORMAT)
+    }
+
+    pub fn from_clock(hour: u8, minute: u8, format: TimeFormat) -> Self {
         Self {
-            hour: ScrollField::hour(DEMO_HOUR),
-            minute: ScrollField::minute(DEMO_MINUTE),
+            hour: ScrollField::hour_with(hour, format),
+            minute: ScrollField::minute(minute),
+            format,
         }
+    }
+
+    pub fn apply_format(&mut self, format: TimeFormat, hour: u8) {
+        self.format = format;
+        self.hour = ScrollField::hour_with(hour, format);
     }
 
     pub fn hour_value(self) -> u8 {
@@ -676,7 +849,14 @@ pub fn apply_wheel(field: &mut ScrollField, dy_dp: f32) {
 }
 
 pub fn hour_index(hour: u8) -> f32 {
-    (hour.clamp(1, 12) - 1) as f32
+    hour_index_for(hour, TimeFormat::Hour12)
+}
+
+pub fn hour_index_for(hour: u8, format: TimeFormat) -> f32 {
+    match format {
+        TimeFormat::Hour12 => (hour.clamp(1, 12) - 1) as f32,
+        TimeFormat::Hour24 => hour.min(23) as f32,
+    }
 }
 
 pub fn minute_index(minute: u8) -> f32 {
@@ -684,7 +864,14 @@ pub fn minute_index(minute: u8) -> f32 {
 }
 
 pub fn hour_from_index(index: usize) -> u8 {
-    ((index % HOUR_COUNT) + 1) as u8
+    hour_from_index_for(index, TimeFormat::Hour12)
+}
+
+pub fn hour_from_index_for(index: usize, format: TimeFormat) -> u8 {
+    match format {
+        TimeFormat::Hour12 => ((index % HOUR_COUNT) + 1) as u8,
+        TimeFormat::Hour24 => (index % HOUR24_COUNT) as u8,
+    }
 }
 
 pub fn minute_from_index(index: usize) -> u8 {
@@ -835,18 +1022,24 @@ pub fn resolve_toggle(theme: &Theme) -> (f32, Argb) {
     (TOGGLE_SIZE_DP, theme.color.on_primary_container)
 }
 
-/// Two-digit TimeInput field (hour 1–12 / minute 00–59).
+/// Two-digit TimeInput field (hour 1–12 or 00–23 / minute 00–59).
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimeInputField {
     pub kind: ScrollKind,
     pub digits: String,
+    pub format: TimeFormat,
 }
 
 impl TimeInputField {
     pub fn hour(hour: u8) -> Self {
+        Self::hour_with(hour, TimeFormat::Hour12)
+    }
+
+    pub fn hour_with(hour: u8, format: TimeFormat) -> Self {
         Self {
             kind: ScrollKind::Hour,
-            digits: format_hour_field(hour),
+            digits: format_hour_field_for(hour, format),
+            format,
         }
     }
 
@@ -854,6 +1047,7 @@ impl TimeInputField {
         Self {
             kind: ScrollKind::Minute,
             digits: format_minute_field(minute),
+            format: TimeFormat::Hour12,
         }
     }
 
@@ -868,7 +1062,9 @@ impl TimeInputField {
     pub fn value(&self) -> Option<u8> {
         let n: u8 = self.digits.parse().ok()?;
         match self.kind {
-            ScrollKind::Hour => (1..=12).contains(&n).then_some(n),
+            ScrollKind::Hour => (self.format.hour_min()..=self.format.hour_max())
+                .contains(&n)
+                .then_some(n),
             ScrollKind::Minute => (n <= 59).then_some(n),
         }
     }
@@ -892,7 +1088,7 @@ impl TimeInputField {
         let next = format!("{}{digit}", self.digits);
         let n: u8 = next.parse().unwrap_or(99);
         let accept = match self.kind {
-            ScrollKind::Hour => n <= 12,
+            ScrollKind::Hour => n <= self.format.hour_max(),
             ScrollKind::Minute => n <= 59,
         };
         if accept {
@@ -905,7 +1101,9 @@ impl TimeInputField {
         }
         match self.kind {
             ScrollKind::Hour => {
-                self.digits.len() == 2 || (self.digits.len() == 1 && self.digits.as_str() >= "2")
+                let first_done = if self.format.is_24_hour() { "3" } else { "2" };
+                self.digits.len() == 2
+                    || (self.digits.len() == 1 && self.digits.as_str() >= first_done)
             }
             ScrollKind::Minute => self.digits.len() == 2,
         }
@@ -917,18 +1115,20 @@ pub struct TimeInputState {
     pub hour: TimeInputField,
     pub minute: TimeInputField,
     pub focus: ScrollKind,
+    pub format: TimeFormat,
 }
 
 impl TimeInputState {
     pub fn demo() -> Self {
-        Self::from_clock(DEMO_HOUR, DEMO_MINUTE)
+        Self::from_clock(demo_hour(DEMO_FORMAT), DEMO_MINUTE, DEMO_FORMAT)
     }
 
-    pub fn from_clock(hour: u8, minute: u8) -> Self {
+    pub fn from_clock(hour: u8, minute: u8, format: TimeFormat) -> Self {
         Self {
-            hour: TimeInputField::hour(hour),
+            hour: TimeInputField::hour_with(hour, format),
             minute: TimeInputField::minute(minute),
             focus: ScrollKind::Hour,
+            format,
         }
     }
 
@@ -969,7 +1169,8 @@ impl TimeInputState {
 
     pub fn commit_or(&self, hour: u8, minute: u8) -> (u8, u8) {
         (
-            self.hour_value().unwrap_or(hour.clamp(1, 12)),
+            self.hour_value()
+                .unwrap_or(hour.clamp(self.format.hour_min(), self.format.hour_max())),
             self.minute_value().unwrap_or(minute.min(59)),
         )
     }
@@ -982,20 +1183,47 @@ pub fn apply_display_toggle(
     hour: &mut u8,
     minute: &mut u8,
 ) -> TimePickerDisplayMode {
+    let format = scroll.format;
     let next = mode.toggle();
     match next {
         TimePickerDisplayMode::Input => {
             *hour = scroll.hour_value();
             *minute = scroll.minute_value();
-            *input = TimeInputState::from_clock(*hour, *minute);
+            *input = TimeInputState::from_clock(*hour, *minute, format);
         }
         TimePickerDisplayMode::Scroll => {
             let (h, m) = input.commit_or(*hour, *minute);
             *hour = h;
             *minute = m;
-            scroll.hour.snap_to_index(hour_index(h) as usize);
+            scroll
+                .hour
+                .snap_to_index(hour_index_for(h, format) as usize);
             scroll.minute.snap_to_index(minute_index(m) as usize);
         }
     }
+    next
+}
+
+pub fn apply_format_toggle(
+    format: TimeFormat,
+    period: &mut DayPeriod,
+    scroll: &mut TimeScrollState,
+    input: &mut TimeInputState,
+    hour: &mut u8,
+    minute: u8,
+) -> TimeFormat {
+    let next = format.toggle();
+    match next {
+        TimeFormat::Hour24 => {
+            *hour = to_hour24(*hour, *period);
+        }
+        TimeFormat::Hour12 => {
+            let (h, p) = to_hour12(*hour);
+            *hour = h;
+            *period = p;
+        }
+    }
+    scroll.apply_format(next, *hour);
+    *input = TimeInputState::from_clock(*hour, minute, next);
     next
 }
