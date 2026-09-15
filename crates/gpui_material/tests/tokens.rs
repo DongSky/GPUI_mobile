@@ -890,6 +890,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-open-affordance="1""#));
     assert!(html.contains("Installed application"));
     assert!(html.contains(r#"data-search-list="segmented""#));
+    assert!(html.contains(r#"data-search-clear="1""#));
+    assert!(html.contains(r#"data-search-trailing="1""#));
+    assert!(html.contains(search::TRAILING_CLEAR));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains(r#"data-time-layout="vertical""#));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
@@ -1178,6 +1181,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("scrim")
             && e.notes.contains("segmented")
             && e.notes.contains("2dp")
+            && e.notes.contains("two-line")
+            && e.notes.contains("clear-X")
     }));
     assert!(INVENTORY
         .iter()
@@ -2774,6 +2779,17 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search::row_corners(0, 3, false).top_left, 16.0);
     assert_eq!(search::row_corners(1, 3, false).top_left, 4.0);
     assert_eq!(search::row_corners(0, 1, true).top_left, 16.0);
+    assert!(search::shows_clear(search::DEMO_QUERY));
+    assert!(!search::shows_clear(""));
+    assert!(!search::shows_clear("   "));
+    assert_eq!(search::trailing_action(""), search::TRAILING_MIC);
+    assert_eq!(
+        search::trailing_action(search::DEMO_QUERY),
+        search::TRAILING_CLEAR
+    );
+    search::apply_clear(&mut ed);
+    assert_eq!(ed.value(), "");
+    assert!(ed.focused);
     assert_eq!(
         search::SearchListStatus::QuickResults.heading(),
         Some(search::QUICK_RESULTS_LABEL)

@@ -5397,6 +5397,25 @@ fn android_search_bar(
                 .text_color(query_color)
                 .child(query_label),
         )
+        .child({
+            let trail_color = paint(if open { view.header } else { a.trailing_icon });
+            let show_clear = search::shows_clear(this.search.value());
+            div()
+                .id("search-trailing")
+                .w(px(search::ICON_DP))
+                .h(px(search::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(trail_color)
+                .child(search::trailing_action(this.search.value()))
+                .when(show_clear, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        search::apply_clear(&mut this.search);
+                        cx.notify();
+                    }))
+                })
+        })
         .child(
             div()
                 .w(px(search::AVATAR_DP))

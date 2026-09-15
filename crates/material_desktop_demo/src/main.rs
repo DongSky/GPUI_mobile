@@ -4628,12 +4628,24 @@ fn search_bar_hero(
                 .text_color(query_color)
                 .child(query_label),
         )
-        .child(
+        .child({
+            let show_clear = search::shows_clear(this.search.value());
             div()
+                .id("search-trailing")
                 .w(px(search::ICON_DP))
+                .h(px(search::ICON_DP))
+                .flex()
+                .items_center()
+                .justify_center()
                 .text_color(mic_color)
-                .child(search::TRAILING_MIC),
-        )
+                .child(search::trailing_action(this.search.value()))
+                .when(show_clear, |el| {
+                    el.on_click(cx.listener(|this, _, _, cx| {
+                        search::apply_clear(&mut this.search);
+                        cx.notify();
+                    }))
+                })
+        })
         .child(
             div()
                 .w(px(search::AVATAR_DP))
@@ -7497,6 +7509,11 @@ mod tests {
         assert_eq!(search::row_corners(0, 3, false).top_left, 16.0);
         assert_eq!(search::RESULT_H_DP, 72.0);
         assert_eq!(search::supporting_for("App"), "Installed application");
+        assert!(search::shows_clear(search::DEMO_QUERY));
+        assert_eq!(
+            search::trailing_action(search::DEMO_QUERY),
+            search::TRAILING_CLEAR
+        );
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);

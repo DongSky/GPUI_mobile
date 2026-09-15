@@ -22,6 +22,9 @@ pub const AVATAR_DP: f32 = 30.0;
 pub const PLACEHOLDER: &str = "Hinted search text";
 pub const LEADING_ICON: &str = "⌕";
 pub const TRAILING_MIC: &str = "🎤";
+/// Focused search shows a clear icon when the query is non-empty.
+pub const TRAILING_CLEAR: &str = "✕";
+pub const CLEAR_LABEL: &str = "Clear text";
 pub const VIEW_BACK: &str = "←";
 pub const VIEW_CORNER_DP: f32 = 28.0;
 pub const VIEW_HEADER_DP: f32 = 72.0;
@@ -400,6 +403,25 @@ pub fn query_display(query: &str) -> &str {
 }
 
 pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
+
+/// Guidelines: focused search can show an optional clear icon to remove input.
+pub fn shows_clear(query: &str) -> bool {
+    !query.trim().is_empty()
+}
+
+pub fn trailing_action(query: &str) -> &'static str {
+    if shows_clear(query) {
+        TRAILING_CLEAR
+    } else {
+        TRAILING_MIC
+    }
+}
+
+/// Empty the field and keep it focused (Quick results after clear).
+pub fn apply_clear(ed: &mut crate::components::text_field::TextFieldEditor) {
+    ed.set_value("");
+    ed.set_focus(true);
+}
 
 /// Docked bar (`0`) vs full-screen search activity (`1`) morph parameter.
 pub fn morph_t(open: bool) -> f32 {

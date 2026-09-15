@@ -254,7 +254,8 @@ a {{ color: var(--primary); }}
 .search-morph .avatar {{
   transition: opacity 350ms cubic-bezier(0.42, 1.67, 0.21, 0.90);
 }}
-.search-bar .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
+.search-bar .ico, .search-morph .sv-head .ico {{ width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 18px; }}
+.search-morph .ico[data-search-clear="1"] {{ cursor: pointer; }}
 .search-bar .hint {{ flex: 1; font-size: 16px; line-height: 24px; }}
 .search-bar .avatar {{ width: 30px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }}
 .search-view input, .search-morph input {{
@@ -2095,7 +2096,7 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
 document.querySelectorAll("[data-search='1']").forEach(function (bar) {{
   bar.style.cursor = "pointer";
   bar.addEventListener("click", function (ev) {{
-    if (ev.target && ev.target.closest && ev.target.closest("[data-search-input]")) return;
+    if (ev.target && ev.target.closest && (ev.target.closest("[data-search-input]") || ev.target.closest("[data-search-trailing]"))) return;
     var view = bar.matches("[data-search-view]") ? bar : document.querySelector("[data-search-view]");
     if (!view) return;
     var open = view.getAttribute("data-open") !== "1";
@@ -2174,6 +2175,22 @@ function syncSearchStatus(view, input) {{
       live.setAttribute("aria-label", visible === 1 ? "1 result" : visible + " results");
     }}
   }}
+  syncSearchTrailing(view, input);
+}}
+function syncSearchTrailing(view, input) {{
+  if (!view || !input) return;
+  var trail = view.querySelector("[data-search-trailing]");
+  if (!trail) return;
+  var q = (input.value || "").trim();
+  if (q) {{
+    trail.setAttribute("data-search-clear", "1");
+    trail.textContent = "✕";
+    trail.setAttribute("aria-label", "Clear text");
+  }} else {{
+    trail.setAttribute("data-search-clear", "0");
+    trail.textContent = "🎤";
+    trail.removeAttribute("aria-label");
+  }}
 }}
 document.querySelectorAll("[data-search-input]").forEach(function (input) {{
   input.addEventListener("input", function () {{
@@ -2205,6 +2222,18 @@ document.querySelectorAll("[data-search-scrim-layer]").forEach(function (scrim) 
     var view = stage ? stage.querySelector("[data-search-view]") : null;
     if (!view || view.getAttribute("data-open") !== "1") return;
     view.click();
+  }});
+}});
+document.querySelectorAll("[data-search-trailing]").forEach(function (trail) {{
+  trail.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    if (trail.getAttribute("data-search-clear") !== "1") return;
+    var view = trail.closest("[data-search-view]");
+    var input = view ? view.querySelector("[data-search-input]") : null;
+    if (!input) return;
+    input.value = "";
+    input.focus();
+    syncSearchStatus(view, input);
   }});
 }});
 document.querySelectorAll("[data-search-suggestion]").forEach(function (row) {{
@@ -6249,7 +6278,7 @@ fn paint_contained_search_state(
       <span class="lead-activity" aria-hidden="true">{back}</span>
     </div>
     <input class="hint" data-search-input="1" placeholder="{placeholder}"{value_attr} style="color:{vin}"/>
-    <div class="ico">{mic}</div>
+    <div class="ico" data-search-trailing="1" data-search-clear="{clear}"{clear_aria}>{trail}</div>
     <div class="avatar" data-search-avatar="1" style="background:{abg};color:{afg}">A</div>
   </div>
   <div class="sv-list">{status_row}{rows}</div>
@@ -6279,7 +6308,13 @@ fn paint_contained_search_state(
         abg = bar.avatar.css_hex(),
         afg = bar.avatar_label.css_hex(),
         placeholder = search::PLACEHOLDER,
-        mic = search::TRAILING_MIC,
+        trail = search::trailing_action(query),
+        clear = search::shows_clear(query) as u8,
+        clear_aria = if search::shows_clear(query) {
+            format!(r#" aria-label="{}""#, search::CLEAR_LABEL)
+        } else {
+            String::new()
+        },
         value_attr = value_attr,
         status_row = status_row,
         rows = rows,
@@ -6334,13 +6369,13 @@ fn search_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a <code>Quick results</code> status while typing and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a <code>Quick results</code> status while typing and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
 {docked}
 <h3>queried (Quick results / Results)</h3>
-<p class="note">Focused typing uses a Quick results status, two-line rows, and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused.</p>
+<p class="note">Focused typing uses a Quick results status, two-line rows, and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
 {quick}
 {results}
 <h3>divided (baseline)</h3>
