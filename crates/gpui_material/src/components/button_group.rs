@@ -5,12 +5,15 @@
 //! - **Standard** — `ButtonGroupSmallTokens.BetweenSpace` 12dp; pressed/selected
 //!   child grows by `ButtonGroupDefaults.ExpandedRatio` (0.15) and adjacent
 //!   neighbors compress. Rest is round tonal; selected morphs round→square.
+//!   Trailing `ButtonGroupDefaults.OverflowIndicator` is a filled icon button
+//!   and is outside the neighbor-morph row.
 //! - **Connected** — segmented buttons are deprecated; 2dp gap, 8dp inner
 //!   corners, fully rounded outer. Selected morphs toward square (`checkedShape`);
 //!   press uses the common-button pressed radius. Compose:
 //!   `ButtonGroupDefaults.connectedLeading/Middle/TrailingButtonShapes`.
 
 use crate::components::button::{self, ButtonSize, ButtonVariant};
+use crate::components::icon_button::{self, IconButtonVariant};
 use crate::components::Appearance;
 use crate::shape::Corners;
 use crate::state::InteractionState;
@@ -30,6 +33,11 @@ pub const STANDARD_BASE_W_DP: f32 = 88.0;
 
 pub const STANDARD_SEGMENTS: [&str; 3] = ["Start", "Center", "End"];
 pub const STANDARD_SELECTED: usize = 1;
+/// Compose `ButtonGroupDefaults.OverflowIndicator`: filled icon button at
+/// the trailing edge. Hidden children (align extras) land in the menu.
+pub const STANDARD_OVERFLOW_GLYPH: &str = "⋮";
+pub const STANDARD_OVERFLOW_ITEMS: [&str; 3] = ["Left", "Right", "Justify"];
+pub const STANDARD_OVERFLOW_OPEN: bool = true;
 
 pub const DEMO_SEGMENTS: [&str; 3] = ["Day", "Week", "Month"];
 pub const DEMO_SELECTED: usize = 1;
@@ -110,13 +118,8 @@ pub fn resolve_standard(
     } else {
         button::ButtonShape::Round
     };
-    let mut appearance = button::resolve_expressive(
-        theme,
-        variant,
-        ButtonSize::Small,
-        shape,
-        state,
-    );
+    let mut appearance =
+        button::resolve_expressive(theme, variant, ButtonSize::Small, shape, state);
     let w = standard_width(index, count, expanded);
     appearance.width_dp = Some(w);
     appearance.min_width_dp = Some(w);
@@ -134,6 +137,25 @@ pub fn resolve_standard_scene(theme: &Theme, index: usize, selected: usize) -> A
         index == selected,
         false,
         Some(selected),
+    )
+}
+
+/// Trailing overflow affordance for a standard group.
+/// Compose `ButtonGroupDefaults.OverflowIndicator` is a filled icon button
+/// (`IconButtonDefaults.filledShape` / filled colors) and does **not**
+/// participate in `ExpandedRatio` neighbor morph.
+pub fn resolve_standard_overflow(theme: &Theme, pressed: bool) -> Appearance {
+    let state = if pressed {
+        InteractionState::Pressed
+    } else {
+        InteractionState::Enabled
+    };
+    icon_button::resolve_expressive(
+        theme,
+        IconButtonVariant::Filled,
+        ButtonSize::Small,
+        button::ButtonShape::Round,
+        state,
     )
 }
 
@@ -191,14 +213,7 @@ pub fn resolve_segment(
     selected: bool,
     pressed: bool,
 ) -> Appearance {
-    resolve_segment_size(
-        theme,
-        ButtonSize::Small,
-        index,
-        count,
-        selected,
-        pressed,
-    )
+    resolve_segment_size(theme, ButtonSize::Small, index, count, selected, pressed)
 }
 
 pub fn resolve_segment_size(
@@ -219,13 +234,8 @@ pub fn resolve_segment_size(
     } else {
         ButtonVariant::Outlined
     };
-    let mut appearance = button::resolve_expressive(
-        theme,
-        variant,
-        size,
-        button::ButtonShape::Round,
-        state,
-    );
+    let mut appearance =
+        button::resolve_expressive(theme, variant, size, button::ButtonShape::Round, state);
     appearance.corners = segment_corners(segment_role(index, count), size, selected, pressed);
     if selected {
         appearance.label_style = theme.typography.label_large.emphasized();
@@ -258,10 +268,7 @@ pub fn overflow_index() -> usize {
 }
 
 pub fn icon_glyph(index: usize) -> &'static str {
-    ICON_SEGMENTS
-        .get(index)
-        .copied()
-        .unwrap_or(OVERFLOW_GLYPH)
+    ICON_SEGMENTS.get(index).copied().unwrap_or(OVERFLOW_GLYPH)
 }
 
 /// Catalog settings-like scene title (emphasized hero).

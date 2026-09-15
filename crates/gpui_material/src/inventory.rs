@@ -81,7 +81,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Standard + connected button groups (Expressive)",
         docs: "https://m3.material.io/components/button-groups/specs",
         parity: Parity::Done,
-        notes: "Standard: 12dp gap, ExpandedRatio 0.15 neighbor morph, Start/Center/End tonal→filled square. Connected: 2dp gap, 8dp inner, full-round outer; Day/Week/Month + icon row with overflow",
+        notes: "Standard: 12dp gap, ExpandedRatio 0.15 neighbor morph, Start/Center/End tonal→filled square + trailing filled OverflowIndicator (Left/Right/Justify). Connected: 2dp gap, 8dp inner, full-round outer; Day/Week/Month + icon row with overflow",
     },
     ComponentEntry {
         name: "Icon button",
@@ -102,21 +102,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "FAB menu (Expressive)",
         docs: "https://m3.material.io/components/fab-menu/specs",
         parity: Parity::Done,
-        notes: "2–6 item pills 56dp full-round + 56dp close FAB; 8dp close gap / 4dp item gap; primary/secondary/tertiary sets; Document / Message / Folder hero over decoded woven-basket JPEG",
+        notes: "2–6 item pills 56dp full-round + 56dp close FAB; 8dp close gap / 4dp item gap; primary/secondary/tertiary sets; Document / Message / Folder hero over licensed woven-basket still",
     },
     ComponentEntry {
         name: "Split button",
         material: "Split buttons (Expressive)",
         docs: "https://m3.material.io/components/split-button/specs",
         parity: Parity::Done,
-        notes: "Leading action + trailing menu, 2dp gap; outer full-round, inner 4dp rest / 12dp press (S); open trailing goes full-round + pressed layer; enamel-mugs JPEG product card ($7.49)",
+        notes: "Leading action + trailing menu, 2dp gap; outer full-round, inner 4dp rest / 12dp press (S); open trailing goes full-round + pressed layer; licensed enamel-mugs still product card ($7.49)",
     },
     ComponentEntry {
         name: "Toolbar",
         material: "Floating / docked toolbars (Expressive)",
         docs: "https://m3.material.io/components/toolbars/specs",
         parity: Parity::Done,
-        notes: "Floating 64dp full-round surface-container / vibrant primary-container + tertiary FAB; docked full-width; horizontal + vertical; 8dp pad / 4dp item gap; chat-thread scene (Renee Claess + decoded dog JPEG)",
+        notes: "Floating 64dp full-round surface-container / vibrant primary-container + tertiary FAB; docked full-width; horizontal + vertical; 8dp pad / 4dp item gap; chat-thread scene (Renee Claess + licensed dog still)",
     },
     ComponentEntry {
         name: "Text field",
@@ -193,7 +193,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Snackbar",
         docs: "https://m3.material.io/components/snackbar/specs",
         parity: Parity::Done,
-        notes: "Inverse surface 48dp; Gmail scene with decoded JPEG avatars + Mail/Chat/Rooms/Meet filled dest icons + peeking thread + Email archived / Action / close; timeout 4s/10s + swipe 72dp",
+        notes: "Inverse surface 48dp; Gmail scene with licensed camera-still avatars + Mail/Chat/Rooms/Meet filled dest icons + peeking thread + Email archived / Action / close; timeout 4s/10s + swipe 72dp",
     },
     ComponentEntry {
         name: "Navigation bar",
@@ -228,7 +228,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Bottom sheets",
         docs: "https://m3.material.io/components/bottom-sheets/specs",
         parity: Parity::Done,
-        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; share sheet over decoded album JPEG with Send people row + horizontal Share/Add to/Trash actions",
+        notes: "surface-container-low, extra-large top 28dp, 32×4 handle, elev 1; share sheet over licensed album still with Send people row + horizontal Share/Add to/Trash actions",
     },
     ComponentEntry {
         name: "Side sheet",
@@ -256,7 +256,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Tabs",
         docs: "https://m3.material.io/components/tabs/specs",
         parity: Parity::Done,
-        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone (Audio selected, Bloom/Egret decoded JPEG tiles, app-bar chrome)",
+        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label 64dp + My saved media phone (Audio selected, Bloom/Egret licensed stills, app-bar chrome)",
     },
     ComponentEntry {
         name: "Badge",
@@ -291,7 +291,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Carousel (hero / multi-browse / uncontained-multi)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero / multi-browse / uncontained / uncontained-multi / centered-hero / full-screen; phone-frame mask; Your lists phone; decoded JPEG media + parallax",
+        notes: "Hero / multi-browse / uncontained / uncontained-multi / centered-hero / full-screen; phone-frame mask; Your lists phone; licensed camera stills + parallax",
     },
 ];
 

@@ -1,10 +1,10 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip,
-    date_picker, dialog, divider, fab, fab_menu, icon_button, list, menu, navigation_bar,
-    navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar,
-    split_button, switch, tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
+    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
+    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
+    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
+    time_picker, toolbar, tooltip, top_app_bar, Appearance,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -20,16 +20,19 @@ fn esc(s: &str) -> String {
 
 fn paint_photo_class(kind: photo_stub::PhotoKind, extra: &str, class: &str) -> String {
     format!(
-        r#"<div class="{class}" data-photo="{label}" data-decoded-jpeg="1" style="background:{css};{extra}"></div>"#,
+        r#"<div class="{class}" data-photo="{label}" data-decoded-jpeg="1" data-licensed-camera="1" data-photo-license="{lic}" data-photo-source="{src}" style="background:{css};{extra}"></div>"#,
         label = kind.label(),
+        lic = kind.credit().license,
+        src = kind.credit().source,
         css = kind.css_background(),
     )
 }
 
 fn paint_avatar(kind: photo_stub::PhotoKind, size: f32) -> String {
     format!(
-        r#"<div class="photo-stub av" data-photo="{label}" data-decoded-jpeg="1" style="width:{size}px;height:{size}px;border-radius:{r}px;flex:0 0 {size}px;background:{css}"></div>"#,
+        r#"<div class="photo-stub av" data-photo="{label}" data-decoded-jpeg="1" data-licensed-camera="1" data-photo-license="{lic}" style="width:{size}px;height:{size}px;border-radius:{r}px;flex:0 0 {size}px;background:{css}"></div>"#,
         label = kind.label(),
+        lic = kind.credit().license,
         r = size / 2.0,
         css = kind.css_background(),
     )
@@ -948,6 +951,18 @@ document.querySelectorAll("[data-button-group='standard']").forEach(function (gr
       apply(Number(btn.getAttribute("data-standard-i") || "0"));
     }});
   }});
+  var overflowBtn = group.querySelector("[data-standard-overflow-btn]");
+  if (overflowBtn) {{
+    overflowBtn.addEventListener("click", function () {{
+      var wrap = group.parentElement;
+      var menu = wrap && wrap.querySelector("[data-standard-overflow-menu]");
+      if (menu) {{
+        var open = menu.getAttribute("data-open") === "1";
+        menu.setAttribute("data-open", open ? "0" : "1");
+        menu.style.display = open ? "none" : "flex";
+      }}
+    }});
+  }}
 }});
 document.querySelectorAll("[data-button-group]").forEach(function (group) {{
   group.querySelectorAll(".btn-connected").forEach(function (btn) {{
@@ -1735,15 +1750,20 @@ fn type_section(theme: &Theme) -> String {
     out
 }
 
-fn paint_standard_group(theme: &Theme, selected: usize) -> String {
+fn paint_standard_group(theme: &Theme, selected: usize, overflow_open: bool) -> String {
     let count = button_group::STANDARD_SEGMENTS.len();
-    let mut parts = format!(
+    let ov = button_group::resolve_standard_overflow(theme, false);
+    let menu = menu::resolve_menu(theme);
+    let mut parts = String::from(
+        r#"<div class="overflow-menu" data-standard-overflow="1" data-hero="button-group-standard">"#,
+    );
+    parts.push_str(&format!(
         r#"<div class="btn-group" data-button-group="standard" data-hero="button-group-standard" data-selected="{sel}" data-base-w="{base}" data-expanded-ratio="{ratio}" data-standard-gap="{gap}">"#,
         sel = selected,
         base = button_group::STANDARD_BASE_W_DP,
         ratio = format!("{:.2}", button_group::EXPANDED_RATIO),
         gap = button_group::STANDARD_GAP_DP,
-    );
+    ));
     for (i, label) in button_group::STANDARD_SEGMENTS.iter().enumerate() {
         let a = button_group::resolve_standard_scene(theme, i, selected);
         let idle = button_group::resolve_standard(theme, i, count, false, false, None);
@@ -1776,7 +1796,40 @@ fn paint_standard_group(theme: &Theme, selected: usize) -> String {
             label = label,
         ));
     }
+    parts.push_str(&format!(
+        r#"<button class="btn btn-standard-overflow" data-overflow="1" data-standard-overflow-btn="1" style="--press-r:{pr}px;background:{bg};color:{fg};border-radius:{r};height:{h}px;min-width:{mw}px;padding:0;font-size:{fs}px">{glyph}</button>"#,
+        pr = button::ButtonSize::Small.pressed_corner_dp(),
+        bg = ov.container.css_hex(),
+        fg = ov.content.css_hex(),
+        r = ov.corners.css(),
+        h = ov.height_dp,
+        mw = ov.width_dp.unwrap_or(icon_button::container_width_dp(
+            button::ButtonSize::Small,
+            icon_button::IconButtonWidth::Default,
+        )),
+        fs = ov.label_style.size_sp,
+        glyph = button_group::STANDARD_OVERFLOW_GLYPH,
+    ));
     parts.push_str("</div>");
+    let display = if overflow_open { "flex" } else { "none" };
+    parts.push_str(&format!(
+        r#"<div class="menu" data-overflow-menu="1" data-standard-overflow-menu="1" data-open="{open}" style="display:{display};background:{bg};border-radius:{r}px;box-shadow:{sh}">"#,
+        open = if overflow_open { "1" } else { "0" },
+        display = display,
+        bg = menu.container.css_hex(),
+        r = menu.corners.top_left,
+        sh = ElevationLevels::css_shadow(menu.elevation_dp),
+    ));
+    for (i, label) in button_group::STANDARD_OVERFLOW_ITEMS.iter().enumerate() {
+        let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+        parts.push_str(&format!(
+            r#"<div class="menu-item" data-overflow-item="{label}" data-standard-overflow-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
+            bg = item.container.css_hex(),
+            fg = item.label.css_hex(),
+            h = item.height_dp,
+        ));
+    }
+    parts.push_str("</div></div>");
     parts
 }
 
@@ -2046,8 +2099,9 @@ fn buttons(theme: &Theme) -> String {
     out.push_str(&paint_standard_group(
         theme,
         button_group::STANDARD_SELECTED,
+        button_group::STANDARD_OVERFLOW_OPEN,
     ));
-    out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square.</p>");
+    out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square. Trailing filled overflow indicator (Compose OverflowIndicator) holds Left / Right / Justify.</p>");
     out.push_str("<h3>connected button group</h3>");
     out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
     out.push_str("<h3>connected icon row + overflow</h3>");
@@ -3539,7 +3593,7 @@ fn app_bars(theme: &Theme) -> String {
 <div class="phone" data-appbar-scene="1" data-hero="app-bar" style="height:{ph}px">
   <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
   {large}
-  <div class="photo-hero photo-stub" data-appbar-photo="1" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css};height:{ih}px"></div>
+  <div class="photo-hero photo-stub" data-appbar-photo="1" data-photo="{photo}" data-decoded-jpeg="1" data-licensed-camera="1" data-photo-license="{lic}" style="background:{css};height:{ih}px"></div>
 </div>
 <h3>medium flexible</h3>
 <div data-hero="app-bar-medium">{medium}</div>
@@ -3551,6 +3605,7 @@ fn app_bars(theme: &Theme) -> String {
         stime = top_app_bar::STATUS_TIME,
         large = large,
         photo = top_app_bar::SCENE_PHOTO.label(),
+        lic = top_app_bar::SCENE_PHOTO.credit().license,
         css = top_app_bar::SCENE_PHOTO.css_background(),
         ih = top_app_bar::PHOTO_H_DP,
         medium = medium,
@@ -3821,7 +3876,7 @@ fn sheets(theme: &Theme) -> String {
     let mut people = String::new();
     for person in bottom_sheet::PEOPLE {
         people.push_str(&format!(
-            r#"<div class="people" data-share-person="{first}"><div class="av photo-stub" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css}"></div><span class="pn">{first}</span><span class="pn">{last}</span></div>"#,
+            r#"<div class="people" data-share-person="{first}"><div class="av photo-stub" data-photo="{photo}" data-decoded-jpeg="1" data-licensed-camera="1" style="background:{css}"></div><span class="pn">{first}</span><span class="pn">{last}</span></div>"#,
             first = person.first,
             last = person.last,
             photo = person.photo.label(),
@@ -3833,7 +3888,7 @@ fn sheets(theme: &Theme) -> String {
 <p class="note">Official overview is a share sheet over a photo album: horizontal Share / Add to / Trash, then Send + named people. Modal extra-large top 28 · 32×4 handle · elevation 1. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
 <div class="phone share-stage" data-sheet-scene="1" data-hero="bottom-sheet" style="height:{ph}px;background:{surface}">
   <div class="status-bar" data-status-bar="1"><span>{stime}</span><span>5G · 100%</span></div>
-  <div class="share-hero photo-stub" data-share-photo="0" data-share-grid="1" data-decoded-jpeg="1" style="background:{album_css}">
+  <div class="share-hero photo-stub" data-share-photo="0" data-share-grid="1" data-decoded-jpeg="1" data-licensed-camera="1" style="background:{album_css}">
     <div class="album-bar">{album}</div>
   </div>
   <div class="sheet" data-sheet="modal" data-sheet-share="1" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg};position:relative">
@@ -3888,7 +3943,7 @@ fn side_sheets(theme: &Theme) -> String {
     let mut tiles = String::new();
     for (i, kind) in side_sheet::SCENE_PHOTOS.iter().enumerate() {
         tiles.push_str(&format!(
-            r#"<div class="media-tile photo-stub" data-side-photo="{i}" data-photo="{photo}" data-decoded-jpeg="1" style="background:{css};height:{h}px"></div>"#,
+            r#"<div class="media-tile photo-stub" data-side-photo="{i}" data-photo="{photo}" data-decoded-jpeg="1" data-licensed-camera="1" style="background:{css};height:{h}px"></div>"#,
             photo = kind.label(),
             css = kind.css_background(),
             h = side_sheet::PHOTO_TILE_H_DP,
@@ -4221,7 +4276,7 @@ fn tabs_section(theme: &Theme) -> String {
     for (i, caption) in tabs::SCENE_TILES.iter().enumerate() {
         let kind = tabs::scene_tile_kind(i);
         tiles.push_str(&format!(
-            r#"<div class="media-tile photo-stub" data-media-tile="{i}" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" style="background:{css};height:{h}px;border-radius:{r}px"></div>"#,
+            r#"<div class="media-tile photo-stub" data-media-tile="{i}" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" data-licensed-camera="1" style="background:{css};height:{h}px;border-radius:{r}px"></div>"#,
             photo = kind.label(),
             css = kind.css_background(),
             h = tabs::SCENE_TILE_H_DP,
@@ -4636,7 +4691,7 @@ fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout) -> String
         let h = carousel::item_height_for_index(layout, i);
         let kind = carousel::media_kind(i);
         tiles.push_str(&format!(
-            r#"<div class="tile photo-stub" data-carousel-item="{i}" data-media="1" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" data-parallax="{px}" style="width:{w}px;height:{h}px;background:{css};border-radius:{r}px"></div>"#,
+            r#"<div class="tile photo-stub" data-carousel-item="{i}" data-media="1" data-photo="{photo}" data-caption="{caption}" data-decoded-jpeg="1" data-licensed-camera="1" data-parallax="{px}" style="width:{w}px;height:{h}px;background:{css};border-radius:{r}px"></div>"#,
             photo = kind.label(),
             px = carousel::PARALLAX_MAX_DP,
             css = kind.css_background(),

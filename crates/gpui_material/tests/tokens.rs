@@ -654,6 +654,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-standard-i"));
     assert!(html.contains(">Start<"));
     assert!(html.contains(">Center<"));
+    assert!(html.contains("data-standard-overflow=\"1\""));
+    assert!(html.contains("data-standard-overflow-btn=\"1\""));
+    assert!(html.contains("data-standard-overflow-item=\"Left\""));
+    assert!(html.contains("data-standard-overflow-item=\"Justify\""));
+    assert!(html.contains("data-licensed-camera=\"1\""));
+    assert!(html.contains("data-photo-license=\"CC0\""));
+    assert!(html.contains("data-photo-license=\"Unsplash License\""));
     assert!(html.contains("data-tooltip-trigger=\"hover\""));
     assert!(html.contains("data-tooltip-longpress-ms=\"500\""));
     assert!(html.contains("Learn more"));
@@ -890,7 +897,10 @@ fn inventory_covers_claimed_and_followups() {
         e.name == "List" && e.notes.contains("swipe") && e.notes.contains("reorder")
     }));
     assert!(INVENTORY.iter().any(|e| {
-        e.name == "Button group" && e.notes.contains("Standard") && e.notes.contains("0.15")
+        e.name == "Button group"
+            && e.notes.contains("Standard")
+            && e.notes.contains("0.15")
+            && e.notes.contains("OverflowIndicator")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Tooltip" && e.notes.contains("long-press")
@@ -1338,6 +1348,18 @@ fn connected_button_group_tokens() {
     let std_idle = button_group::resolve_standard(&theme, 0, 3, false, false, Some(1));
     assert_eq!(std_idle.container, theme.color.secondary_container);
     assert_eq!(std_idle.corners.top_left, 20.0);
+    assert_eq!(button_group::STANDARD_OVERFLOW_ITEMS, ["Left", "Right", "Justify"]);
+    assert_eq!(
+        button_group::STANDARD_OVERFLOW_GLYPH,
+        button_group::OVERFLOW_GLYPH
+    );
+    let ov = button_group::resolve_standard_overflow(&theme, false);
+    assert_eq!(ov.container, theme.color.primary);
+    assert_eq!(ov.content, theme.color.on_primary);
+    assert_eq!(ov.corners.top_left, 20.0);
+    assert_eq!(ov.height_dp, 40.0);
+    let ov_press = button_group::resolve_standard_overflow(&theme, true);
+    assert_eq!(ov_press.corners.top_left, 8.0);
 }
 
 #[test]
@@ -1917,4 +1939,15 @@ fn catalog_jpeg_decodes_for_scene_photos() {
     let mosaic = PhotoKind::Bloom.mosaic(8, 6);
     assert_eq!(mosaic.len(), 48);
     assert!(PhotoKind::Mugs.css_background().contains("url('data:image/jpeg"));
+    for kind in PhotoKind::ALL {
+        assert!(kind.is_licensed_camera(), "{}", kind.label());
+        assert!(!kind.credit().license.is_empty());
+        assert!(kind.jpeg_bytes().len() > 1000, "{}", kind.label());
+        assert_eq!(&kind.jpeg_bytes()[0..2], &[0xFF, 0xD8]);
+    }
+    assert_eq!(PhotoKind::Bloom.credit().license, "CC0");
+    assert_eq!(PhotoKind::Bloom.credit().source, "commons");
+    assert_eq!(PhotoKind::Basket.credit().license, "CC BY-SA 4.0");
+    assert_eq!(PhotoKind::PortraitCarmen.credit().license, "Unsplash License");
+    assert_eq!(PhotoKind::Lake.credit().license, "Public domain");
 }

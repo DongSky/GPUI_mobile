@@ -306,6 +306,7 @@ struct CatalogView {
     tooltip_rich_open: bool,
     icon_selected: usize,
     overflow_open: bool,
+    standard_overflow_open: bool,
     range_start: f32,
     range_end: f32,
     range_drag: Option<slider::RangeThumb>,
@@ -697,7 +698,12 @@ fn catalog_body(
                 })),
         )
         .child(android_connected_group(theme, this.group_selected, cx))
-        .child(android_standard_group(theme, this.standard_selected, cx))
+        .child(android_standard_group(
+            theme,
+            this.standard_selected,
+            this.standard_overflow_open,
+            cx,
+        ))
         .child(android_icon_group(
             theme,
             this.icon_selected,
@@ -4246,39 +4252,91 @@ fn android_icon_button_toggles(theme: &Theme) -> impl IntoElement {
 fn android_standard_group(
     theme: &Theme,
     selected: usize,
+    overflow_open: bool,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
+    let ov = button_group::resolve_standard_overflow(theme, false);
+    let shell = menu::resolve_menu(theme);
     div()
         .flex()
         .flex_row()
-        .gap(px(button_group::STANDARD_GAP_DP))
-        .children(
-            button_group::STANDARD_SEGMENTS
-                .iter()
-                .enumerate()
-                .map(|(i, label)| {
-                    let a = button_group::resolve_standard_scene(theme, i, selected);
-                    let w = a.width_dp.unwrap_or(button_group::STANDARD_BASE_W_DP);
+        .items_start()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(button_group::STANDARD_GAP_DP))
+                .children(
+                    button_group::STANDARD_SEGMENTS
+                        .iter()
+                        .enumerate()
+                        .map(|(i, label)| {
+                            let a = button_group::resolve_standard_scene(theme, i, selected);
+                            let w = a.width_dp.unwrap_or(button_group::STANDARD_BASE_W_DP);
+                            div()
+                                .id(SharedString::from(format!("std-group-{i}")))
+                                .h(px(a.height_dp))
+                                .w(px(w))
+                                .px(px(a.pad_start_dp))
+                                .rounded(px(a.corners.top_left))
+                                .bg(paint(a.container))
+                                .text_color(paint(a.content))
+                                .text_size(type_size(a.label_style))
+                                .font_weight(type_weight(a.label_style))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(*label)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.standard_selected = i;
+                                    cx.notify();
+                                }))
+                        }),
+                )
+                .child(
                     div()
-                        .id(SharedString::from(format!("std-group-{i}")))
-                        .h(px(a.height_dp))
-                        .w(px(w))
-                        .px(px(a.pad_start_dp))
-                        .rounded(px(a.corners.top_left))
-                        .bg(paint(a.container))
-                        .text_color(paint(a.content))
-                        .text_size(type_size(a.label_style))
-                        .font_weight(type_weight(a.label_style))
+                        .id("std-group-overflow")
+                        .h(px(ov.height_dp))
+                        .w(px(ov.width_dp.unwrap_or(40.)))
+                        .rounded(px(ov.corners.top_left))
+                        .bg(paint(ov.container))
+                        .text_color(paint(ov.content))
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(*label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.standard_selected = i;
+                        .child(button_group::STANDARD_OVERFLOW_GLYPH)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.standard_overflow_open = !this.standard_overflow_open;
                             cx.notify();
-                        }))
-                }),
+                        })),
+                ),
         )
+        .when(overflow_open, |el| {
+            el.child(
+                div()
+                    .min_w(px(140.))
+                    .rounded(px(shell.corners.top_left))
+                    .bg(paint(shell.container))
+                    .children(
+                        button_group::STANDARD_OVERFLOW_ITEMS
+                            .iter()
+                            .enumerate()
+                            .map(|(i, label)| {
+                                let item =
+                                    menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+                                div()
+                                    .h(px(item.height_dp))
+                                    .px(px(12.))
+                                    .bg(paint(item.container))
+                                    .text_color(paint(item.label))
+                                    .flex()
+                                    .items_center()
+                                    .child(*label)
+                            }),
+                    ),
+            )
+        })
 }
 
 fn android_connected_group(
@@ -5135,6 +5193,7 @@ fn android_main(app: AndroidApp) {
                 tooltip_rich_open: false,
                 icon_selected: button_group::ICON_SELECTED,
                 overflow_open: button_group::OVERFLOW_OPEN,
+                standard_overflow_open: button_group::STANDARD_OVERFLOW_OPEN,
                 range_start: slider::RANGE_DEMO_START,
                 range_end: slider::RANGE_DEMO_END,
                 range_drag: None,
