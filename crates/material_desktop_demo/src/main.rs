@@ -4752,18 +4752,29 @@ fn search_bar_hero(
                             .px(px(16.))
                             .flex()
                             .items_center()
-                            .gap(px(16.))
+                            .gap(px(search::row_leading_gap_dp(status)))
                             .bg(paint(search::row_container(theme, selected)))
                             .text_color(paint(search::row_content(theme, selected)))
                             .rounded_tl(px(corners.top_left))
                             .rounded_tr(px(corners.top_right))
                             .rounded_br(px(corners.bottom_right))
                             .rounded_bl(px(corners.bottom_left))
-                            .child(
-                                div()
-                                    .text_color(paint(view.suggestion_icon))
-                                    .child(if i == 0 { "⌕" } else { "◌" }),
-                            )
+                            .child({
+                                let kind = search::row_leading_kind(status, label);
+                                let sz = search::row_leading_size_dp(status, kind);
+                                let mut lead = div()
+                                    .w(px(sz))
+                                    .h(px(sz))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .text_color(paint(search::row_leading_content(theme, kind)))
+                                    .child(search::row_leading_glyph(kind, label, i));
+                                if let Some(bg) = search::row_leading_container(theme, kind) {
+                                    lead = lead.bg(paint(bg)).rounded(px(sz / 2.0));
+                                }
+                                lead
+                            })
                             .child(if two {
                                 div()
                                     .flex()
@@ -7509,6 +7520,11 @@ mod tests {
         assert_eq!(search::row_corners(0, 3, false).top_left, 16.0);
         assert_eq!(search::RESULT_H_DP, 72.0);
         assert_eq!(search::supporting_for("App"), "Installed application");
+        assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
+        assert_eq!(
+            search::row_leading_kind(search::SearchListStatus::Results, "App"),
+            search::RowLeadingKind::Avatar
+        );
         assert!(search::shows_clear(search::DEMO_QUERY));
         assert_eq!(
             search::trailing_action(search::DEMO_QUERY),

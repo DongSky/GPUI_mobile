@@ -305,7 +305,16 @@ a {{ color: var(--primary); }}
   border-radius: 16px;
 }}
 .search-morph .sv-row[data-search-lines="two"] {{
-  min-height: 72px; padding: 8px 16px;
+  min-height: 72px; padding: 8px 16px; gap: 12px;
+}}
+.search-morph .sv-lead {{
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+}}
+.search-morph .sv-lead[data-search-leading="icon"] {{
+  width: 20px; height: 20px; font-size: 20px; line-height: 20px;
+}}
+.search-morph .sv-lead[data-search-leading="avatar"] {{
+  width: 40px; height: 40px; border-radius: 20px; font-size: 16px; font-weight: 500;
 }}
 .search-morph .sv-row .meta {{
   flex: 1; min-width: 0; display: flex; flex-direction: column;
@@ -6241,14 +6250,33 @@ fn paint_contained_search_state(
             } else {
                 String::new()
             };
+            let lead_kind = search::row_leading_kind(status, label);
+            let lead_sz = search::row_leading_size_dp(status, lead_kind);
+            let lead_fg = search::row_leading_content(theme, lead_kind);
+            let lead_bg = search::row_leading_container(theme, lead_kind);
+            let lead_style = match lead_bg {
+                Some(bg) => format!(
+                    "width:{sz}px;height:{sz}px;background:{bg};color:{fg};border-radius:{r}px",
+                    sz = lead_sz,
+                    bg = bg.css_hex(),
+                    fg = lead_fg.css_hex(),
+                    r = lead_sz / 2.0,
+                ),
+                None => format!(
+                    "width:{sz}px;height:{sz}px;color:{fg}",
+                    sz = lead_sz,
+                    fg = lead_fg.css_hex(),
+                ),
+            };
             rows.push_str(&format!(
-                r#"<div class="sv-row" data-search-suggestion="{label}" data-search-row="segmented" data-search-lines="{lines}" data-search-selected="{sel}"{open_attr} style="color:{fg};height:{h}px;background:{bg};border-radius:{br}"><span style="color:{ico}">{icon}</span>{body}{trail}</div>"#,
+                r#"<div class="sv-row" data-search-suggestion="{label}" data-search-row="segmented" data-search-lines="{lines}" data-search-selected="{sel}"{open_attr} style="color:{fg};height:{h}px;background:{bg};border-radius:{br}"><span class="sv-lead" data-search-leading="{lead}" style="{lead_style}">{glyph}</span>{body}{trail}</div>"#,
                 fg = fg.css_hex(),
                 h = search::row_height_dp(status),
                 bg = bg.css_hex(),
                 br = corners.css(),
-                ico = contained.suggestion_icon.css_hex(),
-                icon = if flat == 0 { "⌕" } else { "◌" },
+                lead = lead_kind.attr(),
+                lead_style = lead_style,
+                glyph = search::row_leading_glyph(lead_kind, label, flat),
                 sel = selected as u8,
                 lines = if two { "two" } else { "one" },
                 open_attr = if open { r#" data-search-open="1""# } else { "" },
@@ -6369,13 +6397,13 @@ fn search_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a <code>Quick results</code> status while typing and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>
 {docked}
 <h3>queried (Quick results / Results)</h3>
-<p class="note">Focused typing uses a Quick results status, two-line rows, and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
+<p class="note">Focused typing uses a Quick results status, two-line rows (40dp avatar / 20dp icon), and a live region. Submitted search uses a Results label plus a trailing open affordance; the input text remains visible but is not focused. The trailing icon becomes a clear-X that empties the field and restores focus.</p>
 {quick}
 {results}
 <h3>divided (baseline)</h3>

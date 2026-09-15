@@ -41,6 +41,33 @@ pub const SUGGESTION_SUPPORTING: [&str; 4] = [
 ];
 /// Trailing open affordance on submitted Results (northeast / launch).
 pub const RESULT_OPEN: &str = "↗";
+/// Two-line rows: list `ItemLeadingAvatarSize` / `ItemLeadingIconExpressiveSize`.
+pub const ROW_LEADING_AVATAR_DP: f32 = list::LEADING_AVATAR_DP;
+pub const ROW_LEADING_ICON_DP: f32 = list::LEADING_ICON_DP;
+/// `ItemBetweenSpace` between leading and headline on two-line rows.
+pub const ROW_LEADING_GAP_DP: f32 = list::ITEM_BETWEEN_SPACE_DP;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowLeadingKind {
+    Icon,
+    Avatar,
+}
+
+impl RowLeadingKind {
+    pub const fn attr(self) -> &'static str {
+        match self {
+            Self::Icon => "icon",
+            Self::Avatar => "avatar",
+        }
+    }
+
+    pub const fn size_dp(self) -> f32 {
+        match self {
+            Self::Icon => ROW_LEADING_ICON_DP,
+            Self::Avatar => ROW_LEADING_AVATAR_DP,
+        }
+    }
+}
 /// Expressive search rows reuse list `segmentedShapes` (2dp gap, 4/16 corners).
 pub const ROW_GAP_DP: f32 = list::SEGMENTED_GAP_DP;
 pub const ROW_INNER_CORNER_DP: f32 = list::INNER_CORNER_DP;
@@ -295,6 +322,62 @@ pub fn supporting_for(label: &str) -> &'static str {
         .position(|s| s.eq_ignore_ascii_case(label))
         .map(|i| SUGGESTION_SUPPORTING[i])
         .unwrap_or("")
+}
+
+/// App-style two-line results get a 40dp avatar; other two-line rows use 20dp icons.
+pub fn row_leading_kind(status: SearchListStatus, label: &str) -> RowLeadingKind {
+    if status.uses_two_line_rows() && label.eq_ignore_ascii_case("App") {
+        RowLeadingKind::Avatar
+    } else {
+        RowLeadingKind::Icon
+    }
+}
+
+pub fn row_leading_size_dp(status: SearchListStatus, kind: RowLeadingKind) -> f32 {
+    if status.uses_two_line_rows() {
+        kind.size_dp()
+    } else {
+        ICON_DP
+    }
+}
+
+pub fn row_leading_gap_dp(status: SearchListStatus) -> f32 {
+    if status.uses_two_line_rows() {
+        ROW_LEADING_GAP_DP
+    } else {
+        GAP_DP
+    }
+}
+
+pub fn row_leading_glyph(kind: RowLeadingKind, label: &str, index: usize) -> String {
+    match kind {
+        RowLeadingKind::Avatar => label
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().collect())
+            .unwrap_or_else(|| "A".to_string()),
+        RowLeadingKind::Icon => {
+            if index == 0 {
+                LEADING_ICON.to_string()
+            } else {
+                "◌".to_string()
+            }
+        }
+    }
+}
+
+pub fn row_leading_container(theme: &Theme, kind: RowLeadingKind) -> Option<Argb> {
+    match kind {
+        RowLeadingKind::Avatar => Some(theme.color.primary_container),
+        RowLeadingKind::Icon => None,
+    }
+}
+
+pub fn row_leading_content(theme: &Theme, kind: RowLeadingKind) -> Argb {
+    match kind {
+        RowLeadingKind::Avatar => theme.color.on_primary_container,
+        RowLeadingKind::Icon => theme.color.on_surface_variant,
+    }
 }
 
 pub fn segmented_row_gaps_h_dp(item_count: usize) -> f32 {

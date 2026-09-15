@@ -890,6 +890,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-open-affordance="1""#));
     assert!(html.contains("Installed application"));
     assert!(html.contains(r#"data-search-list="segmented""#));
+    assert!(html.contains(r#"data-search-leading="avatar""#));
+    assert!(html.contains(r#"data-search-leading="icon""#));
     assert!(html.contains(r#"data-search-clear="1""#));
     assert!(html.contains(r#"data-search-trailing="1""#));
     assert!(html.contains(search::TRAILING_CLEAR));
@@ -1182,6 +1184,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("segmented")
             && e.notes.contains("2dp")
             && e.notes.contains("two-line")
+            && e.notes.contains("40dp")
+            && e.notes.contains("20dp")
             && e.notes.contains("clear-X")
     }));
     assert!(INVENTORY
@@ -2822,6 +2826,27 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(search::RESULT_H_DP, 72.0);
     assert_eq!(search::supporting_for("App"), "Installed application");
+    assert_eq!(search::ROW_LEADING_AVATAR_DP, 40.0);
+    assert_eq!(search::ROW_LEADING_ICON_DP, 20.0);
+    assert_eq!(
+        search::row_leading_kind(search::SearchListStatus::Results, "App"),
+        search::RowLeadingKind::Avatar
+    );
+    assert_eq!(
+        search::row_leading_kind(search::SearchListStatus::QuickResults, "Shortcut"),
+        search::RowLeadingKind::Icon
+    );
+    assert_eq!(
+        search::row_leading_kind(search::SearchListStatus::Suggestions, "App"),
+        search::RowLeadingKind::Icon
+    );
+    assert_eq!(
+        search::row_leading_size_dp(
+            search::SearchListStatus::Results,
+            search::RowLeadingKind::Avatar
+        ),
+        40.0
+    );
     assert_eq!(search::RESULT_OPEN, "↗");
     assert!(search::SearchListStatus::QuickResults.uses_two_line_rows());
     assert!(search::SearchListStatus::Results.shows_open_affordance());
