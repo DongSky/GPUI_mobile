@@ -373,6 +373,7 @@ struct CatalogView {
     range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
     date_display: date_picker::DatePickerDisplayMode,
+    date_pane: date_picker::DatePickerPane,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -574,6 +575,20 @@ impl CatalogView {
 
     fn toggle_date_display(&mut self) {
         self.date_display = date_picker::apply_display_toggle(self.date_display);
+        if self.date_display == date_picker::DatePickerDisplayMode::Input {
+            self.date_pane = date_picker::DatePickerPane::Calendar;
+        }
+    }
+
+    fn toggle_date_pane(&mut self) {
+        if self.date_display == date_picker::DatePickerDisplayMode::Picker {
+            self.date_pane = date_picker::apply_pane_toggle(self.date_pane);
+        }
+    }
+
+    fn select_picker_year(&mut self, year: i32) {
+        self.picker_year = date_picker::clamp_year(year);
+        self.date_pane = date_picker::DatePickerPane::Calendar;
     }
 
     fn tick_snack(&mut self, cx: &mut Context<Self>) {
@@ -3348,6 +3363,8 @@ fn date_picker_card(
 ) -> impl IntoElement {
     let cal_w = pick.day_dp * 7.0;
     let input_mode = this.date_display == date_picker::DatePickerDisplayMode::Input;
+    let year_pane = !input_mode && this.date_pane == date_picker::DatePickerPane::Year;
+    let calendar_pane = !input_mode && this.date_pane == date_picker::DatePickerPane::Calendar;
     let field = text_field::resolve(
         theme,
         text_field::TextFieldVariant::Outlined,
@@ -3420,12 +3437,9 @@ fn date_picker_card(
                     .flex()
                     .items_center()
                     .justify_between()
-                    .child(
-                        div()
-                            .id("month-prev")
-                            .p(px(8.))
-                            .child("<")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                    .when(calendar_pane, |nav| {
+                        nav.child(div().id("month-prev").p(px(8.)).child("<").on_click(
+                            cx.listener(|this, _, _, cx| {
                                 let (y, m) = date_picker::add_months(
                                     this.picker_year,
                                     this.picker_month,
@@ -3434,8 +3448,9 @@ fn date_picker_card(
                                 this.picker_year = y;
                                 this.picker_month = m;
                                 cx.notify();
-                            })),
-                    )
+                            }),
+                        ))
+                    })
                     .child(
                         div()
                             .id("year-control")
@@ -3445,53 +3460,103 @@ fn date_picker_card(
                                 paint(pick.header_year),
                             ))
                             .on_click(cx.listener(|this, _, _, cx| {
-                                this.picker_year += 1;
+                                this.toggle_date_pane();
                                 cx.notify();
                             })),
                     )
-                    .child(
-                        div()
-                            .id("month-next")
-                            .p(px(8.))
-                            .child(">")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                    .when(calendar_pane, |nav| {
+                        nav.child(div().id("month-next").p(px(8.)).child(">").on_click(
+                            cx.listener(|this, _, _, cx| {
                                 let (y, m) =
                                     date_picker::add_months(this.picker_year, this.picker_month, 1);
                                 this.picker_year = y;
                                 this.picker_month = m;
                                 cx.notify();
-                            })),
+                            }),
+                        ))
+                    }),
+            )
+        })
+        .when(calendar_pane, |el| {
+            el.child(weekday_row(pick, cal_w)).child(
+                div().w(px(cal_w)).flex().flex_wrap().children(
+                    cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                        let (bg, fg, radius) = day_colors(pick, kind);
+                        let in_month = kind != DayKind::OutOfMonth;
+                        let year = this.picker_year;
+                        let month = this.picker_month;
+                        div()
+                            .id(SharedString::from(format!("day-{i}")))
+                            .w(px(pick.day_dp))
+                            .h(px(pick.day_dp))
+                            .rounded(px(radius))
+                            .bg(bg)
+                            .text_color(fg)
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .when(kind == DayKind::Today, |el| {
+                                el.border_1().border_color(paint(pick.day_today_outline))
+                            })
+                            .child(day.to_string())
+                            .when(in_month, |el| {
+                                el.on_click(cx.listener(move |this, _, _, cx| {
+                                    this.selected = CivilDate { year, month, day };
+                                    cx.notify();
+                                }))
+                            })
+                    }),
+                ),
+            )
+        })
+        .when(year_pane, |el| {
+            el.child(
+                div()
+                    .w(px(cal_w))
+                    .flex()
+                    .flex_wrap()
+                    .justify_between()
+                    .children(
+                        date_picker::year_window(this.picker_year)
+                            .into_iter()
+                            .map(|year| {
+                                let kind = date_picker::classify_year(
+                                    year,
+                                    this.picker_year,
+                                    this.today.year,
+                                );
+                                let (bg, fg) = match kind {
+                                    date_picker::YearKind::Selected => (
+                                        paint(pick.day_selected_container),
+                                        paint(pick.day_selected),
+                                    ),
+                                    date_picker::YearKind::Today
+                                    | date_picker::YearKind::Default => {
+                                        (paint(pick.container), paint(pick.header_year))
+                                    }
+                                };
+                                div()
+                                    .id(SharedString::from(format!("year-{year}")))
+                                    .w(px(date_picker::YEAR_CONTAINER_W_DP))
+                                    .h(px(date_picker::YEAR_CONTAINER_H_DP))
+                                    .mt(px(date_picker::YEAR_GAP_DP / 2.0))
+                                    .rounded(px(date_picker::YEAR_CONTAINER_H_DP / 2.0))
+                                    .bg(bg)
+                                    .text_color(fg)
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .when(kind == date_picker::YearKind::Today, |el| {
+                                        el.border_1().border_color(paint(pick.day_today_outline))
+                                    })
+                                    .child(year.to_string())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.select_picker_year(year);
+                                        cx.notify();
+                                    }))
+                            }),
                     ),
             )
-            .child(weekday_row(pick, cal_w))
-            .child(div().w(px(cal_w)).flex().flex_wrap().children(
-                cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                    let (bg, fg, radius) = day_colors(pick, kind);
-                    let in_month = kind != DayKind::OutOfMonth;
-                    let year = this.picker_year;
-                    let month = this.picker_month;
-                    div()
-                        .id(SharedString::from(format!("day-{i}")))
-                        .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
-                        .rounded(px(radius))
-                        .bg(bg)
-                        .text_color(fg)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .when(kind == DayKind::Today, |el| {
-                            el.border_1().border_color(paint(pick.day_today_outline))
-                        })
-                        .child(day.to_string())
-                        .when(in_month, |el| {
-                            el.on_click(cx.listener(move |this, _, _, cx| {
-                                this.selected = CivilDate { year, month, day };
-                                cx.notify();
-                            }))
-                        })
-                }),
-            ))
         })
         .when(input_mode, |el| {
             el.child(
@@ -7556,6 +7621,7 @@ fn main() {
                     range_hit: Rc::new(Cell::new((0.0, slider::RANGE_TRACK_W_DP))),
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     date_display: date_picker::LIVE_DISPLAY_MODE,
+                    date_pane: date_picker::LIVE_PANE,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
                     search_filter: search::SearchFilter::All,
                     search: {
@@ -7780,6 +7846,17 @@ mod tests {
         assert_eq!(
             date_picker::supporting_for(date_picker::DatePickerDisplayMode::Input),
             Some(date_picker::INPUT_SUPPORTING)
+        );
+        assert_eq!(
+            date_picker::LIVE_PANE,
+            date_picker::DatePickerPane::Calendar
+        );
+        assert_eq!(date_picker::YEARS_IN_ROW, 3);
+        assert_eq!(date_picker::YEAR_CONTAINER_W_DP, 72.0);
+        assert_eq!(date_picker::year_window(2026)[4], 2026);
+        assert_eq!(
+            date_picker::classify_year(2026, 2026, 2026),
+            date_picker::YearKind::Selected
         );
         assert_eq!(
             search::row_leading_kind(search::SearchListStatus::Results, "App"),

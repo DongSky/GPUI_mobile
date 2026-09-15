@@ -869,6 +869,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-display="picker""#));
     assert!(html.contains(r#"data-date-display-live="1""#));
     assert!(html.contains(r#"data-date-display-toggle="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-year""#));
+    assert!(html.contains(r#"data-datepicker-year="1""#));
+    assert!(html.contains(r#"data-date-pane="year""#));
+    assert!(html.contains(r#"data-date-years="1""#));
+    assert!(html.contains(r#"data-date-year="2026""#));
     assert!(html.contains("MM/DD/YYYY"));
     assert!(html.contains("09/15/2026"));
     assert!(html.contains("data-settings-scene=\"1\""));
@@ -2318,6 +2323,29 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::supporting_for(date_picker::DatePickerDisplayMode::Picker),
         None
+    );
+    assert_eq!(date_picker::YEAR_RANGE_START, 1900);
+    assert_eq!(date_picker::YEAR_RANGE_END, 2100);
+    assert_eq!(date_picker::YEARS_IN_ROW, 3);
+    assert_eq!(date_picker::YEAR_CONTAINER_W_DP, 72.0);
+    assert_eq!(date_picker::YEAR_CONTAINER_H_DP, 36.0);
+    assert_eq!(date_picker::YEAR_GAP_DP, 16.0);
+    assert_eq!(date_picker::year_window(2026)[4], 2026);
+    assert_eq!(
+        date_picker::classify_year(2026, 2026, 2026),
+        date_picker::YearKind::Selected
+    );
+    assert_eq!(
+        date_picker::classify_year(2025, 2026, 2025),
+        date_picker::YearKind::Today
+    );
+    assert_eq!(
+        date_picker::LIVE_PANE,
+        date_picker::DatePickerPane::Calendar
+    );
+    assert_eq!(
+        date_picker::apply_pane_toggle(date_picker::DatePickerPane::Calendar),
+        date_picker::DatePickerPane::Year
     );
     assert_eq!(date_picker::INPUT_PLACEHOLDER, "MM/DD/YYYY");
     assert_eq!(

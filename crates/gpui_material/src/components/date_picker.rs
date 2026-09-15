@@ -342,6 +342,89 @@ pub fn is_input_valid(s: &str) -> bool {
     parse_input_field(s).is_some()
 }
 
+/// Compose `DatePickerDefaults.YearRange`.
+pub const YEAR_RANGE_START: i32 = 1900;
+pub const YEAR_RANGE_END: i32 = 2100;
+/// Compose `YearsInRow`.
+pub const YEARS_IN_ROW: usize = 3;
+/// `DatePickerModalTokens.SelectionYearContainerWidth`.
+pub const YEAR_CONTAINER_W_DP: f32 = 72.0;
+/// `DatePickerModalTokens.SelectionYearContainerHeight`.
+pub const YEAR_CONTAINER_H_DP: f32 = 36.0;
+/// Compose `YearsVerticalPadding`.
+pub const YEAR_GAP_DP: f32 = 16.0;
+/// Catalog / host window (3 rows × 3 cols) around the displayed year.
+pub const YEAR_WINDOW: usize = 9;
+
+/// Calendar month grid ↔ Compose `YearPicker`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DatePickerPane {
+    Calendar,
+    Year,
+}
+
+impl DatePickerPane {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Calendar => "calendar",
+            Self::Year => "year",
+        }
+    }
+
+    pub const fn toggle(self) -> Self {
+        match self {
+            Self::Calendar => Self::Year,
+            Self::Year => Self::Calendar,
+        }
+    }
+}
+
+/// Live modal starts on the calendar (`yearPickerVisible = false`).
+pub const LIVE_PANE: DatePickerPane = DatePickerPane::Calendar;
+/// Catalog year-picker sibling starts open.
+pub const DEMO_PANE: DatePickerPane = DatePickerPane::Year;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum YearKind {
+    Selected,
+    Today,
+    Default,
+}
+
+pub fn clamp_year(year: i32) -> i32 {
+    year.clamp(YEAR_RANGE_START, YEAR_RANGE_END)
+}
+
+pub fn apply_pane_toggle(pane: DatePickerPane) -> DatePickerPane {
+    pane.toggle()
+}
+
+pub fn year_window(center: i32) -> [i32; 9] {
+    let half = YEAR_WINDOW as i32 / 2;
+    let mut start = clamp_year(center) - half;
+    if start < YEAR_RANGE_START {
+        start = YEAR_RANGE_START;
+    }
+    if start + YEAR_WINDOW as i32 - 1 > YEAR_RANGE_END {
+        start = YEAR_RANGE_END - YEAR_WINDOW as i32 + 1;
+    }
+    let mut out = [0; 9];
+    for (i, slot) in out.iter_mut().enumerate() {
+        *slot = start + i as i32;
+    }
+    out
+}
+
+pub fn classify_year(year: i32, displayed: i32, today_year: i32) -> YearKind {
+    if year == displayed {
+        YearKind::Selected
+    } else if year == today_year {
+        YearKind::Today
+    } else {
+        YearKind::Default
+    }
+}
+
 fn date_ord(d: CivilDate) -> i32 {
     d.year * 400 + d.month as i32 * 32 + d.day as i32
 }

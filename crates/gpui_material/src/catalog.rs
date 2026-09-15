@@ -1272,6 +1272,18 @@ table.inv th {{ font-weight: 500; }}
 .cal[data-date-display="input"] .week, .cal[data-date-display="input"] .grid, .cal[data-date-display="input"] .month-nav, .cal[data-date-display="input"] .dp-month {{ display: none; }}
 .cal[data-date-display="picker"] .dp-input {{ display: none; }}
 .cal[data-date-display="picker"] .dp-supporting {{ display: none; }}
+.cal[data-date-pane="year"] .week, .cal[data-date-pane="year"] .grid {{ display: none; }}
+.cal[data-date-pane="calendar"] .dp-years {{ display: none; }}
+.cal[data-date-display="input"] .dp-years {{ display: none; }}
+.dp-years {{
+  display: grid; grid-template-columns: repeat(3, 72px); justify-content: space-evenly;
+  row-gap: 16px; padding: 8px 12px 16px;
+}}
+.dp-year {{
+  width: 72px; height: 36px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px;
+}}
 .cal .dp-input {{ padding: 8px 12px 16px; }}
 .cal .dp-toggle {{
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
@@ -2037,6 +2049,33 @@ document.querySelectorAll("[data-time-input-field]").forEach(function (field) {{
     if (host && raw.length === 2) host.setAttribute("data-" + kind, String(n));
     var box = field.closest("[data-time-input]");
     if (box && raw.length === 2) box.setAttribute("data-" + kind, String(parseInt(raw || "0", 10)));
+  }});
+}});
+document.querySelectorAll("[data-date-year-toggle]").forEach(function (btn) {{
+  btn.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var host = btn.closest("[data-date-pane]");
+    if (!host || host.getAttribute("data-date-display") === "input") return;
+    var pane = host.getAttribute("data-date-pane") === "year" ? "calendar" : "year";
+    host.setAttribute("data-date-pane", pane);
+  }});
+}});
+document.querySelectorAll("[data-date-year]").forEach(function (cell) {{
+  cell.addEventListener("click", function (ev) {{
+    ev.stopPropagation();
+    var host = cell.closest("[data-date-pane]");
+    if (!host) return;
+    var year = Number(cell.getAttribute("data-date-year") || "2026");
+    host.setAttribute("data-year", String(year));
+    host.querySelectorAll("[data-date-year]").forEach(function (other) {{
+      var on = Number(other.getAttribute("data-date-year")) === year;
+      other.setAttribute("data-year-kind", on ? "Selected" : other.getAttribute("data-year-today") === "1" ? "Today" : "Default");
+      other.style.background = on ? (host.getAttribute("data-year-sel-bg") || other.style.background) : "transparent";
+      other.style.color = on ? (host.getAttribute("data-year-sel-fg") || other.style.color) : (host.getAttribute("data-year-idle-fg") || other.style.color);
+      other.style.border = (!on && other.getAttribute("data-year-today") === "1")
+        ? ("1px solid " + (host.getAttribute("data-year-today-bd") || "#6750A4")) : "none";
+    }});
+    host.setAttribute("data-date-pane", "calendar");
   }});
 }});
 document.querySelectorAll("[data-date-display-live] [data-date-display-toggle]").forEach(function (btn) {{
@@ -6134,6 +6173,37 @@ fn paint_date_grid(
     grid
 }
 
+fn paint_year_grid(
+    a: &date_picker::DatePickerAppearance,
+    displayed: i32,
+    today_year: i32,
+) -> String {
+    let mut grid = String::new();
+    for year in date_picker::year_window(displayed) {
+        let kind = date_picker::classify_year(year, displayed, today_year);
+        let (bg, fg, outline) = match kind {
+            date_picker::YearKind::Selected => (
+                a.day_selected_container.css_hex(),
+                a.day_selected.css_hex(),
+                "none".into(),
+            ),
+            date_picker::YearKind::Today => (
+                "transparent".into(),
+                a.header_year.css_hex(),
+                format!("1px solid {}", a.day_today_outline.css_hex()),
+            ),
+            date_picker::YearKind::Default => {
+                ("transparent".into(), a.header_year.css_hex(), "none".into())
+            }
+        };
+        let today = if year == today_year { "1" } else { "0" };
+        grid.push_str(&format!(
+            "<div class=\"dp-year\" data-date-year=\"{year}\" data-year-kind=\"{kind:?}\" data-year-today=\"{today}\" style=\"background:{bg};color:{fg};border:{outline}\">{year}</div>"
+        ));
+    }
+    grid
+}
+
 fn date_pickers(theme: &Theme) -> String {
     let a = date_picker::resolve(theme);
     let today = date_picker::CivilDate {
@@ -6166,7 +6236,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid(&a, range_cells);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Overview range hero uses InRange fill. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-week-start="sunday" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head">
     <div style="color:{hy};font-size:{ys}px">{range_title}</div>
@@ -6176,7 +6246,7 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="week">{week}</div>
   <div class="grid">{range_grid}</div>
 </div>
-<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" data-date-pane="calendar" data-year="2026" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
       <div style="color:{hy};font-size:{ys}px">Select date</div>
@@ -6185,9 +6255,10 @@ fn date_pickers(theme: &Theme) -> String {
     </div>
     <div class="dp-toggle" data-date-display-toggle="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
-  <div class="dp-month" data-date-month="1" style="text-align:center;padding:8px;font-weight:500">{month}</div>
+  <div class="dp-month" data-date-month="1" data-date-year-toggle="1" style="text-align:center;padding:8px;font-weight:500;cursor:pointer">{month}</div>
   <div class="week">{week}</div>
   <div class="grid">{grid}</div>
+  <div class="dp-years" data-date-years="1">{years}</div>
   <div class="dp-input" data-date-input-field="1">{input_field}</div>
   <div class="actions" style="padding:8px 12px 0">
     <button class="btn" style="background:transparent;color:{act}">Cancel</button>
@@ -6222,6 +6293,16 @@ fn date_pickers(theme: &Theme) -> String {
     <button class="btn" style="background:transparent;color:{act}">{cancel}</button>
     <button class="btn" style="background:transparent;color:{act}">{ok}</button>
   </div>
+</div>
+<h3>year picker</h3>
+<p class="note">Compose <code>YearPicker</code>: 3-column 72×36 pills, <code>YearRange</code> 1900–2100, selected primary, current-year outline. Month ▾ opens this pane.</p>
+<div class="cal dialog" data-datepicker-year="1" data-hero="datepicker-year" data-date-pane="year" data-date-display="picker" data-year="2026" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+  <div class="head">
+    <div style="color:{hy};font-size:{ys}px">Select date</div>
+    <div style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
+  </div>
+  <div class="dp-month" data-date-year-toggle="1" style="text-align:center;padding:8px;font-weight:500;cursor:pointer">{month}</div>
+  <div class="dp-years" data-date-years="1">{years}</div>
 </div>"#,
         bg = a.container.css_hex(),
         r = a.corners.top_left,
@@ -6233,6 +6314,7 @@ fn date_pickers(theme: &Theme) -> String {
         dw = a.date_style.weight,
         headline = date_picker::header_date_label(selected),
         month = date_picker::month_nav_label(2026, 9),
+        years = paint_year_grid(&a, selected.year, today.year),
         range_title = date_picker::RANGE_HERO_TITLE,
         range_headline = date_picker::header_range_label(
             date_picker::RANGE_DEMO_START,
