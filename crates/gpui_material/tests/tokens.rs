@@ -289,6 +289,11 @@ fn text_field_metrics_and_error_focus() {
     assert!(d.contains(" A"));
     assert_eq!(focused.cutout_fill, theme.color.background);
     assert!(text_field::notch_width_dp("Email", 12.0) >= 28.0);
+    assert!(
+        text_field::notch_width_dp("WWW", 12.0)
+            > text_field::notch_width_dp("iii", 12.0)
+    );
+    assert!(text_field::notch_width_dp("@gmail", 12.0) >= 28.0 + text_field::NOTCH_WIDTH_SAFETY_DP);
 
     let error = text_field::resolve(
         &theme,
@@ -501,6 +506,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-shared"));
     assert!(html.contains("data-search-lead"));
     assert!(html.contains("data-search-avatar"));
+    assert!(html.contains("data-search-scale"));
+    assert!(html.contains("data-rail-chrome=\"popup\""));
     assert!(html.contains("data-rail-scrim"));
     assert!(html.contains("data-notch-evenodd"));
     assert!(html.contains("data-notch-cpath"));
@@ -920,6 +927,11 @@ fn search_bar_and_time_picker_tokens() {
     assert!((grown.height_dp - search::ACTIVITY_MIN_H_DP).abs() < 0.01);
     assert!(grown.inset_h_dp.abs() < 0.01);
     assert!((grown.scale - 1.0).abs() < 0.01);
+    let docked = search::morph_frame_at(0.0);
+    assert!((docked.scale - search::SHARED_SCALE_DOCKED).abs() < 0.01);
+    let docked_m = search::morph_scaled_margin_dp(docked, search::MORPH_STAGE_W_DP);
+    assert!(docked_m > docked.inset_h_dp);
+    assert!(search::morph_scaled_margin_dp(grown, search::MORPH_STAGE_W_DP).abs() < 0.01);
     assert!((grown.leading_activity_opacity - 1.0).abs() < 1e-5);
     assert!(grown.leading_docked_opacity.abs() < 1e-5);
     assert_eq!(search::morph_container(&theme, 1.0), theme.color.surface);
@@ -1023,7 +1035,10 @@ fn search_bar_and_time_picker_tokens() {
     let poly = frame.evenodd_polygon(280.0);
     assert!(poly.len() > 16);
     assert!(poly.iter().any(|(x, _)| *x < 10.0));
-    assert!(poly.iter().any(|(x, _)| *x > 40.0 && *x < 50.0));
+    let notch_l = frame.start_dp;
+    let notch_r = frame.start_dp + frame.width_dp;
+    assert!(poly.iter().any(|(x, _)| (*x - notch_l).abs() < 2.0));
+    assert!(poly.iter().any(|(x, _)| (*x - notch_r).abs() < 2.0));
     let gap_mid = frame.start_dp + frame.width_dp * 0.5;
     assert!(
         !poly.iter().any(|(x, y)| (*x - gap_mid).abs() < 6.0 && *y < 0.4),
@@ -1042,6 +1057,15 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(progress::DEMO_WAIT.fraction(), wait.fraction());
     assert_eq!(progress::LINE_CAP, "round");
     assert!(navigation_rail::overlay_window(navigation_rail::RailMode::Expanded));
+    assert_eq!(
+        navigation_rail::rail_chrome(navigation_rail::RailMode::Expanded),
+        navigation_rail::RailChrome::Popup
+    );
+    assert_eq!(
+        navigation_rail::rail_chrome_attr(navigation_rail::RailMode::Expanded),
+        "popup"
+    );
+    assert_eq!(navigation_rail::POPUP_WINDOW_KIND, "popup");
     assert_eq!(
         navigation_rail::overlay_window_attr(navigation_rail::RailMode::Collapsed),
         "0"

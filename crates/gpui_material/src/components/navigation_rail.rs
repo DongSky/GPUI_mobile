@@ -144,6 +144,32 @@ pub fn overlay_window_attr(mode: RailMode) -> &'static str {
     if overlay_window(mode) { "1" } else { "0" }
 }
 
+/// Chrome for the expanded rail. Desktop/HTML use a popup-role overlay
+/// (`gpui::WindowKind::PopUp`); NativeActivity stays a single OS window.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RailChrome {
+    Overlay,
+    Popup,
+}
+
+/// `gpui::WindowKind::PopUp` name for desktop hosts.
+pub const POPUP_WINDOW_KIND: &str = "popup";
+
+pub fn rail_chrome(mode: RailMode) -> RailChrome {
+    if is_modal(mode) {
+        RailChrome::Popup
+    } else {
+        RailChrome::Overlay
+    }
+}
+
+pub fn rail_chrome_attr(mode: RailMode) -> &'static str {
+    match rail_chrome(mode) {
+        RailChrome::Popup => "popup",
+        RailChrome::Overlay => "overlay",
+    }
+}
+
 pub fn is_active(selected: usize, index: usize) -> bool {
     selected == index
 }

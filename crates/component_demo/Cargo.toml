@@ -17,3 +17,4 @@ gpui.workspace = true
 gpui_android.workspace = true
 android-activity.workspace = true
 android_logger.workspace = true
+lyon.workspace = true

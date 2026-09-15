@@ -243,6 +243,21 @@ pub fn morph_frame_eased(linear: f32) -> MorphFrame {
     morph_frame_at(morph_eased_t(linear))
 }
 
+/// Typical catalog column used to approximate CSS `transform: scale` in GPUI
+/// (gpui `div` has no layer transform; HTML uses a real CSS scale).
+pub const MORPH_STAGE_W_DP: f32 = 640.0;
+
+/// Horizontal margin that combines the shared-element inset with a centered
+/// scale shrink (`docked` 0.94 → `activity` 1.0).
+pub fn morph_scaled_margin_dp(frame: MorphFrame, stage_w_dp: f32) -> f32 {
+    let inner = (stage_w_dp - frame.inset_h_dp * 2.0).max(0.0);
+    frame.inset_h_dp + inner * (1.0 - frame.scale) * 0.5
+}
+
+pub fn morph_scale_attr(frame: MorphFrame) -> String {
+    format!("{:.2}", frame.scale)
+}
+
 /// Container fill lerp: docked `surface-container-high` → activity `surface`.
 pub fn morph_container(theme: &Theme, t: f32) -> crate::argb::Argb {
     theme

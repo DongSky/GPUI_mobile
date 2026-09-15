@@ -1019,6 +1019,7 @@ dependencies = [
  "gpui_android",
  "gpui_material",
  "log",
+ "lyon",
 ]
 
 [[package]]
@@ -3242,6 +3243,7 @@ dependencies = [
  "gpui",
  "gpui_material",
  "gpui_platform",
+ "lyon",
 ]
 
 [[package]]

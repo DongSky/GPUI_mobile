@@ -18,7 +18,7 @@ use gpui::{
     canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
     FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
     ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
+    StrokeOptions, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -31,6 +31,7 @@ use gpui_material::theme::Theme;
 use gpui_material::typography;
 use gpui_material::{Argb, InteractionState};
 use gpui_platform::application;
+use lyon::tessellation::{LineCap, LineJoin};
 use std::cell::Cell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -56,7 +57,6 @@ fn type_weight(style: gpui_material::typography::TypeStyle) -> FontWeight {
     }
 }
 
-#[allow(dead_code)]
 fn feed_outline_verbs(
     builder: &mut PathBuilder,
     origin: gpui::Point<gpui::Pixels>,
@@ -85,18 +85,31 @@ fn feed_outline_verbs(
                 );
             }
             text_field::OutlineVerb::Cubic {
-                c1_x: _,
-                c1_y: _,
-                c2_x: _,
-                c2_y: _,
+                c1_x,
+                c1_y,
+                c2_x,
+                c2_y,
                 to_x,
                 to_y,
             } => {
-                builder.line_to(point(origin.x + px(to_x), origin.y + px(to_y)));
+                builder.cubic_bezier_to(
+                    point(origin.x + px(to_x), origin.y + px(to_y)),
+                    point(origin.x + px(c1_x), origin.y + px(c1_y)),
+                    point(origin.x + px(c2_x), origin.y + px(c2_y)),
+                );
             }
             text_field::OutlineVerb::Close => builder.close(),
         }
     }
+}
+
+fn stroke_round(width: f32) -> PathBuilder {
+    PathBuilder::stroke(px(width)).with_style(PathStyle::Stroke(
+        StrokeOptions::default()
+            .with_line_width(width)
+            .with_line_cap(LineCap::Round)
+            .with_line_join(LineJoin::Round),
+    ))
 }
 
 fn paint_filled_polygon(
@@ -123,45 +136,6 @@ fn paint_filled_polygon(
     }
 }
 
-fn paint_disc(
-    window: &mut Window,
-    origin: gpui::Point<gpui::Pixels>,
-    cx: f32,
-    cy: f32,
-    r: f32,
-    color: gpui::Rgba,
-) {
-    let mut cap = PathBuilder::fill();
-    let n = 14u32;
-    for i in 0..n {
-        let ang = i as f32 / n as f32 * std::f32::consts::TAU;
-        let p = point(origin.x + px(cx + r * ang.cos()), origin.y + px(cy + r * ang.sin()));
-        if i == 0 {
-            cap.move_to(p);
-        } else {
-            cap.line_to(p);
-        }
-    }
-    cap.close();
-    if let Ok(path) = cap.build() {
-        window.paint_path(path, color);
-    }
-}
-
-/// Round-capped circular stroke: overlapping discs along the centerline
-/// (GPUI does not re-export `LineCap::Round`).
-fn paint_round_capped_polyline(
-    window: &mut Window,
-    origin: gpui::Point<gpui::Pixels>,
-    pts: &[(f32, f32)],
-    stroke: f32,
-    color: gpui::Rgba,
-) {
-    let r = stroke / 2.0;
-    for &(cx, cy) in pts {
-        paint_disc(window, origin, cx, cy, r, color);
-    }
-}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Overlay {
@@ -1960,10 +1934,11 @@ fn search_bar_hero(
             move |this, delta| {
                 let linear = if open { delta } else { 1.0 - delta };
                 let frame = search::morph_frame_eased(linear);
+                let margin = search::morph_scaled_margin_dp(frame, search::MORPH_STAGE_W_DP);
                 this.min_h(px(frame.height_dp))
                     .rounded(px(frame.corner_dp))
-                    .ml(px(frame.inset_h_dp))
-                    .mr(px(frame.inset_h_dp))
+                    .ml(px(margin))
+                    .mr(px(margin))
                     .bg(paint(docked_bg.lerp(activity_bg, frame.t)))
             },
         )
@@ -2537,7 +2512,7 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                                         progress::WAVE_DEMO_PROGRESS,
                                         delta,
                                     );
-                                    let mut builder = PathBuilder::stroke(px(progress::WAVE_STROKE_DP));
+                                    let mut builder = stroke_round(progress::WAVE_STROKE_DP);
                                     for (i, (x, y)) in pts.iter().enumerate() {
                                         let p = point(
                                             bounds.origin.x + px(*x),
@@ -2551,24 +2526,6 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                                     }
                                     if let Ok(path) = builder.build() {
                                         window.paint_path(path, wave_color);
-                                    }
-                                    if pts.len() >= 2 {
-                                        paint_round_capped_polyline(
-                                            window,
-                                            bounds.origin,
-                                            &[pts[0], *pts.last().unwrap()],
-                                            progress::WAVE_STROKE_DP,
-                                            wave_color,
-                                        );
-                                    }
-                                    if pts.len() >= 2 {
-                                        paint_round_capped_polyline(
-                                            window,
-                                            bounds.origin,
-                                            &[pts[0], *pts.last().unwrap()],
-                                            progress::WAVE_STROKE_DP,
-                                            wave_color,
-                                        );
                                     }
                                 },
                             )
@@ -2910,7 +2867,7 @@ fn outlined_notched_field(
     let fill = field.field.container;
     let (lx, ly) = frame.label_origin_dp();
     let stroke_color = paint(outline.0);
-    let evenodd = frame.evenodd_polygon(280.0);
+    let verbs = frame.evenodd_verbs(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
     div()
@@ -2941,23 +2898,15 @@ fn outlined_notched_field(
                         label_h_dp: frame.label_h_dp,
                         field_h_dp: frame.field_h_dp,
                     };
-                    let even = if (w - 280.0).abs() > 1.0 {
-                        frame.evenodd_polygon(w)
+                    let verbs_w = if (w - 280.0).abs() > 1.0 {
+                        frame.evenodd_verbs(w)
                     } else {
-                        evenodd.clone()
+                        verbs.clone()
                     };
                     let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
                         FillOptions::default().with_fill_rule(FillRule::EvenOdd),
                     ));
-                    for (i, (x, y)) in even.iter().enumerate() {
-                        let p = point(bounds.origin.x + px(*x), bounds.origin.y + px(*y));
-                        if i == 0 {
-                            fill_b.move_to(p);
-                        } else {
-                            fill_b.line_to(p);
-                        }
-                    }
-                    fill_b.close();
+                    feed_outline_verbs(&mut fill_b, bounds.origin, verbs_w);
                     if let Ok(path) = fill_b.build() {
                         window.paint_path(path, stroke_color);
                     }

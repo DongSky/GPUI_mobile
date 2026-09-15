@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, RoundedPolygon cubics at CIRCULAR_KAPPA); HTML SVG even-odd fill; GPUI flatten of the same verbs; glyph-advance notch width; IME caret + InputConnection session + JNI InputMethodManager toggleSoftInput plan (no View-backed IC yet)",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, RoundedPolygon cubics at CIRCULAR_KAPPA painted live via PathBuilder cubic_bezier_to); HTML SVG even-odd fill; glyph-advance notch width + safety pad; IME caret + InputConnection session + JNI IMM queue / RegisterNatives table (no live JNIEnv yet)",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph driven by WaitProgress (download bytes / elapsed wait); round-capped filled circular arc (LineCap round stand-in); shared clock_ms animation helper",
+        notes: "Determinate linear/circular + wavy; Expressive morphing loading indicator (7-shape cycle) for short waits and contained PTR; determinate morph driven by WaitProgress (download bytes / elapsed wait); round-capped filled circular arc + wavy StrokeOptions LineCap::Round; shared clock_ms animation helper",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp; expanded is a 220dp overlay-window layer over a 32% scrim (spatial-fast width + opacity, level-2 elevation, focus trap / scrim dismiss); FAB toggles; destination selection kept; 56×32 indicator; badges",
+        notes: "Collapsed 80dp; expanded is a 220dp overlay-window / popup-kind layer over a 32% scrim (spatial-fast width + opacity, level-2 elevation, focus trap / scrim dismiss); FAB toggles; destination selection kept; 56×32 indicator; badges",
     },
     ComponentEntry {
         name: "Dialog",
@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale + container lerp, leading icon/back + avatar crossfade, overflow-clipped list); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
+        notes: "56dp full-round docked bar shared-element growing-bar into full-screen search activity (spatial-fast height/corners/inset/scale + GPUI scaled-margin stand-in for CSS transform, container lerp, leading icon/back + avatar crossfade, overflow-clipped list); caret editor + filtered suggestions; HTML morph container (no display:none swap)",
     },
     ComponentEntry {
         name: "Time picker",

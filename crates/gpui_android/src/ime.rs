@@ -406,6 +406,80 @@ pub fn apply_update_ime_position(
     session.borrow_mut().update_cursor_anchor(x, y, w, h);
 }
 
+/// `RegisterNatives` layout for a NativeActivity `InputConnection` peer.
+pub fn jni_register_natives_input_connection() -> &'static [JniMethod] {
+    jni_input_connection_table()
+}
+
+/// JNI method name a `JNIEnv` would invoke for `call`.
+pub fn jni_imm_call_name(call: &JniImmCall) -> &'static str {
+    match call {
+        JniImmCall::GetSystemService { .. } => "getSystemService",
+        JniImmCall::ToggleSoftInput { .. } => "toggleSoftInput",
+        JniImmCall::UpdateCursorAnchorInfo { .. } => "updateCursorAnchorInfo",
+    }
+}
+
+/// Pending IMM JNI calls filled by `update_ime_position` (no live `JNIEnv` yet).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ImeJniQueue {
+    pending: Vec<JniImmCall>,
+}
+
+impl ImeJniQueue {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn sync_from(&mut self, session: &ImeSession) {
+        self.pending = session.jni_imm_calls();
+    }
+
+    pub fn pending(&self) -> &[JniImmCall] {
+        &self.pending
+    }
+
+    pub fn take(&mut self) -> Vec<JniImmCall> {
+        std::mem::take(&mut self.pending)
+    }
+
+    /// Host-testable `JNIEnv` walk: records method names in call order.
+    pub fn dry_run_jni_env(&self) -> Vec<&'static str> {
+        self.pending.iter().map(jni_imm_call_name).collect()
+    }
+}
+
+/// Record caret + session + the IMM JNI queue a NativeActivity should flush.
+pub fn apply_update_ime_position_queued(
+    slot: &Cell<Option<ImeBoundsDp>>,
+    session: &std::cell::RefCell<ImeSession>,
+    queue: &std::cell::RefCell<ImeJniQueue>,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+) {
+    apply_update_ime_position(slot, session, x, y, w, h);
+    queue.borrow_mut().sync_from(&session.borrow());
+}
+
+/// Dispatch every `RegisterNatives` InputConnection method name onto `session`.
+pub fn dispatch_registered_input_connection(
+    session: &mut ImeSession,
+    method: &str,
+    text: Option<&str>,
+    a: i32,
+    b: i32,
+) -> Option<String> {
+    let known = jni_register_natives_input_connection()
+        .iter()
+        .any(|m| m.name == method);
+    if !known && method != "getTextAfterCursor" {
+        return None;
+    }
+    dispatch_native_input_connection(session, method, text, a, b)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -512,5 +586,43 @@ mod tests {
             }
             other => panic!("expected cursor-anchor, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn jni_queue_and_register_natives_after_caret() {
+        assert!(
+            jni_register_natives_input_connection()
+                .iter()
+                .any(|m| m.name == "commitText" && m.sig == JNI_IC_COMMIT_TEXT.sig)
+        );
+        let slot = Cell::new(None);
+        let session = RefCell::new(ImeSession::new());
+        let queue = RefCell::new(ImeJniQueue::new());
+        apply_update_ime_position_queued(&slot, &session, &queue, 8.0, 16.0, 2.0, 24.0);
+        let names = queue.borrow().dry_run_jni_env();
+        assert_eq!(
+            names,
+            [
+                "getSystemService",
+                "toggleSoftInput",
+                "updateCursorAnchorInfo"
+            ]
+        );
+        match &queue.borrow().pending()[1] {
+            JniImmCall::ToggleSoftInput {
+                show_flags,
+                hide_flags,
+            } => {
+                assert_eq!(*show_flags, IMM_SHOW_FORCED);
+                assert_eq!(*hide_flags, 0);
+            }
+            other => panic!("expected toggleSoftInput, got {other:?}"),
+        }
+        let mut ime = ImeSession::new();
+        dispatch_registered_input_connection(&mut ime, "commitText", Some("ok"), 1, 0);
+        assert_eq!(ime.text(), "ok");
+        assert!(
+            dispatch_registered_input_connection(&mut ime, "notAMethod", None, 0, 0).is_none()
+        );
     }
 }

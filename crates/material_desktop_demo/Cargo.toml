@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 gpui.workspace = true
 gpui_material.workspace = true
+lyon.workspace = true
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 # Workspace gpui is default-features=false so Android stays lean. Desktop must

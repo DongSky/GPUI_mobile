@@ -79,6 +79,8 @@ pub(crate) struct AndroidWindowInner {
     pub last_ime_bounds: Cell<Option<crate::ime::ImeBoundsDp>>,
     /// InputConnection-shaped session filled by `update_ime_position`.
     pub ime: std::cell::RefCell<crate::ime::ImeSession>,
+    /// IMM JNI plan to flush on a live `JNIEnv` (`ImeJniQueue::dry_run_jni_env`).
+    pub pending_jni: std::cell::RefCell<crate::ime::ImeJniQueue>,
 }
 
 impl AndroidWindowInner {
@@ -117,6 +119,7 @@ impl AndroidWindowInner {
             gpu_context: gpu_context.clone(),
             last_ime_bounds: Cell::new(None),
             ime: std::cell::RefCell::new(crate::ime::ImeSession::new()),
+            pending_jni: std::cell::RefCell::new(crate::ime::ImeJniQueue::new()),
         }))
     }
 
@@ -374,12 +377,12 @@ impl PlatformWindow for AndroidWindow {
         Some(self.inner.state.borrow().renderer.gpu_specs())
     }
     fn update_ime_position(&self, bounds: Bounds<Pixels>) {
-        // Record caret + ImeSession. `jni_imm_calls()` is the InputMethodManager
-        // plan (`toggleSoftInput` / `updateCursorAnchorInfo`); NativeActivity
-        // still has no View-backed InputConnection.
-        crate::ime::apply_update_ime_position(
+        // Record caret + ImeSession + pending IMM JNI queue. NativeActivity
+        // still has no live `JNIEnv` / View-backed InputConnection.
+        crate::ime::apply_update_ime_position_queued(
             &self.inner.last_ime_bounds,
             &self.inner.ime,
+            &self.inner.pending_jni,
             f32::from(bounds.origin.x),
             f32::from(bounds.origin.y),
             f32::from(bounds.size.width),

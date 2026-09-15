@@ -8,9 +8,9 @@ Live GPUI capture: `scripts/desktop-screenshot.sh` + wheel-scroll frames, `DISPL
 
 `docs/qa/catalog_*_v12.png` and `desktop_gpui_live_v12.png` are **live GPUI pixels**. Walkthrough copies: `/opt/cursor/artifacts/screenshots/v12_*.png`.
 
-HTML catalog (`docs/catalog/material-catalog-*.html`) shares `gpui_material::resolve()`. `docs/qa/catalog_html_light_v12.png` is a headless-Chrome crop of that HTML (inventory header). Android `component_demo` maps the same tokens (NDK not present; crate typechecks only). Official m3.material.io compare strips were not recaptured this pass (headless Chrome timed out); last strips remain `compare_desktop_vs_official_*_v9.png`.
+HTML catalog (`docs/catalog/material-catalog-*.html`) shares `gpui_material::resolve()`. `docs/qa/catalog_html_light_v12.png` is a headless-Chrome crop of that HTML (inventory header). Android `component_demo` catalog APK **built** this follow-up (`scripts/build.sh`, NDK 25.1, `app-debug.apk` ~20MB, not committed). Official vs live GPUI strips: `compare_desktop_vs_official_text_fields_v12.png` and `compare_desktop_vs_official_progress_v12.png`.
 
-Host tests: `gpui_material` **26**, `gpui_android` **15** (JNI IMM plan + InputConnection native dispatch), `material_desktop_demo` **1**.
+Host tests: `gpui_material` **26**, `gpui_android` **16** (JNI IMM queue + RegisterNatives dispatch), `material_desktop_demo` **1**.
 
 ## What the v12 PNGs show
 
@@ -38,6 +38,18 @@ Host tests: `gpui_material` **26**, `gpui_android` **15** (JNI IMM plan + InputC
 | Nav rail | `overlay_window()` / `overlay_window_attr()` | Desktop/Android expanded rail in absolute `#nav-rail-window`; HTML `.rail-window` + `data-rail-window`. Not a second OS `Window` |
 | Carousel | `FlingState::step_live`, `FLING_FRAME_DT` | Catalog ticks from `Instant`; wheel **impulses**; HTML rAF integrator |
 | Time | `wall_second()` / `second_hand_angle_wall_clock()` | GPUI paints wall-clock angle each 1 s tick; HTML rAF `Date` rotation (`data-second-wall="1"`) |
+
+## v12 follow-up (same landing, no PR)
+
+| Area | Change |
+|---|---|
+| IME | `ImeJniQueue`, `apply_update_ime_position_queued`, `jni_register_natives_input_connection`, `dry_run_jni_env`; window stores `pending_jni` |
+| Search | `morph_scaled_margin_dp` applied on GPUI hosts; HTML `data-search-scale` |
+| Notch | `NOTCH_WIDTH_SAFETY_DP`; live `PathBuilder::cubic_bezier_to` even-odd verbs (not flattened `line_to`) |
+| LineCap | Wavy stroke uses lyon `LineCap::Round` / `LineJoin::Round` (gpui still does not re-export the enum) |
+| Nav rail | `RailChrome::Popup` + `data-rail-chrome="popup"` (still one OS window) |
+| APK | `scripts/setup-android-sdk.sh` + `DEMO_CRATE=component_demo scripts/build.sh` → `android/app/build/outputs/apk/debug/app-debug.apk` |
+| Official | `compare_desktop_vs_official_{text_fields,progress}_v12.png` (left m3.material.io, right live GPUI v12 frames) |
 
 ## v13 leftovers
 

@@ -21,6 +21,7 @@ futures = "0.3"
 uuid = { version = "1", features = ["v4"] }
 raw-window-handle = "0.6"
 # ndk 版本必须与 android-activity 0.6 内部使用的一致（0.9），否则出现两个 NativeWindow 类型
+lyon = "1.0.19"
 android-activity = { version = "0.6", features = ["native-activity"] }
 ndk = "0.9"
 android_logger = "0.14"

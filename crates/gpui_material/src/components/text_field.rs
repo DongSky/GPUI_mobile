@@ -23,6 +23,8 @@ pub const OUTLINE_FOCUSED_DP: f32 = 2.0;
 pub const SUPPORTING_GAP_DP: f32 = 4.0;
 pub const ICON_DP: f32 = 24.0;
 pub const NOTCH_PAD_DP: f32 = 4.0;
+/// Extra cutout beyond glyph-advance so wide letters (`W`, `@`) do not sliver.
+pub const NOTCH_WIDTH_SAFETY_DP: f32 = 4.0;
 /// Distance from the left outline to the start of the notched label.
 /// Matches HTML `<legend>` `margin-left: 8px` so GPUI and fieldset line up.
 pub const NOTCH_START_DP: f32 = 8.0;
@@ -36,13 +38,13 @@ pub fn notch_width_dp(label: &str, label_size_sp: f32) -> f32 {
     let mut units = 0.0_f32;
     for ch in label.chars() {
         units += match ch {
-            'm' | 'M' | 'w' | 'W' | '@' => 0.88,
+            'm' | 'M' | 'w' | 'W' | '@' => 0.96,
             'i' | 'l' | 'j' | 'I' | '.' | ',' | '\'' | '|' => 0.32,
             'f' | 't' | 'r' | 's' => 0.42,
             _ => 0.58,
         };
     }
-    (units * label_size_sp + NOTCH_PAD_DP * 2.0).max(28.0)
+    (units * label_size_sp + NOTCH_PAD_DP * 2.0 + NOTCH_WIDTH_SAFETY_DP).max(28.0)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

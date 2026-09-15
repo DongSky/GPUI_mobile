@@ -217,7 +217,8 @@ fn polyline_svg_d(pts: &[(f32, f32)], close: bool) -> String {
 
 /// Filled sausage for a round-capped circular stroke (outer arc + caps + inner arc).
 /// Used for determinate/indeterminate circular progress — gpui does not re-export
-/// lyon `LineCap::Round`, so this polygon *is* the round-cap geometry.
+/// Catalog HTML `stroke-linecap` / lyon `LineCap::Round`. Circular/PTR paint a
+/// filled sausage; wavy hosts stroke with `StrokeOptions::with_line_cap(Round)`.
 pub const LINE_CAP: &str = "round";
 
 /// Host-owned determinate wait (download bytes, job ticks, elapsed/duration).
