@@ -37,6 +37,14 @@ pub const DEMO_ITEMS: [(&str, &str); 3] = [
     ("📁", "Folder"),
 ];
 pub const DEMO_EXPANDED: bool = true;
+/// Official overview: woven-basket photo phone with trail-aligned menu.
+pub const SCENE_PHOTO: crate::components::photo_stub::PhotoKind =
+    crate::components::photo_stub::PhotoKind::Basket;
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 420.0;
+pub const PHONE_CORNER_DP: f32 = 28.0;
+pub const PHONE_BEZEL_DP: f32 = 12.0;
+pub const SCENE_INSET_DP: f32 = 16.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FabMenuColor {

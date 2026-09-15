@@ -1638,18 +1638,37 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                 .child(
                     div()
                         .w_full()
-                        .px(px(16.))
-                        .text_color(paint(a.content))
-                        .child(bottom_sheet::SHARE_TITLE),
+                        .px(px(8.))
+                        .pb(px(8.))
+                        .flex()
+                        .justify_between()
+                        .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
+                            div()
+                                .w(px(56.))
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap(px(4.))
+                                .text_color(paint(a.content))
+                                .child(*icon)
+                                .child(*label)
+                        })),
                 )
                 .child(
                     div()
                         .w_full()
                         .px(px(16.))
+                        .text_color(paint(a.content))
+                        .child(bottom_sheet::SEND_TITLE),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(8.))
                         .pb(px(8.))
                         .flex()
-                        .gap(px(12.))
-                        .children(bottom_sheet::PEOPLE.iter().enumerate().map(|(i, (ini, name))| {
+                        .gap(px(8.))
+                        .children(bottom_sheet::PEOPLE.iter().map(|person| {
                             div()
                                 .w(px(bottom_sheet::PEOPLE_DP))
                                 .flex()
@@ -1661,26 +1680,11 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
                                         .w(px(40.))
                                         .h(px(40.))
                                         .rounded(px(20.))
-                                        .bg(paint(bottom_sheet::people_fill(theme, i)))
-                                        .text_color(paint(bottom_sheet::people_on(theme, i)))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .child(*ini),
+                                        .bg(paint(person.photo.fill())),
                                 )
-                                .child(*name)
+                                .child(person.first)
                         })),
                 )
-                .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
-                    div()
-                        .w_full()
-                        .h(px(56.))
-                        .px(px(16.))
-                        .flex()
-                        .items_center()
-                        .text_color(paint(a.content))
-                        .child(format!("{icon}  {label}"))
-                })),
         )
 }
 
@@ -1778,7 +1782,7 @@ fn android_mail_snack(
                 .text_color(paint(theme.color.on_surface))
                 .child(snackbar::SCENE_TITLE),
         )
-        .children(snackbar::MAIL_ROWS.iter().enumerate().map(|(i, row)| {
+        .children(snackbar::MAIL_ROWS.iter().map(|row| {
             div()
                 .h(px(72.))
                 .px(px(16.))
@@ -1790,12 +1794,7 @@ fn android_mail_snack(
                         .w(px(snackbar::AVATAR_DP))
                         .h(px(snackbar::AVATAR_DP))
                         .rounded(px(snackbar::AVATAR_DP / 2.0))
-                        .bg(paint(snackbar::mail_avatar_fill(theme, i)))
-                        .text_color(paint(snackbar::mail_avatar_on(theme, i)))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(row.initials),
+                        .bg(paint(row.photo.fill())),
                 )
                 .child(
                     div()
@@ -1937,8 +1936,11 @@ fn android_media_scene(
                 .px(px(16.))
                 .flex()
                 .items_center()
+                .gap(px(12.))
                 .text_color(paint(theme.color.on_surface))
-                .child(tabs::SCENE_TITLE),
+                .child(tabs::SCENE_LEADING)
+                .child(div().flex_1().child(tabs::SCENE_TITLE))
+                .children(tabs::SCENE_TRAILING.iter().copied().map(|g| g)),
         )
         .child(
             div()
@@ -1993,17 +1995,12 @@ fn android_media_scene(
                 .flex()
                 .flex_wrap()
                 .gap(px(8.))
-                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, caption)| {
+                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
                     div()
                         .w(px(140.))
                         .h(px(tabs::SCENE_TILE_H_DP * 0.8))
                         .rounded(px(tabs::SCENE_TILE_CORNER_DP))
                         .bg(paint(tabs::scene_tile_fill(theme, i)))
-                        .text_color(paint(tabs::scene_tile_on(theme, i)))
-                        .p(px(12.))
-                        .flex()
-                        .items_end()
-                        .child(*caption)
                 })),
         )
 }
@@ -2209,7 +2206,7 @@ fn android_fab_menu(
     let color = fab_menu::FabMenuColor::Primary;
     let item = fab_menu::resolve_item(theme, color);
     let close = fab_menu::resolve_close(theme, color, this.fab_menu_open);
-    div()
+    let menu = div()
         .flex()
         .flex_col()
         .items_end()
@@ -2245,6 +2242,21 @@ fn android_fab_menu(
                     this.fab_menu_open = !this.fab_menu_open;
                     cx.notify();
                 })),
+        );
+    div()
+        .id("fab-scene")
+        .w_full()
+        .h(px(fab_menu::PHONE_H_DP))
+        .rounded(px(fab_menu::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(fab_menu::SCENE_PHOTO.fill()))
+        .child(
+            div()
+                .absolute()
+                .bottom(px(fab_menu::SCENE_INSET_DP))
+                .right(px(fab_menu::SCENE_INSET_DP))
+                .child(menu),
         )
 }
 
@@ -2856,7 +2868,7 @@ fn android_carousel(
                         } else {
                             160.0
                         });
-                    let h = carousel::item_height_for(layout)
+                    let h = carousel::item_height_for_index(layout, i)
                         * if layout.axis() == carousel::CarouselAxis::Vertical {
                             0.45
                         } else {
@@ -4238,7 +4250,7 @@ fn android_main(app: AndroidApp) {
                 menu_selected: 0,
                 slider: slider::OVERVIEW_ROWS[3].value,
                 ringtone: 2,
-                tab_primary: 0,
+                tab_primary: tabs::SCENE_SELECTED,
                 tab_secondary: 0,
                 badge_count: 8,
                 picker_year: 2026,

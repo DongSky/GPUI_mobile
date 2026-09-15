@@ -16,6 +16,7 @@ pub mod list;
 pub mod menu;
 pub mod navigation_bar;
 pub mod navigation_rail;
+pub mod photo_stub;
 pub mod progress;
 pub mod radio;
 pub mod slider;

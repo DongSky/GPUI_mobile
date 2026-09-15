@@ -412,12 +412,14 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(snackbar::TIMEOUT_SHORT_MS, 4000);
     assert_eq!(snackbar::SWIPE_DISMISS_DP, 72.0);
     assert_eq!(snackbar::SCENE_MESSAGE, "Email archived");
-    assert_eq!(snackbar::SCENE_ACTION, "Undo");
+    assert_eq!(snackbar::SCENE_ACTION, "Action");
     assert!(snackbar::HAS_CLOSE);
     assert_eq!(snackbar::MAIL_ROWS.len(), 3);
-    assert_eq!(snackbar::MAIL_ROWS[0].initials, "AR");
-    assert_eq!(snackbar::MAIL_ROWS[0].time, "9:41");
-    assert_eq!(snackbar::INBOX_NAV.len(), 3);
+    assert_eq!(snackbar::MAIL_ROWS[0].from, "Sofia Sacchi");
+    assert_eq!(snackbar::MAIL_ROWS[0].time, "1 hr ago");
+    assert_eq!(snackbar::INBOX_NAV.len(), 4);
+    assert_eq!(snackbar::INBOX_NAV[0].1, "Mail");
+    assert_eq!(snackbar::INBOX_NAV[3].1, "Meet");
     assert_eq!(snackbar::STATUS_TIME, "9:41");
     let mut snack_state = snackbar::SnackbarState::short();
     assert!(snack_state.visible);
@@ -489,7 +491,27 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("Email archived"));
     assert!(html.contains("data-mail-avatar"));
     assert!(html.contains("data-mail-time"));
-    assert!(html.contains("data-inbox-nav"));
+    assert!(html.contains("data-inbox-nav=\"Mail\""));
+    assert!(html.contains("data-inbox-nav=\"Meet\""));
+    assert!(
+        html.contains(r#"style="background:#E8DEF8;""#),
+        "inbox-nav active indicator must close the style attribute"
+    );
+    assert!(html.contains("data-meet-badge"));
+    assert!(html.contains("Sofia Sacchi"));
+    assert!(html.contains("data-fab-scene"));
+    assert!(html.contains("data-split-scene"));
+    assert!(html.contains("Enamel mugs"));
+    assert!(html.contains("data-toolbar-scene"));
+    assert!(html.contains("Renee Claess"));
+    assert!(html.contains("data-photo=\"sofia\""));
+    assert!(html.contains("data-photo=\"basket\""));
+    assert!(html.contains("data-carousel-layout=\"uncontained-multi\""));
+    assert!(html.contains(r#"layout === "uncontained-multi" ? 168"#));
+    assert!(html.contains("photo-hero"));
+    assert!(html.contains("Alejandro"));
+    assert!(html.contains("Order prints"));
+    assert!(html.contains("data-media-back"));
     assert!(html.contains("data-status-bar"));
     assert!(html.contains("data-share-people"));
     assert!(html.contains("data-share-person"));
@@ -699,13 +721,14 @@ fn dialog_sheet_menu_tokens() {
     assert_eq!((sheet.handle_w, sheet.handle_h), (32.0, 4.0));
     assert_eq!(sheet.elevation_dp, 1.0);
     assert_eq!(bottom_sheet::SHARE_TITLE, "Share");
-    assert_eq!(bottom_sheet::SHARE_ACTIONS.len(), 4);
+    assert_eq!(bottom_sheet::SHARE_ACTIONS.len(), 5);
     assert_eq!(bottom_sheet::PHOTO_GRID.len(), 6);
-    assert_eq!(bottom_sheet::PEOPLE.len(), 4);
-    assert_eq!(bottom_sheet::PEOPLE[0].1, "Alex");
+    assert_eq!(bottom_sheet::PEOPLE.len(), 5);
+    assert_eq!(bottom_sheet::PEOPLE[0].first, "Alejandro");
+    assert_eq!(bottom_sheet::SEND_TITLE, "Send");
     assert_eq!(
         bottom_sheet::photo_fill(&theme, 0),
-        theme.color.primary_container
+        gpui_material::components::photo_stub::PhotoKind::Party.fill()
     );
 
     let menu = menu::resolve_menu(&theme);
@@ -770,8 +793,9 @@ fn slider_tabs_badge_tokens() {
     assert_eq!(tabs::DEMO_ICON_LABELS.len(), 3);
     assert_eq!(tabs::SCENE_TITLE, "My saved media");
     assert_eq!(tabs::SCENE_LABELS, ["Video", "Photos", "Audio"]);
-    assert_eq!(tabs::SCENE_TILES.len(), 6);
-    assert_eq!(tabs::STATUS_TIME, "9:41");
+    assert_eq!(tabs::SCENE_TILES.len(), 2);
+    assert_eq!(tabs::SCENE_SELECTED, 2);
+    assert_eq!(tabs::STATUS_TIME, "9:30");
 
     let small = badge::resolve(&theme, badge::BadgeKind::Small);
     assert_eq!(small.size_dp, 6.0);
@@ -1015,6 +1039,10 @@ fn fab_menu_split_button_toolbar_tokens() {
     assert_eq!(toolbar::DEMO_ICONS.len(), 4);
     let fab = toolbar::resolve_fab(&theme, toolbar::ToolbarColor::Vibrant);
     assert_eq!(fab.height_dp, 56.0);
+    assert_eq!(fab.container, theme.color.tertiary_container);
+    assert_eq!(toolbar::SCENE_FROM, "Renee Claess");
+    assert_eq!(fab_menu::SCENE_PHOTO.label(), "basket");
+    assert_eq!(split_button::SCENE_TITLE, "Enamel mugs");
 }
 
 #[test]
@@ -1242,8 +1270,23 @@ fn search_bar_and_time_picker_tokens() {
         carousel::CarouselLayout::FullScreen.next(),
         carousel::CarouselLayout::Hero
     );
-    assert_eq!(carousel::CarouselLayout::ALL.len(), 5);
-    assert_eq!(carousel::media_fill(&theme, 0), theme.color.primary_container);
+    assert_eq!(carousel::CarouselLayout::ALL.len(), 6);
+    assert_eq!(
+        carousel::CarouselLayout::Uncontained.next(),
+        carousel::CarouselLayout::UncontainedMulti
+    );
+    assert_eq!(
+        carousel::media_fill(&theme, 0),
+        gpui_material::components::photo_stub::PhotoKind::Lake.fill()
+    );
+    assert_eq!(
+        carousel::item_height_for_index(carousel::CarouselLayout::UncontainedMulti, 0),
+        200.0
+    );
+    assert_eq!(
+        carousel::item_height_for_index(carousel::CarouselLayout::UncontainedMulti, 1),
+        112.0
+    );
     assert_eq!(carousel::parallax_offset_dp(0.5), 6.0);
     assert_eq!(carousel::MEDIA_CAPTIONS.len(), 4);
     assert_eq!(carousel::advance(0, 1), 1);

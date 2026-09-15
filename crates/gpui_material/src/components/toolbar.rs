@@ -19,9 +19,21 @@ pub const ITEM_GAP_DP: f32 = 4.0;
 pub const EXTERNAL_PAD_DP: f32 = 16.0;
 pub const FAB_GAP_DP: f32 = 8.0;
 
-pub const DEMO_ICONS: [&str; 4] = ["🔍", "🗑", "⬇", "↗"];
+pub const DEMO_ICONS: [&str; 4] = ["🔍", "🗑", "🖼", "↗"];
 pub const DEMO_FAB: &str = "+";
 pub const DEMO_EXPANDED: bool = true;
+/// Official overview: chat thread + vibrant floating toolbar + pink FAB.
+pub const SCENE_FROM: &str = "Renee Claess";
+pub const SCENE_TIME: &str = "10 min ago";
+pub const SCENE_STAR: &str = "☆";
+pub const SCENE_BUBBLES: [&str; 2] = ["amazing!!!!", "do you need a ride to the shelter?"];
+pub const SCENE_PHOTO: crate::components::photo_stub::PhotoKind =
+    crate::components::photo_stub::PhotoKind::Dog;
+pub const SCENE_AVATAR: crate::components::photo_stub::PhotoKind =
+    crate::components::photo_stub::PhotoKind::PortraitRenee;
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 480.0;
+pub const PHONE_CORNER_DP: f32 = 28.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolbarKind {
@@ -139,7 +151,7 @@ pub fn resolve_icon(theme: &Theme, color: ToolbarColor) -> Appearance {
 pub fn resolve_fab(theme: &Theme, color: ToolbarColor) -> Appearance {
     let variant = match color {
         ToolbarColor::Standard => FabVariant::Primary,
-        ToolbarColor::Vibrant => FabVariant::Primary,
+        ToolbarColor::Vibrant => FabVariant::Tertiary,
     };
     fab::resolve_size(theme, variant, FabSize::Regular, InteractionState::Enabled)
 }

@@ -904,7 +904,7 @@ fn desktop_split_button(
         this.split_open,
     );
     let shell = menu::resolve_menu(theme);
-    div()
+    let split = div()
         .flex()
         .flex_row()
         .items_start()
@@ -974,7 +974,50 @@ fn desktop_split_button(
                             .child(*label)
                     })),
             )
-        })
+        });
+    div()
+        .id("split-scene")
+        .w(px(split_button::PHONE_W_DP))
+        .rounded(px(split_button::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .bg(paint(split_button::SCENE_PHOTO.fill()))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(160.))
+                .flex()
+                .items_end()
+                .justify_center()
+                .gap(px(10.))
+                .pb(px(12.))
+                .children(split_button::SCENE_MUG_COLORS.iter().map(|(r, g, b)| {
+                    div()
+                        .w(px(40.))
+                        .h(px(52.))
+                        .rounded(px(8.))
+                        .bg(paint(Argb::rgb(*r, *g, *b)))
+                })),
+        )
+        .child(
+            div()
+                .px(px(20.))
+                .pb(px(16.))
+                .flex()
+                .flex_col()
+                .gap(px(8.))
+                .child(spaced_line(
+                    split_button::SCENE_TITLE,
+                    22.0,
+                    paint(theme.color.on_surface),
+                ))
+                .child(spaced_line(
+                    split_button::SCENE_SUBTITLE,
+                    14.0,
+                    paint(theme.color.on_surface_variant),
+                ))
+                .child(split),
+        )
 }
 
 fn desktop_fab_menu(
@@ -985,7 +1028,7 @@ fn desktop_fab_menu(
     let color = fab_menu::FabMenuColor::Primary;
     let item = fab_menu::resolve_item(theme, color);
     let close = fab_menu::resolve_close(theme, color, this.fab_menu_open);
-    div()
+    let menu = div()
         .flex()
         .flex_col()
         .items_end()
@@ -1021,6 +1064,21 @@ fn desktop_fab_menu(
                     this.fab_menu_open = !this.fab_menu_open;
                     cx.notify();
                 })),
+        );
+    div()
+        .id("fab-scene")
+        .w(px(fab_menu::PHONE_W_DP))
+        .h(px(fab_menu::PHONE_H_DP))
+        .rounded(px(fab_menu::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .relative()
+        .bg(paint(fab_menu::SCENE_PHOTO.fill()))
+        .child(
+            div()
+                .absolute()
+                .bottom(px(fab_menu::SCENE_INSET_DP))
+                .right(px(fab_menu::SCENE_INSET_DP))
+                .child(menu),
         )
 }
 
@@ -1033,7 +1091,7 @@ fn desktop_toolbar(theme: &Theme) -> impl IntoElement {
     );
     let icon = toolbar::resolve_icon(theme, toolbar::ToolbarColor::Vibrant);
     let fab = toolbar::resolve_fab(theme, toolbar::ToolbarColor::Vibrant);
-    div()
+    let bar = div()
         .flex()
         .items_center()
         .gap(px(toolbar::FAB_GAP_DP))
@@ -1070,7 +1128,65 @@ fn desktop_toolbar(theme: &Theme) -> impl IntoElement {
                 .items_center()
                 .justify_center()
                 .child(toolbar::DEMO_FAB),
+        );
+    div()
+        .id("toolbar-scene")
+        .w(px(toolbar::PHONE_W_DP))
+        .rounded(px(toolbar::PHONE_CORNER_DP))
+        .overflow_hidden()
+        .bg(paint(theme.color.surface))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .px(px(16.))
+                .py(px(12.))
+                .flex()
+                .items_center()
+                .gap(px(12.))
+                .child(
+                    div()
+                        .w(px(40.))
+                        .h(px(40.))
+                        .rounded(px(20.))
+                        .bg(paint(toolbar::SCENE_AVATAR.fill())),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .flex()
+                        .flex_col()
+                        .child(spaced_line(
+                            toolbar::SCENE_FROM,
+                            16.0,
+                            paint(theme.color.on_surface),
+                        ))
+                        .child(spaced_line(
+                            toolbar::SCENE_TIME,
+                            12.0,
+                            paint(theme.color.on_surface_variant),
+                        )),
+                )
+                .child(toolbar::SCENE_STAR),
         )
+        .children(toolbar::SCENE_BUBBLES.iter().map(|b| {
+            div()
+                .mx(px(16.))
+                .my(px(6.))
+                .px(px(12.))
+                .py(px(10.))
+                .rounded(px(16.))
+                .bg(paint(theme.color.surface_container_low))
+                .child(spaced_line(*b, 14.0, paint(theme.color.on_surface)))
+        }))
+        .child(
+            div()
+                .h(px(140.))
+                .mx(px(16.))
+                .rounded(px(16.))
+                .bg(paint(toolbar::SCENE_PHOTO.fill())),
+        )
+        .child(div().p(px(16.)).child(bar))
 }
 
 fn range_slider_hero(
@@ -2233,7 +2349,7 @@ fn desktop_mail_snack(
                     paint(theme.color.on_surface),
                 )),
         )
-        .children(snackbar::MAIL_ROWS.iter().enumerate().map(|(i, row)| {
+        .children(snackbar::MAIL_ROWS.iter().map(|row| {
             div()
                 .h(px(72.))
                 .px(px(16.))
@@ -2245,12 +2361,7 @@ fn desktop_mail_snack(
                         .w(px(snackbar::AVATAR_DP))
                         .h(px(snackbar::AVATAR_DP))
                         .rounded(px(snackbar::AVATAR_DP / 2.0))
-                        .bg(paint(snackbar::mail_avatar_fill(theme, i)))
-                        .text_color(paint(snackbar::mail_avatar_on(theme, i)))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(row.initials),
+                        .bg(paint(row.photo.fill())),
                 )
                 .child(
                     div()
@@ -2395,11 +2506,24 @@ fn desktop_media_scene(
                 .px(px(16.))
                 .flex()
                 .items_center()
+                .gap(px(12.))
                 .child(spaced_line(
-                    tabs::SCENE_TITLE,
-                    theme.typography.title_large.size_sp,
+                    tabs::SCENE_LEADING,
+                    18.0,
                     paint(theme.color.on_surface),
-                )),
+                ))
+                .child(
+                    div()
+                        .flex_1()
+                        .child(spaced_line(
+                            tabs::SCENE_TITLE,
+                            theme.typography.title_large.size_sp,
+                            paint(theme.color.on_surface),
+                        )),
+                )
+                .children(tabs::SCENE_TRAILING.iter().map(|g| {
+                    spaced_line(*g, 16.0, paint(theme.color.on_surface))
+                })),
         )
         .child(
             div()
@@ -2454,17 +2578,12 @@ fn desktop_media_scene(
                 .flex()
                 .flex_wrap()
                 .gap(px(8.))
-                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, caption)| {
+                .children(tabs::SCENE_TILES.iter().enumerate().map(|(i, _caption)| {
                     div()
                         .w(px(150.))
                         .h(px(tabs::SCENE_TILE_H_DP))
                         .rounded(px(tabs::SCENE_TILE_CORNER_DP))
                         .bg(paint(tabs::scene_tile_fill(theme, i)))
-                        .text_color(paint(tabs::scene_tile_on(theme, i)))
-                        .p(px(12.))
-                        .flex()
-                        .items_end()
-                        .child(*caption)
                 })),
         )
 }
@@ -2531,19 +2650,38 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                         .rounded(px(2.))
                         .bg(paint(a.handle)),
                 )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(8.))
+                        .pb(px(8.))
+                        .flex()
+                        .justify_between()
+                        .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
+                            div()
+                                .w(px(56.))
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .gap(px(4.))
+                                .text_color(paint(a.content))
+                                .child(icon)
+                                .child(spaced_line(label, 10.0, paint(a.content)))
+                        })),
+                )
                 .child(spaced_line(
-                    bottom_sheet::SHARE_TITLE,
+                    bottom_sheet::SEND_TITLE,
                     theme.typography.title_medium.size_sp,
                     paint(a.content),
                 ))
                 .child(
                     div()
                         .w_full()
-                        .px(px(16.))
+                        .px(px(8.))
                         .pb(px(8.))
                         .flex()
-                        .gap(px(12.))
-                        .children(bottom_sheet::PEOPLE.iter().enumerate().map(|(i, (ini, name))| {
+                        .gap(px(8.))
+                        .children(bottom_sheet::PEOPLE.iter().map(|person| {
                             div()
                                 .w(px(bottom_sheet::PEOPLE_DP))
                                 .flex()
@@ -2555,26 +2693,11 @@ fn desktop_share_sheet(theme: &Theme) -> impl IntoElement {
                                         .w(px(40.))
                                         .h(px(40.))
                                         .rounded(px(20.))
-                                        .bg(paint(bottom_sheet::people_fill(theme, i)))
-                                        .text_color(paint(bottom_sheet::people_on(theme, i)))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .child(*ini),
+                                        .bg(paint(person.photo.fill())),
                                 )
-                                .child(*name)
+                                .child(spaced_line(person.first, 11.0, paint(a.content)))
                         })),
                 )
-                .children(bottom_sheet::SHARE_ACTIONS.into_iter().map(|(icon, label)| {
-                    div()
-                        .w_full()
-                        .h(px(48.))
-                        .px(px(16.))
-                        .flex()
-                        .items_center()
-                        .text_color(paint(a.content))
-                        .child(format!("{icon}  {label}"))
-                })),
         )
 }
 
@@ -3751,7 +3874,7 @@ fn carousel_hero(
                 }))
                 .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, label)| {
                     let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t);
-                    let h = carousel::item_height_for(layout)
+                    let h = carousel::item_height_for_index(layout, i)
                         * if layout.axis() == carousel::CarouselAxis::Vertical {
                             0.45
                         } else {
@@ -4054,7 +4177,7 @@ fn main() {
                     overlay: Overlay::None,
                     slider: slider::OVERVIEW_ROWS[3].value,
                     ringtone: 2,
-                    tab: 0,
+                    tab: tabs::SCENE_SELECTED,
                     picker_year: 2026,
                     picker_month: 9,
                     selected: CivilDate {

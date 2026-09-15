@@ -1,12 +1,14 @@
 //! Carousel. Specs: https://m3.material.io/components/carousel/specs
 //!
-//! Catalog: hero / multi-browse / uncontained / centered-hero / full-screen.
-//! Media tiles use role-color fills (photo stubs) plus a parallax offset
+//! Catalog: hero / multi-browse / uncontained / uncontained-multi /
+//! centered-hero / full-screen.
+//! Media tiles use photographic gradient stubs plus a parallax offset
 //! while flinging. Centered + full-screen sit in a phone-frame mask.
 //! Click / wheel snap the selected index; fling uses velocity/decay so a
 //! large delta can skip more than one item.
 
 use crate::argb::Argb;
+use crate::components::photo_stub::{self, PhotoKind};
 use crate::shape::Corners;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -25,6 +27,9 @@ pub const MULTI_LARGE_W_DP: f32 = 186.0;
 pub const MULTI_SMALL_W_DP: f32 = 56.0;
 pub const UNCONTAINED_W_DP: f32 = 220.0;
 pub const UNCONTAINED_SMALL_W_DP: f32 = 140.0;
+pub const UNCONTAINED_MULTI_W_DP: f32 = 168.0;
+pub const UNCONTAINED_MULTI_SMALL_W_DP: f32 = 112.0;
+pub const UNCONTAINED_MULTI_H: [f32; 4] = [200.0, 112.0, 168.0, 96.0];
 pub const CENTERED_LARGE_W_DP: f32 = 200.0;
 pub const CENTERED_SMALL_W_DP: f32 = 72.0;
 pub const FULLSCREEN_W_DP: f32 = 336.0;
@@ -47,15 +52,17 @@ pub enum CarouselLayout {
     Hero,
     MultiBrowse,
     Uncontained,
+    UncontainedMulti,
     CenteredHero,
     FullScreen,
 }
 
 impl CarouselLayout {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Hero,
         Self::MultiBrowse,
         Self::Uncontained,
+        Self::UncontainedMulti,
         Self::CenteredHero,
         Self::FullScreen,
     ];
@@ -65,6 +72,7 @@ impl CarouselLayout {
             Self::Hero => "hero",
             Self::MultiBrowse => "multi-browse",
             Self::Uncontained => "uncontained",
+            Self::UncontainedMulti => "uncontained-multi",
             Self::CenteredHero => "centered-hero",
             Self::FullScreen => "full-screen",
         }
@@ -75,6 +83,7 @@ impl CarouselLayout {
             Self::Hero => LARGE_W_DP,
             Self::MultiBrowse => MULTI_LARGE_W_DP,
             Self::Uncontained => UNCONTAINED_W_DP,
+            Self::UncontainedMulti => UNCONTAINED_MULTI_W_DP,
             Self::CenteredHero => CENTERED_LARGE_W_DP,
             Self::FullScreen => FULLSCREEN_W_DP,
         }
@@ -85,6 +94,7 @@ impl CarouselLayout {
             Self::Hero => SMALL_W_DP,
             Self::MultiBrowse => MULTI_SMALL_W_DP,
             Self::Uncontained => UNCONTAINED_SMALL_W_DP,
+            Self::UncontainedMulti => UNCONTAINED_MULTI_SMALL_W_DP,
             Self::CenteredHero => CENTERED_SMALL_W_DP,
             Self::FullScreen => FULLSCREEN_W_DP,
         }
@@ -109,7 +119,8 @@ impl CarouselLayout {
         match self {
             Self::Hero => Self::MultiBrowse,
             Self::MultiBrowse => Self::Uncontained,
-            Self::Uncontained => Self::CenteredHero,
+            Self::Uncontained => Self::UncontainedMulti,
+            Self::UncontainedMulti => Self::CenteredHero,
             Self::CenteredHero => Self::FullScreen,
             Self::FullScreen => Self::Hero,
         }
@@ -117,8 +128,16 @@ impl CarouselLayout {
 }
 
 pub fn item_height_for(layout: CarouselLayout) -> f32 {
+    item_height_for_index(layout, 0)
+}
+
+/// Uncontained multi-aspect tiles vary height per item (official 6th layout).
+pub fn item_height_for_index(layout: CarouselLayout, index: usize) -> f32 {
     match layout {
         CarouselLayout::FullScreen => FULLSCREEN_H_DP,
+        CarouselLayout::UncontainedMulti => {
+            UNCONTAINED_MULTI_H[index % UNCONTAINED_MULTI_H.len()]
+        }
         _ => HEIGHT_DP,
     }
 }
@@ -209,25 +228,17 @@ pub fn item_width_during_fling_for(
     }
 }
 
-/// Role-color photo stub (official uses landscape tiles).
-pub fn media_fill(theme: &Theme, index: usize) -> Argb {
-    let c = theme.color;
-    match index % 4 {
-        0 => c.primary_container,
-        1 => c.secondary_container,
-        2 => c.tertiary_container,
-        _ => c.error_container,
-    }
+/// Photographic stub (official uses landscape tiles).
+pub fn media_kind(index: usize) -> PhotoKind {
+    photo_stub::carousel_kind(index)
 }
 
-pub fn media_on(theme: &Theme, index: usize) -> Argb {
-    let c = theme.color;
-    match index % 4 {
-        0 => c.on_primary_container,
-        1 => c.on_secondary_container,
-        2 => c.on_tertiary_container,
-        _ => c.on_error_container,
-    }
+pub fn media_fill(_theme: &Theme, index: usize) -> Argb {
+    media_kind(index).fill()
+}
+
+pub fn media_on(_theme: &Theme, index: usize) -> Argb {
+    media_kind(index).on_fill()
 }
 
 /// Horizontal content shift while a fling leftover is mid-item.

@@ -2,6 +2,7 @@
 //! Tokens: androidx `PrimaryNavigationTabTokens` v0_162.
 
 use crate::argb::Argb;
+use crate::components::photo_stub::{self, PhotoKind};
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
 
@@ -13,15 +14,18 @@ pub const INDICATOR_CORNER_DP: f32 = 3.0;
 /// Official primary-with-icon row (64dp).
 pub const DEMO_ICONS: [&str; 3] = ["●", "○", "◐"];
 pub const DEMO_ICON_LABELS: [&str; 3] = ["News", "Video", "Photos"];
-/// Official overview: phone “My saved media” (Video / Photos / Audio) over tiles.
+/// Official overview: phone “My saved media” with Audio selected over photos.
 pub const SCENE_TITLE: &str = "My saved media";
 pub const SCENE_ICONS: [&str; 3] = ["▶", "🖼", "♪"];
 pub const SCENE_LABELS: [&str; 3] = ["Video", "Photos", "Audio"];
-pub const SCENE_TILES: [&str; 6] = ["Dawn", "Peak", "Cove", "Trail", "Bloom", "Mist"];
-pub const SCENE_TILE_H_DP: f32 = 96.0;
+pub const SCENE_SELECTED: usize = 2;
+pub const SCENE_LEADING: &str = "←";
+pub const SCENE_TRAILING: [&str; 3] = ["🎤", "📅", "⋮"];
+pub const SCENE_TILES: [&str; 2] = ["Bloom", "Egret"];
+pub const SCENE_TILE_H_DP: f32 = 168.0;
 pub const SCENE_TILE_CORNER_DP: f32 = 16.0;
 pub const STATUS_H_DP: f32 = 24.0;
-pub const STATUS_TIME: &str = "9:41";
+pub const STATUS_TIME: &str = "9:30";
 pub const PHONE_W_DP: f32 = 360.0;
 pub const PHONE_H_DP: f32 = 560.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
@@ -87,21 +91,15 @@ pub fn resolve_with_icons(theme: &Theme, variant: TabsVariant) -> TabsAppearance
     appearance
 }
 
-/// Role-color photo stub for the saved-media scene.
-pub fn scene_tile_fill(theme: &Theme, index: usize) -> crate::argb::Argb {
-    let c = theme.color;
-    match index % 3 {
-        0 => c.primary_container,
-        1 => c.secondary_container,
-        _ => c.tertiary_container,
-    }
+/// Photographic stub for the saved-media scene (official uses camera tiles).
+pub fn scene_tile_kind(index: usize) -> PhotoKind {
+    photo_stub::tabs_kind(index)
 }
 
-pub fn scene_tile_on(theme: &Theme, index: usize) -> crate::argb::Argb {
-    let c = theme.color;
-    match index % 3 {
-        0 => c.on_primary_container,
-        1 => c.on_secondary_container,
-        _ => c.on_tertiary_container,
-    }
+pub fn scene_tile_fill(_theme: &Theme, index: usize) -> Argb {
+    scene_tile_kind(index).fill()
+}
+
+pub fn scene_tile_on(_theme: &Theme, index: usize) -> Argb {
+    scene_tile_kind(index).on_fill()
 }

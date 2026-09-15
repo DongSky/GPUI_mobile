@@ -3,6 +3,7 @@
 //! Visual tokens plus a host-testable timeout / swipe-to-dismiss runtime.
 
 use crate::argb::Argb;
+use crate::components::photo_stub::PhotoKind;
 use crate::shape::Corners;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
@@ -18,68 +19,79 @@ pub const TIMEOUT_LONG_MS: u32 = 10000;
 pub const SWIPE_DISMISS_DP: f32 = 72.0;
 pub const DEMO_MESSAGE: &str = "Can't send right now. Try again later.";
 pub const DEMO_ACTION: &str = "Retry";
-/// Official overview hero: in-app mail list + “Email archived” + Undo + close.
+/// Official overview hero: Gmail-style list + “Email archived” + Action + close.
 pub const SCENE_TITLE: &str = "Inbox";
 pub const SCENE_MESSAGE: &str = "Email archived";
-pub const SCENE_ACTION: &str = "Undo";
+pub const SCENE_ACTION: &str = "Action";
 pub const CLOSE_GLYPH: &str = "✕";
 pub const HAS_CLOSE: bool = true;
 
-/// Official Inbox row: avatar initials + sender + subject + timestamp.
+/// Official mail row: photo avatar + sender + preview + relative time.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MailRow {
-    pub initials: &'static str,
     pub from: &'static str,
     pub subject: &'static str,
     pub time: &'static str,
+    pub photo: PhotoKind,
+}
+
+impl MailRow {
+    pub const fn initials(self) -> &'static str {
+        match self.photo {
+            PhotoKind::PortraitSofia => "SS",
+            PhotoKind::PortraitCarmen => "CV",
+            _ => "•",
+        }
+    }
 }
 
 pub const MAIL_ROWS: [MailRow; 3] = [
     MailRow {
-        initials: "AR",
-        from: "Alex Rivera",
-        subject: "Design sync notes",
-        time: "9:41",
+        from: "Sofia Sacchi",
+        subject: "Bonjour de Paris",
+        time: "1 hr ago",
+        photo: PhotoKind::PortraitSofia,
     },
     MailRow {
-        initials: "JL",
-        from: "Jordan Lee",
-        subject: "Q3 planning",
-        time: "8:12",
+        from: "Carmen Villanueva",
+        subject: "Graduación de nietos",
+        time: "yesterday",
+        photo: PhotoKind::PortraitCarmen,
     },
     MailRow {
-        initials: "SC",
-        from: "Sam Chen",
-        subject: "Invoice #1842",
-        time: "Yesterday",
+        from: "Shows lined up",
+        subject: "I just saw there are a couple of good shows lined",
+        time: "Tue",
+        photo: PhotoKind::PortraitAna,
     },
 ];
-pub const INBOX_NAV: [(&str, &str); 3] = [("✉", "Inbox"), ("★", "Starred"), ("👤", "Profile")];
+/// Official Gmail destinations (not Inbox/Starred/Profile).
+pub const INBOX_NAV: [(&str, &str); 4] = [
+    ("✉", "Mail"),
+    ("◐", "Chat"),
+    ("☷", "Rooms"),
+    ("▶", "Meet"),
+];
+pub const MEET_BADGE_INDEX: usize = 3;
 pub const STATUS_H_DP: f32 = 24.0;
 pub const STATUS_TIME: &str = "9:41";
 pub const AVATAR_DP: f32 = 40.0;
 pub const PHONE_W_DP: f32 = 360.0;
-pub const PHONE_H_DP: f32 = 520.0;
+pub const PHONE_H_DP: f32 = 560.0;
 pub const PHONE_CORNER_DP: f32 = 36.0;
 pub const PHONE_BEZEL_DP: f32 = 12.0;
 pub const CLOSE_DP: f32 = 24.0;
 
-pub fn mail_avatar_fill(theme: &Theme, index: usize) -> Argb {
-    let c = theme.color;
-    match index % 3 {
-        0 => c.primary_container,
-        1 => c.secondary_container,
-        _ => c.tertiary_container,
-    }
+pub fn mail_avatar_fill(_theme: &Theme, index: usize) -> Argb {
+    MAIL_ROWS[index % MAIL_ROWS.len()].photo.fill()
 }
 
-pub fn mail_avatar_on(theme: &Theme, index: usize) -> Argb {
-    let c = theme.color;
-    match index % 3 {
-        0 => c.on_primary_container,
-        1 => c.on_secondary_container,
-        _ => c.on_tertiary_container,
-    }
+pub fn mail_avatar_on(_theme: &Theme, index: usize) -> Argb {
+    MAIL_ROWS[index % MAIL_ROWS.len()].photo.on_fill()
+}
+
+pub fn mail_avatar_kind(index: usize) -> PhotoKind {
+    MAIL_ROWS[index % MAIL_ROWS.len()].photo
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -22,6 +22,21 @@ pub const DEMO_LABEL: &str = "$7.49";
 pub const DEMO_LEADING_ICON: &str = "+";
 pub const DEMO_MENU: [&str; 2] = ["Add to cart", "Save for later"];
 pub const DEMO_OPEN: bool = false;
+/// Official overview: enamel-mugs product card.
+pub const SCENE_TITLE: &str = "Enamel mugs";
+pub const SCENE_SUBTITLE: &str = "Comes in navy, black, white, forest, cherry.";
+pub const SCENE_PHOTO: crate::components::photo_stub::PhotoKind =
+    crate::components::photo_stub::PhotoKind::Mugs;
+pub const SCENE_MUG_COLORS: [(u8, u8, u8); 5] = [
+    (0x1A, 0x23, 0x7E),
+    (0x21, 0x21, 0x21),
+    (0xFA, 0xFA, 0xFA),
+    (0x1B, 0x5E, 0x20),
+    (0xC6, 0x28, 0x28),
+];
+pub const PHONE_W_DP: f32 = 360.0;
+pub const PHONE_H_DP: f32 = 420.0;
+pub const PHONE_CORNER_DP: f32 = 28.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SplitButtonVariant {
