@@ -5330,17 +5330,23 @@ fn hide_rail_hero(
         )
 }
 
-fn inflow_extended_fab(
+fn rail_extended_fab(
     theme: &Theme,
     rail: &navigation_rail::NavRailAppearance,
     expanded: bool,
+    collapsed: navigation_rail::RailCollapsedKind,
+    id: &'static str,
+    label_id: &'static str,
+    anim_expand: &'static str,
+    anim_collapse: &'static str,
+    on_toggle: impl Fn(&mut CatalogView) + 'static,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
     let theme_a = *theme;
     let label = theme.typography.label_large;
     div()
-        .id("wide-inflow-fab")
+        .id(id)
         .h(px(navigation_rail::FAB_SLOT_DP))
         .rounded(px(navigation_rail::FAB_CORNER_DP))
         .bg(paint(rail.fab))
@@ -5355,32 +5361,24 @@ fn inflow_extended_fab(
         } else {
             0.
         }))
-        .on_click(cx.listener(|this, _, _, cx| {
-            this.wide_rail_mode = navigation_rail::toggle_mode(this.wide_rail_mode);
+        .on_click(cx.listener(move |this, _, _, cx| {
+            on_toggle(this);
             cx.notify();
         }))
         .with_animation(
-            if expanded {
-                "wide-inflow-fab-expand"
-            } else {
-                "wide-inflow-fab-collapse"
-            },
+            if expanded { anim_expand } else { anim_collapse },
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
-                let rail_w = navigation_rail::morph_width_eased_kind(
-                    &theme_a,
-                    navigation_rail::RailCollapsedKind::Wide,
-                    t,
-                );
-                let morph = navigation_rail::fab_morph(&theme_a, t, rail_w);
+                let rail_w = navigation_rail::morph_width_eased_kind(&theme_a, collapsed, t);
+                let morph = navigation_rail::fab_morph_kind(&theme_a, t, rail_w, collapsed);
                 this.w(px(morph.width_dp)).ml(px(morph.margin_start_dp))
             },
         )
         .child(navigation_rail::FAB_GLYPH)
         .child(
             div()
-                .id("wide-inflow-fab-label")
+                .id(label_id)
                 .text_size(px(label.size_sp))
                 .child(navigation_rail::FAB_LABEL),
         )
@@ -5701,6 +5699,27 @@ fn nav_rail_column(
     } else {
         "rail-fab"
     };
+    let fab_label_id = if in_flow {
+        "wide-inflow-fab-label"
+    } else if narrow {
+        "narrow-rail-fab-label"
+    } else {
+        "rail-fab-label"
+    };
+    let fab_anim_expand = if in_flow {
+        "wide-inflow-fab-expand"
+    } else if narrow {
+        "narrow-rail-fab-expand"
+    } else {
+        "rail-fab-expand"
+    };
+    let fab_anim_collapse = if in_flow {
+        "wide-inflow-fab-collapse"
+    } else if narrow {
+        "narrow-rail-fab-collapse"
+    } else {
+        "rail-fab-collapse"
+    };
     let anim = if in_flow {
         if expanded {
             "wide-inflow-expand"
@@ -5734,8 +5753,7 @@ fn nav_rail_column(
         .rounded(px(navigation_rail::shape_dp_for(layout, expanded)))
         .flex()
         .flex_col()
-        .when(in_flow || position.is_start(), |el| el.items_stretch())
-        .when(!in_flow && !position.is_start(), |el| el.items_center())
+        .items_stretch()
         .gap(px(navigation_rail::DEST_GAP_DP))
         .with_animation(
             anim,
@@ -5750,33 +5768,26 @@ fn nav_rail_column(
                 .bg(paint(morph.color))
             },
         )
-        .when(in_flow, |el| {
-            el.child(inflow_extended_fab(&theme, &rail, expanded, cx))
-        })
-        .when(!in_flow, |el| {
-            el.child(
-                div()
-                    .id(SharedString::from(fab_id))
-                    .w(px(navigation_rail::FAB_SLOT_DP))
-                    .h(px(navigation_rail::FAB_SLOT_DP))
-                    .rounded(px(16.))
-                    .bg(paint(rail.fab))
-                    .text_color(paint(rail.fab_icon))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(if expanded { "←" } else { "+" })
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if narrow {
-                            this.narrow_rail_mode =
-                                navigation_rail::toggle_mode(this.narrow_rail_mode);
-                        } else {
-                            this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
-                        }
-                        cx.notify();
-                    })),
-            )
-        })
+        .child(rail_extended_fab(
+            &theme,
+            &rail,
+            expanded,
+            collapsed,
+            fab_id,
+            fab_label_id,
+            fab_anim_expand,
+            fab_anim_collapse,
+            move |this| {
+                if in_flow {
+                    this.wide_rail_mode = navigation_rail::toggle_mode(this.wide_rail_mode);
+                } else if narrow {
+                    this.narrow_rail_mode = navigation_rail::toggle_mode(this.narrow_rail_mode);
+                } else {
+                    this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                }
+            },
+            cx,
+        ))
         .children(nav_rail_dest_views(
             &theme,
             &rail,
@@ -7078,6 +7089,8 @@ mod tests {
         );
         assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
         assert!(navigation_rail::WIDE_DEMO_HAS_EXTENDED_FAB);
+        assert!(navigation_rail::MODAL_DEMO_HAS_EXTENDED_FAB);
+        assert!(navigation_rail::NARROW_DEMO_HAS_EXTENDED_FAB);
         assert!(navigation_rail::WIDE_DEMO_LAYOUT.in_flow());
         assert!(navigation_rail::HIDE_DEMO_HIDE_ON_COLLAPSE);
         assert!(navigation_rail::HIDE_DEMO_ARRANGEMENT.is_center());
@@ -7088,6 +7101,21 @@ mod tests {
         assert!((fab0.width_dp - 56.0).abs() < 0.01);
         let fab1 = navigation_rail::fab_morph(&theme, 1.0, 220.0);
         assert!((fab1.width_dp - 188.0).abs() < 0.01);
+        let fabn0 = navigation_rail::fab_morph_kind(
+            &theme,
+            0.0,
+            80.0,
+            navigation_rail::RailCollapsedKind::Narrow,
+        );
+        assert!((fabn0.width_dp - 56.0).abs() < 0.01);
+        assert!((fabn0.margin_start_dp - 12.0).abs() < 0.01);
+        let fabn1 = navigation_rail::fab_morph_kind(
+            &theme,
+            1.0,
+            220.0,
+            navigation_rail::RailCollapsedKind::Narrow,
+        );
+        assert!((fabn1.width_dp - 188.0).abs() < 0.01);
         assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, 16.0);
         assert_eq!(navigation_rail::CONTENT_PAD_VERTICAL_DP, 44.0);
         assert_eq!(

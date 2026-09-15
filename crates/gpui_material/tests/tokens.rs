@@ -808,6 +808,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-header-fab=\"1\""));
     assert!(html.contains("data-rail-fab-extend=\"1\""));
     assert!(html.contains("data-inflow-fab-extend=\"1\""));
+    assert!(html.contains("data-modal-fab-extend=\"1\""));
+    assert!(html.contains("data-narrow-fab-extend=\"1\""));
     assert!(html.contains("data-rail-fab-label=\"1\""));
     assert!(html.contains("function applyRailFabMorph"));
     assert!(html.contains("function applyRailContainerMorph"));
@@ -1069,6 +1071,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("CornerLarge")
             && e.notes.contains("SurfaceContainer")
             && e.notes.contains("ContentPadding")
+            && e.notes.contains("header-less")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1845,11 +1848,14 @@ fn expressive_wide_rail_icon_position() {
     assert!(navigation_rail::HEADER_DEMO_HAS_HEADER);
     assert!(navigation_rail::HEADER_DEMO_HAS_FAB);
     assert!(navigation_rail::WIDE_DEMO_HAS_EXTENDED_FAB);
+    assert!(navigation_rail::MODAL_DEMO_HAS_EXTENDED_FAB);
+    assert!(navigation_rail::NARROW_DEMO_HAS_EXTENDED_FAB);
     assert!(navigation_rail::WIDE_DEMO_LAYOUT.in_flow());
     assert_eq!(navigation_rail::FAB_LABEL, "Create");
     assert_eq!(navigation_rail::FAB_GLYPH, "+");
     assert_eq!(navigation_rail::FAB_CORNER_DP, 16.0);
     assert!((navigation_rail::fab_margin_collapsed_dp(96.0) - 20.0).abs() < 0.01);
+    assert!((navigation_rail::fab_margin_collapsed_dp(80.0) - 12.0).abs() < 0.01);
     let fab0 = navigation_rail::fab_morph(&theme, 0.0, 96.0);
     assert!((fab0.width_dp - 56.0).abs() < 0.01);
     assert!(fab0.label_alpha < 0.01);
@@ -1858,6 +1864,22 @@ fn expressive_wide_rail_icon_position() {
     assert!((fab1.width_dp - 188.0).abs() < 0.01);
     assert!((fab1.label_alpha - 1.0).abs() < 0.01);
     assert!((fab1.margin_start_dp - 16.0).abs() < 0.01);
+    let fabn0 = navigation_rail::fab_morph_kind(
+        &theme,
+        0.0,
+        80.0,
+        navigation_rail::RailCollapsedKind::Narrow,
+    );
+    assert!((fabn0.width_dp - 56.0).abs() < 0.01);
+    assert!((fabn0.margin_start_dp - 12.0).abs() < 0.01);
+    let fabn1 = navigation_rail::fab_morph_kind(
+        &theme,
+        1.0,
+        220.0,
+        navigation_rail::RailCollapsedKind::Narrow,
+    );
+    assert!((fabn1.width_dp - 188.0).abs() < 0.01);
+    assert!((fabn1.margin_start_dp - 16.0).abs() < 0.01);
     assert_eq!(navigation_rail::SHAPE_DP, 0.0);
     assert_eq!(navigation_rail::MODAL_COLLAPSED_SHAPE_DP, 0.0);
     assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, 16.0);

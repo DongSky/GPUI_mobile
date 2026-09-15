@@ -9,7 +9,9 @@
 //! Surface, Compose `ExtendedFloatingActionButton(expanded = railExpanded)`
 //! Create 56↔188) or **modal** (overlay 96↔220 over a 32% scrim, elevation 2,
 //! `modalExpandedShape` CornerLarge 16 / `ModalContainerColor`
-//! SurfaceContainer). Compose `iconPosition` follows `railExpanded`
+//! SurfaceContainer, same header-less Extended FAB). Optional live
+//! **narrow** modal (`NarrowContainerWidth` 80↔220) uses the same
+//! Extended FAB with a 12dp collapsed inset. Compose `iconPosition` follows `railExpanded`
 //! with a spatial-fast layout animation ([`item_morph`]). Modal
 //! `hideOnCollapse` slides the rail offscreen instead of leaving a
 //! collapsed 96/80 strip; items stay Start (`railExpanded = true`) and
@@ -157,9 +159,13 @@ pub const WIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
 /// In-flow standard rail uses Compose `ExtendedFloatingActionButton`.
 pub const WIDE_DEMO_HAS_EXTENDED_FAB: bool = true;
 pub const MODAL_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
+/// Header-less modal overlay uses the same Extended FAB (Create 56↔188).
+pub const MODAL_DEMO_HAS_EXTENDED_FAB: bool = true;
 /// Live optional narrow modal (`NarrowContainerWidth` 80).
 pub const NARROW_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
 pub const NARROW_DEMO_MODE: RailMode = RailMode::Collapsed;
+/// Header-less narrow modal uses the same Extended FAB (12dp collapsed inset).
+pub const NARROW_DEMO_HAS_EXTENDED_FAB: bool = true;
 /// Placeholder content that shifts when the standard rail expands in-flow.
 pub const IN_FLOW_BODY: &str = "Inbox";
 
