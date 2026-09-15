@@ -30,7 +30,7 @@ Host tests: `gpui_material` **26**, `gpui_android` **11** (IME caret stub), `mat
 
 | Area | Shared `gpui_material` | Mapping |
 |---|---|---|
-| Notch (P0) | Single C-path `evenodd_verbs` (outer CW + inner CCW, **one** contour, no gap-chip). `evenodd_polygon` tessellates for hosts. | **GPUI strokes the open `outline_verbs` centerline** (label cuts the stroke on any background). HTML SVG **even-odd fill**, fieldset `border:none`. |
+| Notch (P0) | Single C-path `evenodd_verbs` (outer CW + inner CCW, **one** contour, no gap-chip). `evenodd_polygon` uses **explicit quarter-circle corners** (not inferred SVG-arc centers). | **GPUI + HTML even-odd fill** of that C so the floating label cuts the stroke on any background. |
 | Loading + PTR (P0) | `loading_polygon` 7-shape morph; `contained_loading_indicator` = primary-container / on-primary-container; `round_capped_arc_polygon`; `clock_ms`. | PTR = contained morph. Circular = filled sausage + **disc-stamped** round caps (not a stroked polyline crescent). |
 | Nav rail (P1) | `morph_width_dp`, `scrim_opacity_at`, `elevation_dp_at`, `morph_ms` | Width + scrim opacity + shadow; expanded is a modal overlay, not a plain width swap. |
 | Search (P1) | `morph_height_dp` / `morph_corner_dp_at` / `morph_list_opacity` | One growing-bar tree, overflow clip, list fade. HTML max-height/opacity transition. |

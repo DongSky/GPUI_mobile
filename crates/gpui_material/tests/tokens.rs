@@ -972,6 +972,11 @@ fn search_bar_and_time_picker_tokens() {
     assert!(poly.len() > 16);
     assert!(poly.iter().any(|(x, _)| *x < 10.0));
     assert!(poly.iter().any(|(x, _)| *x > 40.0 && *x < 50.0));
+    let gap_mid = frame.start_dp + frame.width_dp * 0.5;
+    assert!(
+        !poly.iter().any(|(x, y)| (*x - gap_mid).abs() < 6.0 && *y < 0.4),
+        "C-path must leave the legend gap open on the top edge"
+    );
     let lerped = time_picker::lerp_angle_deg(180.0, 0.0, 0.5);
     assert!(lerped.abs() > 80.0);
 }

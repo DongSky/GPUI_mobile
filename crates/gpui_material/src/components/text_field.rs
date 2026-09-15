@@ -384,9 +384,108 @@ impl NotchFrame {
         outline_verbs_svg_d(&self.evenodd_verbs(width_dp))
     }
 
-    /// Flattened C-path for GPUI `PathBuilder` (no native arc — tessellated).
+    /// Flattened C-path for GPUI even-odd fill. Corners are explicit quarter
+    /// circles (not inferred from SVG arcs — that picked the wrong center
+    /// when both diamond candidates were equally far).
     pub fn evenodd_polygon(self, width_dp: f32) -> Vec<(f32, f32)> {
-        flatten_outline_verbs(&self.evenodd_verbs(width_dp))
+        let s = self.stroke_dp.max(1.0);
+        let r = self.radius_dp.max(s);
+        let w = width_dp.max(r * 2.0 + self.width_dp + self.start_dp);
+        let h = self.field_h_dp.max(r * 2.0);
+        let notch_l = self.start_dp.max(0.0);
+        let notch_r = (self.start_dp + self.width_dp).min(w);
+        let ir = (r - s).max(0.0);
+        let mut pts = Vec::with_capacity(80);
+        // Outer clockwise (y-down: 0=east, +angle = clockwise on screen).
+        pts.push((notch_r, 0.0));
+        pts.push((w - r, 0.0));
+        append_arc(
+            &mut pts,
+            w - r,
+            r,
+            r,
+            -std::f32::consts::FRAC_PI_2,
+            0.0,
+        );
+        pts.push((w, h - r));
+        append_arc(&mut pts, w - r, h - r, r, 0.0, std::f32::consts::FRAC_PI_2);
+        pts.push((r, h));
+        append_arc(
+            &mut pts,
+            r,
+            h - r,
+            r,
+            std::f32::consts::FRAC_PI_2,
+            std::f32::consts::PI,
+        );
+        pts.push((0.0, r));
+        append_arc(
+            &mut pts,
+            r,
+            r,
+            r,
+            std::f32::consts::PI,
+            3.0 * std::f32::consts::FRAC_PI_2,
+        );
+        pts.push((notch_l, 0.0));
+        // Join into the inner ring at the legend gap, then counterclockwise.
+        let notch_l_i = notch_l.clamp(s, w - s);
+        let notch_r_i = notch_r.clamp(s, w - s);
+        pts.push((notch_l_i, s));
+        if ir < 0.5 {
+            pts.push((s, s));
+            pts.push((s, h - s));
+            pts.push((w - s, h - s));
+            pts.push((w - s, s));
+        } else {
+            pts.push((s + ir, s));
+            append_arc(
+                &mut pts,
+                s + ir,
+                s + ir,
+                ir,
+                -std::f32::consts::FRAC_PI_2,
+                -std::f32::consts::PI,
+            );
+            pts.push((s, h - s - ir));
+            append_arc(
+                &mut pts,
+                s + ir,
+                h - s - ir,
+                ir,
+                std::f32::consts::PI,
+                std::f32::consts::FRAC_PI_2,
+            );
+            pts.push((w - s - ir, h - s));
+            append_arc(
+                &mut pts,
+                w - s - ir,
+                h - s - ir,
+                ir,
+                std::f32::consts::FRAC_PI_2,
+                0.0,
+            );
+            pts.push((w - s, s + ir));
+            append_arc(
+                &mut pts,
+                w - s - ir,
+                s + ir,
+                ir,
+                0.0,
+                -std::f32::consts::FRAC_PI_2,
+            );
+        }
+        pts.push((notch_r_i, s));
+        pts.push((notch_r, 0.0));
+        pts
+    }
+}
+
+fn append_arc(pts: &mut Vec<(f32, f32)>, cx: f32, cy: f32, radius: f32, a0: f32, a1: f32) {
+    let n = 8usize;
+    for i in 1..=n {
+        let a = a0 + (a1 - a0) * (i as f32 / n as f32);
+        pts.push((cx + radius * a.cos(), cy + radius * a.sin()));
     }
 }
 
@@ -438,35 +537,33 @@ fn tessellate_arc(
     // axis-aligned from→to with equal radius.
     let dx = to_x - from_x;
     let dy = to_y - from_y;
-    let (cx, cy, a0, a1) = if dx.abs() > 0.25 && dy.abs() > 0.25 {
-        // Center is the unique point radius away from both endpoints on the
-        // "inside" of a 90° rounded-rect corner.
-        let candidates = [
-            (from_x, to_y),
-            (to_x, from_y),
-        ];
-        let (cx, cy) = candidates
-            .into_iter()
-            .min_by(|a, b| {
-                let da = (a.0 - from_x).hypot(a.1 - from_y) + (a.0 - to_x).hypot(a.1 - to_y);
-                let db = (b.0 - from_x).hypot(b.1 - from_y) + (b.0 - to_x).hypot(b.1 - to_y);
-                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .unwrap_or((from_x, to_y));
-        let a0 = (from_y - cy).atan2(from_x - cx);
-        let a1 = (to_y - cy).atan2(to_x - cx);
-        (cx, cy, a0, a1)
+    let (cx, cy, a0, sweep) = if dx.abs() > 0.25 && dy.abs() > 0.25 {
+        // Both (from_x, to_y) and (to_x, from_y) are radius-far from the
+        // endpoints. Keep the center whose directed sweep is ~90°, not 270°.
+        let candidates = [(from_x, to_y), (to_x, from_y)];
+        let mut best = (from_x, to_y, 0.0_f32, -std::f32::consts::FRAC_PI_2);
+        let mut best_err = f32::MAX;
+        for (cx, cy) in candidates {
+            let a0 = (from_y - cy).atan2(from_x - cx);
+            let a1 = (to_y - cy).atan2(to_x - cx);
+            let mut sweep = a1 - a0;
+            if clockwise {
+                if sweep > 0.0 {
+                    sweep -= std::f32::consts::TAU;
+                }
+            } else if sweep < 0.0 {
+                sweep += std::f32::consts::TAU;
+            }
+            let err = (sweep.abs() - std::f32::consts::FRAC_PI_2).abs();
+            if err < best_err {
+                best_err = err;
+                best = (cx, cy, a0, sweep);
+            }
+        }
+        best
     } else {
         return vec![(to_x, to_y)];
     };
-    let mut sweep = a1 - a0;
-    if clockwise {
-        if sweep > 0.0 {
-            sweep -= std::f32::consts::TAU;
-        }
-    } else if sweep < 0.0 {
-        sweep += std::f32::consts::TAU;
-    }
     let n = ((sweep.abs() / 0.18).ceil() as usize).clamp(4, 12);
     (1..=n)
         .map(|i| {

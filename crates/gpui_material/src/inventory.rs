@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped path (outer CW + inner CCW joined at the legend gap): HTML paints SVG even-odd fill (fieldset border none); GPUI strokes the open centerline so the label cuts the stroke on any background (no page-color chip); 8dp start; focus outline 2dp; IME caret rect stub wired to NativeActivity update_ime_position",
+        notes: "Floating label; outlined notch is a C-shaped even-odd path (outer CW + inner CCW joined at the legend gap, explicit quarter-circle corners); HTML SVG even-odd fill (fieldset border none); GPUI even-odd fill of the same polygon so the label cuts the stroke on any background; 8dp start; focus outline 2dp; IME caret rect stub wired to NativeActivity update_ime_position",
     },
     ComponentEntry {
         name: "List",

@@ -15,9 +15,9 @@
 
 use gpui::prelude::*;
 use gpui::{
-    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context,
-    FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    ParentElement, PathBuilder, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FillOptions,
+    FillRule, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
     Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
@@ -56,6 +56,7 @@ fn type_weight(style: gpui_material::typography::TypeStyle) -> FontWeight {
     }
 }
 
+#[allow(dead_code)]
 fn feed_outline_verbs(
     builder: &mut PathBuilder,
     origin: gpui::Point<gpui::Pixels>,
@@ -2688,7 +2689,7 @@ fn outlined_notched_field(
     let fill = field.field.container;
     let (lx, ly) = frame.label_origin_dp();
     let stroke_color = paint(outline.0);
-    let notch = frame.outline_verbs(280.0);
+    let evenodd = frame.evenodd_polygon(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
     div()
@@ -2719,14 +2720,24 @@ fn outlined_notched_field(
                         label_h_dp: frame.label_h_dp,
                         field_h_dp: frame.field_h_dp,
                     };
-                    let verbs = if (w - 280.0).abs() > 1.0 {
-                        frame.outline_verbs(w)
+                    let even = if (w - 280.0).abs() > 1.0 {
+                        frame.evenodd_polygon(w)
                     } else {
-                        notch.clone()
+                        evenodd.clone()
                     };
-                    let mut stroke_b = PathBuilder::stroke(px(frame.stroke_dp));
-                    feed_outline_verbs(&mut stroke_b, bounds.origin, verbs);
-                    if let Ok(path) = stroke_b.build() {
+                    let mut fill_b = PathBuilder::fill().with_style(PathStyle::Fill(
+                        FillOptions::default().with_fill_rule(FillRule::EvenOdd),
+                    ));
+                    for (i, (x, y)) in even.iter().enumerate() {
+                        let p = point(bounds.origin.x + px(*x), bounds.origin.y + px(*y));
+                        if i == 0 {
+                            fill_b.move_to(p);
+                        } else {
+                            fill_b.line_to(p);
+                        }
+                    }
+                    fill_b.close();
+                    if let Ok(path) = fill_b.build() {
                         window.paint_path(path, stroke_color);
                     }
                 },
