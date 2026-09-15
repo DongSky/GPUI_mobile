@@ -222,6 +222,8 @@ pub const RANGE_PREV_MONTH: &str = "Previous month";
 pub const RANGE_NEXT_MONTH: &str = "Next month";
 /// Range-hero month ▾ opens Compose `YearPicker` (independent of the single-date modal).
 pub const RANGE_YEAR_PANE: bool = true;
+/// Compose `DateRangePickerDefaults.showModeToggle` on the range hero (not the single-date modal).
+pub const RANGE_SHOW_MODE_TOGGLE: bool = true;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -397,6 +399,19 @@ pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 
 pub fn apply_display_toggle(mode: DatePickerDisplayMode) -> DatePickerDisplayMode {
     mode.toggle()
+}
+
+/// Overview travel title in Picker; Compose `DateRangeInputTitle` in Input.
+pub fn range_title_for(mode: DatePickerDisplayMode) -> &'static str {
+    match mode {
+        DatePickerDisplayMode::Picker => RANGE_HERO_TITLE,
+        DatePickerDisplayMode::Input => RANGE_INPUT_HEADLINE,
+    }
+}
+
+pub fn range_field_value(sel: DateRangeSelection, end: bool) -> String {
+    let date = if end { sel.end } else { sel.start };
+    date.map(input_field_value).unwrap_or_default()
 }
 
 pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {

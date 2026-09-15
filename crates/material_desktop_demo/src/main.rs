@@ -378,6 +378,7 @@ struct CatalogView {
     range_year: i32,
     range_month: u32,
     range_pane: date_picker::DatePickerPane,
+    range_display: date_picker::DatePickerDisplayMode,
     search_open: bool,
     search: TextFieldEditor,
     search_filter: search::SearchFilter,
@@ -600,7 +601,9 @@ impl CatalogView {
     }
 
     fn shift_range_month(&mut self, delta: i32) {
-        if self.range_pane != date_picker::DatePickerPane::Calendar {
+        if self.range_display != date_picker::DatePickerDisplayMode::Picker
+            || self.range_pane != date_picker::DatePickerPane::Calendar
+        {
             return;
         }
         let (y, m) = date_picker::apply_range_month(self.range_year, self.range_month, delta);
@@ -609,7 +612,14 @@ impl CatalogView {
     }
 
     fn toggle_range_pane(&mut self) {
-        self.range_pane = date_picker::apply_pane_toggle(self.range_pane);
+        if self.range_display == date_picker::DatePickerDisplayMode::Picker {
+            self.range_pane = date_picker::apply_pane_toggle(self.range_pane);
+        }
+    }
+
+    fn toggle_range_display(&mut self) {
+        self.range_display = date_picker::apply_display_toggle(self.range_display);
+        self.range_pane = date_picker::DatePickerPane::Calendar;
     }
 
     fn select_range_year(&mut self, year: i32) {
@@ -3219,7 +3229,7 @@ fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl Int
 
 fn date_range_hero(
     this: &CatalogView,
-    _theme: &Theme,
+    theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
@@ -3228,6 +3238,18 @@ fn date_range_hero(
     let month = this.range_month;
     let cells = date_picker::month_grid_range_selection(year, month, this.date_range, today);
     let cal_w = pick.day_dp * 7.0;
+    let picker = this.range_display == date_picker::DatePickerDisplayMode::Picker;
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Focused,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.outline);
     div()
         .w(px(cal_w + 32.0))
         .p(px(16.))
@@ -3236,63 +3258,93 @@ fn date_range_hero(
         .flex()
         .flex_col()
         .gap(px(8.))
-        .child(spaced_line(
-            date_picker::RANGE_HERO_TITLE,
-            pick.year_style.size_sp,
-            paint(pick.header_year),
-        ))
-        .child(
-            div()
-                .font_weight(type_weight(pick.date_style))
-                .child(spaced_line(
-                    date_picker::header_range_selection(this.date_range),
-                    pick.date_style.size_sp.min(28.0),
-                    paint(pick.header_date),
-                )),
-        )
         .child(
             div()
                 .flex()
-                .items_center()
+                .items_start()
                 .justify_between()
-                .when(
-                    this.range_pane == date_picker::DatePickerPane::Calendar,
-                    |nav| {
-                        nav.child(div().id("range-month-prev").p(px(8.)).child("<").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_range_month(-1);
-                                cx.notify();
-                            }),
-                        ))
-                    },
-                )
                 .child(
                     div()
-                        .id("range-year-toggle")
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.toggle_range_pane();
-                            cx.notify();
-                        }))
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
                         .child(spaced_line(
-                            date_picker::month_nav_label(year, month),
+                            date_picker::range_title_for(this.range_display),
                             pick.year_style.size_sp,
                             paint(pick.header_year),
-                        )),
-                )
-                .when(
-                    this.range_pane == date_picker::DatePickerPane::Calendar,
-                    |nav| {
-                        nav.child(div().id("range-month-next").p(px(8.)).child(">").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_range_month(1);
-                                cx.notify();
-                            }),
                         ))
-                    },
-                ),
+                        .child(
+                            div()
+                                .font_weight(type_weight(pick.date_style))
+                                .child(spaced_line(
+                                    date_picker::header_range_selection(this.date_range),
+                                    pick.date_style.size_sp.min(28.0),
+                                    paint(pick.header_date),
+                                )),
+                        ),
+                )
+                .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
+                    el.child(
+                        div()
+                            .id("range-display-toggle")
+                            .w(px(date_picker::TOGGLE_SIZE_DP))
+                            .h(px(date_picker::TOGGLE_SIZE_DP))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(this.range_display.toggle_icon())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toggle_range_display();
+                                cx.notify();
+                            })),
+                    )
+                }),
         )
+        .when(picker, |el| {
+            el.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .when(
+                        this.range_pane == date_picker::DatePickerPane::Calendar,
+                        |nav| {
+                            nav.child(div().id("range-month-prev").p(px(8.)).child("<").on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.shift_range_month(-1);
+                                    cx.notify();
+                                }),
+                            ))
+                        },
+                    )
+                    .child(
+                        div()
+                            .id("range-year-toggle")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toggle_range_pane();
+                                cx.notify();
+                            }))
+                            .child(spaced_line(
+                                date_picker::month_nav_label(year, month),
+                                pick.year_style.size_sp,
+                                paint(pick.header_year),
+                            )),
+                    )
+                    .when(
+                        this.range_pane == date_picker::DatePickerPane::Calendar,
+                        |nav| {
+                            nav.child(div().id("range-month-next").p(px(8.)).child(">").on_click(
+                                cx.listener(|this, _, _, cx| {
+                                    this.shift_range_month(1);
+                                    cx.notify();
+                                }),
+                            ))
+                        },
+                    ),
+            )
+        })
         .when(
-            this.range_pane == date_picker::DatePickerPane::Calendar,
+            picker && this.range_pane == date_picker::DatePickerPane::Calendar,
             |el| {
                 el.child(weekday_row(pick, cal_w)).child(
                     div().w(px(cal_w)).flex().flex_wrap().children(
@@ -3324,43 +3376,86 @@ fn date_range_hero(
                 )
             },
         )
-        .when(this.range_pane == date_picker::DatePickerPane::Year, |el| {
+        .when(
+            picker && this.range_pane == date_picker::DatePickerPane::Year,
+            |el| {
+                el.child(
+                    div()
+                        .w(px(cal_w))
+                        .flex()
+                        .flex_wrap()
+                        .justify_between()
+                        .children(date_picker::year_window(year).into_iter().map(|y| {
+                            let kind = date_picker::classify_year(y, year, this.today.year);
+                            let (bg, fg) = match kind {
+                                date_picker::YearKind::Selected => {
+                                    (paint(pick.day_selected_container), paint(pick.day_selected))
+                                }
+                                date_picker::YearKind::Today | date_picker::YearKind::Default => {
+                                    (paint(pick.container), paint(pick.header_year))
+                                }
+                            };
+                            div()
+                                .id(SharedString::from(format!("range-year-{y}")))
+                                .w(px(date_picker::YEAR_CONTAINER_W_DP))
+                                .h(px(date_picker::YEAR_CONTAINER_H_DP))
+                                .mt(px(date_picker::YEAR_GAP_DP / 2.0))
+                                .rounded(px(date_picker::YEAR_CONTAINER_H_DP / 2.0))
+                                .bg(bg)
+                                .text_color(fg)
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .when(kind == date_picker::YearKind::Today, |el| {
+                                    el.border_1().border_color(paint(pick.day_today_outline))
+                                })
+                                .child(y.to_string())
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.select_range_year(y);
+                                    cx.notify();
+                                }))
+                        })),
+                )
+            },
+        )
+        .when(!picker, |el| {
             el.child(
                 div()
-                    .w(px(cal_w))
-                    .flex()
-                    .flex_wrap()
-                    .justify_between()
-                    .children(date_picker::year_window(year).into_iter().map(|y| {
-                        let kind = date_picker::classify_year(y, year, this.today.year);
-                        let (bg, fg) = match kind {
-                            date_picker::YearKind::Selected => {
-                                (paint(pick.day_selected_container), paint(pick.day_selected))
-                            }
-                            date_picker::YearKind::Today | date_picker::YearKind::Default => {
-                                (paint(pick.container), paint(pick.header_year))
-                            }
-                        };
-                        div()
-                            .id(SharedString::from(format!("range-year-{y}")))
-                            .w(px(date_picker::YEAR_CONTAINER_W_DP))
-                            .h(px(date_picker::YEAR_CONTAINER_H_DP))
-                            .mt(px(date_picker::YEAR_GAP_DP / 2.0))
-                            .rounded(px(date_picker::YEAR_CONTAINER_H_DP / 2.0))
-                            .bg(bg)
-                            .text_color(fg)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when(kind == date_picker::YearKind::Today, |el| {
-                                el.border_1().border_color(paint(pick.day_today_outline))
-                            })
-                            .child(y.to_string())
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.select_range_year(y);
-                                cx.notify();
-                            }))
-                    })),
+                    .w_full()
+                    .px(px(field.field.pad_start_dp))
+                    .py(px(8.))
+                    .rounded(px(field.field.corners.top_left))
+                    .border_1()
+                    .border_color(paint(outline))
+                    .child(spaced_line(
+                        date_picker::RANGE_START_LABEL,
+                        field.label_style.size_sp,
+                        paint(field.label),
+                    ))
+                    .child(spaced_line(
+                        date_picker::range_field_value(this.date_range, false),
+                        field.input_style.size_sp,
+                        paint(field.input),
+                    )),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .px(px(field.field.pad_start_dp))
+                    .py(px(8.))
+                    .rounded(px(field.field.corners.top_left))
+                    .border_1()
+                    .border_color(paint(outline))
+                    .child(spaced_line(
+                        date_picker::RANGE_END_LABEL,
+                        field.label_style.size_sp,
+                        paint(field.label),
+                    ))
+                    .child(spaced_line(
+                        date_picker::range_field_value(this.date_range, true),
+                        field.input_style.size_sp,
+                        paint(field.input),
+                    )),
             )
         })
 }
@@ -7862,6 +7957,7 @@ fn main() {
                     range_year: date_picker::RANGE_DEMO_START.year,
                     range_month: date_picker::RANGE_DEMO_START.month,
                     range_pane: date_picker::LIVE_PANE,
+                    range_display: date_picker::LIVE_DISPLAY_MODE,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
                     search_filter: search::SearchFilter::All,
                     search: {
@@ -8115,6 +8211,15 @@ mod tests {
         );
         assert!(date_picker::RANGE_MONTH_NAV);
         assert!(date_picker::RANGE_YEAR_PANE);
+        assert!(date_picker::RANGE_SHOW_MODE_TOGGLE);
+        assert_eq!(
+            date_picker::range_title_for(date_picker::DatePickerDisplayMode::Input),
+            date_picker::RANGE_INPUT_HEADLINE
+        );
+        assert_eq!(
+            date_picker::range_field_value(date_picker::DateRangeSelection::demo(), false),
+            "09/15/2026"
+        );
         assert_eq!(date_picker::apply_range_month(2026, 9, 1), (2026, 10));
         assert_eq!(date_picker::apply_range_year(2026, 9, 2027), (2027, 9));
         assert_eq!(
