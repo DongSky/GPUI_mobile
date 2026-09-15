@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; live Top→Start iconPosition lerp (spatial-fast); wide collapsed 96 / live narrow modal 80↔220; in-flow standard WideNavigationRail 96↔220 no scrim; expanded 220–360 modal overlay 96 collapsed + 32% scrim; dismissible modal hideOnCollapse slides offscreen (Menu ☰, Start items, Arrangement.Center); active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
+        notes: "WideNavigationRailItem Top/Start (Compose iconPositionFor): collapsed Top 56×32 + label-medium, expanded Start 56dp full-width pill + label-large; live Top→Start iconPosition lerp (spatial-fast); wide collapsed 96 / live narrow modal 80↔220; in-flow standard WideNavigationRail 96↔220 no scrim; expanded 220–360 modal overlay 96 collapsed + 32% scrim; dismissible modal hideOnCollapse slides offscreen (Menu ☰, Start items, Arrangement.Center); header slot Menu/MenuOpen + plain tooltip Above + Arrangement.Bottom; active label secondary; OsPopupSpec PopUp not opened on Linux/NativeActivity; FAB toggle; badges",
     },
     ComponentEntry {
         name: "Dialog",

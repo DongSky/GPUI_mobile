@@ -11,7 +11,9 @@
 //! animation ([`item_morph`]). Modal `hideOnCollapse` slides the rail
 //! offscreen instead of leaving a collapsed 96/80 strip; items stay
 //! Start (`railExpanded = true`). `Arrangement.Vertical` is Top
-//! (default) or Center (full container height).
+//! (default), Center (full container height), or Bottom (remaining
+//! space below the header). Optional header (Menu / MenuOpen) stays
+//! at the top.
 
 use super::dialog;
 use crate::argb::Argb;
@@ -180,6 +182,8 @@ pub enum RailArrangement {
     Top,
     /// Items are centered in the full container height; header stays top.
     Center,
+    /// Items pack at the bottom of the remaining space below the header.
+    Bottom,
 }
 
 impl RailArrangement {
@@ -187,6 +191,7 @@ impl RailArrangement {
         match self {
             Self::Top => "top",
             Self::Center => "center",
+            Self::Bottom => "bottom",
         }
     }
 
@@ -194,16 +199,91 @@ impl RailArrangement {
         match self {
             Self::Top => "flex-start",
             Self::Center => "center",
+            Self::Bottom => "flex-end",
         }
     }
 
     pub const fn is_center(self) -> bool {
         matches!(self, Self::Center)
     }
+
+    pub const fn is_bottom(self) -> bool {
+        matches!(self, Self::Bottom)
+    }
+
+    /// Center uses the full container height; Top/Bottom use space below header.
+    pub const fn uses_full_height(self) -> bool {
+        matches!(self, Self::Center)
+    }
 }
 
 /// Compose `WideNavigationRailDefaults.arrangement` = `Arrangement.Top`.
 pub const DEFAULT_ARRANGEMENT: RailArrangement = RailArrangement::Top;
+
+/// Compose `NavigationRailBaselineItemTokens.HeaderSpaceMinimum`
+/// (`WNRHeaderPadding`). Applied under the header when arrangement is Top.
+pub const HEADER_SPACE_DP: f32 = 40.0;
+/// Official sample `IconButton` start padding on the header.
+pub const HEADER_PAD_START_DP: f32 = 24.0;
+/// Default S icon button (`IconButtonTokens` container).
+pub const HEADER_BUTTON_DP: f32 = 40.0;
+/// Compose sample `Icons.Filled.Menu` / collapsed header.
+pub const HEADER_MENU_GLYPH: &str = "☰";
+/// Compose sample `Icons.AutoMirrored.Filled.MenuOpen` / expanded header.
+pub const HEADER_MENU_OPEN_GLYPH: &str = "☰←";
+/// Compose sample tooltip / `headerDescription` when collapsed.
+pub const HEADER_EXPAND_LABEL: &str = "Expand rail";
+/// Compose sample tooltip / `headerDescription` when expanded.
+pub const HEADER_COLLAPSE_LABEL: &str = "Collapse rail";
+/// Compose sample `stateDescription` when collapsed.
+pub const HEADER_STATE_COLLAPSED: &str = "Collapsed";
+/// Compose sample `stateDescription` when expanded.
+pub const HEADER_STATE_EXPANDED: &str = "Expanded";
+/// Tooltip anchor for the header menu (`TooltipAnchorPosition.Above`).
+pub const HEADER_TOOLTIP_ABOVE: &str = "above";
+
+/// Live standard WideNavigationRail with header + `Arrangement.Bottom`.
+pub const HEADER_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
+pub const HEADER_DEMO_MODE: RailMode = RailMode::Collapsed;
+pub const HEADER_DEMO_ARRANGEMENT: RailArrangement = RailArrangement::Bottom;
+pub const HEADER_DEMO_HAS_HEADER: bool = true;
+
+/// Compose sample Menu ↔ MenuOpen glyph.
+pub fn header_menu_glyph(expanded: bool) -> &'static str {
+    if expanded {
+        HEADER_MENU_OPEN_GLYPH
+    } else {
+        HEADER_MENU_GLYPH
+    }
+}
+
+/// Compose sample "Expand rail" / "Collapse rail".
+pub fn header_menu_label(expanded: bool) -> &'static str {
+    if expanded {
+        HEADER_COLLAPSE_LABEL
+    } else {
+        HEADER_EXPAND_LABEL
+    }
+}
+
+/// Compose sample `stateDescription` Expanded / Collapsed.
+pub fn header_state_description(expanded: bool) -> &'static str {
+    if expanded {
+        HEADER_STATE_EXPANDED
+    } else {
+        HEADER_STATE_COLLAPSED
+    }
+}
+
+/// Header gap under the slot. Compose applies `WNRHeaderPadding` when the
+/// header is present and arrangement is Top.
+pub fn header_space_dp(has_header: bool, arrangement: RailArrangement) -> f32 {
+    if has_header && matches!(arrangement, RailArrangement::Top) {
+        HEADER_SPACE_DP
+    } else {
+        0.0
+    }
+}
 
 pub fn hide_on_collapse_for(layout: RailExpandedLayout, hide: bool) -> bool {
     hide && layout == RailExpandedLayout::Modal

@@ -642,6 +642,32 @@ a {{ color: var(--primary); }}
   position: absolute; inset: 0;
   justify-content: center; align-items: stretch;
 }}
+.nav-rail[data-rail-header="1"] {{
+  align-items: stretch; min-height: 280px;
+}}
+.rail-header {{
+  position: relative; flex: 0 0 auto; z-index: 1;
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding-left: 24px;
+}}
+.rail-header-btn {{
+  width: 40px; height: 40px; border: 0; border-radius: 20px;
+  background: transparent; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; padding: 0;
+}}
+.rail-header-tip {{
+  display: none; position: absolute; bottom: calc(100% + 4px); left: 24px;
+  min-height: 24px; max-width: 200px; padding: 4px 8px; border-radius: 4px;
+  font-size: 12px; line-height: 16px; white-space: nowrap; pointer-events: none;
+}}
+.rail-header:hover .rail-header-tip, .rail-header-btn:focus + .rail-header-tip,
+.rail-header[data-open="1"] .rail-header-tip {{ display: flex; align-items: center; }}
+.nav-rail[data-rail-arrangement="bottom"] {{
+  justify-content: flex-start;
+}}
+.nav-rail[data-rail-arrangement="bottom"] .rail-dests {{
+  flex: 1 1 auto; justify-content: flex-end; align-items: stretch;
+}}
 .carousel {{ display: flex; gap: 8px; overflow: hidden; max-width: 720px; }}
 .carousel .tile {{
   height: 168px; border-radius: 28px; display: flex; align-items: flex-end;
@@ -1822,8 +1848,8 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       }});
     }});
   }});
-  var fab = rail.querySelector("[data-rail-fab]");
-  if (fab) {{
+  var toggles = rail.querySelectorAll("[data-rail-fab], [data-rail-header-menu]");
+  toggles.forEach(function (fab) {{
     fab.style.cursor = "pointer";
     fab.addEventListener("click", function () {{
       if (rail._iconMorphRaf) cancelAnimationFrame(rail._iconMorphRaf);
@@ -1852,13 +1878,28 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         rail.removeAttribute("data-hide-sliding");
         clearRailIconMorph(rail);
         var layout = rail.getAttribute("data-rail-layout") || "modal";
-        rail.setAttribute("data-wide-collapsed", !hide && !exp && layout !== "narrow" ? "1" : "0");
+        rail.setAttribute("data-wide-collapsed", !hide && !exp && layout !== "narrow" && layout !== "header" ? "1" : "0");
         if (layout === "narrow") {{
           rail.setAttribute("data-narrow", "1");
         }}
-        if (fab) fab.textContent = hide || exp ? "←" : "+";
+        rail.querySelectorAll("[data-rail-fab]").forEach(function (slot) {{
+          slot.textContent = hide || exp ? "←" : "+";
+        }});
+        rail.querySelectorAll("[data-rail-header-menu]").forEach(function (btn) {{
+          btn.textContent = exp ? "{header_open}" : "{header_menu}";
+          var label = exp ? "{header_collapse}" : "{header_expand}";
+          var state = exp ? "{header_state_exp}" : "{header_state_col}";
+          btn.setAttribute("data-rail-header-label", label);
+          btn.setAttribute("data-rail-header-state", state);
+          btn.setAttribute("aria-label", label);
+          var tip = rail.querySelector("[data-rail-header-tooltip]");
+          if (tip) {{
+            tip.textContent = label;
+            tip.setAttribute("data-tooltip-text", label);
+          }}
+        }});
         var stage = rail.closest(".rail-stage");
-        if (stage && layout === "standard") {{
+        if (stage && (layout === "standard" || layout === "header")) {{
           stage.classList.remove("is-modal");
           var inflowScrim = stage.querySelector("[data-rail-scrim]");
           if (inflowScrim) inflowScrim.setAttribute("data-visible", "0");
@@ -1872,7 +1913,7 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
       }}
       rail._iconMorphRaf = requestAnimationFrame(tick);
     }});
-  }}
+  }});
 }});
 document.querySelectorAll("[data-rail-menu]").forEach(function (btn) {{
   btn.style.cursor = "pointer";
@@ -2055,6 +2096,12 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
         rail_collapsed = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
         rail_expanded = navigation_rail::EXPANDED_WIDTH_DP,
         morph_ms = navigation_rail::morph_ms(theme),
+        header_menu = navigation_rail::HEADER_MENU_GLYPH,
+        header_open = navigation_rail::HEADER_MENU_OPEN_GLYPH,
+        header_expand = navigation_rail::HEADER_EXPAND_LABEL,
+        header_collapse = navigation_rail::HEADER_COLLAPSE_LABEL,
+        header_state_col = navigation_rail::HEADER_STATE_COLLAPSED,
+        header_state_exp = navigation_rail::HEADER_STATE_EXPANDED,
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
         h1l = theme.typography.display_small.emphasized().line_height_sp,
@@ -3899,7 +3946,7 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim. Optional live <strong>narrow</strong> modal uses <code>NarrowContainerWidth</code> 80↔220. Dismissible modal <code>hideOnCollapse</code> slides offscreen (Menu ☰) with Start items and <code>Arrangement.Center</code>. Header slot (Menu / MenuOpen + plain tooltip Above) stays top; live <code>Arrangement.Bottom</code> packs destinations below it. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
@@ -3927,6 +3974,16 @@ fn chrome(theme: &Theme) -> String {
   <div class="rail-window" data-rail-window="0" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
   <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="hide" data-hide-on-collapse="1" data-nav-rail-expanded="0" data-icon-position="start" data-icon-morph="0" data-icon-morph-ms="{morph_ms}" data-collapsed-width="0" data-expanded-width="{ew}" data-rail-mode="collapsed" data-rail-arrangement="{arr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ew}px;transform:translateX(-100%)">{hide_fab}<div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{arr}">{start_dests}</div></div>
   </div>
+</div>
+<div class="rail-stage is-standard" data-hero="wide-rail-header" data-rail-layout="header">
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="header" data-rail-header="1" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="collapsed" data-rail-arrangement="{harr}" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">
+    <div class="rail-header" data-rail-header-slot="1" data-header-space="{hspace}" data-tooltip-anchor="{htip}">
+      <button type="button" class="rail-header-btn" data-rail-header-menu="1" data-rail-header-label="{hlabel}" data-rail-header-state="{hstate}" aria-label="{hlabel}" style="color:{hbtn}">{hglyph}</button>
+      <div class="rail-header-tip" data-rail-header-tooltip="1" data-tooltip-plain="header" data-tooltip-text="{hlabel}" style="background:{htbg};color:{htfg}">{hlabel}</div>
+    </div>
+    <div class="rail-dests" data-rail-dests="1" data-rail-arrangement="{harr}">{top_dests}</div>
+  </div>
+  <div class="rail-inflow-body" data-rail-inflow-body="1" data-header-body="1">{inflow_body}</div>
 </div>"#,
         sbg = snack.container.css_hex(),
         sfg = snack.supporting.css_hex(),
@@ -3974,6 +4031,24 @@ fn chrome(theme: &Theme) -> String {
         fab_bg = rail.fab.css_hex(),
         fab_fg = rail.fab_icon.css_hex(),
         arr = navigation_rail::HIDE_DEMO_ARRANGEMENT.label(),
+        harr = navigation_rail::HEADER_DEMO_ARRANGEMENT.label(),
+        hspace = navigation_rail::header_space_dp(
+            navigation_rail::HEADER_DEMO_HAS_HEADER,
+            navigation_rail::HEADER_DEMO_ARRANGEMENT,
+        ),
+        htip = navigation_rail::HEADER_TOOLTIP_ABOVE,
+        hlabel = navigation_rail::header_menu_label(false),
+        hstate = navigation_rail::header_state_description(false),
+        hglyph = navigation_rail::header_menu_glyph(false),
+        htbg = tooltip::resolve_plain(theme).container.css_hex(),
+        htfg = tooltip::resolve_plain(theme).supporting.css_hex(),
+        hbtn = icon_button::resolve(
+            theme,
+            icon_button::IconButtonVariant::Standard,
+            InteractionState::Enabled,
+        )
+        .content
+        .css_hex(),
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,
         morph_ms = navigation_rail::morph_ms(theme),

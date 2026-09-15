@@ -794,11 +794,18 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-hero=\"wide-rail-inflow\""));
     assert!(html.contains("data-hero=\"wide-rail-narrow\""));
     assert!(html.contains("data-hero=\"wide-rail-hide\""));
+    assert!(html.contains("data-hero=\"wide-rail-header\""));
     assert!(html.contains("data-rail-layout=\"standard\""));
     assert!(html.contains("data-rail-layout=\"narrow\""));
     assert!(html.contains("data-rail-layout=\"hide\""));
+    assert!(html.contains("data-rail-layout=\"header\""));
     assert!(html.contains("data-hide-on-collapse=\"1\""));
     assert!(html.contains("data-rail-arrangement=\"center\""));
+    assert!(html.contains("data-rail-arrangement=\"bottom\""));
+    assert!(html.contains("data-rail-header=\"1\""));
+    assert!(html.contains("data-rail-header-menu=\"1\""));
+    assert!(html.contains("data-rail-header-tooltip=\"1\""));
+    assert!(html.contains("Expand rail"));
     assert!(html.contains("function applyRailHideSlide"));
     assert!(html.contains("data-rail-menu=\"1\""));
     assert!(html.contains("data-narrow=\"1\""));
@@ -1038,6 +1045,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("80")
             && e.notes.contains("hideOnCollapse")
             && e.notes.contains("Arrangement.Center")
+            && e.notes.contains("Arrangement.Bottom")
+            && e.notes.contains("MenuOpen")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1791,6 +1800,7 @@ fn expressive_wide_rail_icon_position() {
     assert!((navigation_rail::morph_width_hide_dp(1.0) - 220.0).abs() < 0.01);
     assert_eq!(navigation_rail::RailArrangement::Top.label(), "top");
     assert_eq!(navigation_rail::RailArrangement::Center.label(), "center");
+    assert_eq!(navigation_rail::RailArrangement::Bottom.label(), "bottom");
     assert_eq!(
         navigation_rail::DEFAULT_ARRANGEMENT,
         navigation_rail::RailArrangement::Top
@@ -1800,6 +1810,50 @@ fn expressive_wide_rail_icon_position() {
         navigation_rail::HIDE_DEMO_ARRANGEMENT.justify_content(),
         "center"
     );
+    assert!(navigation_rail::HEADER_DEMO_HAS_HEADER);
+    assert!(navigation_rail::HEADER_DEMO_ARRANGEMENT.is_bottom());
+    assert_eq!(
+        navigation_rail::HEADER_DEMO_ARRANGEMENT.justify_content(),
+        "flex-end"
+    );
+    assert!(navigation_rail::HEADER_DEMO_LAYOUT.in_flow());
+    assert_eq!(
+        navigation_rail::header_menu_glyph(false),
+        navigation_rail::HEADER_MENU_GLYPH
+    );
+    assert_eq!(
+        navigation_rail::header_menu_glyph(true),
+        navigation_rail::HEADER_MENU_OPEN_GLYPH
+    );
+    assert_eq!(
+        navigation_rail::header_menu_label(false),
+        navigation_rail::HEADER_EXPAND_LABEL
+    );
+    assert_eq!(
+        navigation_rail::header_menu_label(true),
+        navigation_rail::HEADER_COLLAPSE_LABEL
+    );
+    assert_eq!(
+        navigation_rail::header_state_description(false),
+        navigation_rail::HEADER_STATE_COLLAPSED
+    );
+    assert_eq!(navigation_rail::HEADER_PAD_START_DP, 24.0);
+    assert_eq!(navigation_rail::HEADER_BUTTON_DP, 40.0);
+    assert_eq!(navigation_rail::HEADER_SPACE_DP, 40.0);
+    assert_eq!(
+        navigation_rail::header_space_dp(true, navigation_rail::RailArrangement::Top),
+        40.0
+    );
+    assert_eq!(
+        navigation_rail::header_space_dp(true, navigation_rail::RailArrangement::Bottom),
+        0.0
+    );
+    assert_eq!(
+        navigation_rail::header_space_dp(true, navigation_rail::RailArrangement::Center),
+        0.0
+    );
+    assert!(navigation_rail::RailArrangement::Center.uses_full_height());
+    assert!(!navigation_rail::RailArrangement::Bottom.uses_full_height());
     assert_eq!(navigation_rail::HIDE_MENU_LABEL, "Menu");
     assert_eq!(
         navigation_rail::WIDE_DEMO_MODE,

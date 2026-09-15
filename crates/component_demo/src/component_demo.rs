@@ -352,6 +352,8 @@ struct CatalogView {
     wide_rail_mode: navigation_rail::RailMode,
     narrow_rail_mode: navigation_rail::RailMode,
     hide_rail_mode: navigation_rail::RailMode,
+    header_rail_mode: navigation_rail::RailMode,
+    header_tooltip_open: bool,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -1059,6 +1061,7 @@ fn catalog_body(
         .child(android_nav_rail(this, theme, cx))
         .child(android_narrow_rail(this, theme, cx))
         .child(android_hide_rail(this, theme, cx))
+        .child(android_header_rail(this, theme, cx))
         .child(section_title(theme, "Navigation bar"))
         .child(android_nav_bars(theme))
         .child(section_title(theme, "Tooltip"))
@@ -4512,6 +4515,157 @@ fn android_hide_rail(
         )
 }
 
+fn android_header_rail(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let body_fg = paint(theme.color.on_surface);
+    div()
+        .id("wide-rail-header")
+        .flex()
+        .flex_row()
+        .w_full()
+        .min_h(px(220.))
+        .overflow_hidden()
+        .child(android_header_rail_column(this, theme, 200.0, cx))
+        .child(
+            div()
+                .id("wide-rail-header-body")
+                .flex_1()
+                .p(px(16.))
+                .text_color(body_fg)
+                .child(navigation_rail::IN_FLOW_BODY),
+        )
+}
+
+fn android_header_rail_column(
+    this: &CatalogView,
+    theme: &Theme,
+    width_max: f32,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let mode = this.header_rail_mode;
+    let expanded = mode == navigation_rail::RailMode::Expanded;
+    let rail =
+        navigation_rail::resolve_mode_kind(theme, mode, navigation_rail::RailCollapsedKind::Wide);
+    let selected = this.rail_selected;
+    let position = navigation_rail::icon_position_for_mode(mode);
+    let arrangement = navigation_rail::HEADER_DEMO_ARRANGEMENT;
+    let header_btn = icon_button::resolve(
+        theme,
+        icon_button::IconButtonVariant::Standard,
+        InteractionState::Enabled,
+    );
+    let tip = tooltip::resolve_plain(theme);
+    let column_w = rail.width_dp.min(width_max);
+    let tip_open = this.header_tooltip_open;
+    let theme_w = *theme;
+    div()
+        .id("header-rail")
+        .relative()
+        .h_full()
+        .min_h(px(220.))
+        .overflow_hidden()
+        .bg(paint(rail.container))
+        .flex()
+        .flex_col()
+        .items_stretch()
+        .with_animation(
+            if expanded {
+                "android-header-rail-expand"
+            } else {
+                "android-header-rail-collapse"
+            },
+            Animation::new(Duration::from_millis(
+                navigation_rail::morph_ms(theme) as u64
+            )),
+            move |this, delta| {
+                let t = if expanded { delta } else { 1.0 - delta };
+                this.w(px(navigation_rail::morph_width_eased_kind(
+                    &theme_w,
+                    navigation_rail::RailCollapsedKind::Wide,
+                    t,
+                )
+                .min(width_max)))
+            },
+        )
+        .child(
+            div()
+                .id("header-rail-slot")
+                .relative()
+                .flex()
+                .flex_col()
+                .items_start()
+                .pl(px(navigation_rail::HEADER_PAD_START_DP))
+                .when(tip_open, |el| {
+                    el.child(
+                        div()
+                            .id("header-rail-tooltip")
+                            .absolute()
+                            .bottom(px(
+                                navigation_rail::HEADER_BUTTON_DP + tooltip::ANCHOR_GAP_DP
+                            ))
+                            .left(px(navigation_rail::HEADER_PAD_START_DP))
+                            .h(px(tip.min_height_dp))
+                            .px(px(tip.pad_start_dp))
+                            .py(px(tip.pad_top_dp))
+                            .rounded(px(tip.corners.top_left))
+                            .bg(paint(tip.container))
+                            .text_color(paint(tip.supporting))
+                            .text_size(px(tip.supporting_style.size_sp))
+                            .flex()
+                            .items_center()
+                            .child(navigation_rail::header_menu_label(expanded)),
+                    )
+                })
+                .child(
+                    div()
+                        .id("header-rail-menu")
+                        .w(px(navigation_rail::HEADER_BUTTON_DP))
+                        .h(px(navigation_rail::HEADER_BUTTON_DP))
+                        .rounded(px(header_btn.corners.top_left))
+                        .text_color(paint(header_btn.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(navigation_rail::header_menu_glyph(expanded))
+                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                            this.header_tooltip_open = *hovered;
+                            cx.notify();
+                        }))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.header_rail_mode =
+                                navigation_rail::toggle_mode(this.header_rail_mode);
+                            cx.notify();
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .id("header-rail-dests")
+                .flex()
+                .flex_col()
+                .flex_1()
+                .items_stretch()
+                .gap(px(navigation_rail::DEST_GAP_DP))
+                .when(arrangement.is_bottom(), |el| el.justify_end())
+                .children(android_rail_dest_views(
+                    theme,
+                    &rail,
+                    column_w,
+                    position,
+                    selected,
+                    true,
+                    expanded,
+                    width_max,
+                    "header-rail",
+                    navigation_rail::RailCollapsedKind::Wide,
+                    cx,
+                )),
+        )
+}
+
 fn android_hide_rail_column(
     this: &CatalogView,
     theme: &Theme,
@@ -6438,6 +6592,8 @@ fn android_main(app: AndroidApp) {
                 wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
                 narrow_rail_mode: navigation_rail::NARROW_DEMO_MODE,
                 hide_rail_mode: navigation_rail::HIDE_DEMO_MODE,
+                header_rail_mode: navigation_rail::HEADER_DEMO_MODE,
+                header_tooltip_open: false,
                 carousel_index: carousel::DEMO_INDEX,
                 carousel_layout: carousel::CarouselLayout::Hero,
                 carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
