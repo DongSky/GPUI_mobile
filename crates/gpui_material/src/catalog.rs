@@ -606,10 +606,38 @@ table.inv th {{ font-weight: 500; }}
 }}
 .sheet .handle {{ border-radius: 2px; margin: 16px 0 12px; }}
 .menu {{
-  min-width: 200px; padding: 8px 0; display: flex; flex-direction: column;
+  min-width: 112px; max-width: 280px; padding: 4px; display: flex; flex-direction: column;
 }}
 .menu-item {{
-  height: 48px; padding: 0 12px; display: flex; align-items: center; gap: 12px;
+  height: 44px; padding: 0 16px; display: flex; align-items: center; gap: 12px;
+  box-sizing: border-box;
+}}
+.menu-item .lead {{
+  width: 20px; height: 20px; flex: 0 0 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 500;
+}}
+.menu-item .lbl {{ flex: 1; min-width: 0; }}
+.menu-item .trail {{ margin-left: auto; font-size: 11px; letter-spacing: 0.5px; }}
+.menu-stack {{
+  display: flex; flex-direction: column; gap: 2px; min-width: 200px; max-width: 280px;
+}}
+.menu-group {{
+  display: flex; flex-direction: column; padding: 4px;
+}}
+.menu-row {{
+  display: flex; flex-direction: row; align-items: stretch; gap: 8px; flex-wrap: wrap; margin: 8px 0 16px;
+}}
+.menu-horizontal {{
+  display: flex; flex-direction: row; align-items: center; gap: 2px; padding: 4px;
+}}
+.menu-horizontal .menu-item {{
+  padding: 0 12px;
+}}
+.menu-icons {{
+  display: flex; flex-direction: row; align-items: center; gap: 4px; padding: 4px;
+}}
+.menu-icons .menu-item {{
+  width: 52px; height: 52px; padding: 0; justify-content: center;
 }}
 .slider {{
   position: relative; width: 240px; height: 48px; display: flex; align-items: center;
@@ -4000,32 +4028,155 @@ fn side_sheets(theme: &Theme) -> String {
     )
 }
 
-fn menus(theme: &Theme) -> String {
-    let shell = menu::resolve_menu(theme);
-    let items = [
-        ("Item one", true, InteractionState::Enabled),
-        ("Item two", false, InteractionState::Enabled),
-        ("Disabled", false, InteractionState::Disabled),
-    ];
-    let mut rows = String::new();
-    for (label, selected, state) in items {
-        let a = menu::resolve_item(theme, selected, state);
-        rows.push_str(&format!(
-            "<div class=\"menu-item\" data-menu-item=\"{label}\" data-selected=\"{sel}\" style=\"background:{bg};color:{fg};height:{h}px\">{label}</div>",
+fn paint_menu_item_row(
+    item: &menu::MenuDemoItem,
+    a: &menu::MenuItemAppearance,
+    selected: bool,
+) -> String {
+    let trail = menu::trailing_text(item);
+    let trail_html = if trail.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<span class="trail" style="color:{c}">{t}</span>"#,
+            c = a.shortcut.css_hex(),
+            t = esc(trail),
+        )
+    };
+    format!(
+        r#"<div class="menu-item" data-menu-item="{label}" data-selected="{sel}" style="background:{bg};color:{fg};height:{h}px;border-radius:{r};padding:0 {pad}px">
+  <span class="lead" style="color:{ic}">{icon}</span>
+  <span class="lbl">{label}</span>
+  {trail}
+</div>"#,
+        label = esc(item.label),
+        sel = selected,
+        bg = a.container.css_hex(),
+        fg = a.label.css_hex(),
+        h = a.height_dp,
+        r = a.corners.css(),
+        pad = a.pad_h_dp,
+        ic = a.icon.css_hex(),
+        icon = esc(item.icon),
+        trail = trail_html,
+    )
+}
+
+fn paint_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> String {
+    let groups = menu::VERTICAL_GROUPS;
+    let mut stack = format!(
+        r#"<div class="menu-stack" data-menu="1" data-hero="menu" data-menu-scheme="{scheme}" data-menu-axis="vertical" data-menu-gap="{gap}">"#,
+        scheme = scheme.label(),
+        gap = menu::GROUP_GAP_DP,
+    );
+    for (gi, group) in groups.iter().enumerate() {
+        let shell = menu::resolve_group(theme, scheme, gi, groups.len());
+        stack.push_str(&format!(
+            r#"<div class="menu-group menu" data-menu-group="{gi}" data-menu-scheme="{scheme}" style="background:{bg};border-radius:{r};box-shadow:{sh};padding:{pad}px">"#,
+            scheme = scheme.label(),
+            bg = shell.container.css_hex(),
+            r = shell.corners.css(),
+            sh = ElevationLevels::css_shadow(shell.elevation_dp),
+            pad = shell.pad_dp,
+        ));
+        for (i, item) in group.iter().enumerate() {
+            let selected = gi == 0 && i == menu::STYLE_SELECTED;
+            let a = menu::resolve_item_at(
+                theme,
+                scheme,
+                menu::MenuAxis::Vertical,
+                i,
+                group.len(),
+                selected,
+                InteractionState::Enabled,
+            );
+            stack.push_str(&paint_menu_item_row(item, &a, selected));
+        }
+        stack.push_str("</div>");
+    }
+    stack.push_str("</div>");
+    stack
+}
+
+fn paint_horizontal_menu(theme: &Theme) -> String {
+    let scheme = menu::MenuScheme::Standard;
+    let shell = menu::resolve_container(theme, scheme);
+    let count = menu::HORIZONTAL_LABELS.len();
+    let mut out = format!(
+        r#"<div class="menu menu-horizontal" data-menu-axis="horizontal" data-hero="menu-horizontal" data-menu-scheme="standard" style="background:{bg};border-radius:{r};box-shadow:{sh}">"#,
+        bg = shell.container.css_hex(),
+        r = shell.corners.css(),
+        sh = ElevationLevels::css_shadow(shell.elevation_dp),
+    );
+    for (i, label) in menu::HORIZONTAL_LABELS.iter().enumerate() {
+        let selected = i == menu::HORIZONTAL_SELECTED;
+        let a = menu::resolve_horizontal(
+            theme,
+            scheme,
+            i,
+            count,
+            selected,
+            InteractionState::Enabled,
+        );
+        out.push_str(&format!(
+            r#"<div class="menu-item" data-menu-h="{label}" data-selected="{sel}" style="background:{bg};color:{fg};height:{h}px;border-radius:{r};padding:0 {pad}px">{label}</div>"#,
             sel = selected,
             bg = a.container.css_hex(),
             fg = a.label.css_hex(),
             h = a.height_dp,
+            r = a.corners.css(),
+            pad = a.pad_h_dp,
         ));
     }
+    out.push_str("</div>");
+    out
+}
+
+fn paint_horizontal_icons(theme: &Theme) -> String {
+    let scheme = menu::MenuScheme::Standard;
+    let shell = menu::resolve_container(theme, scheme);
+    let count = menu::HORIZONTAL_ICONS.len();
+    let mut out = format!(
+        r#"<div class="menu menu-icons" data-menu-axis="horizontal-icon" data-hero="menu-icons" data-menu-icon-gap="{gap}" style="background:{bg};border-radius:{r};box-shadow:{sh}">"#,
+        gap = menu::HORIZONTAL_ICON_GAP_DP,
+        bg = shell.container.css_hex(),
+        r = shell.corners.css(),
+        sh = ElevationLevels::css_shadow(shell.elevation_dp),
+    );
+    for (i, glyph) in menu::HORIZONTAL_ICONS.iter().enumerate() {
+        let selected = i == menu::HORIZONTAL_ICON_SELECTED;
+        let a = menu::resolve_horizontal_icon(theme, scheme, i, count, selected);
+        out.push_str(&format!(
+            r#"<div class="menu-item" data-menu-icon="{glyph}" data-selected="{sel}" style="background:{bg};color:{fg};width:{s}px;height:{s}px;border-radius:{r}">{glyph}</div>"#,
+            sel = selected,
+            bg = a.container.css_hex(),
+            fg = a.label.css_hex(),
+            s = a.height_dp,
+            r = a.corners.css(),
+        ));
+    }
+    out.push_str("</div>");
+    out
+}
+
+fn menus(theme: &Theme) -> String {
     format!(
         r#"<h2>Menu</h2>
-<p class="note">4dp corners · elevation 2 · 48dp items. Selected uses secondary container.</p>
-<div class="menu" data-menu="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">{rows}</div>"#,
-        bg = shell.container.css_hex(),
-        r = shell.corners.top_left,
-        sh = ElevationLevels::css_shadow(shell.elevation_dp),
-        rows = rows,
+<p class="note">M3 Expressive vertical menus (I/O 2026): standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap. Selected uses tertiary-container (standard) or tertiary (vibrant) + corner-medium. Horizontal 2dp pills go full-round when selected. <a href="https://m3.material.io/components/menus/specs">spec</a></p>
+<div class="hero-card" data-hero="menu">
+  <div class="menu-row">
+    {standard}
+    {vibrant}
+  </div>
+  <div class="menu-row">
+    {horizontal}
+    {icons}
+  </div>
+</div>"#,
+        standard = paint_vertical_menu(theme, menu::MenuScheme::Standard),
+        vibrant = paint_vertical_menu(theme, menu::MenuScheme::Vibrant),
+        horizontal = paint_horizontal_menu(theme),
+        icons = paint_horizontal_icons(theme),
     )
 }
 

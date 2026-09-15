@@ -762,6 +762,8 @@ fn catalog_body(
         .child(desktop_list_swipe(this, theme, cx))
         .child(desktop_list_reorder(this, theme, cx))
         .child(desktop_media_scene(this, theme, cx))
+        .child(section_title(theme, "Menu"))
+        .child(desktop_menus(theme))
         .child(section_title(theme, "Snackbar"))
         .child(desktop_mail_snack(this, theme, cx))
         .child(section_title(theme, "Navigation bar"))
@@ -922,6 +924,175 @@ fn desktop_icon_button_toggles(theme: &Theme) -> impl IntoElement {
                     );
                     paint_icon_button_glyph(&a, selection.glyph())
                 })),
+        )
+}
+
+fn paint_menu_item(item: menu::MenuDemoItem, a: menu::MenuItemAppearance) -> impl IntoElement {
+    let trail = menu::trailing_text(&item);
+    div()
+        .h(px(a.height_dp))
+        .px(px(a.pad_h_dp))
+        .rounded_tl(px(a.corners.top_left))
+        .rounded_tr(px(a.corners.top_right))
+        .rounded_br(px(a.corners.bottom_right))
+        .rounded_bl(px(a.corners.bottom_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.label))
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
+        .child(
+            div()
+                .w(px(menu::ICON_DP))
+                .text_color(paint(a.icon))
+                .child(item.icon),
+        )
+        .child(div().flex_1().child(item.label))
+        .when(!trail.is_empty(), |el| {
+            el.child(div().text_color(paint(a.shortcut)).child(trail))
+        })
+}
+
+fn desktop_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoElement {
+    let groups = menu::VERTICAL_GROUPS;
+    let group_count = groups.len();
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(menu::GROUP_GAP_DP))
+        .w(px(220.))
+        .children(groups.iter().enumerate().map(move |(gi, group)| {
+            let shell = menu::resolve_group(theme, scheme, gi, group_count);
+            let items: Vec<(menu::MenuDemoItem, menu::MenuItemAppearance)> = group
+                .iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let selected = gi == 0 && i == menu::STYLE_SELECTED;
+                    (
+                        *item,
+                        menu::resolve_item_at(
+                            theme,
+                            scheme,
+                            menu::MenuAxis::Vertical,
+                            i,
+                            group.len(),
+                            selected,
+                            InteractionState::Enabled,
+                        ),
+                    )
+                })
+                .collect();
+            div()
+                .p(px(shell.pad_dp))
+                .rounded_tl(px(shell.corners.top_left))
+                .rounded_tr(px(shell.corners.top_right))
+                .rounded_br(px(shell.corners.bottom_right))
+                .rounded_bl(px(shell.corners.bottom_left))
+                .bg(paint(shell.container))
+                .flex()
+                .flex_col()
+                .children(items.into_iter().map(|(item, a)| paint_menu_item(item, a)))
+        }))
+}
+
+fn desktop_horizontal_menu(theme: &Theme) -> impl IntoElement {
+    let shell = menu::resolve_container(theme, menu::MenuScheme::Standard);
+    let count = menu::HORIZONTAL_LABELS.len();
+    div()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::HORIZONTAL_GAP_DP))
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .children(
+            menu::HORIZONTAL_LABELS
+                .iter()
+                .enumerate()
+                .map(|(i, label)| {
+                    let selected = i == menu::HORIZONTAL_SELECTED;
+                    let a = menu::resolve_horizontal(
+                        theme,
+                        menu::MenuScheme::Standard,
+                        i,
+                        count,
+                        selected,
+                        InteractionState::Enabled,
+                    );
+                    div()
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_h_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.label))
+                        .flex()
+                        .items_center()
+                        .child(*label)
+                }),
+        )
+}
+
+fn desktop_horizontal_icons(theme: &Theme) -> impl IntoElement {
+    let shell = menu::resolve_container(theme, menu::MenuScheme::Standard);
+    let count = menu::HORIZONTAL_ICONS.len();
+    div()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::HORIZONTAL_ICON_GAP_DP))
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .children(
+            menu::HORIZONTAL_ICONS
+                .iter()
+                .enumerate()
+                .map(|(i, glyph)| {
+                    let selected = i == menu::HORIZONTAL_ICON_SELECTED;
+                    let a = menu::resolve_horizontal_icon(
+                        theme,
+                        menu::MenuScheme::Standard,
+                        i,
+                        count,
+                        selected,
+                    );
+                    div()
+                        .w(px(a.height_dp))
+                        .h(px(a.height_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.label))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(*glyph)
+                }),
+        )
+}
+
+fn desktop_menus(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(12.))
+                .child(desktop_vertical_menu(theme, menu::MenuScheme::Standard))
+                .child(desktop_vertical_menu(theme, menu::MenuScheme::Vibrant)),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(12.))
+                .items_center()
+                .child(desktop_horizontal_menu(theme))
+                .child(desktop_horizontal_icons(theme)),
         )
 }
 
@@ -5195,7 +5366,7 @@ fn main() {
 mod tests {
     use super::{nav_rail_os_popup_options, WindowKind};
     use gpui_material::components::{
-                button, button_group, carousel, dialog, fab_menu, icon_button, list, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
+                button, button_group, carousel, dialog, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, progress, search, side_sheet, slider,
                 split_button, text_field, time_picker, toolbar, tooltip, top_app_bar,
     };
     use gpui_material::theme::Theme;
@@ -5396,5 +5567,22 @@ mod tests {
         assert_eq!(toggle_off.container, theme.color.surface_container);
         assert_eq!(toggle_off.corners.top_left, 20.0);
         assert_eq!(icon_button::IconButtonSelection::Unselected.glyph(), "☆");
+        assert_eq!(menu::ITEM_HEIGHT_DP, 44.0);
+        assert_eq!(menu::GROUP_GAP_DP, 2.0);
+        let menu_shell = menu::resolve_menu(&theme);
+        assert_eq!(menu_shell.container, theme.color.surface_container_low);
+        assert_eq!(menu_shell.corners.top_left, 16.0);
+        let menu_sel = menu::resolve_item(&theme, true, InteractionState::Enabled);
+        assert_eq!(menu_sel.container, theme.color.tertiary_container);
+        assert_eq!(menu_sel.height_dp, 44.0);
+        let week = menu::resolve_horizontal(
+            &theme,
+            menu::MenuScheme::Standard,
+            menu::HORIZONTAL_SELECTED,
+            menu::HORIZONTAL_LABELS.len(),
+            true,
+            InteractionState::Enabled,
+        );
+        assert_eq!(week.corners.top_left, 999.0);
     }
 }

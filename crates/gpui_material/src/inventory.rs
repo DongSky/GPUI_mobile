@@ -242,7 +242,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Menus",
         docs: "https://m3.material.io/components/menus/specs",
         parity: Parity::Done,
-        notes: "surface-container, 4dp, elev 2, 48dp items; selected secondary-container",
+        notes: "Expressive vertical: standard surface-container-low / vibrant tertiary-container, corner-large 16, elev 2, 44dp items, grouped 2dp gap + 4dp pad; selected tertiary-container / tertiary + corner-medium; horizontal 2dp pills (selected full-round) + icon-only 52dp",
     },
     ComponentEntry {
         name: "Slider",

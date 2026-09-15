@@ -873,6 +873,8 @@ fn catalog_body(
         .child(android_lists(this, theme, cx))
         .child(android_list_swipe(this, theme, cx))
         .child(android_list_reorder(this, theme, cx))
+        .child(section_title(theme, "Menu"))
+        .child(android_menus(theme))
         .child(list_row(&one, "One-line item", None))
         .child(
             div()
@@ -1747,13 +1749,182 @@ fn sheet_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoEleme
         )
 }
 
+fn paint_menu_item(item: menu::MenuDemoItem, a: menu::MenuItemAppearance) -> impl IntoElement {
+    let trail = menu::trailing_text(&item);
+    div()
+        .h(px(a.height_dp))
+        .px(px(a.pad_h_dp))
+        .rounded_tl(px(a.corners.top_left))
+        .rounded_tr(px(a.corners.top_right))
+        .rounded_br(px(a.corners.bottom_right))
+        .rounded_bl(px(a.corners.bottom_left))
+        .bg(paint(a.container))
+        .text_color(paint(a.label))
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
+        .child(
+            div()
+                .w(px(menu::ICON_DP))
+                .text_color(paint(a.icon))
+                .child(item.icon),
+        )
+        .child(div().flex_1().child(item.label))
+        .when(!trail.is_empty(), |el| {
+            el.child(div().text_color(paint(a.shortcut)).child(trail))
+        })
+}
+
+fn android_vertical_menu(theme: &Theme, scheme: menu::MenuScheme) -> impl IntoElement {
+    let groups = menu::VERTICAL_GROUPS;
+    let group_count = groups.len();
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(menu::GROUP_GAP_DP))
+        .w(px(220.))
+        .children(groups.iter().enumerate().map(move |(gi, group)| {
+            let shell = menu::resolve_group(theme, scheme, gi, group_count);
+            let items: Vec<(menu::MenuDemoItem, menu::MenuItemAppearance)> = group
+                .iter()
+                .enumerate()
+                .map(|(i, item)| {
+                    let selected = gi == 0 && i == menu::STYLE_SELECTED;
+                    (
+                        *item,
+                        menu::resolve_item_at(
+                            theme,
+                            scheme,
+                            menu::MenuAxis::Vertical,
+                            i,
+                            group.len(),
+                            selected,
+                            InteractionState::Enabled,
+                        ),
+                    )
+                })
+                .collect();
+            div()
+                .p(px(shell.pad_dp))
+                .rounded_tl(px(shell.corners.top_left))
+                .rounded_tr(px(shell.corners.top_right))
+                .rounded_br(px(shell.corners.bottom_right))
+                .rounded_bl(px(shell.corners.bottom_left))
+                .bg(paint(shell.container))
+                .flex()
+                .flex_col()
+                .children(items.into_iter().map(|(item, a)| paint_menu_item(item, a)))
+        }))
+}
+
+fn android_horizontal_menu(theme: &Theme) -> impl IntoElement {
+    let shell = menu::resolve_container(theme, menu::MenuScheme::Standard);
+    let count = menu::HORIZONTAL_LABELS.len();
+    div()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::HORIZONTAL_GAP_DP))
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .children(
+            menu::HORIZONTAL_LABELS
+                .iter()
+                .enumerate()
+                .map(|(i, label)| {
+                    let selected = i == menu::HORIZONTAL_SELECTED;
+                    let a = menu::resolve_horizontal(
+                        theme,
+                        menu::MenuScheme::Standard,
+                        i,
+                        count,
+                        selected,
+                        InteractionState::Enabled,
+                    );
+                    div()
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_h_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.label))
+                        .flex()
+                        .items_center()
+                        .child(*label)
+                }),
+        )
+}
+
+fn android_horizontal_icons(theme: &Theme) -> impl IntoElement {
+    let shell = menu::resolve_container(theme, menu::MenuScheme::Standard);
+    let count = menu::HORIZONTAL_ICONS.len();
+    div()
+        .flex()
+        .flex_row()
+        .items_center()
+        .gap(px(menu::HORIZONTAL_ICON_GAP_DP))
+        .p(px(shell.pad_dp))
+        .rounded(px(shell.corners.top_left))
+        .bg(paint(shell.container))
+        .children(
+            menu::HORIZONTAL_ICONS
+                .iter()
+                .enumerate()
+                .map(|(i, glyph)| {
+                    let selected = i == menu::HORIZONTAL_ICON_SELECTED;
+                    let a = menu::resolve_horizontal_icon(
+                        theme,
+                        menu::MenuScheme::Standard,
+                        i,
+                        count,
+                        selected,
+                    );
+                    div()
+                        .w(px(a.height_dp))
+                        .h(px(a.height_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.label))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(*glyph)
+                }),
+        )
+}
+
+fn android_menus(theme: &Theme) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(12.))
+                .child(android_vertical_menu(theme, menu::MenuScheme::Standard))
+                .child(android_vertical_menu(theme, menu::MenuScheme::Vibrant)),
+        )
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(8.))
+                .child(android_horizontal_menu(theme))
+                .child(android_horizontal_icons(theme)),
+        )
+}
+
 fn menu_overlay(
     this: &CatalogView,
     theme: &Theme,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
-    let shell = menu::resolve_menu(theme);
-    let labels = ["Item one", "Item two", "Item three"];
+    let groups = menu::VERTICAL_GROUPS;
+    let group_count = groups.len();
+    let selected = this.menu_selected;
     div()
         .id("menu-scrim")
         .flex_1()
@@ -1773,31 +1944,73 @@ fn menu_overlay(
         .child(
             div()
                 .id("menu-card")
-                .min_w(px(200.))
-                .py(px(8.))
-                .rounded(px(shell.corners.top_left))
-                .bg(paint(shell.container))
                 .flex()
                 .flex_col()
-                .children(labels.into_iter().enumerate().map(|(i, label)| {
-                    let a = menu::resolve_item(
-                        theme,
-                        this.menu_selected == i,
-                        InteractionState::Enabled,
-                    );
+                .gap(px(menu::GROUP_GAP_DP))
+                .w(px(220.))
+                .children(groups.iter().enumerate().map(move |(gi, group)| {
+                    let shell =
+                        menu::resolve_group(theme, menu::MenuScheme::Standard, gi, group_count);
+                    let rows: Vec<(usize, menu::MenuDemoItem, menu::MenuItemAppearance)> = group
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| {
+                            let global = gi * 8 + i;
+                            (
+                                global,
+                                *item,
+                                menu::resolve_item_at(
+                                    theme,
+                                    menu::MenuScheme::Standard,
+                                    menu::MenuAxis::Vertical,
+                                    i,
+                                    group.len(),
+                                    selected == global,
+                                    InteractionState::Enabled,
+                                ),
+                            )
+                        })
+                        .collect();
                     div()
-                        .id(SharedString::from(format!("menu-item-{i}")))
-                        .h(px(a.height_dp))
-                        .px(px(12.))
+                        .p(px(shell.pad_dp))
+                        .rounded_tl(px(shell.corners.top_left))
+                        .rounded_tr(px(shell.corners.top_right))
+                        .rounded_br(px(shell.corners.bottom_right))
+                        .rounded_bl(px(shell.corners.bottom_left))
+                        .bg(paint(shell.container))
                         .flex()
-                        .items_center()
-                        .bg(paint(a.container))
-                        .text_color(paint(a.label))
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.menu_selected = i;
-                            this.overlay = Overlay::None;
-                            cx.notify();
+                        .flex_col()
+                        .children(rows.into_iter().map(|(global, item, a)| {
+                            let trail = menu::trailing_text(&item);
+                            div()
+                                .id(SharedString::from(format!("menu-item-{global}")))
+                                .h(px(a.height_dp))
+                                .px(px(a.pad_h_dp))
+                                .rounded_tl(px(a.corners.top_left))
+                                .rounded_tr(px(a.corners.top_right))
+                                .rounded_br(px(a.corners.bottom_right))
+                                .rounded_bl(px(a.corners.bottom_left))
+                                .bg(paint(a.container))
+                                .text_color(paint(a.label))
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .gap(px(menu::ITEM_BETWEEN_SPACE_DP))
+                                .child(
+                                    div()
+                                        .w(px(menu::ICON_DP))
+                                        .text_color(paint(a.icon))
+                                        .child(item.icon),
+                                )
+                                .child(div().flex_1().child(item.label))
+                                .when(!trail.is_empty(), |el| {
+                                    el.child(div().text_color(paint(a.shortcut)).child(trail))
+                                })
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.menu_selected = global;
+                                    this.overlay = Overlay::None;
+                                    cx.notify();
+                                }))
                         }))
                 })),
         )

@@ -792,6 +792,16 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-role=\"leading\""));
     assert!(html.contains("data-sheet=\"modal\""));
     assert!(html.contains("data-menu=\"1\""));
+    assert!(html.contains("data-hero=\"menu\""));
+    assert!(html.contains("data-menu-scheme=\"standard\""));
+    assert!(html.contains("data-menu-scheme=\"vibrant\""));
+    assert!(html.contains("data-menu-axis=\"vertical\""));
+    assert!(html.contains("data-menu-axis=\"horizontal\""));
+    assert!(html.contains("data-hero=\"menu-horizontal\""));
+    assert!(html.contains("data-hero=\"menu-icons\""));
+    assert!(html.contains("data-menu-group=\"0\""));
+    assert!(html.contains("data-menu-h=\"Week\""));
+    assert!(html.contains("data-menu-icon=\"I\""));
     assert!(html.contains("data-slider=\"0.3 enabled\""));
     assert!(html.contains("data-hero=\"slider\""));
     assert!(html.contains("data-hero=\"buttons\""));
@@ -993,12 +1003,110 @@ fn dialog_sheet_menu_tokens() {
     );
 
     let menu = menu::resolve_menu(&theme);
-    assert_eq!(menu.corners.top_left, 4.0);
-    assert_eq!(menu.container, theme.color.surface_container);
+    assert_eq!(menu.corners.top_left, 16.0);
+    assert_eq!(menu.container, theme.color.surface_container_low);
     assert_eq!(menu.elevation_dp, 3.0);
     let selected = menu::resolve_item(&theme, true, InteractionState::Enabled);
-    assert_eq!(selected.container, theme.color.secondary_container);
-    assert_eq!(selected.height_dp, 48.0);
+    assert_eq!(selected.container, theme.color.tertiary_container);
+    assert_eq!(selected.height_dp, 44.0);
+    assert_eq!(selected.corners.top_left, 12.0);
+}
+
+#[test]
+fn expressive_menu_tokens() {
+    let theme = Theme::light();
+    assert_eq!(menu::ITEM_HEIGHT_DP, 44.0);
+    assert_eq!(menu::CONTAINER_CORNER_DP, 16.0);
+    assert_eq!(menu::GROUP_GAP_DP, 2.0);
+    assert_eq!(menu::GROUP_PAD_DP, 4.0);
+    assert_eq!(menu::HORIZONTAL_GAP_DP, 2.0);
+    assert_eq!(menu::HORIZONTAL_ICON_GAP_DP, 4.0);
+    assert_eq!(menu::HORIZONTAL_ICON_SIZE_DP, 52.0);
+    assert_eq!(menu::STYLE_ITEMS[menu::STYLE_SELECTED].label, "Bold");
+    assert_eq!(menu::HORIZONTAL_LABELS[menu::HORIZONTAL_SELECTED], "Week");
+    assert_eq!(menu::VERTICAL_GROUPS.len(), 3);
+    assert_eq!(menu::EDIT_ITEMS[0].shortcut, "⌘X");
+    assert_eq!(menu::trailing_text(&menu::MORE_ITEMS[0]), menu::SUBMENU_CHEVRON);
+
+    let standard = menu::resolve_container(&theme, menu::MenuScheme::Standard);
+    assert_eq!(standard.container, theme.color.surface_container_low);
+    assert_eq!(standard.corners.top_left, 16.0);
+    let vibrant = menu::resolve_container(&theme, menu::MenuScheme::Vibrant);
+    assert_eq!(vibrant.container, theme.color.tertiary_container);
+
+    let first = menu::resolve_group(&theme, menu::MenuScheme::Standard, 0, 3);
+    assert_eq!(first.corners.top_left, 16.0);
+    assert_eq!(first.corners.bottom_left, 8.0);
+    let last = menu::resolve_group(&theme, menu::MenuScheme::Standard, 2, 3);
+    assert_eq!(last.corners.top_left, 8.0);
+    assert_eq!(last.corners.bottom_left, 16.0);
+
+    let mid = menu::resolve_item_at(
+        &theme,
+        menu::MenuScheme::Standard,
+        menu::MenuAxis::Vertical,
+        1,
+        3,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(mid.container, theme.color.surface_container_low);
+    assert_eq!(mid.corners.top_left, 4.0);
+    let bold = menu::resolve_item_at(
+        &theme,
+        menu::MenuScheme::Standard,
+        menu::MenuAxis::Vertical,
+        1,
+        3,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(bold.container, theme.color.tertiary_container);
+    assert_eq!(bold.label, theme.color.on_tertiary_container);
+    assert_eq!(bold.corners.top_left, 12.0);
+
+    let v_sel = menu::resolve_item_at(
+        &theme,
+        menu::MenuScheme::Vibrant,
+        menu::MenuAxis::Vertical,
+        1,
+        3,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(v_sel.container, theme.color.tertiary);
+    assert_eq!(v_sel.label, theme.color.on_tertiary);
+
+    let week = menu::resolve_horizontal(
+        &theme,
+        menu::MenuScheme::Standard,
+        1,
+        4,
+        true,
+        InteractionState::Enabled,
+    );
+    assert_eq!(week.container, theme.color.tertiary_container);
+    assert_eq!(week.corners.top_left, 999.0);
+    assert_eq!(week.height_dp, 44.0);
+    let day = menu::resolve_horizontal(
+        &theme,
+        menu::MenuScheme::Standard,
+        0,
+        4,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(day.corners.top_left, 4.0);
+
+    let icon_on = menu::resolve_horizontal_icon(
+        &theme,
+        menu::MenuScheme::Standard,
+        1,
+        3,
+        true,
+    );
+    assert_eq!(icon_on.height_dp, 52.0);
+    assert_eq!(icon_on.corners.top_left, 999.0);
 }
 
 #[test]
