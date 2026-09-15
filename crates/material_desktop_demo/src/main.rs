@@ -427,6 +427,28 @@ impl CatalogView {
         }
     }
 
+    fn hover_live_parent(&mut self, host: LiveMenuHost, index: usize, cx: &mut Context<Self>) {
+        let was = self.live_menu(host);
+        let intent = self.live_menu_mut(host).hover_parent(index);
+        if self.live_menu(host) != was {
+            cx.notify();
+        }
+        if let menu::HoverOpenIntent::Delay { index, seq } = intent {
+            cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(menu::HOVER_OPEN_DELAY_MS))
+                    .await;
+                this.update(cx, |this, cx| {
+                    if this.live_menu_mut(host).confirm_hover_open(index, seq) {
+                        cx.notify();
+                    }
+                })
+                .ok();
+            })
+            .detach();
+        }
+    }
+
     fn tick_carousel_fling(&mut self, cx: &mut Context<Self>) {
         if self.carousel_fling.resting() {
             self.carousel_fling.selected = self.carousel_index;
@@ -1294,11 +1316,7 @@ fn desktop_live_parent(
                             apply_live_menu_action(this, host, action, cx);
                         }),
                         cx.listener(move |this, _, _, cx| {
-                            let was = this.live_menu(host);
-                            this.live_menu_mut(host).hover_parent(index);
-                            if this.live_menu(host) != was {
-                                cx.notify();
-                            }
+                            this.hover_live_parent(host, index, cx);
                         }),
                     )
                 }))
@@ -6067,6 +6085,14 @@ mod tests {
         let split = menu::OverlayMenuSession::split();
         assert_eq!(split.kind.item_at(0).unwrap().2.label, "Add to cart");
         assert_eq!(menu::HOVER_OPEN_DELAY_MS, 200);
+        let mut delayed = menu::OverlayMenuSession::standard_overflow();
+        let intent = delayed.hover_parent(delayed.kind.more_index());
+        assert!(!delayed.submenu_open);
+        let menu::HoverOpenIntent::Delay { index, seq } = intent else {
+            panic!("overflow More hover should delay");
+        };
+        assert!(delayed.confirm_hover_open(index, seq));
+        assert!(delayed.submenu_open);
         assert_eq!(chip::HEIGHT_DP, 32.0);
         assert_eq!(chip::UNSELECTED_CORNER_DP, 12.0);
         assert_eq!(chip::SELECTED_CORNER_DP, 16.0);

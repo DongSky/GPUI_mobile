@@ -637,8 +637,9 @@ pub const OVERLAY_USES_SCRIM: bool = false;
 pub const OVERLAY_ANCHOR_LABEL: &str = "Menu";
 /// Gap between the anchor control and the grouped popup.
 pub const OVERLAY_ANCHOR_GAP_DP: f32 = 8.0;
-/// Compose nested-menu hover-to-open (`MenuOpenDelay`). Catalog JS waits this
-/// long before opening the End flyout; click / keyboard stay immediate.
+/// Compose nested-menu hover-to-open (`MenuOpenDelay`). Catalog JS and GPUI
+/// hosts wait this long before opening the End flyout; click / keyboard stay
+/// immediate.
 pub const HOVER_OPEN_DELAY_MS: u64 = 200;
 
 pub fn parent_item_count() -> usize {
@@ -701,6 +702,15 @@ pub enum OverlayMenuAction {
     Dismiss,
 }
 
+/// What a host should do after `hover_parent`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HoverOpenIntent {
+    /// Highlight only — flyout already open, still pending, or not a trigger.
+    None,
+    /// Wait `HOVER_OPEN_DELAY_MS`, then `confirm_hover_open` with this seq.
+    Delay { index: usize, seq: u32 },
+}
+
 /// Live GPUI overlay + cascade + overflow/split: grouped parent, End flyout, typeahead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OverlayMenuSession {
@@ -709,6 +719,10 @@ pub struct OverlayMenuSession {
     pub parent_hi: usize,
     pub submenu_hi: usize,
     pub committed: OverlayMenuCommit,
+    /// Parent index waiting on `HOVER_OPEN_DELAY_MS`.
+    pub pending_hover: Option<usize>,
+    /// Bumped when a hover timer starts or is cancelled.
+    pub hover_seq: u32,
 }
 
 impl OverlayMenuSession {
@@ -723,7 +737,14 @@ impl OverlayMenuSession {
             } else {
                 OverlayMenuCommit::Parent(parent_hi)
             },
+            pending_hover: None,
+            hover_seq: 0,
         }
+    }
+
+    fn invalidate_hover_timer(&mut self) {
+        self.hover_seq = self.hover_seq.wrapping_add(1);
+        self.pending_hover = None;
     }
 
     /// Overlay default: grouped surfaces only (clicking More must not dismiss).
@@ -781,19 +802,59 @@ impl OverlayMenuSession {
         }
     }
 
-    pub fn hover_parent(&mut self, index: usize) {
+    /// Highlights immediately. Submenu flyout waits `HOVER_OPEN_DELAY_MS` unless
+    /// already open. Click / keyboard stay immediate.
+    pub fn hover_parent(&mut self, index: usize) -> HoverOpenIntent {
+        let same_pending = self.pending_hover == Some(index);
         self.parent_hi = index;
-        self.submenu_open = self.kind.is_submenu_trigger(index);
-        if self.submenu_open {
-            self.submenu_hi = SUBMENU_SELECTED;
+        if self.kind.is_submenu_trigger(index) {
+            if self.submenu_open {
+                self.pending_hover = None;
+                HoverOpenIntent::None
+            } else if same_pending {
+                HoverOpenIntent::None
+            } else {
+                self.hover_seq = self.hover_seq.wrapping_add(1);
+                self.pending_hover = Some(index);
+                HoverOpenIntent::Delay {
+                    index,
+                    seq: self.hover_seq,
+                }
+            }
+        } else {
+            if self.submenu_open || self.pending_hover.is_some() {
+                self.invalidate_hover_timer();
+                self.submenu_open = false;
+            }
+            HoverOpenIntent::None
         }
     }
 
+    /// Host timer fired: open the End flyout only if this seq is still current.
+    pub fn confirm_hover_open(&mut self, index: usize, seq: u32) -> bool {
+        if seq != self.hover_seq || self.pending_hover != Some(index) {
+            return false;
+        }
+        if !self.kind.is_submenu_trigger(index) {
+            self.pending_hover = None;
+            return false;
+        }
+        self.parent_hi = index;
+        self.submenu_open = true;
+        self.submenu_hi = SUBMENU_SELECTED;
+        self.pending_hover = None;
+        true
+    }
+
     pub fn hover_leave(&mut self) {
+        if self.submenu_open || self.pending_hover.is_some() {
+            self.invalidate_hover_timer();
+        }
         self.submenu_open = false;
     }
 
     pub fn click_parent(&mut self, index: usize) -> OverlayMenuAction {
+        self.invalidate_hover_timer();
         self.parent_hi = index;
         if self.kind.is_submenu_trigger(index) {
             self.submenu_open = true;
@@ -807,6 +868,7 @@ impl OverlayMenuSession {
     }
 
     pub fn click_submenu(&mut self, index: usize) -> OverlayMenuAction {
+        self.invalidate_hover_timer();
         self.submenu_hi = index;
         self.committed = OverlayMenuCommit::Submenu(index);
         self.submenu_open = false;
@@ -844,6 +906,7 @@ impl OverlayMenuSession {
 
     /// WAI-ARIA menu keys (`right`/`left`/`up`/`down`/`escape`/`enter` + typeahead).
     pub fn apply_key(&mut self, key: &str) -> OverlayMenuAction {
+        self.invalidate_hover_timer();
         match key {
             "right" | "arrowright" => {
                 if self.kind.is_submenu_trigger(self.parent_hi) {

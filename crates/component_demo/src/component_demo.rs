@@ -407,6 +407,28 @@ impl CatalogView {
         }
     }
 
+    fn hover_live_parent(&mut self, host: LiveMenuHost, index: usize, cx: &mut Context<Self>) {
+        let was = self.live_menu(host);
+        let intent = self.live_menu_mut(host).hover_parent(index);
+        if self.live_menu(host) != was {
+            cx.notify();
+        }
+        if let menu::HoverOpenIntent::Delay { index, seq } = intent {
+            cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(menu::HOVER_OPEN_DELAY_MS))
+                    .await;
+                this.update(cx, |this, cx| {
+                    if this.live_menu_mut(host).confirm_hover_open(index, seq) {
+                        cx.notify();
+                    }
+                })
+                .ok();
+            })
+            .detach();
+        }
+    }
+
     fn tick_carousel_fling(&mut self, cx: &mut Context<Self>) {
         if self.carousel_fling.resting() {
             self.carousel_fling.selected = self.carousel_index;
@@ -2004,11 +2026,7 @@ fn android_live_parent(
                             apply_live_menu_action(this, host, action, cx);
                         }),
                         cx.listener(move |this, _, _, cx| {
-                            let was = this.live_menu(host);
-                            this.live_menu_mut(host).hover_parent(index);
-                            if this.live_menu(host) != was {
-                                cx.notify();
-                            }
+                            this.hover_live_parent(host, index, cx);
                         }),
                     )
                 }))

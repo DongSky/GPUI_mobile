@@ -666,6 +666,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-popup-kind=\"connected-overflow\""));
     assert!(html.contains("data-popup-kind=\"split\""));
     assert!(html.contains("data-hover-delay=\"200\""));
+    assert!(html.contains("GPUI hosts"));
     assert!(html.contains("data-grouped=\"1\""));
     assert!(html.contains("data-licensed-camera=\"1\""));
     assert!(html.contains("data-photo-license=\"CC0\""));
@@ -1004,6 +1005,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("More")
             && e.notes.contains("unscrimmed")
             && e.notes.contains("overflow")
+            && e.notes.contains("200ms")
+            && e.notes.contains("GPUI")
     }));
     assert!(
         !INVENTORY
@@ -1269,10 +1272,38 @@ fn expressive_menu_overlay_session() {
         menu::OverlayMenuAction::Commit,
         "leaf items still dismiss the overlay"
     );
-    overlay.hover_parent(menu::MORE_INDEX);
+    let intent = overlay.hover_parent(menu::MORE_INDEX);
+    assert!(
+        !overlay.submenu_open,
+        "hover-open waits HOVER_OPEN_DELAY_MS"
+    );
+    let menu::HoverOpenIntent::Delay { index, seq } = intent else {
+        panic!("More hover should schedule a delay");
+    };
+    assert_eq!(index, menu::MORE_INDEX);
+    assert_eq!(overlay.pending_hover, Some(menu::MORE_INDEX));
+    assert!(overlay.confirm_hover_open(index, seq));
     assert!(overlay.submenu_open);
+
     overlay.hover_parent(1);
     assert!(!overlay.submenu_open);
+    assert_eq!(overlay.pending_hover, None);
+
+    let stale = overlay.hover_parent(menu::MORE_INDEX);
+    overlay.hover_parent(1);
+    if let menu::HoverOpenIntent::Delay { index, seq } = stale {
+        assert!(
+            !overlay.confirm_hover_open(index, seq),
+            "leaving More cancels the pending timer"
+        );
+    }
+    assert!(!overlay.submenu_open);
+
+    overlay.hover_parent(menu::MORE_INDEX);
+    overlay.hover_leave();
+    assert!(!overlay.submenu_open);
+    assert_eq!(overlay.pending_hover, None);
+
     overlay.hover_parent(menu::MORE_INDEX);
     assert_eq!(overlay.apply_key("left"), menu::OverlayMenuAction::Stay);
     assert!(!overlay.submenu_open);
@@ -1283,6 +1314,7 @@ fn expressive_menu_overlay_session() {
     overlay.hover_parent(menu::MORE_INDEX);
     assert_eq!(overlay.apply_key("right"), menu::OverlayMenuAction::Stay);
     assert!(overlay.submenu_open);
+    assert_eq!(overlay.pending_hover, None);
 
     let cascade = menu::OverlayMenuSession::cascade();
     assert!(cascade.submenu_open);
