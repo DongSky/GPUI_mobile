@@ -16,7 +16,9 @@
 //! is Top (default), Center (full container height), or Bottom
 //! (remaining space below the header). Optional header (Menu / MenuOpen +
 //! Compose `ExtendedFloatingActionButton(expanded = railExpanded)`)
-//! stays at the top.
+//! stays at the top. `WideNavigationRailDefaults.ContentPadding` is
+//! start/end 0 and top/bottom [`WIDE_TOP_SPACE_DP`] (`WNRVerticalPadding` /
+//! `NavigationRailCollapsedTokens.TopSpace` 44).
 
 use super::{dialog, fab};
 use crate::argb::Argb;
@@ -44,10 +46,19 @@ pub const TOP_ICON_LABEL_GAP_DP: f32 = 4.0;
 /// `NavigationRailCollapsedTokens.ItemVerticalSpace`.
 pub const ITEM_VERTICAL_SPACE_DP: f32 = 4.0;
 /// `NavigationRailCollapsedTokens.TopSpace` / expanded `TopSpace`.
+/// Also Compose `WNRVerticalPadding` for [`content_padding`].
 pub const WIDE_TOP_SPACE_DP: f32 = 44.0;
 pub const ICON_DP: f32 = 24.0;
 pub const DEST_GAP_DP: f32 = 12.0;
-pub const PAD_TOP_DP: f32 = 16.0;
+/// Compose `WideNavigationRailDefaults.ContentPadding` vertical
+/// (`WNRVerticalPadding` = [`WIDE_TOP_SPACE_DP`]).
+pub const CONTENT_PAD_VERTICAL_DP: f32 = WIDE_TOP_SPACE_DP;
+/// Compose `WideNavigationRailDefaults.ContentPadding` start/end.
+pub const CONTENT_PAD_HORIZONTAL_DP: f32 = 0.0;
+/// Host top inset; aliases ContentPadding.top.
+pub const PAD_TOP_DP: f32 = CONTENT_PAD_VERTICAL_DP;
+/// Host bottom inset; aliases ContentPadding.bottom.
+pub const PAD_BOTTOM_DP: f32 = CONTENT_PAD_VERTICAL_DP;
 pub const FAB_SLOT_DP: f32 = 56.0;
 /// Expressive regular / extended FAB corner (`FabPrimaryContainerShape`).
 pub const FAB_CORNER_DP: f32 = fab::CORNER_DP;
@@ -380,6 +391,31 @@ pub fn fab_morph_for_mode(
         rail_width_dp,
         collapsed,
     )
+}
+
+/// Compose `WideNavigationRailDefaults.ContentPadding`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailContentPadding {
+    pub start_dp: f32,
+    pub top_dp: f32,
+    pub end_dp: f32,
+    pub bottom_dp: f32,
+}
+
+/// Default ContentPadding: start/end 0, top/bottom `WNRVerticalPadding` 44.
+pub fn content_padding() -> RailContentPadding {
+    RailContentPadding {
+        start_dp: CONTENT_PAD_HORIZONTAL_DP,
+        top_dp: CONTENT_PAD_VERTICAL_DP,
+        end_dp: CONTENT_PAD_HORIZONTAL_DP,
+        bottom_dp: CONTENT_PAD_VERTICAL_DP,
+    }
+}
+
+/// CSS `padding` shorthand (`top/bottom start/end` → `44px 0`).
+pub fn content_padding_css() -> String {
+    let p = content_padding();
+    format!("{}px {}px", p.top_dp, p.start_dp)
 }
 
 /// Header gap under the slot. Compose applies `WNRHeaderPadding` when the

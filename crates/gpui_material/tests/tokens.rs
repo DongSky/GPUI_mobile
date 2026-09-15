@@ -814,6 +814,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-modal-expanded-shape=\"CornerLarge\""));
     assert!(html.contains("data-expanded-shape=\"16\""));
     assert!(html.contains("data-collapsed-shape=\"0\""));
+    assert!(html.contains("data-content-padding=\"1\""));
+    assert!(html.contains("data-content-pad-v=\"44\""));
+    assert!(html.contains("data-content-pad-h=\"0\""));
+    assert!(html.contains("ContentPadding"));
     assert!(html.contains("data-container-expanded"));
     assert!(html.contains("Expand rail"));
     assert!(html.contains(">Create<"));
@@ -1062,6 +1066,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Create")
             && e.notes.contains("CornerLarge")
             && e.notes.contains("SurfaceContainer")
+            && e.notes.contains("ContentPadding")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1657,6 +1662,16 @@ fn expressive_wide_rail_icon_position() {
     assert_eq!(navigation_rail::TOP_ICON_LABEL_GAP_DP, 4.0);
     assert_eq!(navigation_rail::ITEM_VERTICAL_SPACE_DP, 4.0);
     assert_eq!(navigation_rail::WIDE_TOP_SPACE_DP, 44.0);
+    assert_eq!(navigation_rail::CONTENT_PAD_VERTICAL_DP, 44.0);
+    assert_eq!(navigation_rail::CONTENT_PAD_HORIZONTAL_DP, 0.0);
+    assert_eq!(navigation_rail::PAD_TOP_DP, 44.0);
+    assert_eq!(navigation_rail::PAD_BOTTOM_DP, 44.0);
+    let pad = navigation_rail::content_padding();
+    assert!((pad.start_dp).abs() < 0.01);
+    assert!((pad.end_dp).abs() < 0.01);
+    assert!((pad.top_dp - 44.0).abs() < 0.01);
+    assert!((pad.bottom_dp - 44.0).abs() < 0.01);
+    assert_eq!(navigation_rail::content_padding_css(), "44px 0px");
     assert!((navigation_rail::start_indicator_width_dp(220.0) - 188.0).abs() < 0.01);
     assert_eq!(
         navigation_rail::resolve_wide_collapsed(&theme).width_dp,

@@ -5040,7 +5040,8 @@ fn nav_rail_static_column(
         )))
         .w(px(width_dp))
         .min_h(px(280.))
-        .pt(px(navigation_rail::PAD_TOP_DP))
+        .pt(px(navigation_rail::content_padding().top_dp))
+        .pb(px(navigation_rail::content_padding().bottom_dp))
         .bg(paint(rail.container))
         .flex()
         .flex_col()
@@ -5431,7 +5432,8 @@ fn header_rail_column(
         .h_full()
         .min_h(px(280.))
         .overflow_hidden()
-        .pt(px(navigation_rail::PAD_TOP_DP))
+        .pt(px(navigation_rail::content_padding().top_dp))
+        .pb(px(navigation_rail::content_padding().bottom_dp))
         .bg(paint(rail.container))
         .flex()
         .flex_col()
@@ -5554,7 +5556,8 @@ fn hide_rail_column(
         .w(px(width_dp))
         .h_full()
         .overflow_hidden()
-        .pt(px(navigation_rail::PAD_TOP_DP))
+        .pt(px(navigation_rail::content_padding().top_dp))
+        .pb(px(navigation_rail::content_padding().bottom_dp))
         .bg(paint(rail.container))
         .rounded(px(navigation_rail::hide_shape_dp()))
         .flex()
@@ -5669,7 +5672,8 @@ fn nav_rail_column(
     div()
         .id(SharedString::from(id))
         .overflow_hidden()
-        .pt(px(navigation_rail::PAD_TOP_DP))
+        .pt(px(navigation_rail::content_padding().top_dp))
+        .pb(px(navigation_rail::content_padding().bottom_dp))
         .bg(paint(rail.container))
         .rounded(px(navigation_rail::shape_dp_for(layout, expanded)))
         .flex()
@@ -7023,6 +7027,12 @@ mod tests {
         let fab1 = navigation_rail::fab_morph(&theme, 1.0, 220.0);
         assert!((fab1.width_dp - 188.0).abs() < 0.01);
         assert_eq!(navigation_rail::MODAL_EXPANDED_SHAPE_DP, 16.0);
+        assert_eq!(navigation_rail::CONTENT_PAD_VERTICAL_DP, 44.0);
+        assert_eq!(
+            navigation_rail::content_padding().top_dp,
+            navigation_rail::WIDE_TOP_SPACE_DP
+        );
+        assert!((navigation_rail::content_padding().start_dp).abs() < 0.01);
         assert_eq!(
             navigation_rail::container_morph_for_mode(
                 &theme,
