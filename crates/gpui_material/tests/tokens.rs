@@ -331,6 +331,52 @@ fn list_heights_match_m3() {
         list::resolve(&theme, list::ListLines::Three, InteractionState::Enabled).height_dp,
         88.0
     );
+    assert_eq!(
+        list::resolve(&theme, list::ListLines::One, InteractionState::Enabled)
+            .corners
+            .top_left,
+        0.0
+    );
+    assert_eq!(list::SEGMENTED_GAP_DP, 2.0);
+    assert_eq!(list::INNER_CORNER_DP, 4.0);
+    assert_eq!(list::OUTER_CORNER_DP, 16.0);
+    assert_eq!(list::LEADING_ICON_DP, 20.0);
+    let first = list::resolve_segmented(
+        &theme,
+        list::ListLines::Two,
+        0,
+        3,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(first.corners.top_left, 16.0);
+    assert_eq!(first.corners.bottom_left, 4.0);
+    let mid = list::resolve_segmented(
+        &theme,
+        list::ListLines::Two,
+        1,
+        3,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(mid.corners.top_left, 4.0);
+    let last = list::resolve_segmented(
+        &theme,
+        list::ListLines::Two,
+        2,
+        3,
+        false,
+        InteractionState::Enabled,
+    );
+    assert_eq!(last.corners.bottom_left, 16.0);
+    let sel = list::resolve_scene(&theme, 0, 0);
+    assert_eq!(sel.container, theme.color.secondary_container);
+    assert_eq!(sel.content, theme.color.on_secondary_container);
+    assert_eq!(sel.corners.top_left, 16.0);
+    assert_eq!(sel.height_dp, 72.0);
+    assert_eq!(list::SCENE_HEADLINES[0], "Wi-Fi");
+    let press = list::segmented_corners(1, 3, false, true);
+    assert_eq!(press.top_left, 16.0);
 }
 
 #[test]
@@ -516,6 +562,10 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(tooltip::RICH_ACTION_PRIMARY, "Learn more");
     assert!(tooltip::has_actions(tooltip::TooltipKind::Rich));
     assert!(!tooltip::has_actions(tooltip::TooltipKind::Plain));
+    assert_eq!(tooltip::CARET_W_DP, 16.0);
+    assert_eq!(tooltip::CARET_H_DP, 8.0);
+    assert_eq!(tooltip::caret_down_points()[2], (8.0, 8.0));
+    assert_eq!(tooltip::caret_up_points()[2], (8.0, 0.0));
 
     let d = divider::resolve(&theme, true);
     assert_eq!(d.thickness_dp, 1.0);
@@ -560,6 +610,15 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-tooltip-text=\"Add to library\""));
     assert!(html.contains("data-tooltip-subhead=\"Rich tooltip\""));
     assert!(html.contains("data-tooltip-action=\"learn\""));
+    assert!(html.contains("data-tooltip-caret=\"plain\""));
+    assert!(html.contains("data-tooltip-caret=\"rich\""));
+    assert!(html.contains("data-hero=\"list\""));
+    assert!(html.contains("data-list-style=\"segmented\""));
+    assert!(html.contains("data-list-item=\"wifi\""));
+    assert!(html.contains("data-list-item=\"bluetooth\""));
+    assert!(html.contains("data-list-gap=\"2\""));
+    assert!(html.contains("Wi-Fi"));
+    assert!(html.contains("Airplane mode"));
     assert!(html.contains("Learn more"));
     assert!(html.contains("labelLarge"));
     assert!(html.contains("data-dialog=\"basic\""));
@@ -765,7 +824,7 @@ fn inventory_covers_claimed_and_followups() {
         e.name == "Button" && e.parity == Parity::Done && e.notes.contains("Expressive")
     }));
     assert!(INVENTORY.iter().any(|e| {
-        e.name == "Slider" && e.notes.contains("4×44") && e.notes.contains("surface-container-highest")
+        e.name == "List" && e.parity == Parity::Done && e.notes.contains("segmented")
     }));
     assert!(!INVENTORY
         .iter()

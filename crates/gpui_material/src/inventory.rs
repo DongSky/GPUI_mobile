@@ -127,10 +127,10 @@ pub const INVENTORY: &[ComponentEntry] = &[
     },
     ComponentEntry {
         name: "List",
-        material: "Lists",
+        material: "Expressive segmented + baseline lists",
         docs: "https://m3.material.io/components/lists/specs",
         parity: Parity::Done,
-        notes: "One / two / three line; 56 / 72 / 88dp",
+        notes: "Expressive segmented (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container; Wi-Fi / Bluetooth / Airplane hero with trailing switches. Baseline 56/72/88 0-corner still available",
     },
     ComponentEntry {
         name: "Checkbox",
@@ -207,7 +207,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Plain + rich tooltips",
         docs: "https://m3.material.io/components/tooltips/specs",
         parity: Parity::Done,
-        notes: "Plain inverse-surface 24dp extra-small + bodySmall; rich surface-container medium elev 2 + titleSmall/bodyMedium + two labelLarge actions; Add to library / Learn more hero. Banner is not on the current Expressive component list",
+        notes: "Plain inverse-surface 24dp extra-small + bodySmall + 16×8 caret; rich surface-container medium elev 2 + titleSmall/bodyMedium + two labelLarge actions + caret; Add to library / Learn more hero. Banner is not on the current Expressive component list",
     },
     ComponentEntry {
         name: "Navigation rail",

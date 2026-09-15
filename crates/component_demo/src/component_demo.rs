@@ -298,6 +298,7 @@ struct CatalogView {
     outlined: TextFieldEditor,
     nav: usize,
     group_selected: usize,
+    list_selected: usize,
     icon_selected: usize,
     overflow_open: bool,
     range_start: f32,
@@ -854,6 +855,7 @@ fn catalog_body(
                 ),
         )
         .child(section_title(theme, "Lists"))
+        .child(android_lists(this, theme, cx))
         .child(list_row(&one, "One-line item", None))
         .child(
             div()
@@ -2018,6 +2020,107 @@ fn android_nav_row(
         }))
 }
 
+fn tooltip_caret(color: gpui::Rgba, down: bool) -> impl IntoElement {
+    let pts = if down {
+        tooltip::caret_down_points()
+    } else {
+        tooltip::caret_up_points()
+    };
+    canvas(
+        move |_, _, _| {},
+        move |bounds, _, window, _| {
+            paint_filled_polygon(window, bounds.origin, &pts, color);
+        },
+    )
+    .w(px(tooltip::CARET_W_DP))
+    .h(px(tooltip::CARET_H_DP))
+}
+
+fn mini_switch(sw: &switch::SwitchAppearance, on: bool) -> impl IntoElement {
+    div()
+        .w(px(sw.track_w))
+        .h(px(sw.track_h))
+        .rounded(px(sw.track_h / 2.0))
+        .bg(paint(sw.track))
+        .when(sw.track_outline.is_some(), |el| {
+            el.border_2().border_color(paint(sw.track_outline.unwrap()))
+        })
+        .flex()
+        .items_center()
+        .px(px(4.))
+        .when(on, |el| el.justify_end())
+        .child(
+            div()
+                .w(px(sw.thumb_dp))
+                .h(px(sw.thumb_dp))
+                .rounded(px(sw.thumb_dp / 2.0))
+                .bg(paint(sw.thumb)),
+        )
+}
+
+fn android_lists(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let selected = this.list_selected;
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(list::SEGMENTED_GAP_DP))
+        .w_full()
+        .children((0..list::SCENE_COUNT).map(move |i| {
+            let a = list::resolve_scene(theme, i, selected);
+            let sw = switch::resolve(theme, list::SCENE_TRAILING_ON[i], InteractionState::Enabled);
+            div()
+                .id(SharedString::from(format!("list-{i}")))
+                .h(px(a.height_dp))
+                .px(px(a.pad_start_dp))
+                .rounded_tl(px(a.corners.top_left))
+                .rounded_tr(px(a.corners.top_right))
+                .rounded_br(px(a.corners.bottom_right))
+                .rounded_bl(px(a.corners.bottom_left))
+                .bg(paint(a.container))
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap(px(list::ITEM_BETWEEN_SPACE_DP))
+                .child(
+                    div()
+                        .w(px(list::LEADING_ICON_DP))
+                        .h(px(list::LEADING_ICON_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(a.content))
+                        .child(list::SCENE_ICONS[i]),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .child(
+                            div()
+                                .text_size(px(a.label_style.size_sp))
+                                .text_color(paint(a.content))
+                                .child(list::SCENE_HEADLINES[i]),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(a.supporting_style.unwrap().size_sp))
+                                .text_color(paint(a.secondary_content.unwrap()))
+                                .child(list::SCENE_SUPPORTING[i]),
+                        ),
+                )
+                .child(mini_switch(&sw, list::SCENE_TRAILING_ON[i]))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.list_selected = i;
+                    cx.notify();
+                }))
+        }))
+}
+
 fn android_tooltips(theme: &Theme) -> impl IntoElement {
     let plain = tooltip::resolve_plain(theme);
     let rich = tooltip::resolve_rich(theme);
@@ -2039,16 +2142,23 @@ fn android_tooltips(theme: &Theme) -> impl IntoElement {
                 .gap(px(tooltip::ANCHOR_GAP_DP))
                 .child(
                     div()
-                        .h(px(plain.min_height_dp))
-                        .px(px(plain.pad_start_dp))
-                        .py(px(plain.pad_top_dp))
-                        .rounded(px(plain.corners.top_left))
-                        .bg(paint(plain.container))
-                        .text_color(paint(plain.supporting))
-                        .text_size(px(plain.supporting_style.size_sp))
                         .flex()
+                        .flex_col()
                         .items_center()
-                        .child(tooltip::PLAIN_TEXT),
+                        .child(
+                            div()
+                                .h(px(plain.min_height_dp))
+                                .px(px(plain.pad_start_dp))
+                                .py(px(plain.pad_top_dp))
+                                .rounded(px(plain.corners.top_left))
+                                .bg(paint(plain.container))
+                                .text_color(paint(plain.supporting))
+                                .text_size(px(plain.supporting_style.size_sp))
+                                .flex()
+                                .items_center()
+                                .child(tooltip::PLAIN_TEXT),
+                        )
+                        .child(tooltip_caret(paint(plain.container), true)),
                 )
                 .child(
                     div()
@@ -2065,37 +2175,44 @@ fn android_tooltips(theme: &Theme) -> impl IntoElement {
         )
         .child(
             div()
-                .w(px(260.))
-                .px(px(rich.pad_start_dp))
-                .pt(px(rich.pad_top_dp))
-                .pb(px(rich.pad_bottom_dp))
-                .rounded(px(rich.corners.top_left))
-                .bg(paint(rich.container))
                 .flex()
                 .flex_col()
-                .gap(px(4.))
+                .items_center()
+                .child(tooltip_caret(paint(rich.container), false))
                 .child(
                     div()
-                        .text_size(px(rich.subhead_style.unwrap().size_sp))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(paint(rich.subhead.unwrap()))
-                        .child(tooltip::RICH_SUBHEAD),
-                )
-                .child(
-                    div()
-                        .text_size(px(rich.supporting_style.size_sp))
-                        .text_color(paint(rich.supporting))
-                        .child(tooltip::RICH_SUPPORTING),
-                )
-                .child(
-                    div()
+                        .w(px(260.))
+                        .px(px(rich.pad_start_dp))
+                        .pt(px(rich.pad_top_dp))
+                        .pb(px(rich.pad_bottom_dp))
+                        .rounded(px(rich.corners.top_left))
+                        .bg(paint(rich.container))
                         .flex()
-                        .justify_end()
-                        .gap(px(16.))
-                        .pt(px(8.))
-                        .text_color(paint(rich.action.unwrap()))
-                        .child(tooltip::RICH_ACTION_PRIMARY)
-                        .child(tooltip::RICH_ACTION_SECONDARY),
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(rich.subhead_style.unwrap().size_sp))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(paint(rich.subhead.unwrap()))
+                                .child(tooltip::RICH_SUBHEAD),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(rich.supporting_style.size_sp))
+                                .text_color(paint(rich.supporting))
+                                .child(tooltip::RICH_SUPPORTING),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .justify_end()
+                                .gap(px(16.))
+                                .pt(px(8.))
+                                .text_color(paint(rich.action.unwrap()))
+                                .child(tooltip::RICH_ACTION_PRIMARY)
+                                .child(tooltip::RICH_ACTION_SECONDARY),
+                        ),
                 ),
         )
 }
@@ -4574,6 +4691,10 @@ fn list_row(
         .h(px(a.height_dp))
         .px(px(a.pad_start_dp))
         .w_full()
+        .rounded_tl(px(a.corners.top_left))
+        .rounded_tr(px(a.corners.top_right))
+        .rounded_br(px(a.corners.bottom_right))
+        .rounded_bl(px(a.corners.bottom_left))
         .bg(paint(a.container))
         .flex()
         .flex_col()
@@ -4686,6 +4807,7 @@ fn android_main(app: AndroidApp) {
                 },
                 nav: 0,
                 group_selected: button_group::DEMO_SELECTED,
+                list_selected: list::SCENE_SELECTED,
                 icon_selected: button_group::ICON_SELECTED,
                 overflow_open: button_group::OVERFLOW_OPEN,
                 range_start: slider::RANGE_DEMO_START,

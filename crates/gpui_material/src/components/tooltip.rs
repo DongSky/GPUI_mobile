@@ -139,3 +139,21 @@ pub fn resolve_scene_rich(theme: &Theme) -> TooltipAppearance {
 pub fn has_actions(kind: TooltipKind) -> bool {
     matches!(kind, TooltipKind::Rich)
 }
+
+/// Downward caret (16×8) attached under the tooltip, pointing at the anchor.
+pub fn caret_down_points() -> [(f32, f32); 3] {
+    [
+        (0.0, 0.0),
+        (CARET_W_DP, 0.0),
+        (CARET_W_DP / 2.0, CARET_H_DP),
+    ]
+}
+
+/// Upward caret for a rich tooltip sitting below its anchor.
+pub fn caret_up_points() -> [(f32, f32); 3] {
+    [
+        (0.0, CARET_H_DP),
+        (CARET_W_DP, CARET_H_DP),
+        (CARET_W_DP / 2.0, 0.0),
+    ]
+}

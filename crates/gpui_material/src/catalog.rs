@@ -333,6 +333,31 @@ a {{ color: var(--primary); }}
 }}
 .list-item .h {{ font-size: 16px; line-height: 24px; }}
 .list-item .s {{ font-size: 14px; line-height: 20px; }}
+.list-group {{
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; max-width: 420px; margin: 8px 0 16px;
+}}
+.list-item.segmented {{
+  flex-direction: row; align-items: center; gap: 12px;
+  box-sizing: border-box; cursor: pointer;
+}}
+.list-item.segmented .lead {{
+  width: 20px; height: 20px; flex: 0 0 20px;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}}
+.list-item.segmented .meta {{ flex: 1; min-width: 0; display: flex; flex-direction: column; }}
+.list-item.segmented .trail {{ margin-left: auto; flex: 0 0 auto; }}
+.tooltip-plain {{ position: relative; }}
+.tooltip-caret {{
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top-width: 8px; border-top-style: solid;
+}}
+.tooltip-caret.up {{
+  border-top: none;
+  border-bottom-width: 8px; border-bottom-style: solid;
+}}
 .chip {{ height: 32px; padding: 0 16px; border-radius: 16px; font-size: 14px; font-weight: 500; }}
 .card-demo {{
   width: 220px; min-height: 88px; border-radius: 12px; padding: 16px;
@@ -415,6 +440,7 @@ a {{ color: var(--primary); }}
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 12px; line-height: 16px;
 }}
+.tooltip-bubble {{ display: flex; flex-direction: column; align-items: center; }}
 .tooltip-rich {{
   max-width: 320px; padding: 12px 16px 8px; border-radius: 12px;
   display: flex; flex-direction: column; gap: 4px;
@@ -886,6 +912,26 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
       btn.style.borderRadius = btn.getAttribute("data-sel-r") || btn.style.borderRadius;
       btn.style.border = "none";
       btn.style.fontWeight = "700";
+    }});
+  }});
+}});
+document.querySelectorAll("[data-list-style='segmented']").forEach(function (group) {{
+  group.querySelectorAll("[data-list-item]").forEach(function (item) {{
+    item.addEventListener("click", function () {{
+      group.querySelectorAll("[data-list-item]").forEach(function (other) {{
+        other.setAttribute("data-list-selected", "0");
+        other.style.background = other.getAttribute("data-idle-bg") || other.style.background;
+        other.style.color = other.getAttribute("data-idle-fg") || other.style.color;
+        other.style.borderRadius = other.getAttribute("data-idle-r") || other.style.borderRadius;
+        var sub = other.querySelector(".s");
+        if (sub) sub.style.color = other.getAttribute("data-idle-fg") || sub.style.color;
+      }});
+      item.setAttribute("data-list-selected", "1");
+      item.style.background = item.getAttribute("data-on-bg") || item.style.background;
+      item.style.color = item.getAttribute("data-on-fg") || item.style.color;
+      item.style.borderRadius = item.getAttribute("data-on-r") || item.style.borderRadius;
+      var onSub = item.querySelector(".s");
+      if (onSub) onSub.style.color = item.getAttribute("data-on-fg") || onSub.style.color;
     }});
   }});
 }});
@@ -2594,7 +2640,71 @@ fn selection(theme: &Theme) -> String {
 }
 
 fn lists(theme: &Theme) -> String {
-    let mut out = String::from("<h2>Lists</h2>");
+    let mut out = String::from(
+        "<h2>Lists</h2><p class=\"note\">Expressive segmented lists (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container. Baseline 56/72/88 still available. <a href=\"https://m3.material.io/components/lists/specs\">spec</a></p>",
+    );
+    out.push_str(&format!(
+        r#"<div class="list-group" data-hero="list" data-list-style="segmented" data-list-gap="{gap}">"#,
+        gap = list::SEGMENTED_GAP_DP,
+    ));
+    for i in 0..list::SCENE_COUNT {
+        let selected = i == list::SCENE_SELECTED;
+        let a = list::resolve_scene(theme, i, list::SCENE_SELECTED);
+        let idle = list::resolve_segmented(
+            theme,
+            list::ListLines::Two,
+            i,
+            list::SCENE_COUNT,
+            false,
+            InteractionState::Enabled,
+        );
+        let on = list::resolve_segmented(
+            theme,
+            list::ListLines::Two,
+            i,
+            list::SCENE_COUNT,
+            true,
+            InteractionState::Enabled,
+        );
+        let sw = switch::resolve(theme, list::SCENE_TRAILING_ON[i], InteractionState::Enabled);
+        let left = if list::SCENE_TRAILING_ON[i] { 24.0 } else { 8.0 };
+        let outline = sw
+            .track_outline
+            .map(|o| format!("2px solid {}", o.css_hex()))
+            .unwrap_or_else(|| "none".into());
+        out.push_str(&format!(
+            r#"<div class="list-item segmented" data-list="segmented" data-list-item="{key}" data-list-selected="{sel}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-r="{ir}" data-on-bg="{obg}" data-on-fg="{ofg}" data-on-r="{orad}" style="height:{h}px;background:{bg};color:{fg};border-radius:{r};padding:{pt}px {ph}px">
+  <div class="lead">{icon}</div>
+  <div class="meta"><div class="h">{head}</div><div class="s" style="color:{sfg}">{sub}</div></div>
+  <div class="trail"><div class="switch" data-switch="{on}" style="background:{track};border:{outline}"><b style="width:{th}px;height:{th}px;left:{left}px;background:{thumb}"></b></div></div>
+</div>"#,
+            key = list::SCENE_KEYS[i],
+            sel = selected as u8,
+            ibg = idle.container.css_hex(),
+            ifg = idle.content.css_hex(),
+            ir = idle.corners.css(),
+            obg = on.container.css_hex(),
+            ofg = on.content.css_hex(),
+            orad = on.corners.css(),
+            h = a.height_dp,
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            r = a.corners.css(),
+            pt = a.pad_top_dp,
+            ph = a.pad_start_dp,
+            icon = list::SCENE_ICONS[i],
+            head = list::SCENE_HEADLINES[i],
+            sfg = a.secondary_content.unwrap().css_hex(),
+            sub = list::SCENE_SUPPORTING[i],
+            on = list::SCENE_TRAILING_ON[i],
+            track = sw.track.css_hex(),
+            outline = outline,
+            th = sw.thumb_dp,
+            left = left,
+            thumb = sw.thumb.css_hex(),
+        ));
+    }
+    out.push_str("</div>");
     for lines in list::ListLines::ALL {
         let a = list::resolve(theme, lines, InteractionState::Enabled);
         let support = if matches!(lines, list::ListLines::One) {
@@ -2873,18 +2983,24 @@ fn tooltips_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Tooltip</h2>
-<p class="note">Plain labels icon-only controls (inverse surface, 24dp). Rich adds a subhead, supporting text, and up to two text buttons (surface-container, medium corners, elev 2). <a href="https://m3.material.io/components/tooltips/specs">spec</a></p>
+<p class="note">Plain labels icon-only controls (inverse surface, 24dp, 16×8 caret). Rich adds a subhead, supporting text, two text buttons, and a caret (surface-container, medium corners, elev 2). <a href="https://m3.material.io/components/tooltips/specs">spec</a></p>
 <div class="tooltip-stage" data-hero="tooltip">
   <div class="tooltip-anchor" data-tooltip-plain="1">
-    <div class="tooltip-plain" data-tooltip="plain" data-tooltip-text="{plain_text}" style="background:{pbg};color:{pfg};min-height:{ph}px;max-width:{pmw}px;padding:{ppv}px {pph}px;border-radius:{pr}px">{plain_text}</div>
+    <div class="tooltip-bubble">
+      <div class="tooltip-plain" data-tooltip="plain" data-tooltip-text="{plain_text}" style="background:{pbg};color:{pfg};min-height:{ph}px;max-width:{pmw}px;padding:{ppv}px {pph}px;border-radius:{pr}px">{plain_text}</div>
+      <div class="tooltip-caret" data-tooltip-caret="plain" style="border-top-color:{pbg}"></div>
+    </div>
     <button class="icon-btn" data-tooltip-anchor="1" style="background:{abg};color:{afg};width:{asz}px;height:{asz}px;border-radius:{ar}px">{ag}</button>
   </div>
-  <div class="tooltip-rich" data-tooltip="rich" data-tooltip-subhead="{sub}" style="background:{rbg};color:{rfg};max-width:{rmw}px;padding:{rpt}px {rph}px {rpb}px;border-radius:{rr}px;box-shadow:{rsh}">
-    <div class="sub" data-tooltip-sub="1" style="color:{rsub}">{sub}</div>
-    <div class="body" data-tooltip-body="1">{body}</div>
-    <div class="acts">
-      <span data-tooltip-action="learn" style="color:{ract}">{learn}</span>
-      <span data-tooltip-action="dismiss" style="color:{ract}">{dismiss}</span>
+  <div class="tooltip-bubble">
+    <div class="tooltip-caret up" data-tooltip-caret="rich" style="border-bottom-color:{rbg}"></div>
+    <div class="tooltip-rich" data-tooltip="rich" data-tooltip-subhead="{sub}" style="background:{rbg};color:{rfg};max-width:{rmw}px;padding:{rpt}px {rph}px {rpb}px;border-radius:{rr}px;box-shadow:{rsh}">
+      <div class="sub" data-tooltip-sub="1" style="color:{rsub}">{sub}</div>
+      <div class="body" data-tooltip-body="1">{body}</div>
+      <div class="acts">
+        <span data-tooltip-action="learn" style="color:{ract}">{learn}</span>
+        <span data-tooltip-action="dismiss" style="color:{ract}">{dismiss}</span>
+      </div>
     </div>
   </div>
 </div>"#,
