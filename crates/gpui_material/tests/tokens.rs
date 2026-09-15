@@ -791,6 +791,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-progress=\"ptr\""));
     assert!(html.contains("data-nav-rail=\"1\""));
     assert!(html.contains("data-hero=\"wide-rail\""));
+    assert!(html.contains("data-hero=\"wide-rail-inflow\""));
+    assert!(html.contains("data-rail-layout=\"standard\""));
+    assert!(html.contains("data-rail-inflow-body=\"1\""));
     assert!(html.contains("data-icon-position=\"top\""));
     assert!(html.contains("data-icon-position=\"start\""));
     assert!(html.contains("data-icon-morph=\"1\""));
@@ -1016,6 +1019,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Start")
             && e.notes.contains("iconPosition")
             && e.notes.contains("lerp")
+            && e.notes.contains("in-flow")
+            && e.notes.contains("96")
             && e.notes.contains("secondary")
     }));
     assert!(INVENTORY.iter().any(|e| {
@@ -1665,8 +1670,66 @@ fn expressive_wide_rail_icon_position() {
             .iter()
             .any(|m| m.dest_indicator_alpha > 0.0 && m.dest_indicator_alpha < 1.0)
     );
-    assert!((navigation_rail::morph_width_eased(&theme, 0.0) - 80.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_eased(&theme, 0.0) - 96.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_eased(&theme, 1.0) - 220.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_narrow_dp(0.0) - 80.0).abs() < 0.01);
+    assert_eq!(navigation_rail::RailMode::Collapsed.width_dp(), 96.0);
+    assert_eq!(navigation_rail::RailMode::Collapsed.narrow_width_dp(), 80.0);
+    assert_eq!(
+        navigation_rail::resolve_mode(&theme, navigation_rail::RailMode::Collapsed).width_dp,
+        96.0
+    );
+    assert_eq!(
+        navigation_rail::RailExpandedLayout::Standard.label(),
+        "standard"
+    );
+    assert_eq!(navigation_rail::RailExpandedLayout::Modal.label(), "modal");
+    assert!(navigation_rail::RailExpandedLayout::Standard.in_flow());
+    assert!(!navigation_rail::RailExpandedLayout::Modal.in_flow());
+    assert!(!navigation_rail::is_modal_for(
+        navigation_rail::RailMode::Expanded,
+        navigation_rail::RailExpandedLayout::Standard
+    ));
+    assert!(navigation_rail::is_modal_for(
+        navigation_rail::RailMode::Expanded,
+        navigation_rail::RailExpandedLayout::Modal
+    ));
+    assert!(!navigation_rail::overlay_window_for(
+        navigation_rail::RailMode::Expanded,
+        navigation_rail::RailExpandedLayout::Standard
+    ));
+    assert!(!navigation_rail::focus_trapped_for(
+        navigation_rail::RailMode::Expanded,
+        navigation_rail::RailExpandedLayout::Standard
+    ));
+    assert!(
+        navigation_rail::scrim_opacity_for(navigation_rail::RailExpandedLayout::Standard, 1.0)
+            .abs()
+            < 0.01
+    );
+    assert!(
+        (navigation_rail::scrim_opacity_for(navigation_rail::RailExpandedLayout::Modal, 1.0)
+            - navigation_rail::SCRIM_OPACITY)
+            .abs()
+            < 0.01
+    );
+    assert!(
+        navigation_rail::elevation_dp_for(
+            navigation_rail::RailExpandedLayout::Standard,
+            1.0,
+            &theme
+        )
+        .abs()
+            < 0.01
+    );
+    assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
+    assert_eq!(
+        navigation_rail::WIDE_DEMO_MODE,
+        navigation_rail::RailMode::Collapsed
+    );
+    let wide_top = navigation_rail::item_morph(&theme, 0.0, 96.0);
+    assert_eq!(wide_top.icon_position, navigation_rail::IconPosition::Top);
+    assert!((wide_top.dest_width_dp - 96.0).abs() < 0.01);
 }
 
 #[test]
@@ -2536,7 +2599,8 @@ fn search_bar_and_time_picker_tokens() {
         progress::loading_indicator(&theme).indicator,
         theme.color.primary
     );
-    assert!((navigation_rail::morph_width_dp(0.0) - 80.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_dp(0.0) - 96.0).abs() < 0.01);
+    assert!((navigation_rail::morph_width_narrow_dp(0.0) - 80.0).abs() < 0.01);
     assert!((navigation_rail::morph_width_dp(1.0) - 220.0).abs() < 0.01);
     assert!((time_picker::hour_face_live_angle_deg(6, 30, 0.0) - 195.0).abs() < 0.01);
     assert_eq!(navigation_rail::select_destination(0, 2), 2);

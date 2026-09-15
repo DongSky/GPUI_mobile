@@ -374,6 +374,7 @@ struct CatalogView {
     search: TextFieldEditor,
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
+    wide_rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
     carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
@@ -874,6 +875,7 @@ fn catalog_body(
         .child(desktop_side_sheet(theme))
         .child(section_title(theme, "Navigation rail"))
         .child(wide_rail_icon_hero(this, theme, cx))
+        .child(wide_rail_in_flow_hero(this, theme, cx))
         .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
@@ -5028,8 +5030,46 @@ fn nav_rail_static_column(
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .children(nav_rail_dest_views(
-            theme, &rail, width_dp, position, selected, false, false, cx,
+            theme,
+            &rail,
+            width_dp,
+            position,
+            selected,
+            false,
+            false,
+            "wide-rail",
+            cx,
         ))
+}
+
+fn wide_rail_in_flow_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let body_fg = paint(theme.color.on_surface);
+    div()
+        .id("wide-rail-inflow")
+        .flex()
+        .flex_row()
+        .w_full()
+        .min_h(px(280.))
+        .overflow_hidden()
+        .child(nav_rail_column(
+            this,
+            theme,
+            this.wide_rail_mode,
+            navigation_rail::RailExpandedLayout::Standard,
+            cx,
+        ))
+        .child(
+            div()
+                .id("wide-rail-inflow-body")
+                .flex_1()
+                .p(px(16.))
+                .text_color(body_fg)
+                .child(navigation_rail::IN_FLOW_BODY),
+        )
 }
 
 fn nav_rail_hero(
@@ -5069,7 +5109,12 @@ fn nav_rail_hero(
                     Animation::new(Duration::from_millis(morph_ms)),
                     move |this, delta| {
                         let t = if expanded { delta } else { 1.0 - delta };
-                        this.opacity(t)
+                        this.opacity(
+                            navigation_rail::scrim_opacity_for(
+                                navigation_rail::RailExpandedLayout::Modal,
+                                t,
+                            ) / navigation_rail::SCRIM_OPACITY,
+                        )
                     },
                 ),
         )
@@ -5081,7 +5126,13 @@ fn nav_rail_hero(
                 .left(px(0.))
                 .h_full()
                 .when(expanded, |el| el.shadow_lg())
-                .child(nav_rail_column(this, theme, this.rail_mode, cx)),
+                .child(nav_rail_column(
+                    this,
+                    theme,
+                    this.rail_mode,
+                    navigation_rail::RailExpandedLayout::Modal,
+                    cx,
+                )),
         )
 }
 
@@ -5089,6 +5140,7 @@ fn nav_rail_column(
     this: &CatalogView,
     theme: &Theme,
     mode: navigation_rail::RailMode,
+    layout: navigation_rail::RailExpandedLayout,
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let rail = navigation_rail::resolve_mode(theme, mode);
@@ -5097,8 +5149,30 @@ fn nav_rail_column(
     let morph_ms = navigation_rail::morph_ms(theme) as u64;
     let position = navigation_rail::icon_position_for_mode(mode);
     let theme = *theme;
+    let in_flow = layout.in_flow();
+    let id = if in_flow {
+        "wide-inflow-rail"
+    } else {
+        "nav-rail"
+    };
+    let fab_id = if in_flow {
+        "wide-inflow-fab"
+    } else {
+        "rail-fab"
+    };
+    let anim = if in_flow {
+        if expanded {
+            "wide-inflow-expand"
+        } else {
+            "wide-inflow-collapse"
+        }
+    } else if expanded {
+        "rail-expand"
+    } else {
+        "rail-collapse"
+    };
     div()
-        .id("nav-rail")
+        .id(SharedString::from(id))
         .overflow_hidden()
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
@@ -5108,11 +5182,7 @@ fn nav_rail_column(
         .when(!position.is_start(), |el| el.items_center())
         .gap(px(navigation_rail::DEST_GAP_DP))
         .with_animation(
-            if expanded {
-                "rail-expand"
-            } else {
-                "rail-collapse"
-            },
+            anim,
             Animation::new(Duration::from_millis(morph_ms)),
             move |this, delta| {
                 let t = if expanded { delta } else { 1.0 - delta };
@@ -5121,7 +5191,7 @@ fn nav_rail_column(
         )
         .child(
             div()
-                .id("rail-fab")
+                .id(SharedString::from(fab_id))
                 .w(px(navigation_rail::FAB_SLOT_DP))
                 .h(px(navigation_rail::FAB_SLOT_DP))
                 .rounded(px(16.))
@@ -5131,8 +5201,12 @@ fn nav_rail_column(
                 .items_center()
                 .justify_center()
                 .child(if expanded { "←" } else { "+" })
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    if in_flow {
+                        this.wide_rail_mode = navigation_rail::toggle_mode(this.wide_rail_mode);
+                    } else {
+                        this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                    }
                     cx.notify();
                 })),
         )
@@ -5144,6 +5218,7 @@ fn nav_rail_column(
             selected,
             true,
             expanded,
+            if in_flow { "wide-inflow" } else { "rail" },
             cx,
         ))
 }
@@ -5252,6 +5327,7 @@ fn nav_rail_dest_views(
     selected: usize,
     animate: bool,
     expanded: bool,
+    id_prefix: &'static str,
     cx: &mut Context<CatalogView>,
 ) -> Vec<gpui::AnyElement> {
     let theme = *theme;
@@ -5266,10 +5342,7 @@ fn nav_rail_dest_views(
         .map(|(i, ((label, icon), badge))| {
             let active = navigation_rail::is_active(selected, i);
             let dest = div()
-                .id(SharedString::from(format!(
-                    "{}-dest-{i}",
-                    if animate { "rail" } else { "wide-rail" }
-                )))
+                .id(SharedString::from(format!("{id_prefix}-dest-{i}")))
                 .relative()
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.rail_selected = navigation_rail::select_destination(this.rail_selected, i);
@@ -5278,7 +5351,7 @@ fn nav_rail_dest_views(
             if animate {
                 dest.with_animation(
                     SharedString::from(format!(
-                        "rail-icon-{}-{i}",
+                        "{id_prefix}-icon-{}-{i}",
                         if expanded { "in" } else { "out" }
                     )),
                     Animation::new(Duration::from_millis(morph_ms)),
@@ -6030,6 +6103,7 @@ fn main() {
                     },
                     rail_selected: navigation_rail::DEMO_SELECTED,
                     rail_mode: navigation_rail::DEMO_MODE,
+                    wide_rail_mode: navigation_rail::WIDE_DEMO_MODE,
                     carousel_index: carousel::DEMO_INDEX,
                     carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
@@ -6391,6 +6465,21 @@ mod tests {
         assert_eq!(start.indicator_h_dp, 56.0);
         assert_eq!(start.label_style.name, "labelLarge");
         assert_eq!(navigation_rail::WIDE_COLLAPSED_WIDTH_DP, 96.0);
+        assert_eq!(
+            navigation_rail::RailMode::Collapsed.width_dp(),
+            navigation_rail::WIDE_COLLAPSED_WIDTH_DP
+        );
+        assert_eq!(
+            navigation_rail::RailExpandedLayout::Standard.label(),
+            "standard"
+        );
+        assert!(navigation_rail::RailExpandedLayout::Standard.in_flow());
+        assert!(!navigation_rail::is_modal_for(
+            navigation_rail::RailMode::Expanded,
+            navigation_rail::RailExpandedLayout::Standard
+        ));
+        assert!((navigation_rail::morph_width_dp(0.0) - 96.0).abs() < 0.01);
+        assert_eq!(navigation_rail::IN_FLOW_BODY, "Inbox");
         let morph = navigation_rail::item_morph(&theme, 0.2, 150.0);
         assert!(morph.icon_box_w_dp > 24.0 && morph.icon_box_w_dp < 56.0);
         assert!(morph.dest_indicator_alpha > 0.0 && morph.dest_indicator_alpha < 1.0);

@@ -2,9 +2,11 @@
 //!
 //! Expressive WideNavigationRail: collapsed Top-icon destinations
 //! (`NavigationRailCollapsedTokens.NarrowContainerWidth` 80 /
-//! `ContainerWidth` 96) with a 56×32 indicator. Expanded Start-icon
-//! destinations use a 56dp full-width pill (`NavigationRailHorizontalItemTokens`).
-//! Modal expanded is a 220–360dp overlay over a 32% scrim. Compose
+//! `ContainerWidth` 96, **default**) with a 56×32 indicator. Expanded
+//! Start-icon destinations use a 56dp full-width pill
+//! (`NavigationRailHorizontalItemTokens`). Expanded layout is either
+//! **standard** (in-flow, 96↔220, no scrim, elevation 0) or **modal**
+//! (overlay 96↔220 over a 32% scrim, elevation 2). Compose
 //! `iconPosition` follows `railExpanded` with a spatial-fast layout
 //! animation ([`item_morph`]).
 
@@ -55,7 +57,17 @@ pub enum RailMode {
 }
 
 impl RailMode {
+    /// WideNavigationRail width. Collapsed is Compose `ContainerWidth` 96
+    /// (not the optional narrow 80).
     pub const fn width_dp(self) -> f32 {
+        match self {
+            Self::Collapsed => WIDE_COLLAPSED_WIDTH_DP,
+            Self::Expanded => EXPANDED_WIDTH_DP,
+        }
+    }
+
+    /// Baseline / `NarrowContainerWidth` 80 collapsed.
+    pub const fn narrow_width_dp(self) -> f32 {
         match self {
             Self::Collapsed => WIDTH_DP,
             Self::Expanded => EXPANDED_WIDTH_DP,
@@ -71,6 +83,38 @@ impl RailMode {
 }
 
 pub const DEMO_MODE: RailMode = RailMode::Expanded;
+/// In-flow WideNavigationRail starts collapsed (Compose default).
+pub const WIDE_DEMO_MODE: RailMode = RailMode::Collapsed;
+/// Compose expanded layout: standard = in-flow, modal = overlay + scrim.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RailExpandedLayout {
+    /// In-flow `WideNavigationRail`. No scrim, no overlay window, elevation 0.
+    Standard,
+    /// Modal overlay over a 32% scrim, elevation 2.
+    Modal,
+}
+
+impl RailExpandedLayout {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::Modal => "modal",
+        }
+    }
+
+    pub const fn in_flow(self) -> bool {
+        matches!(self, Self::Standard)
+    }
+
+    pub const fn uses_scrim(self) -> bool {
+        matches!(self, Self::Modal)
+    }
+}
+
+pub const WIDE_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Standard;
+pub const MODAL_DEMO_LAYOUT: RailExpandedLayout = RailExpandedLayout::Modal;
+/// Placeholder content that shifts when the standard rail expands in-flow.
+pub const IN_FLOW_BODY: &str = "Inbox";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavRailAppearance {
@@ -140,13 +184,23 @@ pub fn scrim(theme: &Theme) -> Argb {
         .composite_over(theme.color.surface)
 }
 
+/// Modal-overlay helper: Expanded ⇒ modal chrome. Standard in-flow uses
+/// [`is_modal_for`] with [`RailExpandedLayout::Standard`].
 pub fn is_modal(mode: RailMode) -> bool {
-    mode == RailMode::Expanded
+    is_modal_for(mode, RailExpandedLayout::Modal)
+}
+
+pub fn is_modal_for(mode: RailMode, layout: RailExpandedLayout) -> bool {
+    mode == RailMode::Expanded && layout == RailExpandedLayout::Modal
 }
 
 /// Expanded rail traps destination focus; scrim tap dismisses (catalog overlay).
 pub fn focus_trapped(mode: RailMode) -> bool {
-    is_modal(mode)
+    focus_trapped_for(mode, RailExpandedLayout::Modal)
+}
+
+pub fn focus_trapped_for(mode: RailMode, layout: RailExpandedLayout) -> bool {
+    is_modal_for(mode, layout)
 }
 
 pub fn dismiss_on_scrim() -> bool {
@@ -161,7 +215,11 @@ pub fn modal_elevation_dp(theme: &Theme) -> f32 {
 
 /// Whether the expanded rail is painted as its own overlay window (not in-flow).
 pub fn overlay_window(mode: RailMode) -> bool {
-    is_modal(mode)
+    overlay_window_for(mode, RailExpandedLayout::Modal)
+}
+
+pub fn overlay_window_for(mode: RailMode, layout: RailExpandedLayout) -> bool {
+    is_modal_for(mode, layout)
 }
 
 pub fn overlay_window_attr(mode: RailMode) -> &'static str {
@@ -186,7 +244,11 @@ pub const GPUI_WINDOW_KIND: &str = "PopUp";
 pub const OS_POPUP_OPENED: bool = false;
 
 pub fn rail_chrome(mode: RailMode) -> RailChrome {
-    if is_modal(mode) {
+    rail_chrome_for(mode, RailExpandedLayout::Modal)
+}
+
+pub fn rail_chrome_for(mode: RailMode, layout: RailExpandedLayout) -> RailChrome {
+    if is_modal_for(mode, layout) {
         RailChrome::Popup
     } else {
         RailChrome::Overlay
@@ -223,7 +285,7 @@ pub fn os_popup_spec(mode: RailMode) -> OsPopupSpec {
         width_dp: if is_modal(mode) {
             EXPANDED_WIDTH_DP
         } else {
-            WIDTH_DP
+            WIDE_COLLAPSED_WIDTH_DP
         },
         height_dp: OS_POPUP_HEIGHT_DP,
         focus: true,
@@ -336,14 +398,24 @@ pub fn resolve_wide_collapsed(theme: &Theme) -> NavRailAppearance {
     a
 }
 
-/// 0 = collapsed, 1 = expanded modal.
+/// 0 = collapsed, 1 = expanded.
 pub fn morph_t(expanded: bool) -> f32 {
     if expanded { 1.0 } else { 0.0 }
 }
 
-pub fn morph_width_dp(t: f32) -> f32 {
+pub fn morph_width_between(collapsed_dp: f32, expanded_dp: f32, t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
-    WIDTH_DP + (EXPANDED_WIDTH_DP - WIDTH_DP) * t
+    collapsed_dp + (expanded_dp - collapsed_dp) * t
+}
+
+/// WideNavigationRail width: Compose `ContainerWidth` 96 ↔ 220.
+pub fn morph_width_dp(t: f32) -> f32 {
+    morph_width_between(WIDE_COLLAPSED_WIDTH_DP, EXPANDED_WIDTH_DP, t)
+}
+
+/// Optional narrow collapsed 80 ↔ 220.
+pub fn morph_width_narrow_dp(t: f32) -> f32 {
+    morph_width_between(WIDTH_DP, EXPANDED_WIDTH_DP, t)
 }
 
 /// [`morph_width_dp`] after spatial-fast (catalog / GPUI width clock).
@@ -471,10 +543,26 @@ pub fn scrim_opacity_at(t: f32) -> f32 {
     SCRIM_OPACITY * t.clamp(0.0, 1.0)
 }
 
+pub fn scrim_opacity_for(layout: RailExpandedLayout, t: f32) -> f32 {
+    if layout.uses_scrim() {
+        scrim_opacity_at(t)
+    } else {
+        0.0
+    }
+}
+
 pub fn morph_ms(theme: &Theme) -> u16 {
     theme.motion.spatial_fast_ms
 }
 
 pub fn elevation_dp_at(t: f32, theme: &Theme) -> f32 {
     theme.elevation.level2 * t.clamp(0.0, 1.0)
+}
+
+pub fn elevation_dp_for(layout: RailExpandedLayout, t: f32, theme: &Theme) -> f32 {
+    if layout.uses_scrim() {
+        elevation_dp_at(t, theme)
+    } else {
+        0.0
+    }
 }

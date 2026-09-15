@@ -502,14 +502,16 @@ a {{ color: var(--primary); }}
 .tooltip-rich .acts {{ display: flex; gap: 16px; justify-content: flex-end; padding-top: 8px; }}
 .tooltip-rich .acts span {{ font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; }}
 .nav-rail {{
-  width: 80px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 96px; display: flex; flex-direction: column; align-items: center; gap: 12px;
   padding: 16px 0; border-radius: 0; position: relative;
 }}
+.nav-rail[data-narrow="1"] {{ width: 80px; }}
 .nav-rail .dest {{
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: 12px; font-weight: 500; width: 80px; position: relative;
+  font-size: 12px; font-weight: 500; width: 96px; position: relative;
   box-sizing: border-box;
 }}
+.nav-rail[data-narrow="1"] .dest {{ width: 80px; }}
 .nav-rail .ind {{
   width: 56px; height: 32px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; position: relative;
@@ -579,6 +581,15 @@ a {{ color: var(--primary); }}
   min-height: 280px;
 }}
 .rail-stage {{ position: relative; min-height: 280px; max-width: 720px; }}
+.rail-stage.is-standard {{
+  display: flex; flex-direction: row; align-items: stretch; overflow: hidden;
+}}
+.rail-stage.is-standard .nav-rail {{
+  flex: 0 0 auto; box-shadow: none; min-height: 280px; z-index: 1;
+}}
+.rail-inflow-body {{
+  flex: 1 1 auto; min-width: 0; padding: 16px; font-size: 14px; line-height: 20px;
+}}
 .rail-window {{
   position: absolute; left: 0; top: 0; bottom: 0; z-index: 2;
   pointer-events: auto;
@@ -1700,7 +1711,7 @@ function hexRgba(hex, a) {{
 }}
 function applyRailIconMorph(rail, t) {{
   var e = spatialFastAt(t);
-  var collapsed = {rail_collapsed};
+  var collapsed = Number(rail.getAttribute("data-collapsed-width") || {rail_collapsed});
   var expanded = {rail_expanded};
   var railW = collapsed + (expanded - collapsed) * e;
   rail.style.width = railW + "px";
@@ -1783,8 +1794,15 @@ document.querySelectorAll("[data-nav-rail]").forEach(function (rail) {{
         rail.setAttribute("data-icon-position", exp ? "start" : "top");
         rail.removeAttribute("data-icon-morphing");
         clearRailIconMorph(rail);
+        var layout = rail.getAttribute("data-rail-layout") || "modal";
+        rail.setAttribute("data-wide-collapsed", !exp && layout !== "narrow" ? "1" : "0");
+        if (fab) fab.textContent = exp ? "←" : "+";
         var stage = rail.closest(".rail-stage");
-        if (stage) {{
+        if (stage && layout === "standard") {{
+          stage.classList.remove("is-modal");
+          var inflowScrim = stage.querySelector("[data-rail-scrim]");
+          if (inflowScrim) inflowScrim.setAttribute("data-visible", "0");
+        }} else if (stage) {{
           stage.classList.toggle("is-modal", exp);
           var scrim = stage.querySelector("[data-rail-scrim]");
           if (scrim) scrim.setAttribute("data-visible", exp ? "1" : "0");
@@ -1961,7 +1979,7 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
         fling_decay = carousel::FLING_DECAY,
         fling_snap = carousel::FLING_SNAP_FRACTION,
         wait_ms = progress::determinate_wait_ms(theme),
-        rail_collapsed = navigation_rail::WIDTH_DP,
+        rail_collapsed = navigation_rail::WIDE_COLLAPSED_WIDTH_DP,
         rail_expanded = navigation_rail::EXPANDED_WIDTH_DP,
         morph_ms = navigation_rail::morph_ms(theme),
         gap = button_group::CONNECTED_GAP_DP,
@@ -3698,6 +3716,11 @@ fn chrome(theme: &Theme) -> String {
     let top_dests = rail_dests_html(theme, &rail, navigation_rail::IconPosition::Top, 0);
     let start_dests = rail_dests_html(theme, &rail, navigation_rail::IconPosition::Start, 0);
     let fab = format!(
+        r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">←</div>"#,
+        bg = rail.fab.css_hex(),
+        fg = rail.fab_icon.css_hex(),
+    );
+    let inflow_fab = format!(
         r#"<div class="fab-slot" data-rail-fab="1" style="background:{bg};color:{fg}">+</div>"#,
         bg = rail.fab.css_hex(),
         fg = rail.fab_icon.css_hex(),
@@ -3803,15 +3826,19 @@ fn chrome(theme: &Theme) -> String {
   {horizontal}
 </div>
 <h2>Navigation rail</h2>
-<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive modal rail interpolates Top→Start (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast) while width 80↔220 over a 32% scrim. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
+<p class="note">WideNavigationRailItem: collapsed Top icon (96dp, 56×32) / expanded Start icon (220dp, 56dp full-width pill). Active label is secondary. Interactive <strong>standard</strong> WideNavigationRail interpolates Top→Start in-flow (96↔220, no scrim). Modal overlay uses the same 96 collapsed width over a 32% scrim (<code>iconPosition</code> / <code>applyRailIconMorph</code> spatial-fast). Narrow 80 remains a token only. <a href="https://m3.material.io/components/navigation-rail/specs">spec</a></p>
 <div class="wide-rail-pair" data-hero="wide-rail">
   <div class="nav-rail" data-wide-collapsed="1" data-icon-position="top" data-nav-rail-wide="1" style="background:{rbg};width:{ww}px">{top_dests}</div>
   <div class="nav-rail" data-icon-position="start" data-nav-rail-wide="1" style="background:{rbg};width:{ew}px">{start_dests}</div>
 </div>
-<div class="rail-stage is-modal" data-hero="nav-rail">
+<div class="rail-stage is-standard" data-hero="wide-rail-inflow" data-rail-layout="standard">
+  <div class="nav-rail" data-nav-rail="1" data-nav-rail-wide="1" data-rail-layout="standard" data-wide-collapsed="1" data-nav-rail-expanded="0" data-icon-position="top" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="collapsed" data-rail-selected="0" data-rail-focus-trap="0" style="background:{rbg};width:{ww}px">{inflow_fab}{top_dests}</div>
+  <div class="rail-inflow-body" data-rail-inflow-body="1">{inflow_body}</div>
+</div>
+<div class="rail-stage is-modal" data-hero="nav-rail" data-rail-layout="modal">
   <div class="rail-scrim" data-rail-scrim="1" data-visible="1" style="background:{scrim}"></div>
   <div class="rail-window" data-rail-window="1" data-rail-chrome="popup" data-rail-window-kind="popup" data-rail-os-popup="0" data-rail-popup-title="Navigation rail" data-rail-popup-h="880" data-rail-frame-ms="{frame_ms}">
-  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
+  <div class="nav-rail expanded" data-nav-rail="1" data-nav-rail-expanded="1" data-rail-layout="modal" data-icon-position="start" data-icon-morph="1" data-icon-morph-ms="{morph_ms}" data-collapsed-width="{ww}" data-rail-mode="expanded" data-rail-selected="0" data-rail-focus-trap="1" style="background:{rbg};width:{ew}px">{fab}{rail_dests}</div>
   </div>
 </div>"#,
         sbg = snack.container.css_hex(),
@@ -3847,6 +3874,8 @@ fn chrome(theme: &Theme) -> String {
         top_dests = top_dests,
         start_dests = start_dests,
         fab = fab,
+        inflow_fab = inflow_fab,
+        inflow_body = navigation_rail::IN_FLOW_BODY,
         scrim = navigation_rail::scrim(theme).css_hex(),
         frame_ms = crate::motion::FRAME_MS,
         morph_ms = navigation_rail::morph_ms(theme),
