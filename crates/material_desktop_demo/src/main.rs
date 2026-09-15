@@ -375,6 +375,7 @@ struct CatalogView {
     date_display: date_picker::DatePickerDisplayMode,
     date_pane: date_picker::DatePickerPane,
     date_range: date_picker::DateRangeSelection,
+    date_range_committed: date_picker::DateRangeSelection,
     range_year: i32,
     range_month: u32,
     range_pane: date_picker::DatePickerPane,
@@ -619,6 +620,18 @@ impl CatalogView {
 
     fn toggle_range_display(&mut self) {
         self.range_display = date_picker::apply_display_toggle(self.range_display);
+        self.range_pane = date_picker::DatePickerPane::Calendar;
+    }
+
+    fn confirm_date_range(&mut self) {
+        self.date_range_committed = date_picker::apply_range_confirm(self.date_range);
+    }
+
+    fn dismiss_date_range(&mut self) {
+        self.date_range = date_picker::apply_range_dismiss(self.date_range_committed);
+        let (y, m) = date_picker::range_month_of(self.date_range);
+        self.range_year = y;
+        self.range_month = m;
         self.range_pane = date_picker::DatePickerPane::Calendar;
     }
 
@@ -3456,6 +3469,47 @@ fn date_range_hero(
                         field.input_style.size_sp,
                         paint(field.input),
                     )),
+            )
+        })
+        .when(date_picker::RANGE_ACTIONS, |el| {
+            el.child(
+                div()
+                    .w_full()
+                    .h(px(date_picker::RANGE_DIVIDER_H_DP))
+                    .bg(paint(theme.color.outline_variant)),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .justify_end()
+                    .gap(px(dialog::ACTION_GAP_DP))
+                    .child(
+                        div()
+                            .id("range-cancel")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.dismiss_date_range();
+                                cx.notify();
+                            }))
+                            .child(spaced_line(
+                                date_picker::INPUT_CANCEL,
+                                14.0,
+                                paint(theme.color.primary),
+                            )),
+                    )
+                    .child(
+                        div()
+                            .id("range-ok")
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.confirm_date_range();
+                                cx.notify();
+                            }))
+                            .child(spaced_line(
+                                date_picker::INPUT_OK,
+                                14.0,
+                                paint(theme.color.primary),
+                            )),
+                    ),
             )
         })
 }
@@ -7954,6 +8008,7 @@ fn main() {
                     date_display: date_picker::LIVE_DISPLAY_MODE,
                     date_pane: date_picker::LIVE_PANE,
                     date_range: date_picker::DateRangeSelection::demo(),
+                    date_range_committed: date_picker::DateRangeSelection::demo(),
                     range_year: date_picker::RANGE_DEMO_START.year,
                     range_month: date_picker::RANGE_DEMO_START.month,
                     range_pane: date_picker::LIVE_PANE,
@@ -8212,6 +8267,11 @@ mod tests {
         assert!(date_picker::RANGE_MONTH_NAV);
         assert!(date_picker::RANGE_YEAR_PANE);
         assert!(date_picker::RANGE_SHOW_MODE_TOGGLE);
+        assert!(date_picker::RANGE_ACTIONS);
+        assert_eq!(
+            date_picker::apply_range_confirm(date_picker::DateRangeSelection::demo()),
+            date_picker::DateRangeSelection::demo()
+        );
         assert_eq!(
             date_picker::range_title_for(date_picker::DatePickerDisplayMode::Input),
             date_picker::RANGE_INPUT_HEADLINE

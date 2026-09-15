@@ -350,6 +350,7 @@ struct CatalogView {
     date_display: date_picker::DatePickerDisplayMode,
     date_pane: date_picker::DatePickerPane,
     date_range: date_picker::DateRangeSelection,
+    date_range_committed: date_picker::DateRangeSelection,
     range_year: i32,
     range_month: u32,
     range_pane: date_picker::DatePickerPane,
@@ -599,6 +600,18 @@ impl CatalogView {
 
     fn toggle_range_display(&mut self) {
         self.range_display = date_picker::apply_display_toggle(self.range_display);
+        self.range_pane = date_picker::DatePickerPane::Calendar;
+    }
+
+    fn confirm_date_range(&mut self) {
+        self.date_range_committed = date_picker::apply_range_confirm(self.date_range);
+    }
+
+    fn dismiss_date_range(&mut self) {
+        self.date_range = date_picker::apply_range_dismiss(self.date_range_committed);
+        let (y, m) = date_picker::range_month_of(self.date_range);
+        self.range_year = y;
+        self.range_month = m;
         self.range_pane = date_picker::DatePickerPane::Calendar;
     }
 
@@ -7437,6 +7450,41 @@ fn android_date_range(
                     ),
             )
         })
+        .when(date_picker::RANGE_ACTIONS, |el| {
+            el.child(
+                div()
+                    .w_full()
+                    .h(px(date_picker::RANGE_DIVIDER_H_DP))
+                    .bg(paint(theme.color.outline_variant)),
+            )
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .justify_end()
+                    .gap(px(dialog::ACTION_GAP_DP))
+                    .child(
+                        div()
+                            .id("range-cancel")
+                            .text_color(paint(theme.color.primary))
+                            .child(date_picker::INPUT_CANCEL)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.dismiss_date_range();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        div()
+                            .id("range-ok")
+                            .text_color(paint(theme.color.primary))
+                            .child(date_picker::INPUT_OK)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.confirm_date_range();
+                                cx.notify();
+                            })),
+                    ),
+            )
+        })
 }
 
 fn android_date_range_input(
@@ -8077,6 +8125,7 @@ fn android_main(app: AndroidApp) {
                 date_display: date_picker::LIVE_DISPLAY_MODE,
                 date_pane: date_picker::LIVE_PANE,
                 date_range: date_picker::DateRangeSelection::demo(),
+                date_range_committed: date_picker::DateRangeSelection::demo(),
                 range_year: date_picker::RANGE_DEMO_START.year,
                 range_month: date_picker::RANGE_DEMO_START.month,
                 range_pane: date_picker::LIVE_PANE,
