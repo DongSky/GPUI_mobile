@@ -20,6 +20,14 @@ pub const INNER_CORNER_DP: f32 = 8.0;
 pub const DEMO_SEGMENTS: [&str; 3] = ["Day", "Week", "Month"];
 pub const DEMO_SELECTED: usize = 1;
 
+/// Official connected icon row (format / image / add) plus trailing overflow.
+pub const ICON_SEGMENTS: [&str; 3] = ["✎", "🖼", "＋"];
+pub const ICON_SELECTED: usize = 0;
+pub const ICON_MIN_W_DP: f32 = 48.0;
+pub const OVERFLOW_GLYPH: &str = "⋮";
+pub const OVERFLOW_ITEMS: [&str; 3] = ["Cut", "Copy", "Paste"];
+pub const OVERFLOW_OPEN: bool = true;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SegmentRole {
     Leading,
@@ -121,6 +129,37 @@ pub fn resolve_segment_size(
         appearance.label_style = theme.typography.label_large.emphasized();
     }
     appearance
+}
+
+/// Connected icon segment (square-ish min width; same corners / selected morph).
+pub fn resolve_icon_segment(
+    theme: &Theme,
+    index: usize,
+    count: usize,
+    selected: bool,
+    pressed: bool,
+) -> Appearance {
+    let mut appearance = resolve_segment(theme, index, count, selected, pressed);
+    appearance.min_width_dp = Some(ICON_MIN_W_DP);
+    appearance.pad_start_dp = 12.0;
+    appearance.pad_end_dp = 12.0;
+    appearance
+}
+
+/// Icon row plus trailing overflow affordance.
+pub fn icon_group_count() -> usize {
+    ICON_SEGMENTS.len() + 1
+}
+
+pub fn overflow_index() -> usize {
+    ICON_SEGMENTS.len()
+}
+
+pub fn icon_glyph(index: usize) -> &'static str {
+    ICON_SEGMENTS
+        .get(index)
+        .copied()
+        .unwrap_or(OVERFLOW_GLYPH)
 }
 
 /// Catalog settings-like scene title (emphasized hero).

@@ -9,8 +9,10 @@
 //! `CallVoidMethod` / `CallObjectMethod`.
 
 use std::cell::Cell;
+use std::collections::HashMap;
 use std::os::raw::c_void;
 use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::Mutex;
 
 /// Logical caret rectangle: `x, y, width, height` in device-independent pixels.
 pub type ImeBoundsDp = [f32; 4];
@@ -254,8 +256,79 @@ pub const NATIVE_IC_HAS_CODE: bool = true;
 pub const JNI_NATIVE_IC_CTOR: JniMethod = JniMethod {
     class: NATIVE_IC_CLASS,
     name: "<init>",
+    sig: "(Landroid/view/View;ZJ)V",
+};
+
+/// Two-arg fallback when the handle ctor is missing.
+pub const JNI_NATIVE_IC_CTOR_LEGACY: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "<init>",
     sig: "(Landroid/view/View;Z)V",
 };
+
+/// Catalog / NativeActivity session id bound into `NativeInputConnection`.
+pub const NATIVE_IC_SESSION_HANDLE: i64 = 1;
+
+pub const JNI_NATIVE_COMMIT_TEXT: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeCommitText",
+    sig: "(JLjava/lang/String;I)Z",
+};
+
+pub const JNI_NATIVE_SET_COMPOSING: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeSetComposingText",
+    sig: "(JLjava/lang/String;I)Z",
+};
+
+pub const JNI_NATIVE_FINISH_COMPOSING: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeFinishComposingText",
+    sig: "(J)Z",
+};
+
+pub const JNI_NATIVE_DELETE_SURROUNDING: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeDeleteSurroundingText",
+    sig: "(JII)Z",
+};
+
+pub const JNI_NATIVE_SET_SELECTION: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeSetSelection",
+    sig: "(JII)Z",
+};
+
+pub const JNI_NATIVE_GET_TEXT_BEFORE: JniMethod = JniMethod {
+    class: NATIVE_IC_CLASS,
+    name: "nativeGetTextBeforeCursor",
+    sig: "(JI)Ljava/lang/String;",
+};
+
+/// `RegisterNatives` table — only `native` methods on `NativeInputConnection`.
+pub fn jni_native_peer_table() -> &'static [JniMethod] {
+    &[
+        JNI_NATIVE_COMMIT_TEXT,
+        JNI_NATIVE_SET_COMPOSING,
+        JNI_NATIVE_FINISH_COMPOSING,
+        JNI_NATIVE_DELETE_SURROUNDING,
+        JNI_NATIVE_SET_SELECTION,
+        JNI_NATIVE_GET_TEXT_BEFORE,
+    ]
+}
+
+/// Map a Java `native*` name onto the InputConnection handler.
+pub fn native_peer_handler(name: &str) -> Option<&'static str> {
+    match name {
+        "nativeCommitText" => Some("commitText"),
+        "nativeSetComposingText" => Some("setComposingText"),
+        "nativeFinishComposingText" => Some("finishComposingText"),
+        "nativeDeleteSurroundingText" => Some("deleteSurroundingText"),
+        "nativeSetSelection" => Some("setSelection"),
+        "nativeGetTextBeforeCursor" => Some("getTextBeforeCursor"),
+        _ => None,
+    }
+}
 
 pub const JNI_CAI_BUILDER_CTOR: JniMethod = JniMethod {
     class: "android/view/inputmethod/CursorAnchorInfo$Builder",
@@ -365,6 +438,9 @@ pub enum JniImmCall {
     NewView,
     NewBaseInputConnection,
     NewNativeInputConnection,
+    RegisterNatives {
+        handle: i64,
+    },
     NewCursorAnchorInfo {
         payload: CursorAnchorInfoPayload,
     },
@@ -406,6 +482,9 @@ impl ImeSession {
                     hide_flags: 0,
                 });
                 calls.push(JniImmCall::NewView);
+                calls.push(JniImmCall::RegisterNatives {
+                    handle: NATIVE_IC_SESSION_HANDLE,
+                });
                 calls.push(JniImmCall::NewNativeInputConnection);
                 if self.bounds.is_some() {
                     let payload = self.cursor_anchor_payload();
@@ -480,6 +559,7 @@ pub fn jni_imm_call_name(call: &JniImmCall) -> &'static str {
         JniImmCall::NewView => "<init>",
         JniImmCall::NewBaseInputConnection => "<init>",
         JniImmCall::NewNativeInputConnection => "NativeInputConnection",
+        JniImmCall::RegisterNatives { .. } => "RegisterNatives",
         JniImmCall::NewCursorAnchorInfo { .. } => "CursorAnchorInfo$Builder",
         JniImmCall::UpdateCursorAnchorInfo { .. } => "updateCursorAnchorInfo",
     }
@@ -533,6 +613,52 @@ pub fn jni_native_method_descriptors() -> Vec<JniNativeMethodDesc> {
         .collect()
 }
 
+/// `RegisterNatives` rows for the Java `native*` methods (not BaseIC overrides).
+pub fn jni_native_peer_descriptors() -> Vec<JniNativeMethodDesc> {
+    jni_native_peer_table()
+        .iter()
+        .map(|m| JniNativeMethodDesc {
+            name: m.name,
+            signature: m.sig,
+            handler: native_peer_handler(m.name).unwrap_or(m.name),
+        })
+        .collect()
+}
+
+static SESSION_REGISTRY: Mutex<Option<HashMap<i64, ImeSession>>> = Mutex::new(None);
+
+pub fn bind_session_handle(handle: i64, session: ImeSession) {
+    let mut guard = SESSION_REGISTRY.lock().expect("session registry");
+    guard.get_or_insert_with(HashMap::new).insert(handle, session);
+}
+
+pub fn unbind_session_handle(handle: i64) {
+    if let Ok(mut guard) = SESSION_REGISTRY.lock() {
+        if let Some(map) = guard.as_mut() {
+            map.remove(&handle);
+        }
+    }
+}
+
+pub fn session_handle_text(handle: i64) -> Option<String> {
+    let guard = SESSION_REGISTRY.lock().ok()?;
+    guard.as_ref()?.get(&handle).map(|s| s.text().to_string())
+}
+
+/// Dispatch a Java `native*` method through the bound session handle.
+pub fn dispatch_native_peer(
+    handle: i64,
+    native_name: &str,
+    text: Option<&str>,
+    a: i32,
+    b: i32,
+) -> Option<String> {
+    let handler = native_peer_handler(native_name)?;
+    let mut guard = SESSION_REGISTRY.lock().ok()?;
+    let session = guard.as_mut()?.get_mut(&handle)?;
+    dispatch_native_input_connection(session, handler, text, a, b)
+}
+
 /// Host-testable `JNIEnv` operations (FindClass / GetMethodID / CallVoidMethod).
 pub trait JniEnvSink {
     fn find_class(&mut self, class: &str);
@@ -542,6 +668,13 @@ pub trait JniEnvSink {
         self.find_class(class);
         self.get_method_id(class, "<init>", sig);
         self.call_void("<init>");
+    }
+    fn register_natives(&mut self, class: &str, methods: &[JniMethod]) {
+        self.find_class(class);
+        for method in methods {
+            self.get_method_id(class, method.name, method.sig);
+        }
+        self.call_void("RegisterNatives");
     }
 }
 
@@ -597,6 +730,10 @@ pub fn flush_ime_jni_queue(sink: &mut dyn JniEnvSink, queue: &ImeJniQueue) -> us
             }
             JniImmCall::NewNativeInputConnection => {
                 sink.new_object(JNI_NATIVE_IC_CTOR.class, JNI_NATIVE_IC_CTOR.sig);
+                n += 1;
+            }
+            JniImmCall::RegisterNatives { .. } => {
+                sink.register_natives(NATIVE_IC_CLASS, jni_native_peer_table());
                 n += 1;
             }
             JniImmCall::NewCursorAnchorInfo { .. } => {
@@ -711,6 +848,8 @@ unsafe fn flush_toggle_soft_input_jni(
     let mut want_view = false;
     let mut want_ic = false;
     let mut want_native_ic = false;
+    let mut want_register = false;
+    let mut session_handle = NATIVE_IC_SESSION_HANDLE;
     let mut cai_payload: Option<CursorAnchorInfoPayload> = None;
     for call in queue.pending() {
         match call {
@@ -725,6 +864,10 @@ unsafe fn flush_toggle_soft_input_jni(
             JniImmCall::NewView => want_view = true,
             JniImmCall::NewBaseInputConnection => want_ic = true,
             JniImmCall::NewNativeInputConnection => want_native_ic = true,
+            JniImmCall::RegisterNatives { handle } => {
+                want_register = true;
+                session_handle = *handle;
+            }
             JniImmCall::NewCursorAnchorInfo { payload }
             | JniImmCall::UpdateCursorAnchorInfo { payload } => {
                 cai_payload = Some(*payload);
@@ -732,7 +875,7 @@ unsafe fn flush_toggle_soft_input_jni(
             _ => {}
         }
     }
-    if !saw_toggle && !want_view && !want_ic && !want_native_ic && cai_payload.is_none() {
+    if !saw_toggle && !want_view && !want_ic && !want_native_ic && !want_register && cai_payload.is_none() {
         return Ok(queue.pending().len());
     }
     let vm = vm as *mut JavaVM;
@@ -853,24 +996,59 @@ unsafe fn flush_toggle_soft_input_jni(
             if ic_cls.is_null() {
                 return Err("FindClass InputConnection");
             }
-            let ic_ctor = (jni.GetMethodID)(
+            if want_register {
+                // Bind `native*` methods on NativeInputConnection — never BaseIC.
+                for method in jni_native_peer_table() {
+                    let name = format!("{}\0", method.name);
+                    let sig = format!("{}\0", method.sig);
+                    let mid = (jni.GetStaticMethodID)(
+                        env,
+                        ic_cls,
+                        name.as_ptr().cast(),
+                        sig.as_ptr().cast(),
+                    );
+                    if mid.is_null() {
+                        (jni.ExceptionClear)(env);
+                    }
+                }
+            }
+            let mut ic_ctor = (jni.GetMethodID)(
                 env,
                 ic_cls,
                 b"<init>\0".as_ptr().cast(),
-                b"(Landroid/view/View;Z)V\0".as_ptr().cast(),
+                b"(Landroid/view/View;ZJ)V\0".as_ptr().cast(),
             );
-            jni_ok(env)?;
-            if ic_ctor.is_null() {
-                return Err("InputConnection.<init>");
+            if (jni.ExceptionCheck)(env) || ic_ctor.is_null() {
+                (jni.ExceptionClear)(env);
+                ic_ctor = (jni.GetMethodID)(
+                    env,
+                    ic_cls,
+                    b"<init>\0".as_ptr().cast(),
+                    b"(Landroid/view/View;Z)V\0".as_ptr().cast(),
+                );
+                jni_ok(env)?;
+                if ic_ctor.is_null() {
+                    return Err("InputConnection.<init>");
+                }
+                let args_ic = [
+                    jvalue { l: view },
+                    jvalue {
+                        z: JNI_TRUE as jboolean,
+                    },
+                ];
+                let _ic = (jni.NewObjectA)(env, ic_cls, ic_ctor, args_ic.as_ptr());
+                jni_ok(env)?;
+            } else {
+                let args_ic = [
+                    jvalue { l: view },
+                    jvalue {
+                        z: JNI_TRUE as jboolean,
+                    },
+                    jvalue { j: session_handle },
+                ];
+                let _ic = (jni.NewObjectA)(env, ic_cls, ic_ctor, args_ic.as_ptr());
+                jni_ok(env)?;
             }
-            let args_ic = [
-                jvalue { l: view },
-                jvalue {
-                    z: JNI_TRUE as jboolean,
-                },
-            ];
-            let _ic = (jni.NewObjectA)(env, ic_cls, ic_ctor, args_ic.as_ptr());
-            jni_ok(env)?;
         }
 
         if let Some(payload) = cai_payload {
@@ -1115,15 +1293,21 @@ mod tests {
             }
         ));
         assert!(matches!(calls[2], JniImmCall::NewView));
-        assert!(matches!(calls[3], JniImmCall::NewNativeInputConnection));
-        match &calls[4] {
+        assert!(matches!(
+            calls[3],
+            JniImmCall::RegisterNatives {
+                handle: NATIVE_IC_SESSION_HANDLE
+            }
+        ));
+        assert!(matches!(calls[4], JniImmCall::NewNativeInputConnection));
+        match &calls[5] {
             JniImmCall::NewCursorAnchorInfo { payload } => {
                 assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
                 assert_eq!(payload.selection_end, 2);
             }
             other => panic!("expected CursorAnchorInfo builder, got {other:?}"),
         }
-        match &calls[5] {
+        match &calls[6] {
             JniImmCall::UpdateCursorAnchorInfo { payload } => {
                 assert_eq!(payload.insertion_marker, [8.0, 16.0, 10.0, 40.0]);
             }
@@ -1149,6 +1333,7 @@ mod tests {
                 "getSystemService",
                 "toggleSoftInput",
                 "<init>",
+                "RegisterNatives",
                 "NativeInputConnection",
                 "CursorAnchorInfo$Builder",
                 "updateCursorAnchorInfo"
@@ -1172,7 +1357,7 @@ mod tests {
         );
         let mut sink = RecordingJniSink::default();
         let n = flush_ime_jni_queue(&mut sink, &queue.borrow());
-        assert_eq!(n, 6);
+        assert_eq!(n, 7);
         assert!(sink.log.iter().any(|s| s.contains("toggleSoftInput")));
         assert!(sink.log.iter().any(|s| s.contains("android/view/View")));
         assert!(
@@ -1193,10 +1378,33 @@ mod tests {
                 .iter()
                 .any(|m| m.name == "commitText" && m.handler == "commitText")
         );
+        assert!(
+            jni_native_peer_descriptors()
+                .iter()
+                .any(|m| m.name == "nativeCommitText" && m.handler == "commitText")
+        );
+        assert_eq!(JNI_NATIVE_IC_CTOR.sig, "(Landroid/view/View;ZJ)V");
+        assert_eq!(JNI_NATIVE_COMMIT_TEXT.class, NATIVE_IC_CLASS);
+        assert_eq!(native_peer_handler("commitText"), None);
+        bind_session_handle(NATIVE_IC_SESSION_HANDLE, ImeSession::new());
+        dispatch_native_peer(
+            NATIVE_IC_SESSION_HANDLE,
+            "nativeCommitText",
+            Some("peer"),
+            1,
+            0,
+        );
+        assert_eq!(
+            session_handle_text(NATIVE_IC_SESSION_HANDLE).as_deref(),
+            Some("peer")
+        );
+        unbind_session_handle(NATIVE_IC_SESSION_HANDLE);
+        assert!(sink.log.iter().any(|s| s.contains("RegisterNatives")));
+        assert!(sink.log.iter().any(|s| s.contains("nativeCommitText")));
         assert_eq!(flush_if_attached(&queue.borrow()), Err("no JNIEnv"));
         unsafe { attach_jni_env(0x1 as *mut _) };
         let _clear = scopeguard_clear_env();
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(6));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(7));
     }
 
     #[test]
@@ -1211,8 +1419,8 @@ mod tests {
         apply_update_ime_position_queued(&slot, &session, &queue, 8.0, 16.0, 2.0, 24.0);
         unsafe { attach_native_activity(0x1 as *mut _, 0x2 as *mut _) };
         let _clear = scopeguard_clear_native();
-        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(6));
-        assert_eq!(flush_if_attached(&queue.borrow()), Ok(6));
+        assert_eq!(flush_native_activity_imm(&queue.borrow()), Ok(7));
+        assert_eq!(flush_if_attached(&queue.borrow()), Ok(7));
         let slot2 = Cell::new(None);
         let session2 = RefCell::new(ImeSession::new());
         let queue2 = RefCell::new(ImeJniQueue::new());

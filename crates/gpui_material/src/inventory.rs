@@ -81,7 +81,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Connected button groups (Expressive)",
         docs: "https://m3.material.io/components/button-groups/specs",
         parity: Parity::Done,
-        notes: "2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month demo",
+        notes: "2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month text + connected icon row with trailing overflow menu",
     },
     ComponentEntry {
         name: "Icon button",
@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a C-shaped even-odd path plus lyon-stroked centerline (round caps at the legend gap); GPUI layout_line notch width with Roboto-advance fallback; IME caret from focused catalog editor + InputConnection session + JNI IMM queue / NativeActivity JavaVM attach + toggleSoftInput + dummy View + NativeInputConnection (hasCode=true) + live CursorAnchorInfo.Builder CallVoidMethod",
+        notes: "Floating label; outlined C-path even-odd + lyon centerline; IME NativeInputConnection native* RegisterNatives + session handle (not BaseIC methods) + CursorAnchorInfo",
     },
     ComponentEntry {
         name: "List",
@@ -172,7 +172,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Snackbar",
         docs: "https://m3.material.io/components/snackbar/specs",
         parity: Parity::Done,
-        notes: "Visual only; no timeout / swipe-to-dismiss runtime",
+        notes: "Inverse surface 48dp; timeout 4s/10s + swipe-to-dismiss (72dp) SnackbarState; catalog ticks remaining_ms",
     },
     ComponentEntry {
         name: "Navigation bar",
@@ -193,7 +193,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Basic dialogs",
         docs: "https://m3.material.io/components/dialogs/specs",
         parity: Parity::Done,
-        notes: "surface-container-high, 28dp, elev 3, headlineSmallEmphasized/bodyMedium, 32% scrim; Reset settings guidelines account list + text Cancel/Accept",
+        notes: "Basic Reset-settings + ringtone list + official full-screen Event editor (0dp corners, 64dp header, close/Save, divider); surface-container-high 28dp elev 3 for basic",
     },
     ComponentEntry {
         name: "Bottom sheet",
@@ -221,7 +221,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Tabs",
         docs: "https://m3.material.io/components/tabs/specs",
         parity: Parity::Done,
-        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width",
+        notes: "Primary 48dp + 3dp primary indicator; secondary 2dp full-width; icon+label primary row at 64dp",
     },
     ComponentEntry {
         name: "Badge",
@@ -256,7 +256,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click snap + live-clock FlingState (vsync / rAF per-frame decay, leftover snap-to-nearest, interpolating hero/neighbor widths, hosts notify while needs_frame) + apply_wheel 60 Hz integrator (can skip more than one item)",
+        notes: "Hero 256/120 + multi-browse 186/56 + uncontained 220/140; role-color media tiles + parallax offset; click snap + live-clock FlingState leftover snap / width lerp",
     },
 ];
 

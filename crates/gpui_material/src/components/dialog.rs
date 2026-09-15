@@ -1,5 +1,5 @@
-//! Basic dialog. Specs: https://m3.material.io/components/dialogs/specs
-//! Tokens: androidx `DialogTokens` v0_210.
+//! Basic + full-screen dialogs. Specs: https://m3.material.io/components/dialogs/specs
+//! Tokens: androidx `DialogTokens` v0_210. Official overview is a basic + full-screen pair.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -43,6 +43,16 @@ pub const RINGTONE_OPTIONS: [&str; 4] = ["None", "Callisto", "Ganymede", "Luna"]
 pub const RINGTONE_CANCEL: &str = "Cancel";
 pub const RINGTONE_OK: &str = "OK";
 
+/// Official full-screen dialog (multi-step event editor). Fills the viewport;
+/// header is close + title + text Save; optional divider; 0dp corners; surface.
+pub const FULLSCREEN_HEADER_H_DP: f32 = 64.0;
+pub const FULLSCREEN_CORNER_DP: f32 = 0.0;
+pub const FULLSCREEN_HEADLINE: &str = "Event";
+pub const FULLSCREEN_CLOSE: &str = "✕";
+pub const FULLSCREEN_SAVE: &str = "Save";
+pub const FULLSCREEN_FIELDS: [&str; 4] = ["Event title", "Date", "Location", "Time"];
+pub const FULLSCREEN_HAS_DIVIDER: bool = true;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DialogAppearance {
     pub corners: Corners,
@@ -76,5 +86,40 @@ pub fn resolve(theme: &Theme) -> DialogAppearance {
         headline_style: theme.typography.headline_small.emphasized(),
         supporting_style: theme.typography.body_medium,
         action_style: theme.typography.label_large,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FullscreenDialogAppearance {
+    pub header_h_dp: f32,
+    pub corners: Corners,
+    pub container: Argb,
+    pub headline: Argb,
+    pub supporting: Argb,
+    pub action: Argb,
+    pub icon: Argb,
+    pub divider: Argb,
+    pub elevation_dp: f32,
+    pub headline_style: TypeStyle,
+    pub action_style: TypeStyle,
+    pub supporting_style: TypeStyle,
+}
+
+/// Full-screen dialog: surface, 0 corners, 64dp header, no scrim (it is the page).
+pub fn resolve_fullscreen(theme: &Theme) -> FullscreenDialogAppearance {
+    let c = theme.color;
+    FullscreenDialogAppearance {
+        header_h_dp: FULLSCREEN_HEADER_H_DP,
+        corners: Corners::all(FULLSCREEN_CORNER_DP),
+        container: c.surface,
+        headline: c.on_surface,
+        supporting: c.on_surface_variant,
+        action: c.primary,
+        icon: c.on_surface,
+        divider: c.outline_variant,
+        elevation_dp: theme.elevation.level0,
+        headline_style: theme.typography.title_large.emphasized(),
+        action_style: theme.typography.label_large,
+        supporting_style: theme.typography.body_large,
     }
 }

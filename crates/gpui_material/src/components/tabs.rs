@@ -10,6 +10,9 @@ pub const HEIGHT_WITH_ICON_DP: f32 = 64.0;
 pub const INDICATOR_H_PRIMARY_DP: f32 = 3.0;
 pub const INDICATOR_H_SECONDARY_DP: f32 = 2.0;
 pub const INDICATOR_CORNER_DP: f32 = 3.0;
+/// Official primary-with-icon row (64dp).
+pub const DEMO_ICONS: [&str; 3] = ["●", "○", "◐"];
+pub const DEMO_ICON_LABELS: [&str; 3] = ["News", "Video", "Photos"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TabsVariant {
@@ -62,4 +65,11 @@ pub fn resolve(theme: &Theme, variant: TabsVariant) -> TabsAppearance {
             label_style: theme.typography.title_small,
         },
     }
+}
+
+/// Primary tabs with leading icons (official overview often shows this pair).
+pub fn resolve_with_icons(theme: &Theme, variant: TabsVariant) -> TabsAppearance {
+    let mut appearance = resolve(theme, variant);
+    appearance.height_dp = HEIGHT_WITH_ICON_DP;
+    appearance
 }

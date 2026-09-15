@@ -24,8 +24,8 @@ use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, button, button_group, carousel, checkbox, dialog, icon_button, navigation_rail, progress,
-    radio, search, slider, switch, tabs, text_field, top_app_bar,
+    badge, button, button_group, carousel, checkbox, dialog, icon_button, menu, navigation_rail,
+    progress, radio, search, slider, switch, tabs, text_field, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -260,6 +260,7 @@ enum Overlay {
     None,
     Dialog,
     ListDialog,
+    FullscreenDialog,
 }
 
 struct CatalogView {
@@ -278,6 +279,8 @@ struct CatalogView {
     filled: TextFieldEditor,
     outlined: TextFieldEditor,
     group_selected: usize,
+    icon_selected: usize,
+    overflow_open: bool,
     range_start: f32,
     range_end: f32,
     range_drag: Option<slider::RangeThumb>,
@@ -290,6 +293,7 @@ struct CatalogView {
     rail_selected: usize,
     rail_mode: navigation_rail::RailMode,
     carousel_index: usize,
+    carousel_layout: carousel::CarouselLayout,
     carousel_fling: carousel::FlingState,
     carousel_fling_at: Option<Instant>,
     last_catalog_ime: Option<[f32; 4]>,
@@ -385,6 +389,7 @@ impl Render for CatalogView {
             Overlay::None => catalog_body(self, &theme, cx).into_any_element(),
             Overlay::Dialog => dialog_overlay(&theme, cx).into_any_element(),
             Overlay::ListDialog => list_dialog_overlay(self, &theme, cx).into_any_element(),
+            Overlay::FullscreenDialog => fullscreen_dialog_overlay(&theme, cx).into_any_element(),
         };
 
         div()
@@ -517,6 +522,12 @@ fn catalog_body(
                 )),
         )
         .child(connected_button_group(theme, this.group_selected, cx))
+        .child(connected_icon_group(
+            theme,
+            this.icon_selected,
+            this.overflow_open,
+            cx,
+        ))
         .child(section_title(theme, "Icon buttons"))
         .child(
             div()
@@ -705,6 +716,17 @@ fn catalog_body(
                         this.overlay = Overlay::ListDialog;
                         cx.notify();
                     }),
+                ))
+                .child(m_button(
+                    "open-fullscreen-dialog",
+                    theme,
+                    button::ButtonVariant::Tonal,
+                    InteractionState::Enabled,
+                    "Event",
+                    cx.listener(|this, _, _, cx| {
+                        this.overlay = Overlay::FullscreenDialog;
+                        cx.notify();
+                    }),
                 )),
         )
         .child(section_title(theme, "Search"))
@@ -759,6 +781,80 @@ fn connected_button_group(
                         }))
                 }),
         )
+}
+
+fn connected_icon_group(
+    theme: &Theme,
+    selected: usize,
+    overflow_open: bool,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let count = button_group::icon_group_count();
+    let menu = menu::resolve_menu(theme);
+    div()
+        .flex()
+        .flex_row()
+        .items_start()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(button_group::CONNECTED_GAP_DP))
+                .children((0..count).map(|i| {
+                    let overflow = i == button_group::overflow_index();
+                    let sel = !overflow && i == selected;
+                    let a = button_group::resolve_icon_segment(theme, i, count, sel, false);
+                    let glyph = button_group::icon_glyph(i);
+                    div()
+                        .id(SharedString::from(format!("icon-group-{i}")))
+                        .h(px(a.height_dp))
+                        .w(px(a.min_width_dp.unwrap_or(button_group::ICON_MIN_W_DP)))
+                        .rounded_tl(px(a.corners.top_left))
+                        .rounded_tr(px(a.corners.top_right))
+                        .rounded_br(px(a.corners.bottom_right))
+                        .rounded_bl(px(a.corners.bottom_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(a.outline.is_some(), |el| {
+                            let (color, _) = a.outline.unwrap();
+                            el.border_1().border_color(paint(color))
+                        })
+                        .child(glyph)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if overflow {
+                                this.overflow_open = !this.overflow_open;
+                            } else {
+                                this.icon_selected = i;
+                            }
+                            cx.notify();
+                        }))
+                })),
+        )
+        .when(overflow_open, |el| {
+            el.child(
+                div()
+                    .min_w(px(160.))
+                    .rounded(px(menu.corners.top_left))
+                    .bg(paint(menu.container))
+                    .children(button_group::OVERFLOW_ITEMS.iter().enumerate().map(
+                        |(i, label)| {
+                            let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+                            div()
+                                .h(px(item.height_dp))
+                                .px(px(12.))
+                                .bg(paint(item.container))
+                                .text_color(paint(item.label))
+                                .flex()
+                                .items_center()
+                                .child(*label)
+                        },
+                    )),
+            )
+        })
 }
 
 fn range_slider_hero(
@@ -1023,7 +1119,13 @@ fn settings_scene(
                         cx.notify();
                     }),
                 ))
-                .child(connected_button_group(theme, this.group_selected, cx)),
+                .child(connected_button_group(theme, this.group_selected, cx))
+                .child(connected_icon_group(
+                    theme,
+                    this.icon_selected,
+                    this.overflow_open,
+                    cx,
+                )),
         )
         .child(m_button(
             "settings-reset",
@@ -1526,6 +1628,77 @@ fn list_dialog_overlay(
                             cx.listener(dismiss_overlay),
                         )),
                 ),
+        )
+}
+
+fn fullscreen_dialog_overlay(theme: &Theme, cx: &mut Context<CatalogView>) -> impl IntoElement {
+    let a = dialog::resolve_fullscreen(theme);
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        false,
+    );
+    div()
+        .id("dialog-fullscreen")
+        .flex_1()
+        .w_full()
+        .bg(paint(a.container))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(a.header_h_dp))
+                .w_full()
+                .px(px(16.))
+                .flex()
+                .items_center()
+                .gap(px(12.))
+                .child(
+                    div()
+                        .id("fs-close")
+                        .text_size(px(dialog::ICON_DP))
+                        .text_color(paint(a.icon))
+                        .child(dialog::FULLSCREEN_CLOSE)
+                        .on_click(cx.listener(dismiss_overlay)),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(a.headline_style.size_sp))
+                        .font_weight(type_weight(a.headline_style))
+                        .text_color(paint(a.headline))
+                        .child(dialog::FULLSCREEN_HEADLINE),
+                )
+                .child(m_button(
+                    "fs-save",
+                    theme,
+                    button::ButtonVariant::Text,
+                    InteractionState::Enabled,
+                    dialog::FULLSCREEN_SAVE,
+                    cx.listener(dismiss_overlay),
+                )),
+        )
+        .when(dialog::FULLSCREEN_HAS_DIVIDER, |el| {
+            el.child(div().h(px(1.)).w_full().bg(paint(a.divider)))
+        })
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(12.))
+                .p(px(24.))
+                .children(dialog::FULLSCREEN_FIELDS.iter().map(|label| {
+                    div()
+                        .h(px(56.))
+                        .px(px(16.))
+                        .rounded(px(4.))
+                        .bg(paint(field.field.container))
+                        .text_color(paint(a.supporting))
+                        .flex()
+                        .items_center()
+                        .child(*label)
+                })),
         )
 }
 
@@ -2915,64 +3088,86 @@ fn carousel_hero(
 ) -> impl IntoElement {
     let a = carousel::resolve(theme);
     let selected = this.carousel_index;
+    let layout = this.carousel_layout;
+    let offset_t = this.carousel_fling.snap_offset_t();
+    let shift = carousel::parallax_offset_dp(offset_t);
     div()
-        .id("carousel")
-        .relative()
-        .w_full()
         .flex()
-        .gap(px(a.gap_dp))
+        .flex_col()
+        .gap(px(8.))
         .child(
             div()
-                .absolute()
-                .w(px(1.))
-                .h(px(1.))
-                .with_animation(
-                    "carousel-live-clock",
-                    Animation::new(Duration::from_millis(gpui_material::motion::FRAME_MS as u64))
-                        .repeat(),
-                    |el, _| el,
-                ),
+                .id("carousel-layout")
+                .text_size(px(12.))
+                .text_color(paint(theme.color.on_surface_variant))
+                .child(format!("layout · {}", layout.label()))
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.carousel_layout = match this.carousel_layout {
+                        carousel::CarouselLayout::Hero => carousel::CarouselLayout::MultiBrowse,
+                        carousel::CarouselLayout::MultiBrowse => {
+                            carousel::CarouselLayout::Uncontained
+                        }
+                        carousel::CarouselLayout::Uncontained => carousel::CarouselLayout::Hero,
+                    };
+                    cx.notify();
+                })),
         )
-        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
-            let (dx, dy) = match ev.delta {
-                ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
-                ScrollDelta::Lines(p) => (p.x, p.y),
-            };
-            this.carousel_fling.selected = this.carousel_index;
-            this.carousel_fling.impulse(dx, dy);
-            this.carousel_fling_at = None;
-            cx.notify();
-        }))
-        .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_during_fling(
-                i,
-                selected,
-                this.carousel_fling.snap_offset_t(),
-            );
-            let (bg, fg) = if i == selected {
-                (a.container, a.label)
-            } else {
-                (a.neighbor, theme.color.on_secondary_container)
-            };
+        .child(
             div()
-                .id(SharedString::from(format!("carousel-{i}")))
-                .w(px(w))
-                .h(px(a.height_dp))
-                .rounded(px(a.corners.top_left))
-                .bg(paint(bg))
-                .p(px(16.))
+                .id("carousel")
+                .relative()
+                .w_full()
                 .flex()
-                .items_end()
-                .text_color(paint(fg))
-                .font_weight(type_weight(a.label_style))
-                .child(*label)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.carousel_index = carousel::snap_to(i);
-                    this.carousel_fling = carousel::FlingState::new(i);
+                .gap(px(a.gap_dp))
+                .child(
+                    div()
+                        .absolute()
+                        .w(px(1.))
+                        .h(px(1.))
+                        .with_animation(
+                            "carousel-live-clock",
+                            Animation::new(Duration::from_millis(
+                                gpui_material::motion::FRAME_MS as u64,
+                            ))
+                            .repeat(),
+                            |el, _| el,
+                        ),
+                )
+                .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+                    let (dx, dy) = match ev.delta {
+                        ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
+                        ScrollDelta::Lines(p) => (p.x, p.y),
+                    };
+                    this.carousel_fling.selected = this.carousel_index;
+                    this.carousel_fling.impulse(dx, dy);
                     this.carousel_fling_at = None;
                     cx.notify();
                 }))
-        }))
+                .children(carousel::MEDIA_CAPTIONS.iter().enumerate().map(|(i, label)| {
+                    let w = carousel::item_width_during_fling_for(layout, i, selected, offset_t);
+                    let bg = carousel::media_fill(theme, i);
+                    let fg = carousel::media_on(theme, i);
+                    div()
+                        .id(SharedString::from(format!("carousel-{i}")))
+                        .w(px(w))
+                        .h(px(a.height_dp))
+                        .ml(px(shift))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(bg))
+                        .p(px(16.))
+                        .flex()
+                        .items_end()
+                        .text_color(paint(fg))
+                        .font_weight(type_weight(a.label_style))
+                        .child(*label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.carousel_index = carousel::snap_to(i);
+                            this.carousel_fling = carousel::FlingState::new(i);
+                            this.carousel_fling_at = None;
+                            cx.notify();
+                        }))
+                })),
+        )
 }
 
 fn section_title(theme: &Theme, title: &'static str) -> impl IntoElement {
@@ -3266,6 +3461,8 @@ fn main() {
                         "you@domain.com",
                     ),
                     group_selected: button_group::DEMO_SELECTED,
+                    icon_selected: button_group::ICON_SELECTED,
+                    overflow_open: button_group::OVERFLOW_OPEN,
                     range_start: slider::RANGE_DEMO_START,
                     range_end: slider::RANGE_DEMO_END,
                     range_drag: None,
@@ -3285,6 +3482,7 @@ fn main() {
                     rail_selected: navigation_rail::DEMO_SELECTED,
                     rail_mode: navigation_rail::DEMO_MODE,
                     carousel_index: carousel::DEMO_INDEX,
+                    carousel_layout: carousel::CarouselLayout::Hero,
                     carousel_fling: carousel::FlingState::new(carousel::DEMO_INDEX),
                     carousel_fling_at: None,
                     last_catalog_ime: None,
@@ -3370,6 +3568,12 @@ mod tests {
         assert_eq!(
             dialog::resolve(&theme).headline_style.name,
             "headlineSmallEmphasized"
+        );
+        assert_eq!(dialog::resolve_fullscreen(&theme).header_h_dp, 64.0);
+        assert_eq!(button_group::icon_group_count(), 4);
+        assert_eq!(
+            carousel::item_width_for(carousel::CarouselLayout::MultiBrowse, 0, 0),
+            carousel::MULTI_LARGE_W_DP
         );
         assert_eq!(search::resolve(&theme).bar.height_dp, 56.0);
         assert_eq!(search::resolve_view(&theme).header_h_dp, 72.0);

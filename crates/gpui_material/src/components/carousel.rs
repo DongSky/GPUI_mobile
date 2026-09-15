@@ -1,6 +1,7 @@
 //! Carousel. Specs: https://m3.material.io/components/carousel/specs
 //!
-//! Catalog stub: hero large item + smaller neighbors (multi-browse peek).
+//! Catalog: hero / multi-browse / uncontained layouts. Media tiles use
+//! role-color fills (photo stubs) plus a parallax offset while flinging.
 //! Click / wheel snap the selected index; fling uses velocity/decay so a
 //! large delta can skip more than one item.
 
@@ -15,8 +16,50 @@ pub const HEIGHT_DP: f32 = 168.0;
 pub const GAP_DP: f32 = 8.0;
 pub const CORNER_DP: f32 = 28.0;
 pub const ITEMS: [&str; 4] = ["One", "Two", "Three", "Four"];
+/// Photo-stub captions for media tiles (official uses landscape photos).
+pub const MEDIA_CAPTIONS: [&str; 4] = ["Lake", "Grove", "Dune", "Harbor"];
 pub const DEMO_INDEX: usize = 0;
 pub const HERO_TITLE: &str = "Hero carousel";
+pub const MULTI_LARGE_W_DP: f32 = 186.0;
+pub const MULTI_SMALL_W_DP: f32 = 56.0;
+pub const UNCONTAINED_W_DP: f32 = 220.0;
+pub const UNCONTAINED_SMALL_W_DP: f32 = 140.0;
+pub const PARALLAX_MAX_DP: f32 = 12.0;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CarouselLayout {
+    Hero,
+    MultiBrowse,
+    Uncontained,
+}
+
+impl CarouselLayout {
+    pub const ALL: [Self; 3] = [Self::Hero, Self::MultiBrowse, Self::Uncontained];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Hero => "hero",
+            Self::MultiBrowse => "multi-browse",
+            Self::Uncontained => "uncontained",
+        }
+    }
+
+    pub const fn large_w(self) -> f32 {
+        match self {
+            Self::Hero => LARGE_W_DP,
+            Self::MultiBrowse => MULTI_LARGE_W_DP,
+            Self::Uncontained => UNCONTAINED_W_DP,
+        }
+    }
+
+    pub const fn small_w(self) -> f32 {
+        match self {
+            Self::Hero => SMALL_W_DP,
+            Self::MultiBrowse => MULTI_SMALL_W_DP,
+            Self::Uncontained => UNCONTAINED_SMALL_W_DP,
+        }
+    }
+}
 /// Wheel/fling distance that maps to one item. Larger deltas skip further.
 pub const FLING_UNIT: f32 = 24.0;
 /// Exponential decay per second for a one-shot velocity model (`v * e^{-k t}`).
@@ -54,18 +97,31 @@ pub fn resolve(theme: &Theme) -> CarouselAppearance {
 }
 
 pub fn item_width_dp(index: usize, selected: usize) -> f32 {
+    item_width_for(CarouselLayout::Hero, index, selected)
+}
+
+pub fn item_width_for(layout: CarouselLayout, index: usize, selected: usize) -> f32 {
     if index == selected {
-        LARGE_W_DP
+        layout.large_w()
     } else {
-        SMALL_W_DP
+        layout.small_w()
     }
 }
 
 /// Hero/neighbor widths while a fling leftover is mid-item (`offset_t` = leftover / unit).
 pub fn item_width_during_fling(index: usize, selected: usize, offset_t: f32) -> f32 {
+    item_width_during_fling_for(CarouselLayout::Hero, index, selected, offset_t)
+}
+
+pub fn item_width_during_fling_for(
+    layout: CarouselLayout,
+    index: usize,
+    selected: usize,
+    offset_t: f32,
+) -> f32 {
     let t = offset_t.clamp(-1.0, 1.0);
     if t.abs() < 0.001 {
-        return item_width_dp(index, selected);
+        return item_width_for(layout, index, selected);
     }
     let next = if t >= 0.0 {
         advance(selected, 1)
@@ -73,13 +129,41 @@ pub fn item_width_during_fling(index: usize, selected: usize, offset_t: f32) -> 
         advance(selected, -1)
     };
     let at = t.abs();
+    let large = layout.large_w();
+    let small = layout.small_w();
     if index == selected {
-        LARGE_W_DP + (SMALL_W_DP - LARGE_W_DP) * at
+        large + (small - large) * at
     } else if index == next {
-        SMALL_W_DP + (LARGE_W_DP - SMALL_W_DP) * at
+        small + (large - small) * at
     } else {
-        SMALL_W_DP
+        small
     }
+}
+
+/// Role-color photo stub (official uses landscape tiles).
+pub fn media_fill(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 4 {
+        0 => c.primary_container,
+        1 => c.secondary_container,
+        2 => c.tertiary_container,
+        _ => c.error_container,
+    }
+}
+
+pub fn media_on(theme: &Theme, index: usize) -> Argb {
+    let c = theme.color;
+    match index % 4 {
+        0 => c.on_primary_container,
+        1 => c.on_secondary_container,
+        2 => c.on_tertiary_container,
+        _ => c.on_error_container,
+    }
+}
+
+/// Horizontal content shift while a fling leftover is mid-item.
+pub fn parallax_offset_dp(offset_t: f32) -> f32 {
+    offset_t.clamp(-1.0, 1.0) * PARALLAX_MAX_DP
 }
 
 pub fn wrap_index(index: isize) -> usize {

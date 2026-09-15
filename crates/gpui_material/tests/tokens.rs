@@ -408,6 +408,17 @@ fn card_chip_fab_chrome_tokens() {
     let snack = snackbar::resolve(&theme);
     assert_eq!(snack.container, theme.color.inverse_surface);
     assert_eq!(snack.action, theme.color.inverse_primary);
+    assert_eq!(snackbar::TIMEOUT_SHORT_MS, 4000);
+    assert_eq!(snackbar::SWIPE_DISMISS_DP, 72.0);
+    let mut snack_state = snackbar::SnackbarState::short();
+    assert!(snack_state.visible);
+    assert!(!snack_state.tick(1000.0));
+    assert!(snack_state.tick(4000.0));
+    assert!(snack_state.dismissed());
+    let mut swipe = snackbar::SnackbarState::short();
+    swipe.swipe(80.0);
+    assert!(swipe.dismissed());
+    assert_eq!(swipe.opacity(), 0.0);
 
     let nav = navigation_bar::resolve(&theme);
     assert_eq!(nav.height_dp, 80.0);
@@ -447,7 +458,21 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("labelLarge"));
     assert!(html.contains("data-dialog=\"basic\""));
     assert!(html.contains("data-dialog=\"list\""));
+    assert!(html.contains("data-dialog=\"fullscreen\""));
+    assert!(html.contains("data-fs-header"));
+    assert!(html.contains("Event title"));
     assert!(html.contains("Phone ringtone"));
+    assert!(html.contains("data-icon-group=\"1\""));
+    assert!(html.contains("data-overflow-menu"));
+    assert!(html.contains("data-carousel-layout=\"multi-browse\""));
+    assert!(html.contains("data-carousel-media"));
+    assert!(html.contains("data-timeout-ms"));
+    assert!(html.contains("data-swipe-dismiss"));
+    assert!(html.contains("data-tabs=\"primary-icons\""));
+    assert!(html.contains("data-sheet=\"standard\""));
+    assert!(html.contains("data-hero=\"snackbar\""));
+    assert!(html.contains("data-hero=\"dialog-fullscreen\""));
+    assert!(html.contains("data-hero=\"button-group-icons\""));
     assert!(html.contains("data-field-hero=\"empty-filled\""));
     assert!(html.contains("data-field-hero=\"empty-outlined\""));
     assert!(html.contains("data-week-start=\"sunday\""));
@@ -616,6 +641,13 @@ fn dialog_sheet_menu_tokens() {
     assert_eq!(dialog::RESET_ACCOUNTS.len(), 3);
     assert!(dialog::RESET_SUPPORTING.contains("The following accounts"));
     assert_eq!(dialog::account_initials("leevilanuevanotes@google.com"), "L");
+    let fs = dialog::resolve_fullscreen(&theme);
+    assert_eq!(fs.corners.top_left, 0.0);
+    assert_eq!(fs.header_h_dp, 64.0);
+    assert_eq!(fs.container, theme.color.surface);
+    assert_eq!(fs.headline_style.name, "titleLargeEmphasized");
+    assert_eq!(dialog::FULLSCREEN_FIELDS.len(), 4);
+    assert_eq!(dialog::FULLSCREEN_SAVE, "Save");
 
     let sheet = bottom_sheet::resolve(&theme, true);
     assert_eq!(sheet.corners.top_left, 28.0);
@@ -681,6 +713,9 @@ fn slider_tabs_badge_tokens() {
     let secondary = tabs::resolve(&theme, tabs::TabsVariant::Secondary);
     assert_eq!(secondary.indicator_h, 2.0);
     assert!(secondary.indicator_full_width);
+    let icons = tabs::resolve_with_icons(&theme, tabs::TabsVariant::Primary);
+    assert_eq!(icons.height_dp, tabs::HEIGHT_WITH_ICON_DP);
+    assert_eq!(tabs::DEMO_ICON_LABELS.len(), 3);
 
     let small = badge::resolve(&theme, badge::BadgeKind::Small);
     assert_eq!(small.size_dp, 6.0);
@@ -858,6 +893,13 @@ fn connected_button_group_tokens() {
     assert_eq!(button_group::SETTINGS_QUIET_HOURS_TITLE, "Quiet hours");
     assert_eq!(button_group::SETTINGS_GROUP_GAP_DP, 24.0);
     assert_eq!(button_group::SETTINGS_PAD_DP, 16.0);
+    assert_eq!(button_group::ICON_SEGMENTS.len(), 3);
+    assert_eq!(button_group::icon_group_count(), 4);
+    assert_eq!(button_group::overflow_index(), 3);
+    assert_eq!(button_group::icon_glyph(3), button_group::OVERFLOW_GLYPH);
+    let icon = button_group::resolve_icon_segment(&theme, 0, 4, true, false);
+    assert_eq!(icon.min_width_dp, Some(button_group::ICON_MIN_W_DP));
+    assert_eq!(button_group::OVERFLOW_ITEMS.len(), 3);
 }
 
 #[test]
@@ -1014,6 +1056,21 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(car.corners.top_left, 28.0);
     assert_eq!(carousel::item_width_dp(0, 0), 256.0);
     assert_eq!(carousel::item_width_dp(1, 0), 120.0);
+    assert_eq!(
+        carousel::item_width_for(carousel::CarouselLayout::MultiBrowse, 0, 0),
+        carousel::MULTI_LARGE_W_DP
+    );
+    assert_eq!(
+        carousel::item_width_for(carousel::CarouselLayout::MultiBrowse, 1, 0),
+        carousel::MULTI_SMALL_W_DP
+    );
+    assert_eq!(
+        carousel::item_width_for(carousel::CarouselLayout::Uncontained, 0, 0),
+        carousel::UNCONTAINED_W_DP
+    );
+    assert_eq!(carousel::media_fill(&theme, 0), theme.color.primary_container);
+    assert_eq!(carousel::parallax_offset_dp(0.5), 6.0);
+    assert_eq!(carousel::MEDIA_CAPTIONS.len(), 4);
     assert_eq!(carousel::advance(0, 1), 1);
     assert_eq!(carousel::advance(0, -1), 3);
     assert_eq!(carousel::fling_step(12.0, 0.0), 1);

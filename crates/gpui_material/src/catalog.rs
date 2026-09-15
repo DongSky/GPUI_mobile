@@ -413,6 +413,17 @@ a {{ color: var(--primary); }}
 .carousel .tile {{
   height: 168px; border-radius: 28px; display: flex; align-items: flex-end;
   padding: 16px; font-weight: 700; flex: 0 0 auto;
+  background-size: 140% 140%; background-position: center;
+}}
+.carousel .tile[data-media="1"] {{
+  background-image: linear-gradient(135deg, rgba(255,255,255,.18), transparent 55%);
+}}
+.overflow-menu {{
+  position: relative; display: flex; align-items: flex-start; gap: 8px;
+}}
+.snack {{
+  min-height: 48px; padding: 0 16px; gap: 16px; justify-content: space-between;
+  min-width: 280px;
 }}
 .wave {{ width: 240px; height: 16px; overflow: hidden; margin: 12px 0; }}
 .wave svg {{ display: block; width: 240px; height: 16px; }}
@@ -442,6 +453,21 @@ table.inv th {{ font-weight: 500; }}
 .dialog .actions {{ display: flex; justify-content: flex-end; gap: 8px; width: 100%; }}
 .dialog .actions .btn {{ background: transparent; box-shadow: none; min-width: 64px; }}
 .dialog-list {{ align-items: stretch; text-align: left; }}
+.dialog-fullscreen {{
+  min-width: 0; max-width: none; width: 100%; padding: 0; gap: 0;
+  min-height: 320px; border-radius: 0;
+}}
+.dialog-fullscreen .fs-head {{
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; padding: 0 8px 0 16px; gap: 12px;
+}}
+.dialog-fullscreen .fs-fields {{
+  display: flex; flex-direction: column; gap: 12px; padding: 16px 24px 24px;
+}}
+.dialog-fullscreen .fs-field {{
+  min-height: 56px; border-radius: 4px 4px 0 0; padding: 8px 16px;
+  display: flex; align-items: center;
+}}
 .dialog-list .ringtone {{
   display: flex; align-items: center; justify-content: space-between;
   min-height: 48px; width: 100%;
@@ -561,7 +587,17 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
 document.querySelectorAll("[data-button-group]").forEach(function (group) {{
   group.querySelectorAll(".btn-connected").forEach(function (btn) {{
     btn.addEventListener("click", function () {{
+      if (btn.getAttribute("data-overflow") === "1") {{
+        var menu = group.parentElement && group.parentElement.querySelector("[data-overflow-menu]");
+        if (menu) {{
+          var open = menu.getAttribute("data-open") === "1";
+          menu.setAttribute("data-open", open ? "0" : "1");
+          menu.style.display = open ? "none" : "flex";
+        }}
+        return;
+      }}
       group.querySelectorAll(".btn-connected").forEach(function (other) {{
+        if (other.getAttribute("data-overflow") === "1") return;
         other.classList.remove("selected");
         other.style.background = other.getAttribute("data-idle-bg") || other.style.background;
         other.style.color = other.getAttribute("data-idle-fg") || other.style.color;
@@ -576,6 +612,37 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
       btn.style.border = "none";
       btn.style.fontWeight = "700";
     }});
+  }});
+}});
+document.querySelectorAll("[data-snackbar]").forEach(function (bar) {{
+  var remain = Number(bar.getAttribute("data-timeout-ms") || "4000");
+  var start = performance.now();
+  var ox = 0;
+  function paint() {{
+    bar.style.transform = "translateX(" + ox + "px)";
+    bar.style.opacity = String(Math.max(0, 1 - Math.abs(ox) / 72));
+  }}
+  function hide() {{
+    bar.setAttribute("data-dismissed", "1");
+    bar.style.display = "none";
+  }}
+  function tick(now) {{
+    if (bar.getAttribute("data-dismissed") === "1") return;
+    if (now - start >= remain) {{ hide(); return; }}
+    requestAnimationFrame(tick);
+  }}
+  requestAnimationFrame(tick);
+  var sx = null;
+  bar.addEventListener("pointerdown", function (ev) {{ sx = ev.clientX; }});
+  bar.addEventListener("pointermove", function (ev) {{
+    if (sx == null) return;
+    ox = ev.clientX - sx;
+    paint();
+  }});
+  bar.addEventListener("pointerup", function () {{
+    if (Math.abs(ox) >= 72) hide();
+    else {{ ox = 0; paint(); }}
+    sx = null;
   }});
 }});
 document.querySelectorAll("[data-slider-range]").forEach(function (row) {{
@@ -866,11 +933,15 @@ document.querySelectorAll("[data-carousel]").forEach(function (car) {{
     var next = offsetT >= 0 ? sel + 1 : sel - 1;
     next = ((next % n) + n) % n;
     var at = Math.min(1, Math.abs(offsetT));
+    var layout = car.getAttribute("data-carousel-layout") || "hero";
+    var large = layout === "multi-browse" ? 186 : layout === "uncontained" ? 220 : 256;
+    var small = layout === "multi-browse" ? 56 : layout === "uncontained" ? 140 : 120;
     car.querySelectorAll("[data-carousel-item]").forEach(function (t) {{
       var i = Number(t.getAttribute("data-carousel-item"));
-      var w = 120;
-      if (i === sel) w = 256 + (120 - 256) * at;
-      else if (i === next) w = 120 + (256 - 120) * at;
+      t.style.transform = "translateX(" + (offsetT * 12) + "px)";
+      var w = small;
+      if (i === sel) w = large + (small - large) * at;
+      else if (i === next) w = small + (large - small) * at;
       t.style.width = w + "px";
     }});
   }}
@@ -1186,6 +1257,80 @@ fn paint_connected_group(theme: &Theme, selected: usize) -> String {
     parts
 }
 
+fn paint_icon_group(theme: &Theme, selected: usize, overflow_open: bool) -> String {
+    let count = button_group::icon_group_count();
+    let menu = menu::resolve_menu(theme);
+    let mut parts = String::from(
+        r#"<div class="overflow-menu" data-hero="button-group-icons">"#,
+    );
+    parts.push_str(
+        r#"<div class="btn-group" data-button-group="icons" data-icon-group="1">"#,
+    );
+    for i in 0..count {
+        let glyph = button_group::icon_glyph(i);
+        let overflow = i == button_group::overflow_index();
+        let sel = !overflow && i == selected;
+        let a = button_group::resolve_icon_segment(theme, i, count, sel, false);
+        let idle = button_group::resolve_icon_segment(theme, i, count, false, false);
+        let on = button_group::resolve_icon_segment(theme, i, count, true, false);
+        let role = match button_group::segment_role(i, count) {
+            button_group::SegmentRole::Leading => "leading",
+            button_group::SegmentRole::Middle => "middle",
+            button_group::SegmentRole::Trailing => "trailing",
+        };
+        let class = if sel {
+            format!("btn btn-connected {role} selected")
+        } else {
+            format!("btn btn-connected {role}")
+        };
+        parts.push_str(&format!(
+            r#"<button class="{class}" data-segment="{i}" data-role="{role}" data-overflow="{ov}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-r="{ir}" data-idle-bd="{ibd}" data-sel-bg="{sbg}" data-sel-fg="{sfg}" data-sel-r="{sr}" style="--press-r:{pr}px;background:{bg};color:{fg};border:{bd};border-radius:{r};height:{h}px;min-width:{mw}px;padding:0 {pad}px;font-size:{fs}px">{glyph}</button>"#,
+            class = class,
+            i = i,
+            role = role,
+            ov = if overflow { "1" } else { "0" },
+            ibg = idle.container.css_hex(),
+            ifg = idle.content.css_hex(),
+            ir = idle.corners.css(),
+            ibd = idle.outline_css(),
+            sbg = on.container.css_hex(),
+            sfg = on.content.css_hex(),
+            sr = on.corners.css(),
+            pr = button::ButtonSize::Small.pressed_corner_dp(),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            bd = a.outline_css(),
+            r = a.corners.css(),
+            h = a.height_dp,
+            mw = a.min_width_dp.unwrap_or(button_group::ICON_MIN_W_DP),
+            pad = a.pad_start_dp,
+            fs = a.label_style.size_sp,
+            glyph = glyph,
+        ));
+    }
+    parts.push_str("</div>");
+    let display = if overflow_open { "flex" } else { "none" };
+    parts.push_str(&format!(
+        r#"<div class="menu" data-overflow-menu="1" data-open="{open}" style="display:{display};background:{bg};border-radius:{r}px;box-shadow:{sh}">"#,
+        open = if overflow_open { "1" } else { "0" },
+        display = display,
+        bg = menu.container.css_hex(),
+        r = menu.corners.top_left,
+        sh = ElevationLevels::css_shadow(menu.elevation_dp),
+    ));
+    for (i, label) in button_group::OVERFLOW_ITEMS.iter().enumerate() {
+        let item = menu::resolve_item(theme, i == 0, InteractionState::Enabled);
+        parts.push_str(&format!(
+            r#"<div class="menu-item" data-overflow-item="{label}" style="background:{bg};color:{fg};height:{h}px">{label}</div>"#,
+            bg = item.container.css_hex(),
+            fg = item.label.css_hex(),
+            h = item.height_dp,
+        ));
+    }
+    parts.push_str("</div></div>");
+    parts
+}
+
 fn settings_scene(theme: &Theme) -> String {
     let title = theme.typography.title_large.emphasized();
     let section = theme.typography.title_medium.emphasized();
@@ -1334,6 +1479,12 @@ fn buttons(theme: &Theme) -> String {
     out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p>");
     out.push_str("<h3>connected button group</h3>");
     out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
+    out.push_str("<h3>connected icon row + overflow</h3>");
+    out.push_str(&paint_icon_group(
+        theme,
+        button_group::ICON_SELECTED,
+        button_group::OVERFLOW_OPEN,
+    ));
     out.push_str("<p class=\"note\">Expressive connected group: 2dp gap, 8dp inner corners, full-round outer. Selected segment morphs toward square (checkedShape). Click to restyle.</p></div>");
     for variant in button::ButtonVariant::ALL {
         out.push_str(&format!("<h3>{}</h3>", variant.label()));
@@ -1895,9 +2046,10 @@ fn chrome(theme: &Theme) -> String {
     let expanded = navigation_rail::resolve_mode(theme, navigation_rail::RailMode::Expanded);
     format!(
         r#"<h2>Snackbar</h2>
-<div class="snack" data-snackbar="1" style="background:{sbg};color:{sfg};border-radius:{sr}px">
-  <span>Message sent</span>
-  <span style="color:{act};font-weight:500">Action</span>
+<p class="note">Inverse surface · 4s short timeout · swipe 72dp to dismiss. <a href="https://m3.material.io/components/snackbar/specs">spec</a></p>
+<div class="snack" data-snackbar="1" data-timeout-ms="{timeout}" data-swipe-dismiss="{swipe}" data-hero="snackbar" style="background:{sbg};color:{sfg};border-radius:{sr}px">
+  <span>{msg}</span>
+  <span style="color:{act};font-weight:500">{action}</span>
 </div>
 <h2>Navigation bar</h2>
 <div class="nav" data-navbar="1" style="background:{nbg}">
@@ -1917,6 +2069,10 @@ fn chrome(theme: &Theme) -> String {
         sfg = snack.supporting.css_hex(),
         sr = snack.corners.top_left,
         act = snack.action.css_hex(),
+        timeout = snackbar::TIMEOUT_SHORT_MS,
+        swipe = snackbar::SWIPE_DISMISS_DP,
+        msg = snackbar::DEMO_MESSAGE,
+        action = snackbar::DEMO_ACTION,
         nbg = nav.container.css_hex(),
         nact = nav.active_label.css_hex(),
         ind = nav.active_indicator.css_hex(),
@@ -2065,7 +2221,7 @@ fn dialogs(theme: &Theme) -> String {
     }
     format!(
         r#"<h2>Dialog</h2>
-<p class="note">Guidelines Reset settings (icon, headline, supporting, text Cancel/Accept) plus overview Phone ringtone list dialog. 28dp · elev 3 · 32% scrim. Actions use the Text button resolve (transparent container). <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
+<p class="note">Official pair: basic Reset settings + full-screen Event editor, plus Phone ringtone list. 28dp · elev 3 · 32% scrim for basic; full-screen is surface / 0 corners / 64dp header. <a href="https://m3.material.io/components/dialogs/overview">overview</a></p>
 <div class="scrim" data-dialog="scrim" style="background:{scrim}">
   <div class="dialog" data-dialog="basic" data-hero="dialog" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh};min-width:{mw}px;text-align:center;align-items:center">
     <div style="font-size:{icon_dp}px;color:{icon}">{reset_icon}</div>
@@ -2087,7 +2243,8 @@ fn dialogs(theme: &Theme) -> String {
       <button class="btn" style="background:{abg};color:{act}">{list_ok}</button>
     </div>
   </div>
-</div>"#,
+</div>
+<div data-dialog="fullscreen-stage" style="margin-top:16px">{fullscreen}</div>"#,
         scrim = a.scrim.css_hex(),
         bg = a.container.css_hex(),
         fg = a.headline.css_hex(),
@@ -2115,21 +2272,86 @@ fn dialogs(theme: &Theme) -> String {
         list_ok = dialog::RINGTONE_OK,
         rows = rows,
         accounts = accounts,
+        fullscreen = fullscreen_dialog(theme),
+    )
+}
+
+fn fullscreen_dialog(theme: &Theme) -> String {
+    let a = dialog::resolve_fullscreen(theme);
+    let text_btn = button::resolve(
+        theme,
+        button::ButtonVariant::Text,
+        InteractionState::Enabled,
+    );
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Filled,
+        InteractionState::Enabled,
+        false,
+    );
+    let mut fields = String::new();
+    for label in dialog::FULLSCREEN_FIELDS {
+        fields.push_str(&format!(
+            r#"<div class="fs-field" data-fs-field="{label}" style="background:{bg};color:{fg}">{label}</div>"#,
+            bg = field.field.container.css_hex(),
+            fg = a.supporting.css_hex(),
+        ));
+    }
+    let divider = if dialog::FULLSCREEN_HAS_DIVIDER {
+        format!(
+            r#"<div class="divider" data-fs-divider="1" style="background:{}"></div>"#,
+            a.divider.css_hex()
+        )
+    } else {
+        String::new()
+    };
+    format!(
+        r#"<div class="dialog dialog-fullscreen" data-dialog="fullscreen" data-hero="dialog-fullscreen" style="background:{bg};color:{fg};border-radius:{r}px;box-shadow:{sh}">
+  <div class="fs-head" data-fs-header="1" style="height:{hh}px">
+    <span data-fs-close="1" style="font-size:{icon}px;color:{ic}">{close}</span>
+    <span style="flex:1;font-size:{hs}px;line-height:{hl}px;font-weight:{hw}">{head}</span>
+    <button class="btn" style="background:{abg};color:{act}">{save}</button>
+  </div>
+  {divider}
+  <div class="fs-fields">{fields}</div>
+</div>"#,
+        bg = a.container.css_hex(),
+        fg = a.headline.css_hex(),
+        r = a.corners.top_left,
+        sh = ElevationLevels::css_shadow(a.elevation_dp),
+        hh = a.header_h_dp,
+        icon = dialog::ICON_DP,
+        ic = a.icon.css_hex(),
+        close = dialog::FULLSCREEN_CLOSE,
+        hs = a.headline_style.size_sp,
+        hl = a.headline_style.line_height_sp,
+        hw = a.headline_style.weight,
+        head = dialog::FULLSCREEN_HEADLINE,
+        abg = text_btn.container.css_hex(),
+        act = a.action.css_hex(),
+        save = dialog::FULLSCREEN_SAVE,
+        divider = divider,
+        fields = fields,
     )
 }
 
 fn sheets(theme: &Theme) -> String {
     let modal = bottom_sheet::resolve(theme, true);
+    let standard = bottom_sheet::resolve(theme, false);
     format!(
         r#"<h2>Bottom sheet</h2>
-<p class="note">Modal sheet · extra-large top 28 · 32×4 handle · elevation 1.</p>
-<div class="scrim" data-sheet="scrim" style="background:{scrim};align-items:flex-end">
+<p class="note">Modal sheet · extra-large top 28 · 32×4 handle · elevation 1. Standard (non-modal) sits on surface without a scrim. <a href="https://m3.material.io/components/bottom-sheets/specs">spec</a></p>
+<div class="scrim" data-sheet="scrim" data-hero="bottom-sheet" style="background:{scrim};align-items:flex-end">
   <div class="sheet" data-sheet="modal" style="background:{bg};border-radius:{css};box-shadow:{sh};color:{fg}">
     <div class="handle" style="width:{hw}px;height:{hh}px;background:{handle}"></div>
     <div class="list-item" style="width:100%"><div class="h">Share</div></div>
     <div class="list-item" style="width:100%"><div class="h">Add to favorites</div></div>
     <div class="list-item" style="width:100%"><div class="h">Delete</div></div>
   </div>
+</div>
+<div class="sheet" data-sheet="standard" style="background:{sbg};border-radius:{scss};box-shadow:{ssh};color:{sfg};margin-top:16px">
+  <div class="handle" style="width:{hw}px;height:{hh}px;background:{shandle}"></div>
+  <div class="list-item" style="width:100%"><div class="h">Open in Maps</div></div>
 </div>"#,
         scrim = modal.scrim.css_hex(),
         bg = modal.container.css_hex(),
@@ -2139,6 +2361,11 @@ fn sheets(theme: &Theme) -> String {
         hw = modal.handle_w,
         hh = modal.handle_h,
         handle = modal.handle.css_hex(),
+        sbg = standard.container.css_hex(),
+        scss = standard.corners.css(),
+        ssh = ElevationLevels::css_shadow(standard.elevation_dp),
+        sfg = standard.content.css_hex(),
+        shandle = standard.handle.css_hex(),
     )
 }
 
@@ -2357,6 +2584,38 @@ fn tabs_section(theme: &Theme) -> String {
             a.container.css_hex(),
         ));
     }
+    let icons = tabs::resolve_with_icons(theme, tabs::TabsVariant::Primary);
+    let mut icon_row = String::new();
+    for (i, (icon, label)) in tabs::DEMO_ICONS
+        .iter()
+        .zip(tabs::DEMO_ICON_LABELS.iter())
+        .enumerate()
+    {
+        let active = i == 0;
+        let color = if active {
+            icons.active_label
+        } else {
+            icons.inactive_label
+        };
+        let ind = if active {
+            format!(
+                "<div class=\"tab-ind\" style=\"width:48px;height:{h}px;background:{c}\"></div>",
+                h = icons.indicator_h,
+                c = icons.indicator.css_hex(),
+            )
+        } else {
+            String::new()
+        };
+        icon_row.push_str(&format!(
+            "<div class=\"tab\" data-tab=\"primary-icon\" data-active=\"{active}\" style=\"color:{color};height:{h}px;flex-direction:column\"><span>{icon}</span><span>{label}</span>{ind}</div>",
+            color = color.css_hex(),
+            h = icons.height_dp,
+        ));
+    }
+    out.push_str(&format!(
+        "<h3>primary with icons</h3><div class=\"tabs\" data-tabs=\"primary-icons\" data-hero=\"tabs\" style=\"background:{}\">{icon_row}</div>",
+        icons.container.css_hex(),
+    ));
     out
 }
 
@@ -2719,30 +2978,49 @@ fn motion_section(theme: &Theme) -> String {
     )
 }
 
-fn carousel_section(theme: &Theme) -> String {
+fn paint_carousel_row(theme: &Theme, layout: carousel::CarouselLayout, hero: bool) -> String {
     let a = carousel::resolve(theme);
     let mut tiles = String::new();
-    for (i, label) in carousel::ITEMS.iter().enumerate() {
-        let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
-        let bg = if i == carousel::DEMO_INDEX {
-            a.container.css_hex()
-        } else {
-            a.neighbor.css_hex()
-        };
-        let fg = if i == carousel::DEMO_INDEX {
-            a.label.css_hex()
-        } else {
-            theme.color.on_secondary_container.css_hex()
-        };
+    for (i, caption) in carousel::MEDIA_CAPTIONS.iter().enumerate() {
+        let w = carousel::item_width_for(layout, i, carousel::DEMO_INDEX);
+        let bg = carousel::media_fill(theme, i).css_hex();
+        let fg = carousel::media_on(theme, i).css_hex();
         tiles.push_str(&format!(
-            r#"<div class="tile" data-carousel-item="{i}" style="width:{w}px;background:{bg};color:{fg};border-radius:{r}px">{label}</div>"#,
+            r#"<div class="tile" data-carousel-item="{i}" data-media="1" data-parallax="{px}" style="width:{w}px;background:{bg};color:{fg};border-radius:{r}px">{caption}</div>"#,
+            px = carousel::PARALLAX_MAX_DP,
             r = a.corners.top_left,
         ));
     }
     format!(
-        r#"<h2>Carousel</h2>
-<p class="note">Hero large item (256dp) plus smaller neighbors (120dp). Click a tile to snap; wheel fling uses a live rAF clock with per-frame decay. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>
-<div class="carousel" data-carousel="1" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-hero="carousel">{tiles}</div>"#,
+        r#"<div class="carousel" data-carousel="1" data-carousel-layout="{layout}" data-carousel-fling="1" data-carousel-live="1" data-carousel-snap="1" data-carousel-selected="0" data-carousel-media="1" data-hero="{hero}">{tiles}</div>"#,
+        layout = layout.label(),
+        hero = if hero { "carousel" } else { layout.label() },
         tiles = tiles,
     )
+}
+
+fn carousel_section(theme: &Theme) -> String {
+    let mut out = String::from(
+        r#"<h2>Carousel</h2>
+<p class="note">Hero 256/120, multi-browse 186/56, uncontained 220/140. Role-color media tiles + parallax while flinging. <a href="https://m3.material.io/components/carousel/specs">spec</a></p>"#,
+    );
+    out.push_str("<h3>hero</h3>");
+    out.push_str(&paint_carousel_row(
+        theme,
+        carousel::CarouselLayout::Hero,
+        true,
+    ));
+    out.push_str("<h3>multi-browse</h3>");
+    out.push_str(&paint_carousel_row(
+        theme,
+        carousel::CarouselLayout::MultiBrowse,
+        false,
+    ));
+    out.push_str("<h3>uncontained</h3>");
+    out.push_str(&paint_carousel_row(
+        theme,
+        carousel::CarouselLayout::Uncontained,
+        false,
+    ));
+    out
 }
