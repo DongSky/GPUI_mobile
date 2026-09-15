@@ -85,6 +85,33 @@ pub const SCENE_ICONS: [&str; SCENE_COUNT] = ["⌁", "◉", "✈"];
 pub const SCENE_TRAILING_ON: [bool; SCENE_COUNT] = [true, false, false];
 pub const SCENE_KEYS: [&str; SCENE_COUNT] = ["wifi", "bluetooth", "airplane"];
 
+/// Trailing drag-handle (`ListTokens.ItemTrailingIconSize`).
+pub const DRAG_HANDLE_DP: f32 = 24.0;
+pub const DRAG_HANDLE_GLYPH: &str = "⋮⋮";
+
+/// Swipe-to-reveal rail (Compose `SwipeToDismissBox` around a list item).
+pub const SWIPE_THRESHOLD_DP: f32 = 56.0;
+pub const SWIPE_REVEAL_DP: f32 = 80.0;
+pub const SWIPE_COUNT: usize = 3;
+pub const SWIPE_DEMO_INDEX: usize = 0;
+pub const SWIPE_DEMO_OFFSET_DP: f32 = 80.0;
+pub const SWIPE_HEADLINES: [&str; SWIPE_COUNT] =
+    ["Team sync notes", "Design review", "Lunch plans"];
+pub const SWIPE_SUPPORTING: [&str; SWIPE_COUNT] =
+    ["Alex · 10:24", "Jordan · Yesterday", "Sam · Mon"];
+pub const SWIPE_KEYS: [&str; SWIPE_COUNT] = ["sync", "review", "lunch"];
+pub const SWIPE_LEADING_LABEL: &str = "Archive";
+pub const SWIPE_TRAILING_LABEL: &str = "Delete";
+
+/// Segmented reorder hero (trailing drag handle, click/drag to restack).
+pub const REORDER_COUNT: usize = 3;
+pub const REORDER_HEADLINES: [&str; REORDER_COUNT] =
+    ["Morning briefing", "Design critique", "Ship checklist"];
+pub const REORDER_SUPPORTING: [&str; REORDER_COUNT] =
+    ["Calendar", "Figma file", "Release notes"];
+pub const REORDER_KEYS: [&str; REORDER_COUNT] = ["morning", "critique", "ship"];
+pub const REORDER_DEMO: [usize; REORDER_COUNT] = [0, 1, 2];
+
 pub fn resolve(theme: &Theme, lines: ListLines, state: InteractionState) -> Appearance {
     resolve_style(theme, ListStyle::Baseline, lines, 0, 1, false, state)
 }
@@ -176,6 +203,113 @@ pub fn resolve_style(
         label_style: theme.typography.body_large,
         supporting_style: Some(theme.typography.body_medium),
     }
+}
+
+pub fn leading_action_container(theme: &Theme) -> crate::argb::Argb {
+    theme.color.primary
+}
+
+pub fn leading_action_content(theme: &Theme) -> crate::argb::Argb {
+    theme.color.on_primary
+}
+
+pub fn trailing_action_container(theme: &Theme) -> crate::argb::Argb {
+    theme.color.error
+}
+
+pub fn trailing_action_content(theme: &Theme) -> crate::argb::Argb {
+    theme.color.on_error
+}
+
+pub fn resolve_swipe_item(theme: &Theme, index: usize, count: usize) -> Appearance {
+    resolve_style(
+        theme,
+        ListStyle::Baseline,
+        ListLines::Two,
+        index,
+        count,
+        false,
+        InteractionState::Enabled,
+    )
+}
+
+pub fn resolve_reorder_item(
+    theme: &Theme,
+    index: usize,
+    count: usize,
+    selected: bool,
+) -> Appearance {
+    resolve_segmented(
+        theme,
+        ListLines::Two,
+        index,
+        count,
+        selected,
+        InteractionState::Enabled,
+    )
+}
+
+/// Horizontal swipe offset for one list row. Positive = start-to-end (Archive).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ListSwipeState {
+    pub offset_x_dp: f32,
+    pub dismissed: bool,
+}
+
+impl ListSwipeState {
+    pub fn revealed() -> Self {
+        Self {
+            offset_x_dp: SWIPE_DEMO_OFFSET_DP,
+            dismissed: false,
+        }
+    }
+
+    pub fn settled() -> Self {
+        Self {
+            offset_x_dp: 0.0,
+            dismissed: false,
+        }
+    }
+
+    pub fn swipe(&mut self, dx_dp: f32) {
+        if self.dismissed {
+            return;
+        }
+        self.offset_x_dp = (self.offset_x_dp + dx_dp).clamp(-SWIPE_REVEAL_DP, SWIPE_REVEAL_DP);
+    }
+
+    pub fn settle(&mut self) {
+        if self.dismissed {
+            return;
+        }
+        if self.offset_x_dp.abs() >= SWIPE_THRESHOLD_DP {
+            self.offset_x_dp = self.offset_x_dp.signum() * SWIPE_REVEAL_DP;
+        } else {
+            self.offset_x_dp = 0.0;
+        }
+    }
+
+    pub fn leading_revealed(&self) -> bool {
+        self.offset_x_dp >= SWIPE_THRESHOLD_DP
+    }
+
+    pub fn trailing_revealed(&self) -> bool {
+        self.offset_x_dp <= -SWIPE_THRESHOLD_DP
+    }
+}
+
+/// Move `from` to `to` in a reorder permutation (drag-handle restack).
+pub fn move_item(order: &mut [usize], from: usize, to: usize) {
+    if from >= order.len() || to >= order.len() || from == to {
+        return;
+    }
+    let item = order[from];
+    if from < to {
+        order.copy_within(from + 1..=to, from);
+    } else {
+        order.copy_within(to..from, to + 1);
+    }
+    order[to] = item;
 }
 
 /// Unselected: 16dp outer / 4dp inner. Selected or pressed: 16dp all.

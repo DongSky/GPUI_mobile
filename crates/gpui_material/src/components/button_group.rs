@@ -1,10 +1,14 @@
-//! Material 3 Expressive connected button group.
+//! Material 3 Expressive button groups — standard and connected.
 //!
-//! Segmented buttons are deprecated; connected groups replace them:
-//! 2dp gap, 8dp inner corners, fully rounded outer corners. Selected segments
-//! morph toward square (`checkedShape`); press uses the common-button pressed
-//! radius. Specs: https://m3.material.io/components/button-groups/specs
-//! Compose: `ButtonGroupDefaults.connectedLeading/Middle/TrailingButtonShapes`.
+//! Two variants ([m3.material.io/components/button-groups](https://m3.material.io/components/button-groups/specs)):
+//!
+//! - **Standard** — `ButtonGroupSmallTokens.BetweenSpace` 12dp; pressed/selected
+//!   child grows by `ButtonGroupDefaults.ExpandedRatio` (0.15) and adjacent
+//!   neighbors compress. Rest is round tonal; selected morphs round→square.
+//! - **Connected** — segmented buttons are deprecated; 2dp gap, 8dp inner
+//!   corners, fully rounded outer. Selected morphs toward square (`checkedShape`);
+//!   press uses the common-button pressed radius. Compose:
+//!   `ButtonGroupDefaults.connectedLeading/Middle/TrailingButtonShapes`.
 
 use crate::components::button::{self, ButtonSize, ButtonVariant};
 use crate::components::Appearance;
@@ -16,6 +20,16 @@ use crate::theme::Theme;
 pub const CONNECTED_GAP_DP: f32 = 2.0;
 /// Inner corners of a connected segment (unselected inner / selected morph).
 pub const INNER_CORNER_DP: f32 = 8.0;
+
+/// Compose `ButtonGroupSmallTokens.BetweenSpace` for standard groups.
+pub const STANDARD_GAP_DP: f32 = 12.0;
+/// `ButtonGroupDefaults.ExpandedRatio`: interacted child grows 15%.
+pub const EXPANDED_RATIO: f32 = 0.15;
+/// Hugged S tonal width for Start / Center / End.
+pub const STANDARD_BASE_W_DP: f32 = 88.0;
+
+pub const STANDARD_SEGMENTS: [&str; 3] = ["Start", "Center", "End"];
+pub const STANDARD_SELECTED: usize = 1;
 
 pub const DEMO_SEGMENTS: [&str; 3] = ["Day", "Week", "Month"];
 pub const DEMO_SELECTED: usize = 1;
@@ -33,6 +47,94 @@ pub enum SegmentRole {
     Leading,
     Middle,
     Trailing,
+}
+
+/// Widths for a standard group. The expanded child grows by [`EXPANDED_RATIO`];
+/// adjacent neighbors share that extra width (sum stays `count * base`).
+pub fn standard_widths(count: usize, expanded: Option<usize>, base: f32) -> Vec<f32> {
+    let mut widths = vec![base; count];
+    let Some(i) = expanded else {
+        return widths;
+    };
+    if count == 0 || i >= count {
+        return widths;
+    }
+    let extra = base * EXPANDED_RATIO;
+    widths[i] = base + extra;
+    let mut neighbors = Vec::new();
+    if i > 0 {
+        neighbors.push(i - 1);
+    }
+    if i + 1 < count {
+        neighbors.push(i + 1);
+    }
+    if neighbors.is_empty() {
+        return widths;
+    }
+    let share = extra / neighbors.len() as f32;
+    for n in neighbors {
+        widths[n] = (base - share).max(0.0);
+    }
+    widths
+}
+
+pub fn standard_width(index: usize, count: usize, expanded: Option<usize>) -> f32 {
+    standard_widths(count, expanded, STANDARD_BASE_W_DP)
+        .get(index)
+        .copied()
+        .unwrap_or(STANDARD_BASE_W_DP)
+}
+
+/// Standard group segment: tonal round at rest, filled square when selected,
+/// pressed radius while pressed. Width comes from [`standard_width`].
+pub fn resolve_standard(
+    theme: &Theme,
+    index: usize,
+    count: usize,
+    selected: bool,
+    pressed: bool,
+    expanded: Option<usize>,
+) -> Appearance {
+    let state = if pressed {
+        InteractionState::Pressed
+    } else {
+        InteractionState::Enabled
+    };
+    let variant = if selected {
+        ButtonVariant::Filled
+    } else {
+        ButtonVariant::Tonal
+    };
+    let shape = if selected {
+        button::ButtonShape::Square
+    } else {
+        button::ButtonShape::Round
+    };
+    let mut appearance = button::resolve_expressive(
+        theme,
+        variant,
+        ButtonSize::Small,
+        shape,
+        state,
+    );
+    let w = standard_width(index, count, expanded);
+    appearance.width_dp = Some(w);
+    appearance.min_width_dp = Some(w);
+    if selected {
+        appearance.label_style = theme.typography.label_large.emphasized();
+    }
+    appearance
+}
+
+pub fn resolve_standard_scene(theme: &Theme, index: usize, selected: usize) -> Appearance {
+    resolve_standard(
+        theme,
+        index,
+        STANDARD_SEGMENTS.len(),
+        index == selected,
+        false,
+        Some(selected),
+    )
 }
 
 pub fn segment_role(index: usize, count: usize) -> SegmentRole {

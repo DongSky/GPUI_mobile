@@ -298,7 +298,12 @@ struct CatalogView {
     outlined: TextFieldEditor,
     nav: usize,
     group_selected: usize,
+    standard_selected: usize,
     list_selected: usize,
+    list_swipe: list::ListSwipeState,
+    list_order: [usize; 3],
+    tooltip_plain_open: bool,
+    tooltip_rich_open: bool,
     icon_selected: usize,
     overflow_open: bool,
     range_start: f32,
@@ -692,6 +697,7 @@ fn catalog_body(
                 })),
         )
         .child(android_connected_group(theme, this.group_selected, cx))
+        .child(android_standard_group(theme, this.standard_selected, cx))
         .child(android_icon_group(
             theme,
             this.icon_selected,
@@ -856,6 +862,8 @@ fn catalog_body(
         )
         .child(section_title(theme, "Lists"))
         .child(android_lists(this, theme, cx))
+        .child(android_list_swipe(this, theme, cx))
+        .child(android_list_reorder(this, theme, cx))
         .child(list_row(&one, "One-line item", None))
         .child(
             div()
@@ -952,7 +960,7 @@ fn catalog_body(
         .child(section_title(theme, "Navigation bar"))
         .child(android_nav_bars(theme))
         .child(section_title(theme, "Tooltip"))
-        .child(android_tooltips(theme))
+        .child(android_tooltips(this, theme, cx))
         .child(section_title(theme, "Badge"))
         .child(
             div()
@@ -2121,7 +2129,158 @@ fn android_lists(
         }))
 }
 
-fn android_tooltips(theme: &Theme) -> impl IntoElement {
+fn android_list_swipe(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let off = this.list_swipe.offset_x_dp;
+    div()
+        .w_full()
+        .overflow_hidden()
+        .relative()
+        .child(
+            div()
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full()
+                .flex()
+                .child(
+                    div()
+                        .w(px(list::SWIPE_REVEAL_DP))
+                        .h_full()
+                        .bg(paint(list::leading_action_container(theme)))
+                        .text_color(paint(list::leading_action_content(theme)))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(list::SWIPE_LEADING_LABEL),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .w(px(list::SWIPE_REVEAL_DP))
+                        .h_full()
+                        .bg(paint(list::trailing_action_container(theme)))
+                        .text_color(paint(list::trailing_action_content(theme)))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(list::SWIPE_TRAILING_LABEL),
+                ),
+        )
+        .child(
+            div()
+                .ml(px(off))
+                .flex()
+                .flex_col()
+                .bg(paint(theme.color.surface))
+                .children((0..list::SWIPE_COUNT).map(|i| {
+                    let a = list::resolve_swipe_item(theme, i, list::SWIPE_COUNT);
+                    div()
+                        .id(SharedString::from(format!("swipe-{i}")))
+                        .h(px(a.height_dp))
+                        .px(px(a.pad_start_dp))
+                        .bg(paint(a.container))
+                        .flex()
+                        .flex_col()
+                        .justify_center()
+                        .child(
+                            div()
+                                .text_size(px(a.label_style.size_sp))
+                                .text_color(paint(a.content))
+                                .child(list::SWIPE_HEADLINES[i]),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(a.supporting_style.unwrap().size_sp))
+                                .text_color(paint(a.secondary_content.unwrap()))
+                                .child(list::SWIPE_SUPPORTING[i]),
+                        )
+                }))
+                .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+                    let dx = match ev.delta {
+                        ScrollDelta::Pixels(p) => f32::from(p.x),
+                        ScrollDelta::Lines(p) => p.x * 16.0,
+                    };
+                    this.list_swipe.swipe(dx);
+                    this.list_swipe.settle();
+                    cx.notify();
+                })),
+        )
+}
+
+fn android_list_reorder(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let order = this.list_order;
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(list::SEGMENTED_GAP_DP))
+        .w_full()
+        .children((0..list::REORDER_COUNT).map(move |pos| {
+            let id = order[pos];
+            let a = list::resolve_reorder_item(theme, pos, list::REORDER_COUNT, pos == 0);
+            div()
+                .id(SharedString::from(format!("reorder-{id}")))
+                .h(px(a.height_dp))
+                .px(px(a.pad_start_dp))
+                .rounded_tl(px(a.corners.top_left))
+                .rounded_tr(px(a.corners.top_right))
+                .rounded_br(px(a.corners.bottom_right))
+                .rounded_bl(px(a.corners.bottom_left))
+                .bg(paint(a.container))
+                .flex()
+                .flex_row()
+                .items_center()
+                .gap(px(list::ITEM_BETWEEN_SPACE_DP))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .child(
+                            div()
+                                .text_size(px(a.label_style.size_sp))
+                                .text_color(paint(a.content))
+                                .child(list::REORDER_HEADLINES[id]),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(a.supporting_style.unwrap().size_sp))
+                                .text_color(paint(a.secondary_content.unwrap()))
+                                .child(list::REORDER_SUPPORTING[id]),
+                        ),
+                )
+                .child(
+                    div()
+                        .id(SharedString::from(format!("handle-{id}")))
+                        .w(px(list::DRAG_HANDLE_DP))
+                        .h(px(list::DRAG_HANDLE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_color(paint(a.content))
+                        .child(list::DRAG_HANDLE_GLYPH)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if pos > 0 {
+                                list::move_item(&mut this.list_order, pos, pos - 1);
+                                cx.notify();
+                            }
+                        })),
+                )
+        }))
+}
+
+fn android_tooltips(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let plain = tooltip::resolve_plain(theme);
     let rich = tooltip::resolve_rich(theme);
     let anchor = icon_button::resolve(
@@ -2145,23 +2304,26 @@ fn android_tooltips(theme: &Theme) -> impl IntoElement {
                         .flex()
                         .flex_col()
                         .items_center()
-                        .child(
-                            div()
-                                .h(px(plain.min_height_dp))
-                                .px(px(plain.pad_start_dp))
-                                .py(px(plain.pad_top_dp))
-                                .rounded(px(plain.corners.top_left))
-                                .bg(paint(plain.container))
-                                .text_color(paint(plain.supporting))
-                                .text_size(px(plain.supporting_style.size_sp))
-                                .flex()
-                                .items_center()
-                                .child(tooltip::PLAIN_TEXT),
-                        )
-                        .child(tooltip_caret(paint(plain.container), true)),
+                        .when(this.tooltip_plain_open, |el| {
+                            el.child(
+                                div()
+                                    .h(px(plain.min_height_dp))
+                                    .px(px(plain.pad_start_dp))
+                                    .py(px(plain.pad_top_dp))
+                                    .rounded(px(plain.corners.top_left))
+                                    .bg(paint(plain.container))
+                                    .text_color(paint(plain.supporting))
+                                    .text_size(px(plain.supporting_style.size_sp))
+                                    .flex()
+                                    .items_center()
+                                    .child(tooltip::PLAIN_TEXT),
+                            )
+                            .child(tooltip_caret(paint(plain.container), true))
+                        }),
                 )
                 .child(
                     div()
+                        .id("tooltip-plain-anchor")
                         .w(px(anchor.height_dp))
                         .h(px(anchor.height_dp))
                         .rounded(px(anchor.corners.top_left))
@@ -2170,7 +2332,11 @@ fn android_tooltips(theme: &Theme) -> impl IntoElement {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(tooltip::PLAIN_ANCHOR),
+                        .child(tooltip::PLAIN_ANCHOR)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.tooltip_plain_open = !this.tooltip_plain_open;
+                            cx.notify();
+                        })),
                 ),
         )
         .child(
@@ -2178,42 +2344,60 @@ fn android_tooltips(theme: &Theme) -> impl IntoElement {
                 .flex()
                 .flex_col()
                 .items_center()
-                .child(tooltip_caret(paint(rich.container), false))
                 .child(
                     div()
-                        .w(px(260.))
-                        .px(px(rich.pad_start_dp))
-                        .pt(px(rich.pad_top_dp))
-                        .pb(px(rich.pad_bottom_dp))
-                        .rounded(px(rich.corners.top_left))
-                        .bg(paint(rich.container))
+                        .id("tooltip-rich-anchor")
+                        .w(px(anchor.height_dp))
+                        .h(px(anchor.height_dp))
+                        .rounded(px(anchor.corners.top_left))
+                        .bg(paint(anchor.container))
+                        .text_color(paint(anchor.content))
                         .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(
-                            div()
-                                .text_size(px(rich.subhead_style.unwrap().size_sp))
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(paint(rich.subhead.unwrap()))
-                                .child(tooltip::RICH_SUBHEAD),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(rich.supporting_style.size_sp))
-                                .text_color(paint(rich.supporting))
-                                .child(tooltip::RICH_SUPPORTING),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .justify_end()
-                                .gap(px(16.))
-                                .pt(px(8.))
-                                .text_color(paint(rich.action.unwrap()))
-                                .child(tooltip::RICH_ACTION_PRIMARY)
-                                .child(tooltip::RICH_ACTION_SECONDARY),
-                        ),
-                ),
+                        .items_center()
+                        .justify_center()
+                        .child("?")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.tooltip_rich_open = !this.tooltip_rich_open;
+                            cx.notify();
+                        })),
+                )
+                .when(this.tooltip_rich_open, |el| {
+                    el.child(tooltip_caret(paint(rich.container), false)).child(
+                        div()
+                            .w(px(260.))
+                            .px(px(rich.pad_start_dp))
+                            .pt(px(rich.pad_top_dp))
+                            .pb(px(rich.pad_bottom_dp))
+                            .rounded(px(rich.corners.top_left))
+                            .bg(paint(rich.container))
+                            .flex()
+                            .flex_col()
+                            .gap(px(4.))
+                            .child(
+                                div()
+                                    .text_size(px(rich.subhead_style.unwrap().size_sp))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(paint(rich.subhead.unwrap()))
+                                    .child(tooltip::RICH_SUBHEAD),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(rich.supporting_style.size_sp))
+                                    .text_color(paint(rich.supporting))
+                                    .child(tooltip::RICH_SUPPORTING),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .justify_end()
+                                    .gap(px(16.))
+                                    .pt(px(8.))
+                                    .text_color(paint(rich.action.unwrap()))
+                                    .child(tooltip::RICH_ACTION_PRIMARY)
+                                    .child(tooltip::RICH_ACTION_SECONDARY),
+                            ),
+                    )
+                }),
         )
 }
 
@@ -3961,6 +4145,44 @@ fn android_time_picker(
         )
 }
 
+fn android_standard_group(
+    theme: &Theme,
+    selected: usize,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_row()
+        .gap(px(button_group::STANDARD_GAP_DP))
+        .children(
+            button_group::STANDARD_SEGMENTS
+                .iter()
+                .enumerate()
+                .map(|(i, label)| {
+                    let a = button_group::resolve_standard_scene(theme, i, selected);
+                    let w = a.width_dp.unwrap_or(button_group::STANDARD_BASE_W_DP);
+                    div()
+                        .id(SharedString::from(format!("std-group-{i}")))
+                        .h(px(a.height_dp))
+                        .w(px(w))
+                        .px(px(a.pad_start_dp))
+                        .rounded(px(a.corners.top_left))
+                        .bg(paint(a.container))
+                        .text_color(paint(a.content))
+                        .text_size(type_size(a.label_style))
+                        .font_weight(type_weight(a.label_style))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(*label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.standard_selected = i;
+                            cx.notify();
+                        }))
+                }),
+        )
+}
+
 fn android_connected_group(
     theme: &Theme,
     selected: usize,
@@ -4807,7 +5029,12 @@ fn android_main(app: AndroidApp) {
                 },
                 nav: 0,
                 group_selected: button_group::DEMO_SELECTED,
+                standard_selected: button_group::STANDARD_SELECTED,
                 list_selected: list::SCENE_SELECTED,
+                list_swipe: list::ListSwipeState::revealed(),
+                list_order: list::REORDER_DEMO,
+                tooltip_plain_open: false,
+                tooltip_rich_open: false,
                 icon_selected: button_group::ICON_SELECTED,
                 overflow_open: button_group::OVERFLOW_OPEN,
                 range_start: slider::RANGE_DEMO_START,

@@ -377,6 +377,23 @@ fn list_heights_match_m3() {
     assert_eq!(list::SCENE_HEADLINES[0], "Wi-Fi");
     let press = list::segmented_corners(1, 3, false, true);
     assert_eq!(press.top_left, 16.0);
+    assert_eq!(list::SWIPE_REVEAL_DP, 80.0);
+    assert_eq!(list::SWIPE_THRESHOLD_DP, 56.0);
+    assert_eq!(list::SWIPE_HEADLINES[0], "Team sync notes");
+    assert_eq!(list::DRAG_HANDLE_DP, 24.0);
+    let mut swipe = list::ListSwipeState::settled();
+    swipe.swipe(80.0);
+    assert!(swipe.leading_revealed());
+    swipe.settle();
+    assert_eq!(swipe.offset_x_dp, 80.0);
+    let mut back = list::ListSwipeState::settled();
+    back.swipe(-80.0);
+    assert!(back.trailing_revealed());
+    let mut order = list::REORDER_DEMO;
+    list::move_item(&mut order, 0, 2);
+    assert_eq!(order, [1, 2, 0]);
+    list::move_item(&mut order, 2, 0);
+    assert_eq!(order, [0, 1, 2]);
 }
 
 #[test]
@@ -566,6 +583,8 @@ fn card_chip_fab_chrome_tokens() {
     assert_eq!(tooltip::CARET_H_DP, 8.0);
     assert_eq!(tooltip::caret_down_points()[2], (8.0, 8.0));
     assert_eq!(tooltip::caret_up_points()[2], (8.0, 0.0));
+    assert_eq!(tooltip::LONG_PRESS_MS, 500);
+    assert_eq!(tooltip::HOVER_TRIGGER, "hover");
 
     let d = divider::resolve(&theme, true);
     assert_eq!(d.thickness_dp, 1.0);
@@ -619,6 +638,23 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-list-gap=\"2\""));
     assert!(html.contains("Wi-Fi"));
     assert!(html.contains("Airplane mode"));
+    assert!(html.contains("data-hero=\"list-swipe\""));
+    assert!(html.contains("data-list-swipe=\"1\""));
+    assert!(html.contains("data-swipe-action=\"archive\""));
+    assert!(html.contains("data-swipe-action=\"delete\""));
+    assert!(html.contains("Team sync notes"));
+    assert!(html.contains("data-hero=\"list-reorder\""));
+    assert!(html.contains("data-list-reorder=\"1\""));
+    assert!(html.contains("data-list-handle"));
+    assert!(html.contains("Morning briefing"));
+    assert!(html.contains("data-hero=\"button-group-standard\""));
+    assert!(html.contains("data-button-group=\"standard\""));
+    assert!(html.contains("data-expanded-ratio=\"0.15\""));
+    assert!(html.contains("data-standard-i"));
+    assert!(html.contains(">Start<"));
+    assert!(html.contains(">Center<"));
+    assert!(html.contains("data-tooltip-trigger=\"hover\""));
+    assert!(html.contains("data-tooltip-longpress-ms=\"500\""));
     assert!(html.contains("Learn more"));
     assert!(html.contains("labelLarge"));
     assert!(html.contains("data-dialog=\"basic\""));
@@ -825,6 +861,15 @@ fn inventory_covers_claimed_and_followups() {
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "List" && e.parity == Parity::Done && e.notes.contains("segmented")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "List" && e.notes.contains("swipe") && e.notes.contains("reorder")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Button group" && e.notes.contains("Standard") && e.notes.contains("0.15")
+    }));
+    assert!(INVENTORY.iter().any(|e| {
+        e.name == "Tooltip" && e.notes.contains("long-press")
     }));
     assert!(!INVENTORY
         .iter()
@@ -1247,6 +1292,21 @@ fn connected_button_group_tokens() {
     let icon = button_group::resolve_icon_segment(&theme, 0, 4, true, false);
     assert_eq!(icon.min_width_dp, Some(button_group::ICON_MIN_W_DP));
     assert_eq!(button_group::OVERFLOW_ITEMS.len(), 3);
+    assert_eq!(button_group::STANDARD_GAP_DP, 12.0);
+    assert_eq!(button_group::EXPANDED_RATIO, 0.15);
+    assert_eq!(button_group::STANDARD_SEGMENTS[1], "Center");
+    let widths = button_group::standard_widths(3, Some(1), 88.0);
+    assert!((widths[1] - 101.2).abs() < 0.01);
+    assert!((widths[0] - 81.4).abs() < 0.01);
+    assert!((widths[2] - 81.4).abs() < 0.01);
+    assert!((widths.iter().sum::<f32>() - 264.0).abs() < 0.01);
+    let std_sel = button_group::resolve_standard_scene(&theme, 1, 1);
+    assert_eq!(std_sel.container, theme.color.primary);
+    assert_eq!(std_sel.corners.top_left, 12.0);
+    assert_eq!(std_sel.label_style.name, "labelLargeEmphasized");
+    let std_idle = button_group::resolve_standard(&theme, 0, 3, false, false, Some(1));
+    assert_eq!(std_idle.container, theme.color.secondary_container);
+    assert_eq!(std_idle.corners.top_left, 20.0);
 }
 
 #[test]

@@ -164,8 +164,11 @@ a {{ color: var(--primary); }}
 .btn-group {{
   display: flex; gap: {gap}px; align-items: stretch; flex-wrap: wrap;
 }}
+.btn-group[data-button-group="standard"] {{ gap: 12px; }}
 .btn-connected {{ min-width: 72px; }}
 .btn-connected.selected {{ font-weight: 700; }}
+.btn-standard {{ min-width: 0; flex: 0 0 auto; box-sizing: border-box; justify-content: center; }}
+.btn-standard.selected {{ font-weight: 700; }}
 .docked {{
   display: flex; flex-direction: column; align-items: stretch;
   max-width: 360px; position: relative;
@@ -347,6 +350,29 @@ a {{ color: var(--primary); }}
 }}
 .list-item.segmented .meta {{ flex: 1; min-width: 0; display: flex; flex-direction: column; }}
 .list-item.segmented .trail {{ margin-left: auto; flex: 0 0 auto; }}
+.list-swipe {{
+  position: relative; overflow: hidden; width: 100%; max-width: 420px;
+  margin: 8px 0 16px;
+}}
+.list-swipe .rails {{
+  position: absolute; inset: 0; display: flex; align-items: stretch;
+  pointer-events: none;
+}}
+.list-swipe .rail {{
+  width: 80px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 500; flex: 0 0 80px;
+}}
+.list-swipe .rail.trail {{ margin-left: auto; }}
+.list-swipe .sheet {{
+  position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0;
+  background: var(--surface);
+}}
+.list-swipe .list-item {{ max-width: none; width: 100%; cursor: grab; touch-action: pan-y; }}
+.list-reorder .handle {{
+  width: 24px; height: 24px; flex: 0 0 24px; display: flex;
+  align-items: center; justify-content: center; letter-spacing: -2px;
+  cursor: grab; font-size: 14px; opacity: 0.7;
+}}
 .tooltip-plain {{ position: relative; }}
 .tooltip-caret {{
   width: 0; height: 0;
@@ -433,6 +459,14 @@ a {{ color: var(--primary); }}
 }}
 .tooltip-anchor {{
   display: flex; flex-direction: column; align-items: center; gap: 4px;
+}}
+.tooltip-anchor[data-tooltip-trigger="hover"] .tooltip-bubble {{
+  opacity: 0; pointer-events: none; transition: opacity 120ms;
+}}
+.tooltip-anchor[data-tooltip-trigger="hover"]:hover .tooltip-bubble,
+.tooltip-anchor[data-tooltip-trigger="hover"]:focus-within .tooltip-bubble,
+.tooltip-anchor[data-open="1"] .tooltip-bubble {{
+  opacity: 1; pointer-events: auto;
 }}
 .tooltip-plain {{
   min-height: 24px; min-width: 40px; max-width: 200px;
@@ -885,6 +919,35 @@ document.querySelectorAll("[data-editor] input").forEach(function (input) {{
   input.addEventListener("focus", sync);
   input.addEventListener("blur", sync);
 }});
+document.querySelectorAll("[data-button-group='standard']").forEach(function (group) {{
+  var btns = group.querySelectorAll("[data-standard-i]");
+  function apply(sel) {{
+    var n = btns.length;
+    var base = Number(group.getAttribute("data-base-w") || "88");
+    var ratio = Number(group.getAttribute("data-expanded-ratio") || "0.15");
+    var extra = base * ratio;
+    var neighbors = [];
+    if (sel > 0) neighbors.push(sel - 1);
+    if (sel + 1 < n) neighbors.push(sel + 1);
+    var share = neighbors.length ? extra / neighbors.length : 0;
+    btns.forEach(function (btn, i) {{
+      var w = i === sel ? base + extra : (neighbors.indexOf(i) >= 0 ? base - share : base);
+      btn.style.width = w + "px";
+      var on = i === sel;
+      btn.classList.toggle("selected", on);
+      btn.style.background = btn.getAttribute(on ? "data-sel-bg" : "data-idle-bg") || btn.style.background;
+      btn.style.color = btn.getAttribute(on ? "data-sel-fg" : "data-idle-fg") || btn.style.color;
+      btn.style.borderRadius = btn.getAttribute(on ? "data-sel-r" : "data-idle-r") || btn.style.borderRadius;
+      btn.style.fontWeight = on ? "700" : "500";
+    }});
+    group.setAttribute("data-selected", String(sel));
+  }}
+  btns.forEach(function (btn) {{
+    btn.addEventListener("click", function () {{
+      apply(Number(btn.getAttribute("data-standard-i") || "0"));
+    }});
+  }});
+}});
 document.querySelectorAll("[data-button-group]").forEach(function (group) {{
   group.querySelectorAll(".btn-connected").forEach(function (btn) {{
     btn.addEventListener("click", function () {{
@@ -913,6 +976,61 @@ document.querySelectorAll("[data-button-group]").forEach(function (group) {{
       btn.style.border = "none";
       btn.style.fontWeight = "700";
     }});
+  }});
+}});
+document.querySelectorAll("[data-list-swipe]").forEach(function (wrap) {{
+  var sheet = wrap.querySelector(".sheet");
+  var max = Number(wrap.getAttribute("data-swipe-reveal") || "80");
+  var thresh = Number(wrap.getAttribute("data-swipe-threshold") || "56");
+  var x0 = 0, cur = Number(wrap.getAttribute("data-swipe-offset") || "0"), dragging = false;
+  function setOff(x) {{
+    cur = Math.max(-max, Math.min(max, x));
+    if (sheet) sheet.style.transform = "translateX(" + cur + "px)";
+    wrap.setAttribute("data-swipe-offset", String(cur));
+    wrap.setAttribute("data-swipe-leading", cur >= thresh ? "1" : "0");
+    wrap.setAttribute("data-swipe-trailing", cur <= -thresh ? "1" : "0");
+  }}
+  wrap.addEventListener("pointerdown", function (ev) {{
+    dragging = true; x0 = ev.clientX; wrap.setPointerCapture(ev.pointerId);
+  }});
+  wrap.addEventListener("pointermove", function (ev) {{
+    if (!dragging) return;
+    setOff(cur + (ev.clientX - x0));
+    x0 = ev.clientX;
+  }});
+  function end() {{
+    if (!dragging) return;
+    dragging = false;
+    if (Math.abs(cur) >= thresh) setOff(cur > 0 ? max : -max); else setOff(0);
+  }}
+  wrap.addEventListener("pointerup", end);
+  wrap.addEventListener("pointercancel", end);
+  setOff(cur);
+}});
+document.querySelectorAll("[data-list-reorder]").forEach(function (group) {{
+  group.querySelectorAll("[data-list-handle]").forEach(function (handle) {{
+    handle.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      var item = handle.closest("[data-list-item]");
+      if (!item || !item.previousElementSibling) return;
+      group.insertBefore(item, item.previousElementSibling);
+    }});
+  }});
+}});
+document.querySelectorAll("[data-tooltip-trigger='hover']").forEach(function (anchor) {{
+  var hold = Number(anchor.getAttribute("data-tooltip-longpress-ms") || "500");
+  var timer = null;
+  function open() {{ anchor.setAttribute("data-open", "1"); }}
+  function close() {{ anchor.setAttribute("data-open", "0"); }}
+  anchor.addEventListener("mouseenter", open);
+  anchor.addEventListener("mouseleave", close);
+  anchor.addEventListener("focusin", open);
+  anchor.addEventListener("focusout", close);
+  anchor.addEventListener("pointerdown", function () {{
+    timer = setTimeout(open, hold);
+  }});
+  ["pointerup", "pointerleave", "pointercancel"].forEach(function (ev) {{
+    anchor.addEventListener(ev, function () {{ if (timer) {{ clearTimeout(timer); timer = null; }} }});
   }});
 }});
 document.querySelectorAll("[data-list-style='segmented']").forEach(function (group) {{
@@ -1616,6 +1734,51 @@ fn type_section(theme: &Theme) -> String {
     out
 }
 
+fn paint_standard_group(theme: &Theme, selected: usize) -> String {
+    let count = button_group::STANDARD_SEGMENTS.len();
+    let mut parts = format!(
+        r#"<div class="btn-group" data-button-group="standard" data-hero="button-group-standard" data-selected="{sel}" data-base-w="{base}" data-expanded-ratio="{ratio}" data-standard-gap="{gap}">"#,
+        sel = selected,
+        base = button_group::STANDARD_BASE_W_DP,
+        ratio = format!("{:.2}", button_group::EXPANDED_RATIO),
+        gap = button_group::STANDARD_GAP_DP,
+    );
+    for (i, label) in button_group::STANDARD_SEGMENTS.iter().enumerate() {
+        let a = button_group::resolve_standard_scene(theme, i, selected);
+        let idle = button_group::resolve_standard(theme, i, count, false, false, None);
+        let on = button_group::resolve_standard(theme, i, count, true, false, Some(i));
+        let class = if i == selected {
+            "btn btn-standard selected"
+        } else {
+            "btn btn-standard"
+        };
+        let w = a.width_dp.unwrap_or(button_group::STANDARD_BASE_W_DP);
+        parts.push_str(&format!(
+            r#"<button class="{class}" data-standard-i="{i}" data-idle-bg="{ibg}" data-idle-fg="{ifg}" data-idle-r="{ir}" data-sel-bg="{sbg}" data-sel-fg="{sfg}" data-sel-r="{sr}" style="width:{w}px;--press-r:{pr}px;background:{bg};color:{fg};border-radius:{r};height:{h}px;padding:0 {pad}px;font-size:{fs}px;font-weight:{fw}">{label}</button>"#,
+            class = class,
+            i = i,
+            ibg = idle.container.css_hex(),
+            ifg = idle.content.css_hex(),
+            ir = idle.corners.css(),
+            sbg = on.container.css_hex(),
+            sfg = on.content.css_hex(),
+            sr = on.corners.css(),
+            w = w,
+            pr = button::ButtonSize::Small.pressed_corner_dp(),
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            r = a.corners.css(),
+            h = a.height_dp,
+            pad = a.pad_start_dp,
+            fs = a.label_style.size_sp,
+            fw = a.label_style.weight,
+            label = label,
+        ));
+    }
+    parts.push_str("</div>");
+    parts
+}
+
 fn paint_connected_group(theme: &Theme, selected: usize) -> String {
     let count = button_group::DEMO_SEGMENTS.len();
     let mut parts = String::from(
@@ -1884,6 +2047,9 @@ fn buttons(theme: &Theme) -> String {
         ));
     }
     out.push_str("</div><p class=\"note\">Press any button — corners morph to the Expressive pressed radius (S → 8dp, M → 12dp, L/XL → 16dp).</p>");
+    out.push_str("<h3>standard button group</h3>");
+    out.push_str(&paint_standard_group(theme, button_group::STANDARD_SELECTED));
+    out.push_str("<p class=\"note\">Standard group: 12dp gap, ExpandedRatio 0.15 — the selected child grows and neighbors compress. Tonal round → filled square.</p>");
     out.push_str("<h3>connected button group</h3>");
     out.push_str(&paint_connected_group(theme, button_group::DEMO_SELECTED));
     out.push_str("<h3>connected icon row + overflow</h3>");
@@ -2641,7 +2807,7 @@ fn selection(theme: &Theme) -> String {
 
 fn lists(theme: &Theme) -> String {
     let mut out = String::from(
-        "<h2>Lists</h2><p class=\"note\">Expressive segmented lists (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container. Baseline 56/72/88 still available. <a href=\"https://m3.material.io/components/lists/specs\">spec</a></p>",
+        "<h2>Lists</h2><p class=\"note\">Expressive segmented lists (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container. Swipe Archive/Delete rails; drag-handle reorder. Baseline 56/72/88 still available. <a href=\"https://m3.material.io/components/lists/specs\">spec</a></p>",
     );
     out.push_str(&format!(
         r#"<div class="list-group" data-hero="list" data-list-style="segmented" data-list-gap="{gap}">"#,
@@ -2705,6 +2871,8 @@ fn lists(theme: &Theme) -> String {
         ));
     }
     out.push_str("</div>");
+    out.push_str(&paint_list_swipe(theme));
+    out.push_str(&paint_list_reorder(theme));
     for lines in list::ListLines::ALL {
         let a = list::resolve(theme, lines, InteractionState::Enabled);
         let support = if matches!(lines, list::ListLines::One) {
@@ -2738,6 +2906,82 @@ fn lists(theme: &Theme) -> String {
         pressed.container.css_hex(),
         pressed.content.css_hex()
     ));
+    out
+}
+
+fn paint_list_swipe(theme: &Theme) -> String {
+    let lead_bg = list::leading_action_container(theme).css_hex();
+    let lead_fg = list::leading_action_content(theme).css_hex();
+    let trail_bg = list::trailing_action_container(theme).css_hex();
+    let trail_fg = list::trailing_action_content(theme).css_hex();
+    let mut items = String::new();
+    for i in 0..list::SWIPE_COUNT {
+        let a = list::resolve_swipe_item(theme, i, list::SWIPE_COUNT);
+        items.push_str(&format!(
+            r#"<div class="list-item" data-list="swipe" data-list-item="{key}" style="height:{h}px;background:{bg};color:{fg};padding:{pt}px {ph}px">
+  <div class="h">{head}</div>
+  <div class="s" style="color:{sfg}">{sub}</div>
+</div>"#,
+            key = list::SWIPE_KEYS[i],
+            h = a.height_dp,
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            pt = a.pad_top_dp,
+            ph = a.pad_start_dp,
+            head = list::SWIPE_HEADLINES[i],
+            sfg = a.secondary_content.unwrap().css_hex(),
+            sub = list::SWIPE_SUPPORTING[i],
+        ));
+    }
+    format!(
+        r#"<div class="list-swipe" data-hero="list-swipe" data-list-swipe="1" data-swipe-reveal="{reveal}" data-swipe-threshold="{thresh}" data-swipe-offset="{off}" data-swipe-leading="1">
+  <div class="rails">
+    <div class="rail lead" data-swipe-action="archive" style="background:{lbg};color:{lfg}">{archive}</div>
+    <div class="rail trail" data-swipe-action="delete" style="background:{tbg};color:{tfg}">{delete}</div>
+  </div>
+  <div class="sheet" style="transform:translateX({off}px)">{items}</div>
+</div>"#,
+        reveal = list::SWIPE_REVEAL_DP,
+        thresh = list::SWIPE_THRESHOLD_DP,
+        off = list::SWIPE_DEMO_OFFSET_DP,
+        lbg = lead_bg,
+        lfg = lead_fg,
+        archive = list::SWIPE_LEADING_LABEL,
+        tbg = trail_bg,
+        tfg = trail_fg,
+        delete = list::SWIPE_TRAILING_LABEL,
+        items = items,
+    )
+}
+
+fn paint_list_reorder(theme: &Theme) -> String {
+    let mut out = format!(
+        r#"<div class="list-group list-reorder" data-hero="list-reorder" data-list-reorder="1" data-list-style="segmented" data-list-gap="{gap}" data-drag-handle="{h}">"#,
+        gap = list::SEGMENTED_GAP_DP,
+        h = list::DRAG_HANDLE_DP,
+    );
+    for (pos, &id) in list::REORDER_DEMO.iter().enumerate() {
+        let a = list::resolve_reorder_item(theme, pos, list::REORDER_COUNT, pos == 0);
+        out.push_str(&format!(
+            r#"<div class="list-item segmented" data-list="reorder" data-list-item="{key}" data-list-selected="{sel}" style="height:{h}px;background:{bg};color:{fg};border-radius:{r};padding:{pt}px {ph}px">
+  <div class="meta"><div class="h">{head}</div><div class="s" style="color:{sfg}">{sub}</div></div>
+  <div class="trail handle" data-list-handle="1">{glyph}</div>
+</div>"#,
+            key = list::REORDER_KEYS[id],
+            sel = (pos == 0) as u8,
+            h = a.height_dp,
+            bg = a.container.css_hex(),
+            fg = a.content.css_hex(),
+            r = a.corners.css(),
+            pt = a.pad_top_dp,
+            ph = a.pad_start_dp,
+            head = list::REORDER_HEADLINES[id],
+            sfg = a.secondary_content.unwrap().css_hex(),
+            sub = list::REORDER_SUPPORTING[id],
+            glyph = list::DRAG_HANDLE_GLYPH,
+        ));
+    }
+    out.push_str("</div>");
     out
 }
 
@@ -2983,27 +3227,32 @@ fn tooltips_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Tooltip</h2>
-<p class="note">Plain labels icon-only controls (inverse surface, 24dp, 16×8 caret). Rich adds a subhead, supporting text, two text buttons, and a caret (surface-container, medium corners, elev 2). <a href="https://m3.material.io/components/tooltips/specs">spec</a></p>
+<p class="note">Plain labels icon-only controls (inverse surface, 24dp, 16×8 caret). Hover or 500ms long-press to show. Rich adds a subhead, supporting text, two text buttons, and a caret. <a href="https://m3.material.io/components/tooltips/specs">spec</a></p>
 <div class="tooltip-stage" data-hero="tooltip">
-  <div class="tooltip-anchor" data-tooltip-plain="1">
+  <div class="tooltip-anchor" data-tooltip-plain="1" data-tooltip-trigger="{trig}" data-tooltip-longpress-ms="{hold}" data-open="0">
     <div class="tooltip-bubble">
       <div class="tooltip-plain" data-tooltip="plain" data-tooltip-text="{plain_text}" style="background:{pbg};color:{pfg};min-height:{ph}px;max-width:{pmw}px;padding:{ppv}px {pph}px;border-radius:{pr}px">{plain_text}</div>
       <div class="tooltip-caret" data-tooltip-caret="plain" style="border-top-color:{pbg}"></div>
     </div>
     <button class="icon-btn" data-tooltip-anchor="1" style="background:{abg};color:{afg};width:{asz}px;height:{asz}px;border-radius:{ar}px">{ag}</button>
   </div>
-  <div class="tooltip-bubble">
-    <div class="tooltip-caret up" data-tooltip-caret="rich" style="border-bottom-color:{rbg}"></div>
-    <div class="tooltip-rich" data-tooltip="rich" data-tooltip-subhead="{sub}" style="background:{rbg};color:{rfg};max-width:{rmw}px;padding:{rpt}px {rph}px {rpb}px;border-radius:{rr}px;box-shadow:{rsh}">
-      <div class="sub" data-tooltip-sub="1" style="color:{rsub}">{sub}</div>
-      <div class="body" data-tooltip-body="1">{body}</div>
-      <div class="acts">
-        <span data-tooltip-action="learn" style="color:{ract}">{learn}</span>
-        <span data-tooltip-action="dismiss" style="color:{ract}">{dismiss}</span>
+  <div class="tooltip-anchor" data-tooltip-rich="1" data-tooltip-trigger="{trig}" data-tooltip-longpress-ms="{hold}" data-open="0">
+    <button class="icon-btn" data-tooltip-anchor="rich" style="background:{abg};color:{afg};width:{asz}px;height:{asz}px;border-radius:{ar}px">?</button>
+    <div class="tooltip-bubble">
+      <div class="tooltip-caret up" data-tooltip-caret="rich" style="border-bottom-color:{rbg}"></div>
+      <div class="tooltip-rich" data-tooltip="rich" data-tooltip-subhead="{sub}" style="background:{rbg};color:{rfg};max-width:{rmw}px;padding:{rpt}px {rph}px {rpb}px;border-radius:{rr}px;box-shadow:{rsh}">
+        <div class="sub" data-tooltip-sub="1" style="color:{rsub}">{sub}</div>
+        <div class="body" data-tooltip-body="1">{body}</div>
+        <div class="acts">
+          <span data-tooltip-action="learn" style="color:{ract}">{learn}</span>
+          <span data-tooltip-action="dismiss" style="color:{ract}">{dismiss}</span>
+        </div>
       </div>
     </div>
   </div>
 </div>"#,
+        trig = tooltip::HOVER_TRIGGER,
+        hold = tooltip::LONG_PRESS_MS,
         plain_text = tooltip::PLAIN_TEXT,
         pbg = plain.container.css_hex(),
         pfg = plain.supporting.css_hex(),

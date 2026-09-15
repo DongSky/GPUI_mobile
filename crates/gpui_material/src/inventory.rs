@@ -78,10 +78,10 @@ pub const INVENTORY: &[ComponentEntry] = &[
     },
     ComponentEntry {
         name: "Button group",
-        material: "Connected button groups (Expressive)",
+        material: "Standard + connected button groups (Expressive)",
         docs: "https://m3.material.io/components/button-groups/specs",
         parity: Parity::Done,
-        notes: "2dp gap, 8dp inner corners, full-round outer; selected morphs square; Day/Week/Month text + connected icon row with trailing overflow menu",
+        notes: "Standard: 12dp gap, ExpandedRatio 0.15 neighbor morph, Start/Center/End tonal→filled square. Connected: 2dp gap, 8dp inner, full-round outer; Day/Week/Month + icon row with overflow",
     },
     ComponentEntry {
         name: "Icon button",
@@ -130,7 +130,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Expressive segmented + baseline lists",
         docs: "https://m3.material.io/components/lists/specs",
         parity: Parity::Done,
-        notes: "Expressive segmented (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container; Wi-Fi / Bluetooth / Airplane hero with trailing switches. Baseline 56/72/88 0-corner still available",
+        notes: "Expressive segmented (recommended): 2dp gap, 4dp inner / 16dp outer, selected 16dp + secondary-container; Wi-Fi switches; swipe Archive/Delete 80dp rails; drag-handle reorder. Baseline 56/72/88 0-corner still available",
     },
     ComponentEntry {
         name: "Checkbox",
@@ -207,7 +207,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Plain + rich tooltips",
         docs: "https://m3.material.io/components/tooltips/specs",
         parity: Parity::Done,
-        notes: "Plain inverse-surface 24dp extra-small + bodySmall + 16×8 caret; rich surface-container medium elev 2 + titleSmall/bodyMedium + two labelLarge actions + caret; Add to library / Learn more hero. Banner is not on the current Expressive component list",
+        notes: "Plain inverse-surface 24dp extra-small + bodySmall + 16×8 caret; rich surface-container medium elev 2 + two actions + caret; hover / 500ms long-press trigger (not persistent). Banner is not on the current Expressive component list",
     },
     ComponentEntry {
         name: "Navigation rail",

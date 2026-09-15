@@ -25,6 +25,9 @@ pub const RICH_PAD_H_DP: f32 = 16.0;
 pub const ANCHOR_GAP_DP: f32 = 4.0;
 pub const CARET_W_DP: f32 = 16.0;
 pub const CARET_H_DP: f32 = 8.0;
+/// Touch long-press that shows a plain tooltip (M3 / Compose default).
+pub const LONG_PRESS_MS: u16 = 500;
+pub const HOVER_TRIGGER: &str = "hover";
 
 /// Official overview: plain tooltip labels an icon-only control.
 pub const PLAIN_TEXT: &str = "Add to library";
