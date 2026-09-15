@@ -494,7 +494,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-search-activity=\"1\""));
     assert!(html.contains("data-search-input"));
     assert!(html.contains("data-hand-path=\"1\""));
-    assert!(html.contains("data-notch-path="));
+    assert!(html.contains("data-notch-hole=\"1\""));
+    assert!(html.contains("data-carousel-selected"));
+    assert!(html.contains("data-rail-selected"));
+    assert!(html.contains("data-ptr-spin") || html.contains("data-progress=\"ptr\""));
     assert!(html.contains("data-nav-rail-expanded=\"1\""));
     assert!(html.contains("data-rail-fab=\"1\""));
     assert!(html.contains("data-docked-grid=\"1\""));
@@ -822,6 +825,17 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(search::filter_suggestions("app"), vec!["App"]);
     assert_eq!(search::apply_search_key("", "a"), "a");
     assert_eq!(search::apply_search_key("ab", "backspace"), "a");
+    assert_eq!(search::pick_suggestion("app", 0), Some("App"));
+    assert_eq!(search::morph_corner_dp(true), 0.0);
+    let mut ed = text_field::TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
+    search::apply_key_to_editor(&mut ed, "a");
+    search::apply_key_to_editor(&mut ed, "p");
+    search::apply_key_to_editor(&mut ed, "p");
+    assert_eq!(ed.value(), "app");
+    search::apply_key_to_editor(&mut ed, "enter");
+    assert_eq!(ed.value(), "App");
+    let (ix, iy) = text_field::ime_cursor_origin_dp(3, 16.0);
+    assert!(ix > 16.0 && iy > 0.0);
     assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
@@ -871,4 +885,28 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(car.corners.top_left, 28.0);
     assert_eq!(carousel::item_width_dp(0, 0), 256.0);
     assert_eq!(carousel::item_width_dp(1, 0), 120.0);
+    assert_eq!(carousel::advance(0, 1), 1);
+    assert_eq!(carousel::advance(0, -1), 3);
+    assert_eq!(carousel::fling_step(12.0, 0.0), 1);
+    let paint = slider::range_paint(0.20, 0.75, 280.0, 4.0);
+    assert!(paint.left < paint.end_handle);
+    assert!((paint.left + paint.handle_w + paint.active + paint.handle_w + paint.right - 280.0).abs() < 1.0);
+    let pts = progress::ptr_arc_polyline(40.0, 4.0, 90.0, 0.25);
+    assert!(pts.len() > 4);
+    assert_eq!(navigation_rail::select_destination(0, 2), 2);
+    assert_eq!(
+        navigation_rail::toggle_mode(navigation_rail::RailMode::Expanded),
+        navigation_rail::RailMode::Collapsed
+    );
+    let frame = text_field::notch_frame(
+        "Email",
+        &text_field::resolve(
+            &theme,
+            text_field::TextFieldVariant::Outlined,
+            InteractionState::Focused,
+            true,
+        ),
+    );
+    let hole = frame.hole_rect(280.0);
+    assert!(hole.2 > 200.0);
 }

@@ -269,6 +269,29 @@ impl NotchFrame {
         (x, y)
     }
 
+    /// Inner fill of a filled-with-hole outline: inset by the stroke.
+    pub fn hole_rect(self, width_dp: f32) -> (f32, f32, f32, f32, f32) {
+        let s = self.stroke_dp.max(1.0);
+        let w = width_dp.max(self.radius_dp * 2.0 + self.width_dp + self.start_dp);
+        (
+            s,
+            s,
+            (w - s * 2.0).max(1.0),
+            (self.field_h_dp - s * 2.0).max(1.0),
+            self.inner_radius_dp(),
+        )
+    }
+
+    /// Top-edge gap that breaks the ring for the floating legend.
+    pub fn notch_gap_rect(self) -> (f32, f32, f32, f32) {
+        (
+            self.start_dp,
+            0.0,
+            self.width_dp,
+            self.stroke_dp.max(1.0),
+        )
+    }
+
     /// Centerline verbs for a notched rounded-rect stroke (clockwise, open at
     /// the top-edge cutout). Shared by HTML SVG and GPUI `PathBuilder`.
     pub fn outline_verbs(self, width_dp: f32) -> Vec<OutlineVerb> {
@@ -481,6 +504,19 @@ impl TextFieldEditor {
         }
         out
     }
+
+    pub fn set_value(&mut self, value: impl Into<String>) {
+        self.value = value.into();
+        self.caret = self.value.chars().count();
+    }
+}
+
+/// Logical caret origin inside a 56dp field, for NativeActivity IME stubs.
+pub fn ime_cursor_origin_dp(caret_chars: usize, size_sp: f32) -> (f32, f32) {
+    (
+        PAD_H_DP + caret_chars as f32 * size_sp * 0.52,
+        HEIGHT_DP / 2.0,
+    )
 }
 
 /// Lightweight email check used by the outlined error demo.

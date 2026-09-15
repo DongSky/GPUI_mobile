@@ -152,3 +152,38 @@ pub fn query_display(query: &str) -> &str {
         query
     }
 }
+
+pub const EMPTY_SUGGESTIONS: &str = "No matching apps";
+
+/// Docked bar (28dp) vs activity (0dp) corner for the morph.
+pub fn morph_corner_dp(open: bool) -> f32 {
+    if open {
+        ACTIVITY_CORNER_DP
+    } else {
+        HEIGHT_DP / 2.0
+    }
+}
+
+pub fn pick_suggestion(query: &str, index: usize) -> Option<&'static str> {
+    filter_suggestions(query).get(index).copied()
+}
+
+pub fn apply_key_to_editor(ed: &mut crate::components::text_field::TextFieldEditor, key: &str) {
+    match key {
+        "backspace" | "delete" => ed.backspace(),
+        "left" => ed.move_caret(-1),
+        "right" => ed.move_caret(1),
+        "space" => ed.insert_char(' '),
+        "enter" => {
+            if let Some(first) = filter_suggestions(ed.value()).first().copied() {
+                ed.set_value(first);
+            }
+        }
+        k if k.len() == 1 => {
+            if let Some(ch) = k.chars().next() {
+                ed.insert_char(ch);
+            }
+        }
+        _ => {}
+    }
+}

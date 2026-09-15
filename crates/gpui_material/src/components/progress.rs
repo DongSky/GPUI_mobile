@@ -1,8 +1,8 @@
 //! Progress indicators. Specs: https://m3.material.io/components/progress-indicators/specs
 //!
 //! Determinate linear/circular plus indeterminate / pull-to-refresh tokens.
-//! HTML catalog animates with motion springs; GPUI paints a static busy frame
-//! (no shared animation clock).
+//! HTML catalog animates with motion springs; GPUI uses `Animation` as a
+//! repeating clock (wavy, sliding head, spinning PTR arc).
 
 use crate::argb::Argb;
 use crate::theme::Theme;
@@ -149,6 +149,34 @@ pub fn wave_polyline(width: f32, height: f32, progress: f32, phase: f32) -> Vec<
             (x, y)
         })
         .collect()
+}
+
+/// Spinning PTR / circular-indeterminate arc (`phase` 0..=1 rotates from 12 o'clock).
+pub fn ptr_arc_polyline(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> Vec<(f32, f32)> {
+    let cx = size / 2.0;
+    let cy = size / 2.0;
+    let r = (size / 2.0 - stroke).max(1.0);
+    let start = phase * 360.0 - 90.0;
+    let n = 20usize;
+    (0..=n)
+        .map(|i| {
+            let a = (start + arc_deg * (i as f32 / n as f32)).to_radians();
+            (cx + r * a.cos(), cy + r * a.sin())
+        })
+        .collect()
+}
+
+pub fn ptr_arc_svg_d(size: f32, stroke: f32, arc_deg: f32, phase: f32) -> String {
+    let pts = ptr_arc_polyline(size, stroke, arc_deg, phase);
+    let mut d = String::new();
+    for (i, (x, y)) in pts.iter().enumerate() {
+        if i == 0 {
+            d.push_str(&format!("M{x:.2},{y:.2}"));
+        } else {
+            d.push_str(&format!(" L{x:.2},{y:.2}"));
+        }
+    }
+    d
 }
 
 pub fn wave_svg_d(width: f32, height: f32, progress: f32, phase: f32) -> String {

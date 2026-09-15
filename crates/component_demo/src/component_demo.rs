@@ -7,7 +7,7 @@ use gpui::prelude::*;
 use gpui::{
     canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FontWeight,
     IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
-    PathBuilder, Render, SharedString, Styled, Window,
+    PathBuilder, Render, ScrollDelta, ScrollWheelEvent, SharedString, Styled, Window,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
@@ -83,7 +83,10 @@ struct CatalogView {
     range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
     search_open: bool,
-    search_query: String,
+    search: TextFieldEditor,
+    rail_selected: usize,
+    rail_mode: navigation_rail::RailMode,
+    carousel_index: usize,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -105,6 +108,10 @@ impl CatalogView {
     }
 
     fn apply_key(&mut self, key: &str) {
+        if self.search_open && self.search.focused {
+            search::apply_key_to_editor(&mut self.search, key);
+            return;
+        }
         let ed = if self.filled.focused {
             &mut self.filled
         } else if self.outlined.focused {
@@ -126,7 +133,7 @@ impl CatalogView {
     }
 
     fn field_focused(&self) -> bool {
-        self.filled.focused || self.outlined.focused
+        self.filled.focused || self.outlined.focused || (self.search_open && self.search.focused)
     }
 }
 
@@ -624,7 +631,7 @@ fn catalog_body(
         .child(volume_slider_scene(theme, this.slider, cx))
         .child(android_range_slider(this, theme, cx))
         .child(section_title(theme, "Carousel"))
-        .child(android_carousel(theme))
+        .child(android_carousel(this, theme, cx))
         .child(
             div()
                 .text_size(px(12.))
@@ -638,7 +645,7 @@ fn catalog_body(
         .child(tab_row(theme, &tabs_p, this.tab_primary, "p", cx))
         .child(tab_row(theme, &tabs_s, this.tab_secondary, "s", cx))
         .child(section_title(theme, "Navigation rail"))
-        .child(android_nav_rail(theme))
+        .child(android_nav_rail(this, theme, cx))
         .child(section_title(theme, "Badge"))
         .child(
             div()
@@ -1636,23 +1643,70 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .gap(px(8.))
-                .child(
+                .child({
+                    let size = ptr.size_dp;
+                    let stroke = ptr.stroke_dp;
+                    let arc = ptr.arc_deg;
+                    let ptr_color = paint(ptr.indicator);
+                    let dur = ptr.duration_ms as u64;
                     div()
-                        .w(px(ptr.size_dp))
-                        .h(px(ptr.size_dp))
-                        .rounded(px(ptr.size_dp / 2.0))
-                        .border_2()
-                        .border_color(paint(ptr.track))
-                        .flex()
-                        .items_start()
-                        .justify_center()
+                        .relative()
+                        .w(px(size))
+                        .h(px(size))
                         .child(
                             div()
-                                .w(px(ptr.stroke_dp))
-                                .h(px(12.))
-                                .bg(paint(ptr.indicator)),
-                        ),
-                )
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .rounded(px(size / 2.0))
+                                .border_2()
+                                .border_color(paint(ptr.track)),
+                        )
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .with_animation(
+                                    "android-ptr-spin",
+                                    Animation::new(Duration::from_millis(dur)).repeat(),
+                                    move |this, delta| {
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let pts = progress::ptr_arc_polyline(
+                                                        size, stroke, arc, delta,
+                                                    );
+                                                    let mut builder =
+                                                        PathBuilder::stroke(px(stroke));
+                                                    for (i, (x, y)) in pts.iter().enumerate() {
+                                                        let p = point(
+                                                            bounds.origin.x + px(*x),
+                                                            bounds.origin.y + px(*y),
+                                                        );
+                                                        if i == 0 {
+                                                            builder.move_to(p);
+                                                        } else {
+                                                            builder.line_to(p);
+                                                        }
+                                                    }
+                                                    if let Ok(path) = builder.build() {
+                                                        window.paint_path(path, ptr_color);
+                                                    }
+                                                },
+                                            )
+                                            .w(px(size))
+                                            .h(px(size)),
+                                        )
+                                    },
+                                ),
+                        )
+                })
                 .child(
                     div()
                         .text_size(px(12.))
@@ -1662,10 +1716,18 @@ fn android_progress_indet(theme: &Theme) -> impl IntoElement {
         )
 }
 
-fn android_nav_rail(theme: &Theme) -> impl IntoElement {
-    let rail = navigation_rail::resolve(theme);
+fn android_nav_rail(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let mode = this.rail_mode;
+    let rail = navigation_rail::resolve_mode(theme, mode);
+    let expanded = mode == navigation_rail::RailMode::Expanded;
+    let selected = this.rail_selected;
     div()
-        .w(px(rail.width_dp))
+        .id("nav-rail")
+        .w(px(rail.width_dp.min(if expanded { 200.0 } else { 80.0 })))
         .flex()
         .flex_col()
         .items_center()
@@ -1673,6 +1735,7 @@ fn android_nav_rail(theme: &Theme) -> impl IntoElement {
         .bg(paint(rail.container))
         .child(
             div()
+                .id("rail-fab")
                 .w(px(navigation_rail::FAB_SLOT_DP))
                 .h(px(navigation_rail::FAB_SLOT_DP))
                 .rounded(px(16.))
@@ -1681,7 +1744,11 @@ fn android_nav_rail(theme: &Theme) -> impl IntoElement {
                 .flex()
                 .items_center()
                 .justify_center()
-                .child("+"),
+                .child(if expanded { "←" } else { "+" })
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                    cx.notify();
+                })),
         )
         .children(
             navigation_rail::DESTINATIONS
@@ -1690,8 +1757,23 @@ fn android_nav_rail(theme: &Theme) -> impl IntoElement {
                 .zip(navigation_rail::DESTINATION_BADGES.iter())
                 .enumerate()
                 .map(|(i, ((label, icon), badge))| {
-                    let active = i == 0;
-                    let mut dest = div().relative().flex().flex_col().items_center().child(
+                    let active = navigation_rail::is_active(selected, i);
+                    let mut dest = div()
+                        .id(SharedString::from(format!("rail-dest-{i}")))
+                        .relative()
+                        .flex()
+                        .items_center()
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.rail_selected =
+                                navigation_rail::select_destination(this.rail_selected, i);
+                            cx.notify();
+                        }));
+                    dest = if expanded {
+                        dest.flex_row().justify_start().px(px(8.))
+                    } else {
+                        dest.flex_col().justify_center()
+                    };
+                    dest = dest.child(
                         div()
                             .w(px(navigation_rail::INDICATOR_W_DP))
                             .h(px(navigation_rail::INDICATOR_H_DP))
@@ -1753,21 +1835,39 @@ fn android_nav_rail(theme: &Theme) -> impl IntoElement {
         )
 }
 
-fn android_carousel(theme: &Theme) -> impl IntoElement {
+fn android_carousel(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let a = carousel::resolve(theme);
+    let selected = this.carousel_index;
     div()
+        .id("carousel")
         .w_full()
         .flex()
         .gap(px(a.gap_dp))
+        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+            let (dx, dy) = match ev.delta {
+                ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
+                ScrollDelta::Lines(p) => (p.x, p.y),
+            };
+            let step = carousel::fling_step(dx, dy);
+            if step != 0 {
+                this.carousel_index = carousel::advance(this.carousel_index, step);
+                cx.notify();
+            }
+        }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
-            let (bg, fg) = if i == carousel::DEMO_INDEX {
+            let w = carousel::item_width_dp(i, selected).min(160.0);
+            let (bg, fg) = if i == selected {
                 (a.container, a.label)
             } else {
                 (a.neighbor, theme.color.on_secondary_container)
             };
             div()
-                .w(px(w.min(160.0)))
+                .id(SharedString::from(format!("carousel-{i}")))
+                .w(px(w))
                 .h(px(a.height_dp * 0.7))
                 .rounded(px(a.corners.top_left))
                 .bg(paint(bg))
@@ -1776,6 +1876,10 @@ fn android_carousel(theme: &Theme) -> impl IntoElement {
                 .items_end()
                 .text_color(paint(fg))
                 .child(*label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.carousel_index = carousel::snap_to(i);
+                    cx.notify();
+                }))
         }))
 }
 
@@ -1790,8 +1894,12 @@ fn android_search_bar(
     } else {
         search::resolve_view(theme)
     };
-    let suggestions = search::filter_suggestions(&this.search_query);
-    let query_label = search::query_display(&this.search_query).to_string();
+    let suggestions = search::filter_suggestions(this.search.value());
+    let query_label = if this.search.focused {
+        this.search.display_with_caret()
+    } else {
+        search::query_display(this.search.value()).to_string()
+    };
     let mut root = div().flex().flex_col().gap(px(8.));
     if !this.search_open {
         root = root.child(
@@ -1827,6 +1935,7 @@ fn android_search_bar(
             )
             .on_click(cx.listener(|this, _, _, cx| {
                 this.search_open = true;
+                this.search.set_focus(true);
                 cx.notify();
             })),
         );
@@ -1843,8 +1952,7 @@ fn android_search_bar(
                 .flex_col()
                 .tab_index(0)
                 .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                    this.search_query =
-                        search::apply_search_key(&this.search_query, &ev.keystroke.key);
+                    search::apply_key_to_editor(&mut this.search, &ev.keystroke.key);
                     cx.notify();
                 }))
                 .child(
@@ -1860,14 +1968,15 @@ fn android_search_bar(
                                 .child(search::VIEW_BACK)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.search_open = false;
-                                    this.search_query.clear();
+                                    this.search.set_value("");
+                                    this.search.set_focus(false);
                                     cx.notify();
                                 })),
                         )
                         .child(
                             div()
                                 .flex_1()
-                                .text_color(paint(if this.search_query.is_empty() {
+                                .text_color(paint(if this.search.value().is_empty() {
                                     view.placeholder
                                 } else {
                                     view.input
@@ -1884,6 +1993,14 @@ fn android_search_bar(
                         .items_center()
                         .text_color(paint(view.suggestion))
                         .child(label)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(picked) =
+                                search::pick_suggestion(this.search.value(), i)
+                            {
+                                this.search.set_value(picked);
+                                cx.notify();
+                            }
+                        }))
                 })),
         );
     }
@@ -1896,15 +2013,32 @@ fn android_time_picker(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = time_picker::resolve(theme);
+    let clock = 192.0_f32;
+    let number = 32.0_f32;
     let hour_on = this.time_dial == DialFace::Hour;
-    let cells: Vec<(u8, String, bool)> = match this.time_dial {
+    let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
         DialFace::Hour => (1u8..=12)
-            .map(|h| (h, h.to_string(), h == this.time_hour))
+            .map(|hour| {
+                let (x, y) = time_picker::hour_offset(hour, clock, number);
+                (hour, hour.to_string(), x, y, hour == this.time_hour)
+            })
             .collect(),
         DialFace::Minute => time_picker::minute_labels()
-            .map(|m| (m, format!("{m:02}"), m == this.time_minute))
+            .map(|m| {
+                let (x, y) = time_picker::minute_offset(m, clock, number);
+                (m, format!("{m:02}"), x, y, m == this.time_minute)
+            })
             .collect(),
     };
+    let quad = time_picker::hand_quad(
+        clock,
+        this.time_dial,
+        this.time_hour,
+        this.time_minute,
+        number,
+    );
+    let hub = (clock / 2.0, clock / 2.0);
+    let hand_color = paint(a.hand);
     div()
         .w_full()
         .p(px(16.))
@@ -1991,16 +2125,68 @@ fn android_time_picker(
         )
         .child(
             div()
-                .flex()
-                .flex_wrap()
-                .gap(px(4.))
-                .children(cells.into_iter().map(|(value, label, selected)| {
+                .relative()
+                .w(px(clock))
+                .h(px(clock))
+                .rounded(px(clock / 2.0))
+                .bg(paint(a.clock))
+                .child(
+                    canvas(
+                        move |_, _, _| {},
+                        move |bounds, _, window, _| {
+                            let mut builder = PathBuilder::fill();
+                            for (i, (x, y)) in quad.iter().enumerate() {
+                                let p = point(
+                                    bounds.origin.x + px(*x),
+                                    bounds.origin.y + px(*y),
+                                );
+                                if i == 0 {
+                                    builder.move_to(p);
+                                } else {
+                                    builder.line_to(p);
+                                }
+                            }
+                            builder.close();
+                            if let Ok(path) = builder.build() {
+                                window.paint_path(path, hand_color);
+                            }
+                            let mut hub_b = PathBuilder::fill();
+                            let r = time_picker::HAND_HUB_DP / 2.0;
+                            let n = 12u32;
+                            for i in 0..n {
+                                let ang = i as f32 / n as f32 * std::f32::consts::TAU;
+                                let p = point(
+                                    bounds.origin.x + px(hub.0 + r * ang.cos()),
+                                    bounds.origin.y + px(hub.1 + r * ang.sin()),
+                                );
+                                if i == 0 {
+                                    hub_b.move_to(p);
+                                } else {
+                                    hub_b.line_to(p);
+                                }
+                            }
+                            hub_b.close();
+                            if let Ok(path) = hub_b.build() {
+                                window.paint_path(path, hand_color);
+                            }
+                        },
+                    )
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .w(px(clock))
+                    .h(px(clock)),
+                )
+                .children(labels.into_iter().map(|(value, label, x, y, selected)| {
                     let face = this.time_dial;
                     div()
                         .id(SharedString::from(format!("dial-{value}")))
-                        .w(px(36.))
-                        .h(px(36.))
-                        .rounded(px(18.))
+                        .absolute()
+                        .left(px(x))
+                        .top(px(y))
+                        .w(px(number))
+                        .h(px(number))
+                        .rounded(px(number / 2.0))
                         .bg(paint(if selected {
                             a.number_selected_container
                         } else {
@@ -2089,8 +2275,9 @@ fn android_range_slider(
     );
     let t = range.track;
     let total = 240.0;
-    let left = (total * range.start).max(12.0);
-    let mid = (total * (range.end - range.start)).max(16.0);
+    let paint_r = slider::range_paint(range.start, range.end, total, t.handle_w.max(4.0));
+    let y_track = ((t.target_dp - t.track_h) / 2.0).max(0.0);
+    let y_handle = ((t.target_dp - t.handle_h_visual) / 2.0).max(0.0);
     let hit = this.range_hit.clone();
     let hit_move = this.range_hit.clone();
     let hit_click = this.range_hit.clone();
@@ -2174,47 +2361,53 @@ fn android_range_slider(
                 }))
                 .child(
                     div()
-                        .w(px(total))
-                        .h(px(t.target_dp))
-                        .flex()
-                        .items_center()
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(left))
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(mid))
-                                .rounded(px(t.inner_corner))
-                                .bg(paint(t.active)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .flex_1()
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        ),
+                        .absolute()
+                        .left(px(0.))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.left))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.active))
+                        .rounded(px(t.inner_corner))
+                        .bg(paint(t.active)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.right))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
                 )
                 .child({
                     let hit = this.range_hit.clone();
@@ -2464,141 +2657,122 @@ fn field_block(
     let value = value.into();
     let box_el = if outlined && field.notched {
         let frame = text_field::notch_frame(label.as_ref(), field);
-        let stroke = frame.stroke_dp;
-        let radius = frame.radius_dp;
         let fill = field.field.container;
-        let inner = frame.inner_radius_dp();
-        let inner_sz = (radius - stroke).max(0.0);
-        let middle_h = frame.middle_h_dp();
-        let tl = div()
-            .w(px(radius))
-            .h(px(radius))
-            .rounded_tl(px(radius))
-            .bg(paint(outline.0))
-            .pt(px(stroke))
-            .pl(px(stroke))
-            .child(
-                div()
-                    .w(px(inner_sz))
-                    .h(px(inner_sz))
-                    .rounded_tl(px(inner))
-                    .bg(paint(fill)),
-            );
-        let tr = div()
-            .w(px(radius))
-            .h(px(radius))
-            .rounded_tr(px(radius))
-            .bg(paint(outline.0))
-            .pt(px(stroke))
-            .pr(px(stroke))
-            .child(
-                div()
-                    .w(px(inner_sz))
-                    .h(px(inner_sz))
-                    .rounded_tr(px(inner))
-                    .bg(paint(fill)),
-            );
-        let bl = div()
-            .w(px(radius))
-            .h(px(radius))
-            .rounded_bl(px(radius))
-            .bg(paint(outline.0))
-            .pb(px(stroke))
-            .pl(px(stroke))
-            .child(
-                div()
-                    .w(px(inner_sz))
-                    .h(px(inner_sz))
-                    .rounded_bl(px(inner))
-                    .bg(paint(fill)),
-            );
-        let br = div()
-            .w(px(radius))
-            .h(px(radius))
-            .rounded_br(px(radius))
-            .bg(paint(outline.0))
-            .pb(px(stroke))
-            .pr(px(stroke))
-            .child(
-                div()
-                    .w(px(inner_sz))
-                    .h(px(inner_sz))
-                    .rounded_br(px(inner))
-                    .bg(paint(fill)),
-            );
+        let cut = field.cutout_fill;
+        let (lx, ly) = frame.label_origin_dp();
+        let stroke_color = paint(outline.0);
+        let stroke_w = frame.stroke_dp;
+        let verbs = frame.outline_verbs(280.0);
+        let h = field.field.height_dp;
+        let radius = frame.radius_dp;
+        let (gx, gy, gw, gh) = frame.notch_gap_rect();
+        let inner_r = frame.inner_radius_dp();
         div()
             .id(id)
             .relative()
-            .flex()
-            .flex_col()
             .w_full()
+            .h(px(h))
             .on_click(on_click)
             .child(
                 div()
-                    .flex()
-                    .flex_row()
-                    .items_start()
-                    .h(px(radius))
-                    .child(tl)
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .size_full()
+                    .rounded(px(radius))
+                    .bg(paint(outline.0))
+                    .p(px(stroke_w))
                     .child(
                         div()
-                            .w(px(frame.top_lead_dp()))
-                            .h(px(radius))
-                            .flex()
-                            .flex_col()
-                            .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
-                    )
-                    .child(
-                        div()
-                            .w(px(frame.width_dp))
-                            .h(px(frame.notch_gap_h_dp()))
+                            .size_full()
+                            .rounded(px(inner_r))
                             .bg(paint(fill)),
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .h(px(radius))
-                            .flex()
-                            .flex_col()
-                            .child(div().w_full().h(px(stroke)).bg(paint(outline.0))),
-                    )
-                    .child(tr),
+                    ),
             )
             .child(
                 div()
-                    .flex()
-                    .flex_row()
-                    .h(px(middle_h))
-                    .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0)))
-                    .child(
-                        div()
-                            .flex_1()
-                            .h(px(middle_h))
-                            .px(px(16.))
-                            .flex()
-                            .items_center()
-                            .bg(paint(fill))
-                            .child(
-                                div()
-                                    .text_size(px(field.input_style.size_sp))
-                                    .text_color(paint(field.input))
-                                    .child(value),
-                            ),
-                    )
-                    .child(div().w(px(stroke)).h(px(middle_h)).bg(paint(outline.0))),
+                    .absolute()
+                    .left(px(gx))
+                    .top(px(gy))
+                    .w(px(gw))
+                    .h(px(gh))
+                    .bg(paint(cut)),
+            )
+            .child(
+                canvas(
+                    move |_, _, _| {},
+                    move |bounds, _, window, _| {
+                        let w = f32::from(bounds.size.width);
+                        let verbs = if (w - 280.0).abs() > 1.0 {
+                            text_field::NotchFrame {
+                                start_dp: frame.start_dp,
+                                width_dp: frame.width_dp,
+                                stroke_dp: frame.stroke_dp,
+                                radius_dp: frame.radius_dp,
+                                label_h_dp: frame.label_h_dp,
+                                field_h_dp: frame.field_h_dp,
+                            }
+                            .outline_verbs(w)
+                        } else {
+                            verbs.clone()
+                        };
+                        let mut builder = PathBuilder::stroke(px(stroke_w));
+                        for v in verbs {
+                            match v {
+                                text_field::OutlineVerb::Move(x, y) => {
+                                    builder.move_to(point(
+                                        bounds.origin.x + px(x),
+                                        bounds.origin.y + px(y),
+                                    ));
+                                }
+                                text_field::OutlineVerb::Line(x, y) => {
+                                    builder.line_to(point(
+                                        bounds.origin.x + px(x),
+                                        bounds.origin.y + px(y),
+                                    ));
+                                }
+                                text_field::OutlineVerb::Arc {
+                                    to_x,
+                                    to_y,
+                                    radius,
+                                } => {
+                                    builder.arc_to(
+                                        point(px(radius), px(radius)),
+                                        px(0.),
+                                        false,
+                                        true,
+                                        point(bounds.origin.x + px(to_x), bounds.origin.y + px(to_y)),
+                                    );
+                                }
+                            }
+                        }
+                        if let Ok(path) = builder.build() {
+                            window.paint_path(path, stroke_color);
+                        }
+                    },
+                )
+                .absolute()
+                .top(px(0.))
+                .left(px(0.))
+                .size_full(),
             )
             .child(
                 div()
+                    .absolute()
+                    .top(px(0.))
+                    .left(px(0.))
+                    .size_full()
+                    .px(px(16.))
                     .flex()
-                    .flex_row()
-                    .items_end()
-                    .h(px(radius))
-                    .child(bl)
-                    .child(div().flex_1().h(px(stroke)).bg(paint(outline.0)))
-                    .child(br),
+                    .items_center()
+                    .child(
+                        div()
+                            .text_size(px(field.input_style.size_sp))
+                            .text_color(paint(field.input))
+                            .child(value),
+                    ),
             )
-            .child({
-                let (lx, ly) = frame.label_origin_dp();
+            .child(
                 div()
                     .absolute()
                     .left(px(lx))
@@ -2608,14 +2782,16 @@ fn field_block(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .bg(paint(fill))
+                    .bg(paint(cut))
                     .child(
                         div()
                             .text_size(px(field.label_style.size_sp))
                             .text_color(paint(field.label))
+                            .line_height(px(field.label_style.line_height_sp))
                             .child(label),
-                    )
-            })
+                    ),
+            )
+            .into_any_element()
             .into_any_element()
     } else if outlined {
         div()
@@ -2840,7 +3016,15 @@ fn android_main(app: AndroidApp) {
                 range_hit: Rc::new(Cell::new((0.0, 240.0))),
                 docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                 search_open: search::VIEW_OPEN_BY_DEFAULT,
-                search_query: String::new(),
+                search: {
+                    let mut ed =
+                        TextFieldEditor::new(text_field::TextFieldVariant::Filled, "");
+                    ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
+                    ed
+                },
+                rail_selected: navigation_rail::DEMO_SELECTED,
+                rail_mode: navigation_rail::DEMO_MODE,
+                carousel_index: carousel::DEMO_INDEX,
                 time_hour: time_picker::DEMO_HOUR,
                 time_minute: time_picker::DEMO_MINUTE,
                 time_period: time_picker::DEMO_PERIOD,

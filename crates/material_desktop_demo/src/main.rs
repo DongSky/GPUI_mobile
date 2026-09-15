@@ -17,7 +17,8 @@ use gpui::prelude::*;
 use gpui::{
     canvas, div, point, px, size, Animation, AnimationExt, App, Bounds, Context, FontWeight,
     IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement,
-    PathBuilder, Render, SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions,
+    PathBuilder, Render, ScrollDelta, ScrollWheelEvent, SharedString, Styled, TitlebarOptions,
+    Window, WindowBounds, WindowOptions,
 };
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
@@ -86,7 +87,10 @@ struct CatalogView {
     range_hit: Rc<Cell<(f32, f32)>>,
     docked_open: bool,
     search_open: bool,
-    search_query: String,
+    search: TextFieldEditor,
+    rail_selected: usize,
+    rail_mode: navigation_rail::RailMode,
+    carousel_index: usize,
     time_hour: u8,
     time_minute: u8,
     time_period: DayPeriod,
@@ -360,7 +364,7 @@ fn catalog_body(
         .child(section_title(theme, "Progress"))
         .child(progress_heroes(theme))
         .child(section_title(theme, "Carousel"))
-        .child(carousel_hero(theme))
+        .child(carousel_hero(this, theme, cx))
         .child(
             div()
                 .text_size(px(12.))
@@ -438,7 +442,7 @@ fn catalog_body(
         )
         .child(tab_row(&tabs_p, this.tab, cx))
         .child(section_title(theme, "Navigation rail"))
-        .child(nav_rail_hero(theme))
+        .child(nav_rail_hero(this, theme, cx))
         .child(section_title(theme, "Dialog"))
         .child(
             div()
@@ -534,8 +538,9 @@ fn range_slider_hero(
     );
     let t = range.track;
     let total = slider::RANGE_TRACK_W_DP;
-    let left = (total * range.start).max(12.0);
-    let mid = (total * (range.end - range.start)).max(16.0);
+    let paint_r = slider::range_paint(range.start, range.end, total, t.handle_w.max(4.0));
+    let y_track = ((t.target_dp - t.track_h) / 2.0).max(0.0);
+    let y_handle = ((t.target_dp - t.handle_h_visual) / 2.0).max(0.0);
     let hit = this.range_hit.clone();
     let hit_move = this.range_hit.clone();
     let hit_click = this.range_hit.clone();
@@ -623,47 +628,53 @@ fn range_slider_hero(
                 }))
                 .child(
                     div()
-                        .w(px(total))
-                        .h(px(t.target_dp))
-                        .flex()
-                        .items_center()
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(left))
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .w(px(mid))
-                                .rounded(px(t.inner_corner))
-                                .bg(paint(t.active)),
-                        )
-                        .child(
-                            div()
-                                .mx(px(t.gap_dp))
-                                .w(px(t.handle_w.max(12.0)))
-                                .h(px(t.handle_h_visual))
-                                .rounded(px(2.))
-                                .bg(paint(t.handle)),
-                        )
-                        .child(
-                            div()
-                                .h(px(t.track_h))
-                                .flex_1()
-                                .rounded(px(t.track_corner))
-                                .bg(paint(t.inactive)),
-                        ),
+                        .absolute()
+                        .left(px(0.))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.left))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.start_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.active))
+                        .rounded(px(t.inner_corner))
+                        .bg(paint(t.active)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle))
+                        .top(px(y_handle))
+                        .w(px(paint_r.handle_w.max(12.0)))
+                        .h(px(t.handle_h_visual))
+                        .rounded(px(2.))
+                        .bg(paint(t.handle)),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(paint_r.end_handle + paint_r.handle_w.max(12.0)))
+                        .top(px(y_track))
+                        .h(px(t.track_h))
+                        .w(px(paint_r.right))
+                        .rounded(px(t.track_corner))
+                        .bg(paint(t.inactive)),
                 )
                 .child({
                     let hit = this.range_hit.clone();
@@ -1584,8 +1595,12 @@ fn search_bar_hero(
     } else {
         search::resolve_view(theme)
     };
-    let suggestions = search::filter_suggestions(&this.search_query);
-    let query_label = search::query_display(&this.search_query).to_string();
+    let suggestions = search::filter_suggestions(this.search.value());
+    let query_label = if this.search.focused {
+        this.search.display_with_caret()
+    } else {
+        search::query_display(this.search.value()).to_string()
+    };
     let bar = (!this.search_open).then(|| {
         div()
             .id("search-bar")
@@ -1634,6 +1649,7 @@ fn search_bar_hero(
             )
             .on_click(cx.listener(|this, _, _, cx| {
                 this.search_open = true;
+                this.search.set_focus(true);
                 cx.notify();
             }))
             .into_any_element()
@@ -1649,8 +1665,7 @@ fn search_bar_hero(
             .flex_col()
             .tab_index(0)
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                this.search_query =
-                    search::apply_search_key(&this.search_query, &ev.keystroke.key);
+                search::apply_key_to_editor(&mut this.search, &ev.keystroke.key);
                 cx.notify();
             }))
             .child(
@@ -1667,14 +1682,15 @@ fn search_bar_hero(
                             .child(search::VIEW_BACK)
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.search_open = false;
-                                this.search_query.clear();
+                                this.search.set_value("");
+                                this.search.set_focus(false);
                                 cx.notify();
                             })),
                     )
                     .child(
                         div()
                             .flex_1()
-                            .text_color(paint(if this.search_query.is_empty() {
+                            .text_color(paint(if this.search.value().is_empty() {
                                 view.placeholder
                             } else {
                                 view.input
@@ -1684,7 +1700,13 @@ fn search_bar_hero(
                     .child(div().text_color(paint(view.header)).child(search::TRAILING_MIC)),
             )
             .child(div().h(px(1.)).w_full().bg(paint(view.divider)))
-            .children(suggestions.into_iter().enumerate().map(|(i, label)| {
+            .children({
+                let rows: Vec<_> = if suggestions.is_empty() {
+                    vec![search::EMPTY_SUGGESTIONS]
+                } else {
+                    suggestions
+                };
+                rows.into_iter().enumerate().map(|(i, label)| {
                 div()
                     .id(SharedString::from(format!("search-sug-{i}")))
                     .h(px(view.suggestion_h_dp))
@@ -1699,7 +1721,16 @@ fn search_bar_hero(
                             .child(if i == 0 { "⌕" } else { "◌" }),
                     )
                     .child(label)
-            }))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        if let Some(picked) =
+                            search::pick_suggestion(this.search.value(), i)
+                        {
+                            this.search.set_value(picked);
+                            cx.notify();
+                        }
+                    }))
+            })
+            })
             .into_any_element()
     });
     div()
@@ -1948,19 +1979,25 @@ fn time_picker_hero(
         )
 }
 
-fn nav_rail_hero(theme: &Theme) -> impl IntoElement {
-    div()
-        .flex()
-        .gap(px(24.))
-        .items_start()
-        .child(nav_rail_column(theme, navigation_rail::RailMode::Collapsed))
-        .child(nav_rail_column(theme, navigation_rail::RailMode::Expanded))
+fn nav_rail_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    nav_rail_column(this, theme, this.rail_mode, cx)
 }
 
-fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoElement {
+fn nav_rail_column(
+    this: &CatalogView,
+    theme: &Theme,
+    mode: navigation_rail::RailMode,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let rail = navigation_rail::resolve_mode(theme, mode);
     let expanded = mode == navigation_rail::RailMode::Expanded;
+    let selected = this.rail_selected;
     div()
+        .id("nav-rail")
         .w(px(rail.width_dp))
         .pt(px(navigation_rail::PAD_TOP_DP))
         .bg(paint(rail.container))
@@ -1970,6 +2007,7 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
         .gap(px(navigation_rail::DEST_GAP_DP))
         .child(
             div()
+                .id("rail-fab")
                 .w(px(navigation_rail::FAB_SLOT_DP))
                 .h(px(navigation_rail::FAB_SLOT_DP))
                 .rounded(px(16.))
@@ -1978,7 +2016,11 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
                 .flex()
                 .items_center()
                 .justify_center()
-                .child("+"),
+                .child(if expanded { "←" } else { "+" })
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.rail_mode = navigation_rail::toggle_mode(this.rail_mode);
+                    cx.notify();
+                })),
         )
         .children(
             navigation_rail::DESTINATIONS
@@ -1987,13 +2029,21 @@ fn nav_rail_column(theme: &Theme, mode: navigation_rail::RailMode) -> impl IntoE
                 .zip(navigation_rail::DESTINATION_BADGES.iter())
                 .enumerate()
                 .map(|(i, ((label, icon), badge))| {
-                    let active = i == 0;
+                    let active = navigation_rail::is_active(selected, i);
                     let mut dest = div()
+                        .id(SharedString::from(format!("rail-dest-{i}")))
                         .w(px(rail.width_dp))
                         .relative()
                         .flex()
                         .gap(px(4.))
-                        .items_center();
+                        .items_center()
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.rail_selected = navigation_rail::select_destination(
+                                this.rail_selected,
+                                i,
+                            );
+                            cx.notify();
+                        }));
                     dest = if expanded {
                         dest.flex_row().justify_start().px(px(12.))
                     } else {
@@ -2161,24 +2211,71 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
                 .flex_col()
                 .items_center()
                 .gap(px(8.))
-                .child(
+                .child({
+                    let size = ptr.size_dp;
+                    let stroke = ptr.stroke_dp;
+                    let arc = ptr.arc_deg;
+                    let ptr_color = paint(ptr.indicator);
+                    let dur = ptr.duration_ms as u64;
                     div()
-                        .w(px(ptr.size_dp))
-                        .h(px(ptr.size_dp))
-                        .rounded(px(ptr.size_dp / 2.0))
-                        .border_2()
-                        .border_color(paint(ptr.track))
-                        .flex()
-                        .items_start()
-                        .justify_center()
+                        .relative()
+                        .w(px(size))
+                        .h(px(size))
                         .child(
                             div()
-                                .w(px(ptr.stroke_dp))
-                                .h(px(ptr.size_dp * 0.28))
-                                .rounded(px(2.))
-                                .bg(paint(ptr.indicator)),
-                        ),
-                )
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .rounded(px(size / 2.0))
+                                .border_2()
+                                .border_color(paint(ptr.track)),
+                        )
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(size))
+                                .h(px(size))
+                                .with_animation(
+                                    "ptr-spin",
+                                    Animation::new(Duration::from_millis(dur)).repeat(),
+                                    move |this, delta| {
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let pts = progress::ptr_arc_polyline(
+                                                        size, stroke, arc, delta,
+                                                    );
+                                                    let mut builder =
+                                                        PathBuilder::stroke(px(stroke));
+                                                    for (i, (x, y)) in pts.iter().enumerate()
+                                                    {
+                                                        let p = point(
+                                                            bounds.origin.x + px(*x),
+                                                            bounds.origin.y + px(*y),
+                                                        );
+                                                        if i == 0 {
+                                                            builder.move_to(p);
+                                                        } else {
+                                                            builder.line_to(p);
+                                                        }
+                                                    }
+                                                    if let Ok(path) = builder.build() {
+                                                        window.paint_path(path, ptr_color);
+                                                    }
+                                                },
+                                            )
+                                            .w(px(size))
+                                            .h(px(size)),
+                                        )
+                                    },
+                                ),
+                        )
+                })
                 .child(spaced_line(
                     progress::PTR_LABEL,
                     12.0,
@@ -2187,20 +2284,38 @@ fn progress_heroes(theme: &Theme) -> impl IntoElement {
         )
 }
 
-fn carousel_hero(theme: &Theme) -> impl IntoElement {
+fn carousel_hero(
+    this: &CatalogView,
+    theme: &Theme,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
     let a = carousel::resolve(theme);
+    let selected = this.carousel_index;
     div()
+        .id("carousel")
         .w_full()
         .flex()
         .gap(px(a.gap_dp))
+        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _, cx| {
+            let (dx, dy) = match ev.delta {
+                ScrollDelta::Pixels(p) => (f32::from(p.x), f32::from(p.y)),
+                ScrollDelta::Lines(p) => (p.x, p.y),
+            };
+            let step = carousel::fling_step(dx, dy);
+            if step != 0 {
+                this.carousel_index = carousel::advance(this.carousel_index, step);
+                cx.notify();
+            }
+        }))
         .children(carousel::ITEMS.iter().enumerate().map(|(i, label)| {
-            let w = carousel::item_width_dp(i, carousel::DEMO_INDEX);
-            let (bg, fg) = if i == carousel::DEMO_INDEX {
+            let w = carousel::item_width_dp(i, selected);
+            let (bg, fg) = if i == selected {
                 (a.container, a.label)
             } else {
                 (a.neighbor, theme.color.on_secondary_container)
             };
             div()
+                .id(SharedString::from(format!("carousel-{i}")))
                 .w(px(w))
                 .h(px(a.height_dp))
                 .rounded(px(a.corners.top_left))
@@ -2211,6 +2326,10 @@ fn carousel_hero(theme: &Theme) -> impl IntoElement {
                 .text_color(paint(fg))
                 .font_weight(type_weight(a.label_style))
                 .child(*label)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.carousel_index = carousel::snap_to(i);
+                    cx.notify();
+                }))
         }))
 }
 
@@ -2271,6 +2390,8 @@ fn outlined_notched_field(
     let verbs = frame.outline_verbs(280.0);
     let h = field.field.height_dp;
     let radius = frame.radius_dp;
+    let (gx, gy, gw, gh) = frame.notch_gap_rect();
+    let inner_r = frame.inner_radius_dp();
     div()
         .id(id)
         .relative()
@@ -2284,7 +2405,23 @@ fn outlined_notched_field(
                 .left(px(0.))
                 .size_full()
                 .rounded(px(radius))
-                .bg(paint(fill)),
+                .bg(paint(outline.0))
+                .p(px(stroke_w))
+                .child(
+                    div()
+                        .size_full()
+                        .rounded(px(inner_r))
+                        .bg(paint(fill)),
+                ),
+        )
+        .child(
+            div()
+                .absolute()
+                .left(px(gx))
+                .top(px(gy))
+                .w(px(gw))
+                .h(px(gh))
+                .bg(paint(cut)),
         )
         .child(
             canvas(
@@ -2538,7 +2675,17 @@ fn main() {
                     range_hit: Rc::new(Cell::new((0.0, slider::RANGE_TRACK_W_DP))),
                     docked_open: date_picker::DOCKED_OPEN_BY_DEFAULT,
                     search_open: search::VIEW_OPEN_BY_DEFAULT,
-                    search_query: String::new(),
+                    search: {
+                        let mut ed = TextFieldEditor::new(
+                            text_field::TextFieldVariant::Filled,
+                            "",
+                        );
+                        ed.set_focus(search::VIEW_OPEN_BY_DEFAULT);
+                        ed
+                    },
+                    rail_selected: navigation_rail::DEMO_SELECTED,
+                    rail_mode: navigation_rail::DEMO_MODE,
+                    carousel_index: carousel::DEMO_INDEX,
                     time_hour: time_picker::DEMO_HOUR,
                     time_minute: time_picker::DEMO_MINUTE,
                     time_period: time_picker::DEMO_PERIOD,

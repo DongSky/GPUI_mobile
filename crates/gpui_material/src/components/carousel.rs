@@ -1,7 +1,7 @@
 //! Carousel. Specs: https://m3.material.io/components/carousel/specs
 //!
-//! Catalog stub: hero large item + two smaller neighbors (multi-browse peek).
-//! Scroll physics / snap alignment are not a GPUI list yet.
+//! Catalog stub: hero large item + smaller neighbors (multi-browse peek).
+//! Click / wheel snap the selected index; fling is a 1-item step.
 
 use crate::argb::Argb;
 use crate::shape::Corners;
@@ -50,5 +50,36 @@ pub fn item_width_dp(index: usize, selected: usize) -> f32 {
         LARGE_W_DP
     } else {
         SMALL_W_DP
+    }
+}
+
+pub fn wrap_index(index: isize) -> usize {
+    let n = ITEMS.len() as isize;
+    (((index % n) + n) % n) as usize
+}
+
+pub fn clamp_index(index: usize) -> usize {
+    index.min(ITEMS.len().saturating_sub(1))
+}
+
+/// Snap to `target` (used by tile taps).
+pub fn snap_to(target: usize) -> usize {
+    clamp_index(target)
+}
+
+/// One-item fling / wheel step.
+pub fn advance(selected: usize, delta: i32) -> usize {
+    wrap_index(selected as isize + delta as isize)
+}
+
+/// Convert a scroll delta into a ±1 item step (0 if below the stub threshold).
+pub fn fling_step(dx: f32, dy: f32) -> i32 {
+    let dominant = if dx.abs() >= dy.abs() { dx } else { dy };
+    if dominant.abs() < 0.5 {
+        0
+    } else if dominant > 0.0 {
+        1
+    } else {
+        -1
     }
 }

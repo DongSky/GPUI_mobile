@@ -102,7 +102,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Filled and outlined text fields",
         docs: "https://m3.material.io/components/text-fields/specs",
         parity: Parity::Done,
-        notes: "Floating label; outlined notch is a shared outline path (fieldset + GPUI PathBuilder), 8dp start, stroke-height cutout, legend on top stroke; focus outline 2dp; IME still NativeActivity stub",
+        notes: "Floating label; outlined notch is a filled-with-hole ring (outer outline fill + inner hole + legend gap) plus PathBuilder stroke; 8dp start; focus outline 2dp; IME cursor origin helper for NativeActivity",
     },
     ComponentEntry {
         name: "List",
@@ -158,7 +158,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Linear and circular progress indicators",
         docs: "https://m3.material.io/components/progress-indicators/specs",
         parity: Parity::Done,
-        notes: "Determinate linear/circular + wavy determinate track + indeterminate sliding head / spinning arc (HTML CSS + GPUI Animation clock) + 40dp pull-to-refresh hero",
+        notes: "Determinate linear/circular + wavy determinate track + indeterminate sliding head / spinning PTR arc (HTML CSS + GPUI Animation clock)",
     },
     ComponentEntry {
         name: "Top app bar",
@@ -186,7 +186,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Navigation rail",
         docs: "https://m3.material.io/components/navigation-rail/specs",
         parity: Parity::Done,
-        notes: "Collapsed 80dp + expanded 220dp modal; 56×32 indicator; FAB slot; destination badges (count + small dot); Home/Search/Profile",
+        notes: "Collapsed 80dp + expanded 220dp morph (FAB toggles mode); destination selection; 56×32 indicator; FAB slot; destination badges (count + small dot); Home/Search/Profile",
     },
     ComponentEntry {
         name: "Dialog",
@@ -214,7 +214,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Sliders",
         docs: "https://m3.material.io/components/sliders/specs",
         parity: Parity::Done,
-        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with continuous local-X drag, keyboard arrows, and 5% click-step; inactive = surface-container-highest; S–XL sizes",
+        notes: "Expressive XS default: 16dp track, 4×44 handle token / ~28dp painted, 6dp gap, 4dp stops; volume-row labels; dual-handle range with continuous local-X drag (absolute thumb paint), keyboard arrows, and 5% click-step; inactive = surface-container-highest; S–XL sizes",
     },
     ComponentEntry {
         name: "Tabs",
@@ -242,21 +242,21 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Search bar + view",
         docs: "https://m3.material.io/components/search/specs",
         parity: Parity::Done,
-        notes: "56dp full-round docked bar morphs into full-screen search activity (0dp corners, surface); back + input + filtered suggestions",
+        notes: "56dp full-round docked bar morphs into full-screen search activity (0dp corners, surface); real caret editor + filtered suggestions (tap to fill); HTML <input>",
     },
     ComponentEntry {
         name: "Time picker",
         material: "Time pickers (dial)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "12-hour + minute dial; analog selector hand is a shared filled path (HTML SVG / GPUI PathBuilder); displaySmallEmphasized header; AM/PM; hand motion not animated",
+        notes: "12-hour + minute polar dial on HTML/desktop/Android; analog selector hand is a shared filled path (HTML SVG / GPUI PathBuilder); displaySmallEmphasized header; AM/PM; hand motion not animated",
     },
     ComponentEntry {
         name: "Carousel",
         material: "Carousel (hero / multi-browse)",
         docs: "https://m3.material.io/components/carousel/specs",
         parity: Parity::Done,
-        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; no snap/fling physics",
+        notes: "Hero stub: 256dp large item + 120dp neighbors, 8dp gap, extra-large 28dp corners; click/wheel snap + one-item fling",
     },
 ];
 

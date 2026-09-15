@@ -20,6 +20,7 @@ pub const DESTINATIONS: [&str; 3] = ["Home", "Search", "Profile"];
 pub const DESTINATION_ICONS: [&str; 3] = ["⌂", "⌕", "☺"];
 /// `None` = no badge, `Some(0)` = small dot, `Some(n)` = large count.
 pub const DESTINATION_BADGES: [Option<u32>; 3] = [None, Some(3), Some(0)];
+pub const DEMO_SELECTED: usize = 0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RailMode {
@@ -42,6 +43,8 @@ impl RailMode {
         }
     }
 }
+
+pub const DEMO_MODE: RailMode = RailMode::Expanded;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavRailAppearance {
@@ -83,4 +86,23 @@ pub fn resolve_mode(theme: &Theme, mode: RailMode) -> NavRailAppearance {
     let mut a = resolve(theme);
     a.width_dp = mode.width_dp();
     a
+}
+
+pub fn clamp_destination(index: usize) -> usize {
+    index.min(DESTINATIONS.len().saturating_sub(1))
+}
+
+pub fn select_destination(_current: usize, tapped: usize) -> usize {
+    clamp_destination(tapped)
+}
+
+pub fn toggle_mode(mode: RailMode) -> RailMode {
+    match mode {
+        RailMode::Collapsed => RailMode::Expanded,
+        RailMode::Expanded => RailMode::Collapsed,
+    }
+}
+
+pub fn is_active(selected: usize, index: usize) -> bool {
+    selected == index
 }
