@@ -4731,9 +4731,12 @@ fn search_bar_hero(
                         let selected = !query.is_empty() && label.eq_ignore_ascii_case(&query);
                         let corners = search::row_corners(index, count, selected);
                         let q = query.clone();
+                        let two = status.uses_two_line_rows();
+                        let open = status.shows_open_affordance();
+                        let supporting = search::supporting_for(label);
                         div()
                             .id(SharedString::from(format!("search-sug-{i}")))
-                            .h(px(view.suggestion_h_dp))
+                            .h(px(search::row_height_dp(status)))
                             .px(px(16.))
                             .flex()
                             .items_center()
@@ -4749,7 +4752,40 @@ fn search_bar_hero(
                                     .text_color(paint(view.suggestion_icon))
                                     .child(if i == 0 { "⌕" } else { "◌" }),
                             )
-                            .child(label)
+                            .child(if two {
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .child(
+                                        div()
+                                            .text_size(px(view.suggestion_style.size_sp))
+                                            .child(label),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(view.result_supporting_style.size_sp))
+                                            .text_color(paint(search::row_supporting(
+                                                theme, selected,
+                                            )))
+                                            .child(supporting),
+                                    )
+                                    .into_any_element()
+                            } else {
+                                div().child(label).into_any_element()
+                            })
+                            .when(open, |el| {
+                                el.child(
+                                    div()
+                                        .w(px(24.))
+                                        .h(px(24.))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .text_color(paint(view.suggestion_icon))
+                                        .child(search::RESULT_OPEN),
+                                )
+                            })
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 if let Some(picked) = search::pick_suggestion(&q, i) {
                                     this.search.set_value(picked);
@@ -7459,6 +7495,8 @@ mod tests {
         assert_eq!(search::SCRIM_OPACITY, 0.32);
         assert_eq!(search::ROW_GAP_DP, 2.0);
         assert_eq!(search::row_corners(0, 3, false).top_left, 16.0);
+        assert_eq!(search::RESULT_H_DP, 72.0);
+        assert_eq!(search::supporting_for("App"), "Installed application");
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);

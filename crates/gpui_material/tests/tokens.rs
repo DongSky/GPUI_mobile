@@ -885,6 +885,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-search-scrim-layer="1""#));
     assert!(html.contains(r#"data-docked-min-h="240""#));
     assert!(html.contains(r#"data-search-row="segmented""#));
+    assert!(html.contains(r#"data-search-lines="two""#));
+    assert!(html.contains(r#"data-search-open="1""#));
+    assert!(html.contains(r#"data-search-open-affordance="1""#));
+    assert!(html.contains("Installed application"));
     assert!(html.contains(r#"data-search-list="segmented""#));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains(r#"data-time-layout="vertical""#));
@@ -2796,9 +2800,19 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert!(
         (search::expanded_list_h_dp(search::DEMO_QUERY, true)
-            - (search::STATUS_H_DP + search::SUGGESTION_H_DP))
+            - (search::STATUS_H_DP + search::RESULT_H_DP))
             .abs()
             < 0.01
+    );
+    assert_eq!(search::RESULT_H_DP, 72.0);
+    assert_eq!(search::supporting_for("App"), "Installed application");
+    assert_eq!(search::RESULT_OPEN, "↗");
+    assert!(search::SearchListStatus::QuickResults.uses_two_line_rows());
+    assert!(search::SearchListStatus::Results.shows_open_affordance());
+    assert!(!search::SearchListStatus::Suggestions.uses_two_line_rows());
+    assert_eq!(
+        search::resolve_view(&theme).result_supporting_style.name,
+        "bodyMedium"
     );
     let (ix, iy) = text_field::ime_cursor_origin_dp(3, 16.0);
     assert!(ix > 16.0 && iy > 0.0);

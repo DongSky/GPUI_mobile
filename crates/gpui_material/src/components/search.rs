@@ -27,6 +27,17 @@ pub const VIEW_CORNER_DP: f32 = 28.0;
 pub const VIEW_HEADER_DP: f32 = 72.0;
 pub const SUGGESTION_H_DP: f32 = 56.0;
 pub const SUGGESTIONS: [&str; 4] = ["App", "Shortcut", "Recent search", "Setting"];
+/// Two-line queried results (Compose one-line is 56; list two-line is 72).
+pub const RESULT_H_DP: f32 = 72.0;
+/// bodyMedium supporting lines for queried Quick results / Results.
+pub const SUGGESTION_SUPPORTING: [&str; 4] = [
+    "Installed application",
+    "Home screen shortcut",
+    "Opened yesterday",
+    "System settings",
+];
+/// Trailing open affordance on submitted Results (northeast / launch).
+pub const RESULT_OPEN: &str = "↗";
 /// Expressive search rows reuse list `segmentedShapes` (2dp gap, 4/16 corners).
 pub const ROW_GAP_DP: f32 = list::SEGMENTED_GAP_DP;
 pub const ROW_INNER_CORNER_DP: f32 = list::INNER_CORNER_DP;
@@ -88,6 +99,16 @@ impl SearchListStatus {
     /// Suggestion groups (Recent / Suggestions) only before a query.
     pub const fn shows_suggestion_groups(self) -> bool {
         matches!(self, Self::Suggestions)
+    }
+
+    /// Queried lists use two-line items (headline + supporting).
+    pub const fn uses_two_line_rows(self) -> bool {
+        !self.shows_suggestion_groups()
+    }
+
+    /// Submitted Results show a trailing open affordance.
+    pub const fn shows_open_affordance(self) -> bool {
+        matches!(self, Self::Results)
     }
 }
 
@@ -157,8 +178,10 @@ pub struct SearchViewAppearance {
     pub corners: Corners,
     pub header_h_dp: f32,
     pub suggestion_h_dp: f32,
+    pub result_h_dp: f32,
     pub title_style: TypeStyle,
     pub suggestion_style: TypeStyle,
+    pub result_supporting_style: TypeStyle,
 }
 
 pub fn resolve_view(theme: &Theme) -> SearchViewAppearance {
@@ -175,8 +198,10 @@ pub fn resolve_view(theme: &Theme) -> SearchViewAppearance {
         corners: Corners::all(VIEW_CORNER_DP),
         header_h_dp: VIEW_HEADER_DP,
         suggestion_h_dp: SUGGESTION_H_DP,
+        result_h_dp: RESULT_H_DP,
         title_style: theme.typography.body_large,
         suggestion_style: theme.typography.body_large,
+        result_supporting_style: theme.typography.body_medium,
     }
 }
 
@@ -245,6 +270,30 @@ pub fn row_content(theme: &Theme, selected: bool) -> Argb {
     }
 }
 
+pub fn row_supporting(theme: &Theme, selected: bool) -> Argb {
+    if selected {
+        theme.color.on_secondary_container
+    } else {
+        theme.color.on_surface_variant
+    }
+}
+
+pub fn row_height_dp(status: SearchListStatus) -> f32 {
+    if status.uses_two_line_rows() {
+        RESULT_H_DP
+    } else {
+        SUGGESTION_H_DP
+    }
+}
+
+pub fn supporting_for(label: &str) -> &'static str {
+    SUGGESTIONS
+        .iter()
+        .position(|s| s.eq_ignore_ascii_case(label))
+        .map(|i| SUGGESTION_SUPPORTING[i])
+        .unwrap_or("")
+}
+
 pub fn segmented_row_gaps_h_dp(item_count: usize) -> f32 {
     ROW_GAP_DP * item_count.saturating_sub(1) as f32
 }
@@ -310,7 +359,7 @@ pub fn status_live_text(status: SearchListStatus, result_count: usize) -> String
     }
 }
 
-/// List height under the 56dp header: groups when idle, status + compact rows when queried.
+/// List height under the 56dp header: groups when idle, status + two-line rows when queried.
 pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
     let status = list_status(query, input_focused);
     let n = filter_suggestions(query).len();
@@ -318,7 +367,9 @@ pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
         grouped_suggestion_list_h_dp(query)
     } else {
         let rows = n.max(1);
-        status_chrome_h_dp(status) + SUGGESTION_H_DP * rows as f32 + segmented_row_gaps_h_dp(rows)
+        status_chrome_h_dp(status)
+            + row_height_dp(status) * rows as f32
+            + segmented_row_gaps_h_dp(rows)
     }
 }
 
