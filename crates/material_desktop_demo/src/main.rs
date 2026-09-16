@@ -421,6 +421,9 @@ struct CatalogView {
     time_toggle_tooltip_open: bool,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
+    date_month_nav_tooltip: Option<&'static str>,
+    range_month_nav_tooltip: Option<&'static str>,
+    docked_month_nav_tooltip: Option<&'static str>,
 }
 
 impl CatalogView {
@@ -2780,10 +2783,20 @@ fn docked_date_picker(
             .gap(px(4.))
             .child(
                 div()
+                    .id("docked-month-nav")
+                    .relative()
                     .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
+                    .when(this.docked_month_nav_tooltip.is_some(), |el| {
+                        el.child(date_display_mode_toggle_tooltip(
+                            theme,
+                            this.docked_month_nav_tooltip
+                                .unwrap_or(date_picker::PREV_MONTH),
+                            "docked-month-nav-tooltip",
+                        ))
+                    })
                     .child(
                         div()
                             .id("docked-year-control")
@@ -2792,6 +2805,14 @@ fn docked_date_picker(
                                 pick.year_style.size_sp,
                                 paint(pick.header_year),
                             ))
+                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                this.docked_month_nav_tooltip = if *hovered {
+                                    Some(this.docked_pane.year_toggle_label())
+                                } else {
+                                    None
+                                };
+                                cx.notify();
+                            }))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.toggle_docked_pane();
                                 cx.notify();
@@ -2811,6 +2832,14 @@ fn docked_date_picker(
                                         .items_center()
                                         .justify_center()
                                         .child("<")
+                                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                            this.docked_month_nav_tooltip = if *hovered {
+                                                Some(date_picker::PREV_MONTH)
+                                            } else {
+                                                None
+                                            };
+                                            cx.notify();
+                                        }))
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.shift_docked_month(-1);
                                             cx.notify();
@@ -2825,6 +2854,14 @@ fn docked_date_picker(
                                         .items_center()
                                         .justify_center()
                                         .child(">")
+                                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                            this.docked_month_nav_tooltip = if *hovered {
+                                                Some(date_picker::NEXT_MONTH)
+                                            } else {
+                                                None
+                                            };
+                                            cx.notify();
+                                        }))
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.shift_docked_month(1);
                                             cx.notify();
@@ -3844,13 +3881,31 @@ fn date_range_hero(
         .when(picker, |el| {
             el.child(
                 div()
+                    .id("range-month-nav")
+                    .relative()
                     .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
+                    .when(this.range_month_nav_tooltip.is_some(), |el| {
+                        el.child(date_display_mode_toggle_tooltip(
+                            theme,
+                            this.range_month_nav_tooltip
+                                .unwrap_or(date_picker::PREV_MONTH),
+                            "range-month-nav-tooltip",
+                        ))
+                    })
                     .child(
                         div()
                             .id("range-year-toggle")
+                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                this.range_month_nav_tooltip = if *hovered {
+                                    Some(this.range_pane.year_toggle_label())
+                                } else {
+                                    None
+                                };
+                                cx.notify();
+                            }))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.toggle_range_pane();
                                 cx.notify();
@@ -3877,6 +3932,14 @@ fn date_range_hero(
                                             .items_center()
                                             .justify_center()
                                             .child("<")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.range_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::PREV_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_range_month(-1);
                                                 cx.notify();
@@ -3891,6 +3954,14 @@ fn date_range_hero(
                                             .items_center()
                                             .justify_center()
                                             .child(">")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.range_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::NEXT_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_range_month(1);
                                                 cx.notify();
@@ -5377,10 +5448,20 @@ fn date_picker_card(
         .when(!input_mode, |el| {
             el.child(
                 div()
+                    .id("date-month-nav")
+                    .relative()
                     .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
+                    .when(this.date_month_nav_tooltip.is_some(), |el| {
+                        el.child(date_display_mode_toggle_tooltip(
+                            theme,
+                            this.date_month_nav_tooltip
+                                .unwrap_or(date_picker::PREV_MONTH),
+                            "date-month-nav-tooltip",
+                        ))
+                    })
                     .child(
                         div()
                             .id("year-control")
@@ -5389,6 +5470,14 @@ fn date_picker_card(
                                 pick.year_style.size_sp,
                                 paint(pick.header_year),
                             ))
+                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                this.date_month_nav_tooltip = if *hovered {
+                                    Some(this.date_pane.year_toggle_label())
+                                } else {
+                                    None
+                                };
+                                cx.notify();
+                            }))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.toggle_date_pane();
                                 cx.notify();
@@ -5408,6 +5497,14 @@ fn date_picker_card(
                                         .items_center()
                                         .justify_center()
                                         .child("<")
+                                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                            this.date_month_nav_tooltip = if *hovered {
+                                                Some(date_picker::PREV_MONTH)
+                                            } else {
+                                                None
+                                            };
+                                            cx.notify();
+                                        }))
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.shift_date_month(-1);
                                             cx.notify();
@@ -5422,6 +5519,14 @@ fn date_picker_card(
                                         .items_center()
                                         .justify_center()
                                         .child(">")
+                                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                            this.date_month_nav_tooltip = if *hovered {
+                                                Some(date_picker::NEXT_MONTH)
+                                            } else {
+                                                None
+                                            };
+                                            cx.notify();
+                                        }))
                                         .on_click(cx.listener(|this, _, _, cx| {
                                             this.shift_date_month(1);
                                             cx.notify();
@@ -9790,6 +9895,9 @@ fn main() {
                     time_toggle_tooltip_open: false,
                     date_toggle_tooltip_open: false,
                     range_toggle_tooltip_open: false,
+                    date_month_nav_tooltip: None,
+                    range_month_nav_tooltip: None,
+                    docked_month_nav_tooltip: None,
                 })
             },
         )
@@ -10157,6 +10265,12 @@ mod tests {
         ));
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::MONTH_YEAR_NAV);
+        assert!(date_picker::MONTH_NAV_A11Y);
+        assert_eq!(date_picker::PREV_MONTH, "Change to previous month");
+        assert_eq!(
+            date_picker::year_toggle_label(false),
+            date_picker::SWITCH_TO_YEAR
+        );
         assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
         assert_eq!(date_picker::MONTH_NAV_ICON_DP, 48.0);
         assert!(date_picker::DOCKED_YEAR_PANE);

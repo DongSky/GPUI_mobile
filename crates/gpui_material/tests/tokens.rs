@@ -995,6 +995,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-display-mode-toggle="1""#));
     assert!(html.contains(date_picker::TOGGLE_INPUT));
     assert!(html.contains(date_picker::TOGGLE_CALENDAR));
+    assert!(html.contains(r#"data-month-nav-a11y="1""#));
+    assert!(html.contains(date_picker::PREV_MONTH));
+    assert!(html.contains(date_picker::NEXT_MONTH));
+    assert!(html.contains(date_picker::SWITCH_TO_YEAR));
+    assert!(html.contains(date_picker::SWITCH_TO_DAY));
+    assert!(!html.contains("aria-label=\"Previous month\""));
+    assert!(!html.contains("aria-label=\"Next month\""));
     assert!(html.contains(r#"data-hero="datepicker-year""#));
     assert!(html.contains(r#"data-hero="datepicker-range-input""#));
     assert!(html.contains(r#"data-datepicker-range-input="1""#));
@@ -1463,6 +1470,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DialogButtonsPadding")
             && e.notes.contains("cross-axis")
             && e.notes.contains("MonthYearHeight")
+            && e.notes.contains("MonthsNavigation a11y")
+            && e.notes.contains("Change to previous/next month")
+            && e.notes.contains("Switch to selecting a year")
             && e.notes.contains("HeaderContainerHeight")
             && e.notes.contains("HeaderHeightOffset")
             && e.notes.contains("ContainerWidth")
@@ -3071,6 +3081,34 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
     assert!(date_picker::DATE_MONTH_NAV);
     assert!(date_picker::MONTH_YEAR_NAV);
+    assert!(date_picker::MONTH_NAV_A11Y);
+    assert_eq!(date_picker::PREV_MONTH, "Change to previous month");
+    assert_eq!(date_picker::NEXT_MONTH, "Change to next month");
+    assert_eq!(date_picker::DATE_PREV_MONTH, date_picker::PREV_MONTH);
+    assert_eq!(date_picker::RANGE_PREV_MONTH, date_picker::PREV_MONTH);
+    assert_eq!(date_picker::DATE_NEXT_MONTH, date_picker::NEXT_MONTH);
+    assert_eq!(date_picker::RANGE_NEXT_MONTH, date_picker::NEXT_MONTH);
+    assert_eq!(date_picker::SWITCH_TO_YEAR, "Switch to selecting a year");
+    assert_eq!(
+        date_picker::SWITCH_TO_DAY,
+        "Swipe to select a year, or tap to switch back to selecting a day"
+    );
+    assert_eq!(
+        date_picker::year_toggle_label(false),
+        date_picker::SWITCH_TO_YEAR
+    );
+    assert_eq!(
+        date_picker::year_toggle_label(true),
+        date_picker::SWITCH_TO_DAY
+    );
+    assert_eq!(
+        date_picker::DatePickerPane::Calendar.year_toggle_label(),
+        date_picker::SWITCH_TO_YEAR
+    );
+    assert_eq!(
+        date_picker::DatePickerPane::Year.year_toggle_label(),
+        date_picker::SWITCH_TO_DAY
+    );
     assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
     assert_eq!(date_picker::MONTH_NAV_ICON_DP, 48.0);
     assert!(date_picker::DOCKED_YEAR_PANE);

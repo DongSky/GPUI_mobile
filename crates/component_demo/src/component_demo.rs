@@ -396,6 +396,9 @@ struct CatalogView {
     time_toggle_tooltip_open: bool,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
+    date_month_nav_tooltip: Option<&'static str>,
+    range_month_nav_tooltip: Option<&'static str>,
+    docked_month_nav_tooltip: Option<&'static str>,
 }
 
 impl CatalogView {
@@ -1408,10 +1411,20 @@ fn catalog_body(
                 let calendar_pane = this.date_pane == date_picker::DatePickerPane::Calendar;
                 el.child(
                     div()
+                        .id("date-month-nav")
+                        .relative()
                         .h(px(date_picker::MONTH_YEAR_H_DP))
                         .flex()
                         .items_center()
                         .justify_between()
+                        .when(this.date_month_nav_tooltip.is_some(), |el| {
+                            el.child(android_date_display_mode_toggle_tooltip(
+                                theme,
+                                this.date_month_nav_tooltip
+                                    .unwrap_or(date_picker::PREV_MONTH),
+                                "date-month-nav-tooltip",
+                            ))
+                        })
                         .child(
                             div()
                                 .id("year-control")
@@ -1420,6 +1433,14 @@ fn catalog_body(
                                     this.picker_year,
                                     this.picker_month,
                                 ))
+                                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                    this.date_month_nav_tooltip = if *hovered {
+                                        Some(this.date_pane.year_toggle_label())
+                                    } else {
+                                        None
+                                    };
+                                    cx.notify();
+                                }))
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.toggle_date_pane();
                                     cx.notify();
@@ -1439,6 +1460,14 @@ fn catalog_body(
                                             .items_center()
                                             .justify_center()
                                             .child("<")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.date_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::PREV_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_date_month(-1);
                                                 cx.notify();
@@ -1453,6 +1482,14 @@ fn catalog_body(
                                             .items_center()
                                             .justify_center()
                                             .child(">")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.date_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::NEXT_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_date_month(1);
                                                 cx.notify();
@@ -8258,16 +8295,34 @@ fn android_date_range(
         .when(picker, |el| {
             el.child(
                 div()
+                    .id("range-month-nav")
+                    .relative()
                     .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
+                    .when(this.range_month_nav_tooltip.is_some(), |el| {
+                        el.child(android_date_display_mode_toggle_tooltip(
+                            theme,
+                            this.range_month_nav_tooltip
+                                .unwrap_or(date_picker::PREV_MONTH),
+                            "range-month-nav-tooltip",
+                        ))
+                    })
                     .child(
                         div()
                             .id("range-year-toggle")
                             .text_size(px(pick.year_style.size_sp))
                             .text_color(paint(pick.header_year))
                             .child(date_picker::month_nav_label(year, month))
+                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                this.range_month_nav_tooltip = if *hovered {
+                                    Some(this.range_pane.year_toggle_label())
+                                } else {
+                                    None
+                                };
+                                cx.notify();
+                            }))
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.toggle_range_pane();
                                 cx.notify();
@@ -8289,6 +8344,14 @@ fn android_date_range(
                                             .items_center()
                                             .justify_center()
                                             .child("<")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.range_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::PREV_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_range_month(-1);
                                                 cx.notify();
@@ -8303,6 +8366,14 @@ fn android_date_range(
                                             .items_center()
                                             .justify_center()
                                             .child(">")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.range_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::NEXT_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.shift_range_month(1);
                                                 cx.notify();
@@ -9280,167 +9351,203 @@ fn android_docked_date(
         let calendar_pane = this.docked_pane == date_picker::DatePickerPane::Calendar;
         let year_pane =
             date_picker::DOCKED_YEAR_PANE && this.docked_pane == date_picker::DatePickerPane::Year;
-        root =
-            root.child(
-                div()
-                    .w_full()
-                    .p(px(8.))
-                    .rounded(px(pick.corners.top_left))
-                    .bg(paint(pick.container))
-                    .shadow_md()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div()
-                            .h(px(date_picker::MONTH_YEAR_H_DP))
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .child(
+        root = root.child(
+            div()
+                .w_full()
+                .p(px(8.))
+                .rounded(px(pick.corners.top_left))
+                .bg(paint(pick.container))
+                .shadow_md()
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .id("docked-month-nav")
+                        .relative()
+                        .h(px(date_picker::MONTH_YEAR_H_DP))
+                        .flex()
+                        .items_center()
+                        .justify_between()
+                        .when(this.docked_month_nav_tooltip.is_some(), |el| {
+                            el.child(android_date_display_mode_toggle_tooltip(
+                                theme,
+                                this.docked_month_nav_tooltip
+                                    .unwrap_or(date_picker::PREV_MONTH),
+                                "docked-month-nav-tooltip",
+                            ))
+                        })
+                        .child(
+                            div()
+                                .id("docked-year-control")
+                                .child(date_picker::month_nav_label(
+                                    this.picker_year,
+                                    this.picker_month,
+                                ))
+                                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                    this.docked_month_nav_tooltip = if *hovered {
+                                        Some(this.docked_pane.year_toggle_label())
+                                    } else {
+                                        None
+                                    };
+                                    cx.notify();
+                                }))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.toggle_docked_pane();
+                                    cx.notify();
+                                })),
+                        )
+                        .when(calendar_pane, |nav| {
+                            nav.child(
                                 div()
-                                    .id("docked-year-control")
-                                    .child(date_picker::month_nav_label(
-                                        this.picker_year,
-                                        this.picker_month,
-                                    ))
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.toggle_docked_pane();
-                                        cx.notify();
-                                    })),
-                            )
-                            .when(calendar_pane, |nav| {
-                                nav.child(
-                                    div()
-                                        .flex()
-                                        .items_center()
-                                        .child(
-                                            div()
-                                                .id("docked-month-prev")
-                                                .w(px(date_picker::MONTH_NAV_ICON_DP))
-                                                .h(px(date_picker::MONTH_NAV_ICON_DP))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .child("<")
-                                                .on_click(cx.listener(|this, _, _, cx| {
-                                                    this.shift_docked_month(-1);
-                                                    cx.notify();
-                                                })),
-                                        )
-                                        .child(
-                                            div()
-                                                .id("docked-month-next")
-                                                .w(px(date_picker::MONTH_NAV_ICON_DP))
-                                                .h(px(date_picker::MONTH_NAV_ICON_DP))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .child(">")
-                                                .on_click(cx.listener(|this, _, _, cx| {
-                                                    this.shift_docked_month(1);
-                                                    cx.notify();
-                                                })),
-                                        ),
-                                )
-                            }),
-                    )
-                    .when(year_pane, |el| {
-                        el.child(
-                            div().flex().flex_wrap().justify_between().children(
-                                date_picker::year_window(this.picker_year)
-                                    .into_iter()
-                                    .map(|y| {
-                                        let kind = date_picker::classify_year(
-                                            y,
-                                            this.picker_year,
-                                            this.today.year,
-                                        );
-                                        let (bg, fg) = match kind {
-                                            date_picker::YearKind::Selected => (
-                                                paint(pick.day_selected_container),
-                                                paint(pick.day_selected),
-                                            ),
-                                            date_picker::YearKind::Today
-                                            | date_picker::YearKind::Default => {
-                                                (paint(pick.container), paint(pick.header_year))
-                                            }
-                                        };
+                                    .flex()
+                                    .items_center()
+                                    .child(
                                         div()
-                                            .id(SharedString::from(format!("docked-year-{y}")))
-                                            .w(px(date_picker::YEAR_CONTAINER_W_DP))
-                                            .h(px(date_picker::YEAR_CONTAINER_H_DP))
-                                            .mt(px(date_picker::YEAR_GAP_DP / 2.0))
-                                            .rounded(px(date_picker::YEAR_CONTAINER_H_DP / 2.0))
-                                            .bg(bg)
-                                            .text_color(fg)
+                                            .id("docked-month-prev")
+                                            .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .h(px(date_picker::MONTH_NAV_ICON_DP))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .when(kind == date_picker::YearKind::Today, |el| {
-                                                el.border_1()
-                                                    .border_color(paint(pick.day_today_outline))
-                                            })
-                                            .child(y.to_string())
-                                            .on_click(cx.listener(move |this, _, _, cx| {
-                                                this.select_docked_year(y);
+                                            .child("<")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.docked_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::PREV_MONTH)
+                                                } else {
+                                                    None
+                                                };
                                                 cx.notify();
                                             }))
-                                    }),
-                            ),
-                        )
-                        .child(android_year_picker_divider(theme))
-                    })
-                    .when(calendar_pane, |el| {
-                        el.child(
-                            div().flex().flex_wrap().children(
-                                cells.iter().copied().enumerate().take(14).map(
-                                    |(i, (day, kind))| {
-                                        let (bg, fg, radius) = match kind {
-                                            DayKind::Selected => (
-                                                paint(pick.day_selected_container),
-                                                paint(pick.day_selected),
-                                                pick.day_dp / 2.0,
-                                            ),
-                                            DayKind::Today => (
-                                                paint(pick.container),
-                                                paint(pick.day),
-                                                pick.day_dp / 2.0,
-                                            ),
-                                            DayKind::OutOfMonth | DayKind::Disabled => (
-                                                paint(pick.container),
-                                                paint(pick.day_out),
-                                                pick.day_dp / 2.0,
-                                            ),
-                                            _ => (
-                                                paint(pick.container),
-                                                paint(pick.day),
-                                                pick.day_dp / 2.0,
-                                            ),
-                                        };
-                                        let in_month = date_picker::day_accepts_tap(kind);
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.shift_docked_month(-1);
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
                                         div()
-                                            .id(SharedString::from(format!("docked-day-{i}")))
-                                            .w(px(pick.day_dp))
-                                            .h(px(pick.day_dp))
-                                            .rounded(px(radius))
-                                            .bg(bg)
-                                            .text_color(fg)
+                                            .id("docked-month-next")
+                                            .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .h(px(date_picker::MONTH_NAV_ICON_DP))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .child(day.to_string())
-                                            .when(in_month, |el| {
-                                                el.on_click(cx.listener(move |this, _, _, cx| {
-                                                    this.select_docked_day(year, month, day);
-                                                    cx.notify();
-                                                }))
-                                            })
-                                    },
-                                ),
-                            ),
-                        )
-                    }),
-            );
+                                            .child(">")
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.docked_month_nav_tooltip = if *hovered {
+                                                    Some(date_picker::NEXT_MONTH)
+                                                } else {
+                                                    None
+                                                };
+                                                cx.notify();
+                                            }))
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.shift_docked_month(1);
+                                                cx.notify();
+                                            })),
+                                    ),
+                            )
+                        }),
+                )
+                .when(year_pane, |el| {
+                    el.child(
+                        div().flex().flex_wrap().justify_between().children(
+                            date_picker::year_window(this.picker_year)
+                                .into_iter()
+                                .map(|y| {
+                                    let kind = date_picker::classify_year(
+                                        y,
+                                        this.picker_year,
+                                        this.today.year,
+                                    );
+                                    let (bg, fg) = match kind {
+                                        date_picker::YearKind::Selected => (
+                                            paint(pick.day_selected_container),
+                                            paint(pick.day_selected),
+                                        ),
+                                        date_picker::YearKind::Today
+                                        | date_picker::YearKind::Default => {
+                                            (paint(pick.container), paint(pick.header_year))
+                                        }
+                                    };
+                                    div()
+                                        .id(SharedString::from(format!("docked-year-{y}")))
+                                        .w(px(date_picker::YEAR_CONTAINER_W_DP))
+                                        .h(px(date_picker::YEAR_CONTAINER_H_DP))
+                                        .mt(px(date_picker::YEAR_GAP_DP / 2.0))
+                                        .rounded(px(date_picker::YEAR_CONTAINER_H_DP / 2.0))
+                                        .bg(bg)
+                                        .text_color(fg)
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .when(kind == date_picker::YearKind::Today, |el| {
+                                            el.border_1()
+                                                .border_color(paint(pick.day_today_outline))
+                                        })
+                                        .child(y.to_string())
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.select_docked_year(y);
+                                            cx.notify();
+                                        }))
+                                }),
+                        ),
+                    )
+                    .child(android_year_picker_divider(theme))
+                })
+                .when(calendar_pane, |el| {
+                    el.child(
+                        div().flex().flex_wrap().children(
+                            cells
+                                .iter()
+                                .copied()
+                                .enumerate()
+                                .take(14)
+                                .map(|(i, (day, kind))| {
+                                    let (bg, fg, radius) = match kind {
+                                        DayKind::Selected => (
+                                            paint(pick.day_selected_container),
+                                            paint(pick.day_selected),
+                                            pick.day_dp / 2.0,
+                                        ),
+                                        DayKind::Today => (
+                                            paint(pick.container),
+                                            paint(pick.day),
+                                            pick.day_dp / 2.0,
+                                        ),
+                                        DayKind::OutOfMonth | DayKind::Disabled => (
+                                            paint(pick.container),
+                                            paint(pick.day_out),
+                                            pick.day_dp / 2.0,
+                                        ),
+                                        _ => (
+                                            paint(pick.container),
+                                            paint(pick.day),
+                                            pick.day_dp / 2.0,
+                                        ),
+                                    };
+                                    let in_month = date_picker::day_accepts_tap(kind);
+                                    div()
+                                        .id(SharedString::from(format!("docked-day-{i}")))
+                                        .w(px(pick.day_dp))
+                                        .h(px(pick.day_dp))
+                                        .rounded(px(radius))
+                                        .bg(bg)
+                                        .text_color(fg)
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(day.to_string())
+                                        .when(in_month, |el| {
+                                            el.on_click(cx.listener(move |this, _, _, cx| {
+                                                this.select_docked_day(year, month, day);
+                                                cx.notify();
+                                            }))
+                                        })
+                                }),
+                        ),
+                    )
+                }),
+        );
     }
     root
 }
@@ -9878,6 +9985,9 @@ fn android_main(app: AndroidApp) {
                 time_toggle_tooltip_open: false,
                 date_toggle_tooltip_open: false,
                 range_toggle_tooltip_open: false,
+                date_month_nav_tooltip: None,
+                range_month_nav_tooltip: None,
+                docked_month_nav_tooltip: None,
             })
         })
         .expect("failed to open window");

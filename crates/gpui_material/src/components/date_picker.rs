@@ -361,8 +361,12 @@ pub const RANGE_PICKER_EMPTY: bool = true;
 pub const RANGE_LIVE: bool = true;
 /// Compose DateRangePicker month pager (prev / next) on the range hero.
 pub const RANGE_MONTH_NAV: bool = true;
-pub const RANGE_PREV_MONTH: &str = "Previous month";
-pub const RANGE_NEXT_MONTH: &str = "Next month";
+/// Compose `DatePickerSwitchToPreviousMonth`.
+pub const PREV_MONTH: &str = "Change to previous month";
+/// Compose `DatePickerSwitchToNextMonth`.
+pub const NEXT_MONTH: &str = "Change to next month";
+pub const RANGE_PREV_MONTH: &str = PREV_MONTH;
+pub const RANGE_NEXT_MONTH: &str = NEXT_MONTH;
 /// Range-hero month ▾ opens Compose `YearPicker` (independent of the single-date modal).
 pub const RANGE_YEAR_PANE: bool = true;
 /// Compose `DateRangePickerDefaults.showModeToggle` on the range hero (not the single-date modal).
@@ -408,14 +412,29 @@ pub fn dialog_buttons_cross_gap_css() -> String {
 }
 /// Compose `DatePicker` month pager (prev / next) on the single-date modal.
 pub const DATE_MONTH_NAV: bool = true;
-pub const DATE_PREV_MONTH: &str = "Previous month";
-pub const DATE_NEXT_MONTH: &str = "Next month";
+pub const DATE_PREV_MONTH: &str = PREV_MONTH;
+pub const DATE_NEXT_MONTH: &str = NEXT_MONTH;
 /// Compose `MonthYearHeight` for `MonthsNavigation`.
 pub const MONTH_YEAR_H_DP: f32 = 56.0;
 /// Compose `RecommendedSizeForAccessibility` / IconButton target on month arrows.
 pub const MONTH_NAV_ICON_DP: f32 = 48.0;
 /// Catalog / hosts apply official MonthsNavigation (label start, arrows end).
 pub const MONTH_YEAR_NAV: bool = true;
+/// Compose `DatePickerSwitchToYearSelection`.
+pub const SWITCH_TO_YEAR: &str = "Switch to selecting a year";
+/// Compose `DatePickerSwitchToDaySelection`.
+pub const SWITCH_TO_DAY: &str = "Swipe to select a year, or tap to switch back to selecting a day";
+/// Catalog / hosts apply official MonthsNavigation contentDescriptions.
+pub const MONTH_NAV_A11Y: bool = true;
+
+/// Compose year-menu contentDescription (calendar → year / year → day).
+pub const fn year_toggle_label(year_pane: bool) -> &'static str {
+    if year_pane {
+        SWITCH_TO_DAY
+    } else {
+        SWITCH_TO_YEAR
+    }
+}
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -901,6 +920,14 @@ impl DatePickerPane {
         match self {
             Self::Calendar => Self::Year,
             Self::Year => Self::Calendar,
+        }
+    }
+
+    /// Compose `DatePickerSwitchToYearSelection` / `DatePickerSwitchToDaySelection`.
+    pub const fn year_toggle_label(self) -> &'static str {
+        match self {
+            Self::Calendar => SWITCH_TO_YEAR,
+            Self::Year => SWITCH_TO_DAY,
         }
     }
 }
