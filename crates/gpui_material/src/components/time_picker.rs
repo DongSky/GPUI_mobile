@@ -831,6 +831,19 @@ pub const INPUT_GAP_DP: f32 = 24.0;
 pub const INPUT_COLON_GAP_DP: f32 = 8.0;
 /// TimeInput `DisplaySeparator` height = `PeriodSelectorContainerHeight`.
 pub const INPUT_DISPLAY_SEPARATOR_H_DP: f32 = INPUT_FIELD_H_DP;
+/// Compose `SupportLabelTop` on TimeInput Hour / Minute supporting text.
+pub const SUPPORT_LABEL_TOP_DP: f32 = 7.0;
+/// Catalog / hosts paint official TimeInput supporting labels.
+pub const SUPPORT_LABEL: bool = true;
+/// Compose `Strings.TimePickerHour`.
+pub const INPUT_HOUR_LABEL: &str = "Hour";
+/// Compose `Strings.TimePickerMinute`.
+pub const INPUT_MINUTE_LABEL: &str = "Minute";
+
+/// CSS `margin-top` for TimeInput supporting text.
+pub fn support_label_top_css() -> String {
+    format!("{:.0}px", SUPPORT_LABEL_TOP_DP)
+}
 
 /// Catalog / host hero uses Compose `TimeScroll` (recommended).
 pub const DEMO_STYLE: TimePickerStyle = TimePickerStyle::Scroll;
@@ -870,6 +883,14 @@ impl ScrollKind {
         match self {
             Self::Hour => "hour",
             Self::Minute => "minute",
+        }
+    }
+
+    /// Official TimeInput supporting text (`Hour` / `Minute`).
+    pub const fn support_label(self) -> &'static str {
+        match self {
+            Self::Hour => INPUT_HOUR_LABEL,
+            Self::Minute => INPUT_MINUTE_LABEL,
         }
     }
 
@@ -1244,6 +1265,10 @@ pub struct TimeInputAppearance {
     pub field_style: TypeStyle,
     pub colon_style: TypeStyle,
     pub period_style: TypeStyle,
+    /// `TimeInputTokens.TimeFieldSupportingTextColor`.
+    pub support_label: Argb,
+    /// `TimeInputTokens.TimeFieldSupportingTextFont`.
+    pub support_label_style: TypeStyle,
 }
 
 pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
@@ -1272,6 +1297,8 @@ pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
         field_style: theme.typography.display_large.emphasized(),
         colon_style: theme.typography.display_large,
         period_style: theme.typography.title_medium.emphasized(),
+        support_label: c.on_surface_variant,
+        support_label_style: theme.typography.body_small,
     }
 }
 

@@ -1077,6 +1077,13 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
     assert!(html.contains(r#"data-time-picker-style="input""#));
     assert!(html.contains("data-time-input=\"1\""));
+    assert!(html.contains(r#"data-time-support-label="hour""#));
+    assert!(html.contains(r#"data-time-support-label="minute""#));
+    assert!(html.contains("time-input-support"));
+    assert!(html.contains(&format!(
+        "margin-top:{}px",
+        time_picker::SUPPORT_LABEL_TOP_DP
+    )));
     assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
     assert!(html.contains(r#"data-time-display="input""#));
     assert!(html.contains(r#"data-time-format="24""#));
@@ -1346,6 +1353,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ClockFaceBottomMargin")
             && e.notes.contains("DisplaySeparatorWidth")
             && e.notes.contains("PeriodToggleMargin")
+            && e.notes.contains("SupportLabelTop")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3842,6 +3850,19 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::INPUT_FIELD_CORNER_DP
     );
     assert_eq!(input_a.field_style.name, "displayLargeEmphasized");
+    assert!(time_picker::SUPPORT_LABEL);
+    assert_eq!(time_picker::SUPPORT_LABEL_TOP_DP, 7.0);
+    assert_eq!(time_picker::support_label_top_css(), "7px");
+    assert_eq!(
+        time_picker::ScrollKind::Hour.support_label(),
+        time_picker::INPUT_HOUR_LABEL
+    );
+    assert_eq!(
+        time_picker::ScrollKind::Minute.support_label(),
+        time_picker::INPUT_MINUTE_LABEL
+    );
+    assert_eq!(input_a.support_label, theme.color.on_surface_variant);
+    assert_eq!(input_a.support_label_style.name, "bodySmall");
     let mut typed = time_picker::TimeInputState::demo();
     assert_eq!(
         typed.hour_value(),

@@ -436,7 +436,10 @@ a {{ color: var(--primary); }}
 .time-expressive[data-time-display="input"] [data-time-scroll] {{ display: none; }}
 .time-expressive[data-time-display="scroll"] [data-time-input] {{ display: none; }}
 .time-expressive[data-time-format="24"] .period {{ display: none; }}
-.time-input-row {{ display: flex; align-items: center; gap: 0; }}
+.time-input-row {{ display: flex; align-items: flex-start; gap: 0; }}
+.time-input-col {{
+  display: flex; flex-direction: column; align-items: center; width: 96px;
+}}
 .time-input-field {{
   width: 96px; height: 72px; border: none; border-radius: 28px; text-align: center;
   font: 500 57px/64px Roboto, sans-serif; padding: 0;
@@ -444,6 +447,9 @@ a {{ color: var(--primary); }}
 .time-input-colon {{
   width: 24px; height: 72px; flex: 0 0 24px;
   display: flex; align-items: center; justify-content: center; pointer-events: none;
+}}
+.time-input-support {{
+  margin-top: 7px; text-align: center;
 }}
 .time-input-row .period {{ margin-left: 12px; }}
 .time-input .period button {{ height: 32px; }}
@@ -8228,7 +8234,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
 <div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div style="color:{hy};font-size:{ys}px">{title}</div>
@@ -8250,9 +8256,15 @@ fn time_picker_section(theme: &Theme) -> String {
   </div>
   <div class="time-input" data-time-input="1" data-time-picker-style="input" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
     <div class="time-input-row">
-      <input class="time-input-field" data-time-input-field="hour" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+      <div class="time-input-col">
+        <input class="time-input-field" data-time-input-field="hour" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+        <div class="time-input-support" data-time-support-label="hour" style="color:{isl};font-size:{iss}px;margin-top:{ist}px">{ihl}</div>
+      </div>
       <div class="time-input-colon" data-display-separator="1" style="color:{icolon};font-size:{ics}px;font-weight:{icw}">:</div>
-      <input class="time-input-field" data-time-input-field="minute" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+      <div class="time-input-col">
+        <input class="time-input-field" data-time-input-field="minute" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+        <div class="time-input-support" data-time-support-label="minute" style="color:{isl};font-size:{iss}px;margin-top:{ist}px">{iml}</div>
+      </div>
       <div class="period">
         <button data-period="AM" style="background:{iamb};color:{iamf}">{am}</button>
         <button data-period="PM" style="background:{ipmb};color:{ipmf}">{pm}</button>
@@ -8305,6 +8317,11 @@ fn time_picker_section(theme: &Theme) -> String {
         icolon = input.colon.css_hex(),
         ics = input.colon_style.size_sp,
         icw = input.colon_style.weight,
+        isl = input.support_label.css_hex(),
+        iss = input.support_label_style.size_sp,
+        ist = time_picker::SUPPORT_LABEL_TOP_DP,
+        ihl = time_picker::INPUT_HOUR_LABEL,
+        iml = time_picker::INPUT_MINUTE_LABEL,
         iamb = iam_bg,
         iamf = iam_fg,
         ipmb = ipm_bg,

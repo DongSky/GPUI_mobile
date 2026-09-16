@@ -6176,8 +6176,8 @@ fn android_time_input(
     let hour_on = this.time_input.focus == time_picker::ScrollKind::Hour;
     div()
         .flex()
-        .items_center()
-        .child(android_time_input_field(
+        .items_start()
+        .child(android_time_input_column(
             this,
             cx,
             time_picker::ScrollKind::Hour,
@@ -6196,7 +6196,7 @@ fn android_time_input(
                 .text_color(paint(a.colon))
                 .child(":"),
         )
-        .child(android_time_input_field(
+        .child(android_time_input_column(
             this,
             cx,
             time_picker::ScrollKind::Minute,
@@ -6237,6 +6237,30 @@ fn android_time_input(
                                 cx.notify();
                             }))
                     })),
+            )
+        })
+}
+
+fn android_time_input_column(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    kind: time_picker::ScrollKind,
+    focused: bool,
+    a: &time_picker::TimeInputAppearance,
+) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .items_center()
+        .w(px(a.field_w_dp))
+        .child(android_time_input_field(this, cx, kind, focused, a))
+        .when(time_picker::SUPPORT_LABEL, |el| {
+            el.child(
+                div()
+                    .mt(px(time_picker::SUPPORT_LABEL_TOP_DP))
+                    .text_size(px(a.support_label_style.size_sp))
+                    .text_color(paint(a.support_label))
+                    .child(kind.support_label()),
             )
         })
 }

@@ -7266,8 +7266,8 @@ fn desktop_time_input(
     let hour_on = this.time_input.focus == time_picker::ScrollKind::Hour;
     div()
         .flex()
-        .items_center()
-        .child(desktop_time_input_field(
+        .items_start()
+        .child(desktop_time_input_column(
             this,
             cx,
             time_picker::ScrollKind::Hour,
@@ -7286,7 +7286,7 @@ fn desktop_time_input(
                 .text_color(paint(a.colon))
                 .child(":"),
         )
-        .child(desktop_time_input_field(
+        .child(desktop_time_input_column(
             this,
             cx,
             time_picker::ScrollKind::Minute,
@@ -7327,6 +7327,30 @@ fn desktop_time_input(
                                 cx.notify();
                             }))
                     })),
+            )
+        })
+}
+
+fn desktop_time_input_column(
+    this: &CatalogView,
+    cx: &mut Context<CatalogView>,
+    kind: time_picker::ScrollKind,
+    focused: bool,
+    a: &time_picker::TimeInputAppearance,
+) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_col()
+        .items_center()
+        .w(px(a.field_w_dp))
+        .child(desktop_time_input_field(this, cx, kind, focused, a))
+        .when(time_picker::SUPPORT_LABEL, |el| {
+            el.child(
+                div()
+                    .mt(px(time_picker::SUPPORT_LABEL_TOP_DP))
+                    .text_size(px(a.support_label_style.size_sp))
+                    .text_color(paint(a.support_label))
+                    .child(kind.support_label()),
             )
         })
 }
@@ -10023,6 +10047,11 @@ mod tests {
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);
+        assert!(time_picker::SUPPORT_LABEL);
+        assert_eq!(time_picker::SUPPORT_LABEL_TOP_DP, 7.0);
+        assert_eq!(time_picker::ScrollKind::Hour.support_label(), "Hour");
+        assert_eq!(time_picker::ScrollKind::Minute.support_label(), "Minute");
+        assert_eq!(input.support_label_style.name, "bodySmall");
         assert_eq!(
             time_picker::DEMO_DISPLAY_MODE.toggle(),
             time_picker::TimePickerDisplayMode::Scroll
