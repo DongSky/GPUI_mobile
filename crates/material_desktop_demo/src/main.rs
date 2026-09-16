@@ -10210,6 +10210,14 @@ mod tests {
         assert_eq!(gpui_material::motion::FRAME_MS, 16);
         assert_eq!(progress::STROKE_CAP, progress::StrokeCap::Round);
         assert_eq!(search::resolve_activity(&theme).corners.top_left, 0.0);
+        assert_eq!(
+            search::contained_container_for(&theme, search::SearchExpandedLayout::FullScreen, true),
+            theme.color.surface_container_low
+        );
+        assert_eq!(
+            search::contained_container(&theme),
+            theme.color.surface_container_high
+        );
         assert!((slider::fraction_from_local_x(140.0, 280.0) - 0.5).abs() < 1e-5);
         assert_eq!(
             fab_menu::resolve_item(&theme, fab_menu::FabMenuColor::Primary).height_dp,

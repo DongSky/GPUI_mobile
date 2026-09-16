@@ -325,7 +325,9 @@ pub fn filter_grouped_suggestions_in(
                 .items
                 .iter()
                 .copied()
-                .filter(|s| (q.is_empty() || s.to_ascii_lowercase().contains(&q)) && filter.matches(s))
+                .filter(|s| {
+                    (q.is_empty() || s.to_ascii_lowercase().contains(&q)) && filter.matches(s)
+                })
                 .collect();
             if items.is_empty() {
                 None
@@ -534,11 +536,7 @@ pub fn expanded_list_h_dp(query: &str, input_focused: bool) -> f32 {
     expanded_list_h_dp_in(query, input_focused, SearchFilter::All)
 }
 
-pub fn expanded_list_h_dp_in(
-    query: &str,
-    input_focused: bool,
-    filter: SearchFilter,
-) -> f32 {
+pub fn expanded_list_h_dp_in(query: &str, input_focused: bool, filter: SearchFilter) -> f32 {
     let status = list_status(query, input_focused);
     let n = filter_suggestions_in(query, filter).len();
     if status.shows_suggestion_groups() {
@@ -879,6 +877,8 @@ pub const CONTAINED_MARGIN_FOCUSED_DP: f32 = 12.0;
 pub const CONTAINED_MARGIN_COMPACT_UNFOCUSED_DP: f32 = 16.0;
 /// Contained header stays the 56dp search bar (not the 72dp activity header).
 pub const CONTAINED_HEADER_DP: f32 = HEIGHT_DP;
+/// Catalog / hosts apply official `fullScreenContainedSearchBarColor`.
+pub const FULL_SCREEN_CONTAINED_COLOR: bool = true;
 /// Compose `WindowWidthSizeClass.Compact` exclusive upper bound.
 pub const COMPACT_MAX_WIDTH_DP: f32 = 600.0;
 /// Phone / compact catalog column (full-screen default).
@@ -1121,8 +1121,27 @@ pub fn contained_frame_eased_for_width(
 }
 
 /// Persistent filled container (contained never lerps to activity `surface`).
+/// Docked + collapsed use `SearchBarTokens.ContainerColor` (`surfaceContainerHigh`).
 pub fn contained_container(theme: &Theme) -> crate::argb::Argb {
     theme.color.surface_container_high
+}
+
+/// Compose `SearchBarDefaults.fullScreenContainedSearchBarColor` (`surfaceContainerLow`).
+pub fn full_screen_contained_container(theme: &Theme) -> crate::argb::Argb {
+    theme.color.surface_container_low
+}
+
+/// Expanded full-screen contained uses `surfaceContainerLow`; docked / collapsed stay high.
+pub fn contained_container_for(
+    theme: &Theme,
+    layout: SearchExpandedLayout,
+    expanded: bool,
+) -> crate::argb::Argb {
+    if FULL_SCREEN_CONTAINED_COLOR && expanded && layout == SearchExpandedLayout::FullScreen {
+        full_screen_contained_container(theme)
+    } else {
+        contained_container(theme)
+    }
 }
 
 pub fn apply_key_to_editor(ed: &mut crate::components::text_field::TextFieldEditor, key: &str) {

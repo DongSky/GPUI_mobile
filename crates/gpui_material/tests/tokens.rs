@@ -1038,6 +1038,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-width-class="compact""#));
     assert!(html.contains(r#"data-width-class="medium""#));
     assert!(html.contains(r#"data-search-expanded="fullscreen""#));
+    assert!(html.contains(r#"data-search-fullscreen-color="1""#));
     assert!(html.contains(r#"data-search-expanded="docked""#));
     assert!(html.contains(r#"data-search-group="Recent""#));
     assert!(html.contains(r#"data-search-group="Suggestions""#));
@@ -1398,6 +1399,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("compact")
             && e.notes.contains("600dp")
             && e.notes.contains("fullscreen")
+            && e.notes.contains("fullScreenContainedSearchBarColor")
+            && e.notes.contains("surfaceContainerLow")
             && e.notes.contains("Quick results")
             && e.notes.contains("Results")
             && e.notes.contains("240")
@@ -3872,6 +3875,23 @@ fn search_bar_and_time_picker_tokens() {
     assert!(compact.height_dp >= search::ACTIVITY_MIN_H_DP);
     assert_eq!(
         search::contained_container(&theme),
+        theme.color.surface_container_high
+    );
+    assert!(search::FULL_SCREEN_CONTAINED_COLOR);
+    assert_eq!(
+        search::full_screen_contained_container(&theme),
+        theme.color.surface_container_low
+    );
+    assert_eq!(
+        search::contained_container_for(&theme, search::SearchExpandedLayout::FullScreen, true),
+        theme.color.surface_container_low
+    );
+    assert_eq!(
+        search::contained_container_for(&theme, search::SearchExpandedLayout::FullScreen, false),
+        theme.color.surface_container_high
+    );
+    assert_eq!(
+        search::contained_container_for(&theme, search::SearchExpandedLayout::Docked, true),
         theme.color.surface_container_high
     );
     assert_eq!(

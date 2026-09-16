@@ -7989,7 +7989,7 @@ fn paint_contained_search_filtered(
         format!(r#" value="{}""#, esc(query))
     };
     format!(
-        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-filter="{filter}" data-search-empty="{empty}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
+        r#"<div class="search-morph" data-search="1" data-search-view="1" data-search-style="contained" data-width-class="{wc}" data-search-expanded="{layout}" data-search-status="{status}" data-search-query="{q}" data-search-filter="{filter}" data-search-empty="{empty}" data-search-activity="1" data-search-morph="1" data-search-shared="1" data-open="1" data-search-scale="1" data-search-path-scale="1" data-search-layer-box="1" data-search-anim-scale="1" data-search-transform-origin="top center"{fs_color}{hero_attr} style="background:{cbg};border-radius:{cr}px;min-height:{mh}px;margin:{mg}px">
   <div class="sv-head" style="height:{vh}px;color:{vfg}">
     <div class="lead" data-search-lead="1">
       <span class="lead-docked" aria-hidden="true">{lead}</span>
@@ -8003,6 +8003,11 @@ fn paint_contained_search_filtered(
 </div>"#,
         wc = width_class.label(),
         layout = layout.label(),
+        fs_color = if layout == search::SearchExpandedLayout::FullScreen {
+            r#" data-search-fullscreen-color="1""#
+        } else {
+            ""
+        },
         status = status.attr(),
         q = esc(query),
         filter = filter.attr(),
@@ -8016,7 +8021,7 @@ fn paint_contained_search_filtered(
         } else {
             ""
         },
-        cbg = search::contained_container(theme).css_hex(),
+        cbg = search::contained_container_for(theme, layout, true).css_hex(),
         cr = frame.corner_dp,
         mh = if query.is_empty() {
             frame.height_dp
@@ -8114,7 +8119,7 @@ fn search_section(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Search</h2>
-<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider. Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). Filter chips (All / Apps / Shortcuts / Settings) narrow queried results. A query with no matches shows a no-results line and a live <code>0 results</code> region. A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
+<p class="note">Expressive (recommended): contained search. Compact (<code>&lt; 600dp</code>) expands to full-screen (0 margin / 0 corner) with Compose <code>SearchBarDefaults.fullScreenContainedSearchBarColor</code> (<code>surfaceContainerLow</code>). Medium+ docked keeps Corner 28 + 24→12dp margin, no divider, and <code>SearchBarTokens.ContainerColor</code> (<code>surfaceContainerHigh</code>). Suggestion lists use gaps between groups (Recent / Suggestions) and segmented filled rows (2dp gap, 4/16 corners). Queried search uses two-line rows (72dp, bodyMedium supporting) with a 40dp leading avatar or 20dp icon, a <code>Quick results</code> status while typing, and a <code>Results</code> label plus trailing open affordance after submit (query stays visible, not focused). Filter chips (All / Apps / Shortcuts / Settings) narrow queried results. A query with no matches shows a no-results line and a live <code>0 results</code> region. A trailing clear-X replaces the mic when the query is non-empty. Divided activity remains below. Type to filter suggestions. <a href="https://m3.material.io/components/search/guidelines">guidelines</a></p>
 {compact}
 <h3>medium docked (≥600dp)</h3>
 <p class="note">Compose <code>ExpandedDockedSearchBar</code>: persistent filled container, Corner 28 stays, 24→12dp margin. Docked height is min 240 / max ⅔ of the window. A 32% scrim covers main content; the results list scrolls beneath the bar.</p>

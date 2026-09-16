@@ -5620,7 +5620,7 @@ fn android_search_bar(
     let morph_ms = search::morph_ms(theme) as u64;
     let open = this.search_open;
     let search_layout = search::WindowWidthClass::Compact.expanded_search();
-    let contained_bg = search::contained_container(theme);
+    let contained_bg = search::contained_container_for(theme, search_layout, open);
     let query_color = paint(if open && !this.search.value().is_empty() {
         view.input
     } else if open {
