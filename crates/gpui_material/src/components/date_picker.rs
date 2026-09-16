@@ -229,6 +229,10 @@ pub fn header_date_short(date: CivilDate) -> String {
 
 /// Official overview range-hero sample. Live taps follow Compose `DateRangePicker`.
 pub const RANGE_HERO_TITLE: &str = "Depart – Return dates";
+/// Compose `m3c_date_range_picker_title` (default Picker title, not the travel hero).
+pub const RANGE_PICKER_TITLE: &str = "Select dates";
+/// Catalog / host sibling for DateRangePicker Picker empty.
+pub const RANGE_PICKER_EMPTY: bool = true;
 /// Catalog / host range hero starts with a complete depart–return pair.
 pub const RANGE_LIVE: bool = true;
 /// Compose DateRangePicker month pager (prev / next) on the range hero.

@@ -891,6 +891,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-month-delta="-1""#));
     assert!(html.contains(r#"data-date-month="1""#));
     assert!(html.contains(r#"data-hero="datepicker-range""#));
+    assert!(html.contains(r#"data-hero="datepicker-range-picker-empty""#));
+    assert!(html.contains(r#"data-range-picker-empty="1""#));
+    assert!(html.contains("Select dates"));
     assert!(html.contains(r#"data-date-pane="calendar""#));
     assert!(html.contains("Depart – Return dates"));
     assert!(html.contains("data-handle-visual=\"28\""));
@@ -1295,6 +1298,7 @@ fn inventory_covers_claimed_and_followups() {
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Date picker"
             && e.notes.contains("live start→end")
+            && e.notes.contains("Select dates")
             && e.notes.contains("DateRangePicker")
             && e.notes.contains("drawRangeBackground")
             && e.notes.contains("VerticalMonthsList")
@@ -2622,6 +2626,22 @@ fn date_picker_grid_and_weekday() {
         date_picker::header_date_label(date_picker::RANGE_DEMO_START)
     );
     assert!(date_picker::RANGE_EMPTY);
+    assert!(date_picker::RANGE_PICKER_EMPTY);
+    assert_eq!(date_picker::RANGE_PICKER_TITLE, "Select dates");
+    let range_empty_cells = date_picker::month_grid_range_selection(
+        2026,
+        9,
+        date_picker::DateRangeSelection::empty(),
+        date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 11,
+        },
+    );
+    assert!(!range_empty_cells.iter().any(|(_, k)| matches!(
+        *k,
+        date_picker::DayKind::Selected | date_picker::DayKind::InRange
+    )));
     assert_eq!(date_picker::RANGE_EMPTY_HEADLINE, "Start date – End date");
     assert_eq!(
         date_picker::header_range_selection(date_picker::DateRangeSelection::empty()),

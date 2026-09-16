@@ -1323,6 +1323,7 @@ fn catalog_body(
         .child(section_title(theme, "Date picker"))
         .child(android_docked_date(this, theme, &pick, &cells, cx))
         .child(android_date_range(this, theme, &pick, cx))
+        .child(android_date_range_picker_empty(theme, pick))
         .child(
             div()
                 .w(px(pick.day_dp * 7.0))
@@ -7672,6 +7673,135 @@ fn android_range_month_block(
                     })
             }),
         ))
+}
+
+fn android_date_range_picker_empty(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let today = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 11,
+    };
+    let sel = date_picker::DateRangeSelection::empty();
+    let cal_w = pick.day_dp * 7.0;
+    div()
+        .id("date-range-picker-empty")
+        .w(px(cal_w))
+        .p(px(12.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(
+                            div()
+                                .text_size(px(pick.year_style.size_sp))
+                                .text_color(paint(pick.header_year))
+                                .child(date_picker::RANGE_PICKER_TITLE),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(22.))
+                                .text_color(paint(pick.header_date))
+                                .child(date_picker::RANGE_EMPTY_HEADLINE),
+                        ),
+                )
+                .child(
+                    div()
+                        .w(px(date_picker::TOGGLE_SIZE_DP))
+                        .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
+                ),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .children(date_picker::WEEKDAYS.iter().map(|d| {
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .text_size(px(pick.weekday_style.size_sp))
+                        .text_color(paint(pick.weekday))
+                        .child(*d)
+                })),
+        )
+        .children(
+            date_picker::range_visible_months(2026, 9)
+                .into_iter()
+                .map(|(year, month)| {
+                    let cells = date_picker::month_grid_range_selection(year, month, sel, today);
+                    div()
+                        .w(px(cal_w))
+                        .flex()
+                        .flex_col()
+                        .child(
+                            div()
+                                .text_size(px(pick.month_subhead_style.size_sp))
+                                .text_color(paint(pick.month_subhead))
+                                .child(date_picker::month_subhead_label(year, month)),
+                        )
+                        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+                            cells.iter().copied().map(|(day, kind)| {
+                                let (fg, outline) = match kind {
+                                    DayKind::Today => {
+                                        (paint(pick.day), Some(paint(pick.day_today_outline)))
+                                    }
+                                    DayKind::InMonth => (paint(pick.day), None),
+                                    DayKind::OutOfMonth | DayKind::Disabled => {
+                                        (paint(pick.day_out), None)
+                                    }
+                                    DayKind::Selected | DayKind::InRange => (paint(pick.day), None),
+                                };
+                                div()
+                                    .w(px(pick.day_dp))
+                                    .h(px(pick.day_dp))
+                                    .rounded(px(pick.day_dp / 2.0))
+                                    .text_color(fg)
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .when(outline.is_some(), |el| {
+                                        el.border_1().border_color(outline.unwrap())
+                                    })
+                                    .child(day.to_string())
+                            }),
+                        ))
+                }),
+        )
+        .child(
+            div()
+                .flex()
+                .justify_end()
+                .gap(px(16.))
+                .child(
+                    div()
+                        .text_color(paint(theme.color.primary))
+                        .child(date_picker::INPUT_CANCEL),
+                )
+                .child(
+                    div()
+                        .text_color(paint(theme.color.primary))
+                        .child(date_picker::INPUT_OK),
+                ),
+        )
 }
 
 fn android_date_range(
