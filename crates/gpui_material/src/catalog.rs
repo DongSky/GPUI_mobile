@@ -1282,7 +1282,8 @@ table.inv th {{ font-weight: 500; }}
 [data-datepicker-docked][data-docked-pane="year"] [data-docked-month] {{ visibility: hidden; }}
 [data-datepicker-docked][data-docked-pane="calendar"] [data-docked-years] {{ display: none; }}
 [data-datepicker-docked][data-docked-select-live] [data-docked-grid] .day {{ cursor: pointer; }}
-[data-datepicker-docked][data-docked-select-live] [data-docked-grid] .day[data-kind="OutOfMonth"] {{ cursor: default; }}
+[data-datepicker-docked][data-docked-select-live] [data-docked-grid] .day[data-kind="OutOfMonth"],
+[data-datepicker-docked][data-docked-select-live] [data-docked-grid] .day[data-kind="Disabled"] {{ cursor: default; }}
 [data-field-hero="docked-date"] .docked-field-row {{
   display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;
 }}
@@ -1307,9 +1308,11 @@ table.inv th {{ font-weight: 500; }}
   font-size: 14px; line-height: 20px; font-weight: 500;
 }}
 .cal[data-date-range-live] .grid .day {{ cursor: pointer; }}
-.cal[data-date-range-live] .grid .day[data-kind="OutOfMonth"] {{ cursor: default; }}
+.cal[data-date-range-live] .grid .day[data-kind="OutOfMonth"],
+.cal[data-date-range-live] .grid .day[data-kind="Disabled"] {{ cursor: default; }}
 .cal[data-date-actions-live] .grid .day {{ cursor: pointer; }}
-.cal[data-date-actions-live] .grid .day[data-kind="OutOfMonth"] {{ cursor: default; }}
+.cal[data-date-actions-live] .grid .day[data-kind="OutOfMonth"],
+.cal[data-date-actions-live] .grid .day[data-kind="Disabled"] {{ cursor: default; }}
 .cal[data-date-range-live][data-date-display="picker"] .dp-range-input {{ display: none; }}
 .dp-range-input {{ display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 16px; }}
 .dp-range-error {{
@@ -2137,6 +2140,10 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
     if (m < 3) yy -= 1;
     return (yy + Math.floor(yy/4) - Math.floor(yy/100) + Math.floor(yy/400) + t[m-1] + d) % 7;
   }}
+  function isSelectableDate(y, m, d) {{
+    var wd = weekdaySunday0(y, m, d);
+    return wd !== 0 && wd !== 6;
+  }}
   function monthGrid(y, m) {{
     var first = weekdaySunday0(y, m, 1);
     var dim = daysInMonth(y, m);
@@ -2219,6 +2226,7 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
     if (start && o === dateOrd(start.y, start.m, start.d)) return "Selected";
     if (end && o === dateOrd(end.y, end.m, end.d)) return "Selected";
     if (start && end && o > dateOrd(start.y, start.m, start.d) && o < dateOrd(end.y, end.m, end.d)) return "InRange";
+    if (!isSelectableDate(y, m, day)) return "Disabled";
     if (y === ty && m === tm && day === td) return "Today";
     return "InMonth";
   }}
@@ -2251,7 +2259,7 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
       if (kind === "Selected") {{ bg = selBg; fg = selFg; }}
       else if (kind === "InRange") {{ bg = rngBg; fg = rngFg; radius = "0"; }}
       else if (kind === "Today") {{ outline = "1px solid " + todayBd; }}
-      else if (kind === "OutOfMonth") {{ fg = outFg; }}
+      else if (kind === "OutOfMonth" || kind === "Disabled") {{ fg = outFg; }}
       var fill = rangeFillKind(kind, y, m, day);
       var inner = String(day);
       var cellBg = bg;
@@ -2291,7 +2299,7 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
   host.addEventListener("click", function (ev) {{
     var cell = ev.target.closest("[data-range-grid] .day");
     if (!cell || !host.contains(cell)) return;
-    if (cell.getAttribute("data-kind") === "OutOfMonth") return;
+    if (cell.getAttribute("data-kind") === "OutOfMonth" || cell.getAttribute("data-kind") === "Disabled") return;
     var block = cell.closest("[data-range-month-block]");
     var y = block
       ? parseInt(block.getAttribute("data-range-block-year") || "2026", 10)
@@ -2474,6 +2482,10 @@ document.querySelectorAll("[data-date-actions-live]").forEach(function (host) {{
     if (m < 3) yy -= 1;
     return (yy + Math.floor(yy/4) - Math.floor(yy/100) + Math.floor(yy/400) + t[m-1] + d) % 7;
   }}
+  function isSelectableDate(y, m, d) {{
+    var wd = weekdaySunday0(y, m, d);
+    return wd !== 0 && wd !== 6;
+  }}
   function monthGrid(y, m) {{
     var first = weekdaySunday0(y, m, 1);
     var dim = daysInMonth(y, m);
@@ -2559,6 +2571,7 @@ document.querySelectorAll("[data-date-actions-live]").forEach(function (host) {{
     var tm = parseInt(host.getAttribute("data-today-month") || "9", 10);
     var td = parseInt(host.getAttribute("data-today-day") || "11", 10);
     if (y === sel.y && m === sel.m && day === sel.d) return "Selected";
+    if (!isSelectableDate(y, m, day)) return "Disabled";
     if (y === ty && m === tm && day === td) return "Today";
     return "InMonth";
   }}
@@ -2579,7 +2592,7 @@ document.querySelectorAll("[data-date-actions-live]").forEach(function (host) {{
       var bg = "transparent", fg = inFg, outline = "none", radius = "20px";
       if (kind === "Selected") {{ bg = selBg; fg = selFg; }}
       else if (kind === "Today") {{ outline = "1px solid " + todayBd; }}
-      else if (kind === "OutOfMonth") {{ fg = outFg; }}
+      else if (kind === "OutOfMonth" || kind === "Disabled") {{ fg = outFg; }}
       html += '<div class="day" data-day="'+day+'" data-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+outline+';border-radius:'+radius+'">'+day+'</div>';
     }});
     grid.innerHTML = html;
@@ -2587,7 +2600,7 @@ document.querySelectorAll("[data-date-actions-live]").forEach(function (host) {{
   host.addEventListener("click", function (ev) {{
     var cell = ev.target.closest("[data-date-grid] .day");
     if (!cell || !host.contains(cell)) return;
-    if (cell.getAttribute("data-kind") === "OutOfMonth") return;
+    if (cell.getAttribute("data-kind") === "OutOfMonth" || cell.getAttribute("data-kind") === "Disabled") return;
     ev.stopPropagation();
     var day = parseInt(cell.getAttribute("data-day") || "0", 10);
     if (!day) return;
@@ -2680,7 +2693,7 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
       var dayEl = ev.target.closest("[data-docked-grid] .day");
       if (dayEl && cal.contains(dayEl)) {{
         var kind = dayEl.getAttribute("data-kind");
-        if (kind !== "OutOfMonth") {{
+        if (kind !== "OutOfMonth" && kind !== "Disabled") {{
           var y = parseInt(dock.getAttribute("data-year") || "2026", 10);
           var m = parseInt(dock.getAttribute("data-month") || "9", 10);
           var d = parseInt(dayEl.getAttribute("data-day") || "0", 10);
@@ -2714,6 +2727,10 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
     if (m < 3) yy -= 1;
     return (yy + Math.floor(yy/4) - Math.floor(yy/100) + Math.floor(yy/400) + t[m-1] + d) % 7;
   }}
+  function isSelectableDate(y, m, d) {{
+    var wd = weekdaySunday0(y, m, d);
+    return wd !== 0 && wd !== 6;
+  }}
   function monthGrid(y, m) {{
     var first = weekdaySunday0(y, m, 1);
     var dim = daysInMonth(y, m);
@@ -2735,6 +2752,7 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
     var td = parseInt(dock.getAttribute("data-today-day") || "11", 10);
     if (kind !== "InMonth") return kind;
     if (y === sy && m === sm && day === sd) return "Selected";
+    if (!isSelectableDate(y, m, day)) return "Disabled";
     if (y === ty && m === tm && day === td) return "Today";
     return "InMonth";
   }}
@@ -2753,7 +2771,7 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
       var bg = "transparent", fg = inFg, outline = "none", radius = "20px";
       if (kind === "Selected") {{ bg = selBg; fg = selFg; }}
       else if (kind === "Today") {{ outline = "1px solid " + todayBd; }}
-      else if (kind === "OutOfMonth") {{ fg = outFg; }}
+      else if (kind === "OutOfMonth" || kind === "Disabled") {{ fg = outFg; }}
       html += '<div class="day" data-day="'+day+'" data-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+outline+';border-radius:'+radius+'">'+day+'</div>';
     }});
     grid.innerHTML = html;
@@ -6812,7 +6830,7 @@ fn paint_date_grid_fills(
                 format!("1px solid {}", a.day_today_outline.css_hex()),
             ),
             date_picker::DayKind::InMonth => ("transparent".into(), a.day.css_hex(), "none".into()),
-            date_picker::DayKind::OutOfMonth => {
+            date_picker::DayKind::OutOfMonth | date_picker::DayKind::Disabled => {
                 ("transparent".into(), a.day_out.css_hex(), "none".into())
             }
         };
@@ -6947,7 +6965,7 @@ fn date_pickers(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Single-date Input supporting-text errors use Compose <code>DateInputValidator</code> (format / year-range). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). <code>SelectableDates</code> greys out Sat/Sun (not tappable). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Single-date Input supporting-text errors use Compose <code>DateInputValidator</code> (format / year-range). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-range-vertical-months="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
@@ -6974,7 +6992,7 @@ fn date_pickers(theme: &Theme) -> String {
     <button type="button" class="btn" data-range-ok="1" style="background:transparent;color:{act}">{ok}</button>
   </div>
 </div>
-<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-date-actions-live="1" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" data-date-pane="calendar" data-year="2026" data-month="9" data-selected-year="2026" data-selected-month="9" data-selected-day="15" data-date-commit-year="2026" data-date-commit-month="9" data-date-commit-day="15" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+<div class="cal dialog" data-datepicker="1" data-hero="datepicker" data-date-actions-live="1" data-selectable-dates="1" data-week-start="sunday" data-date-display="picker" data-date-display-mode="picker" data-date-display-live="1" data-date-pane="calendar" data-year="2026" data-month="9" data-selected-year="2026" data-selected-month="9" data-selected-day="15" data-date-commit-year="2026" data-date-commit-month="9" data-date-commit-day="15" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
       <div style="color:{hy};font-size:{ys}px">Select date</div>

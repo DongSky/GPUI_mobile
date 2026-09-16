@@ -24,6 +24,8 @@ pub enum DayKind {
     OutOfMonth,
     /// Interior of a selected date range (not the start/end endpoints).
     InRange,
+    /// Compose `SelectableDates` — in-month weekend (demo Sat/Sun).
+    Disabled,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -154,11 +156,18 @@ pub fn classify_day(
     let date = CivilDate { year, month, day };
     if date == selected {
         DayKind::Selected
+    } else if !is_selectable_date(date) {
+        DayKind::Disabled
     } else if date == today {
         DayKind::Today
     } else {
         DayKind::InMonth
     }
+}
+
+/// In-month days that Compose `SelectableDates` still allows to be tapped.
+pub fn day_accepts_tap(kind: DayKind) -> bool {
+    !matches!(kind, DayKind::OutOfMonth | DayKind::Disabled)
 }
 
 /// Sunday-first, matching official modal date picker columns.
@@ -292,6 +301,9 @@ impl DateRangeSelection {
 
 /// First tap sets start; second tap ≥ start sets end, else replaces start; both set restarts.
 pub fn apply_range_tap(sel: DateRangeSelection, day: CivilDate) -> DateRangeSelection {
+    if !is_selectable_date(day) {
+        return sel;
+    }
     match (sel.start, sel.end) {
         (None, _) => DateRangeSelection {
             start: Some(day),
@@ -464,6 +476,8 @@ pub const INPUT_ERROR_YEAR_RANGE: &str = "Date out of expected year range 1900 -
 pub const INPUT_ERROR_YEAR_SAMPLE: &str = "09/15/1890";
 /// Compose `SelectableDates` (official DatePicker sample blocks Sat/Sun).
 pub const SELECTABLE_DATES: bool = true;
+/// Grey out + ignore taps on weekend cells in Picker grids.
+pub const SELECTABLE_DATES_GRID: bool = true;
 /// `m3c_date_input_invalid_not_allowed` with `header_date_label` for the sample.
 pub const INPUT_ERROR_NOT_ALLOWED: &str = "Date not allowed: Sat, Sep 12";
 /// Catalog not-allowed sample (Saturday 2026-09-12).
@@ -560,7 +574,11 @@ pub fn apply_docked_toggle(open: bool) -> bool {
 
 /// Tap an in-month docked day: commit the civil date and whether the popup dismisses.
 pub fn apply_docked_tap(year: i32, month: u32, day: u32) -> (CivilDate, bool) {
-    (CivilDate { year, month, day }, DOCKED_DISMISS_ON_SELECT)
+    let date = CivilDate { year, month, day };
+    if !is_selectable_date(date) {
+        return (date, false);
+    }
+    (date, DOCKED_DISMISS_ON_SELECT)
 }
 
 pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {
@@ -795,6 +813,8 @@ pub fn month_grid_range(
                 DayKind::Selected
             } else if date_in_range_interior(date, start, end) {
                 DayKind::InRange
+            } else if !is_selectable_date(date) {
+                DayKind::Disabled
             } else if date == today {
                 DayKind::Today
             } else {
@@ -828,7 +848,9 @@ pub fn month_grid_range_selection(
                 };
                 out[i] = (
                     *day,
-                    if date == today {
+                    if !is_selectable_date(date) {
+                        DayKind::Disabled
+                    } else if date == today {
                         DayKind::Today
                     } else {
                         DayKind::InMonth

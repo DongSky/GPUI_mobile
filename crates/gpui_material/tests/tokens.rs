@@ -900,6 +900,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-button-group=\"connected\""));
     assert!(html.contains("data-slider-range=\"1\""));
     assert!(html.contains("data-datepicker-docked=\"1\""));
+    assert!(html.contains(r#"data-selectable-dates="1""#));
+    assert!(html.contains(r#"data-kind="Disabled""#));
     assert!(html.contains(r#"data-docked-pane="calendar""#));
     assert!(html.contains(r#"data-docked-select-live="1""#));
     assert!(html.contains(r#"data-docked-dismiss-select="1""#));
@@ -1291,6 +1293,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
+            && e.notes.contains("Disabled")
             && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
@@ -2378,6 +2381,35 @@ fn date_picker_grid_and_weekday() {
         .find(|(d, k)| *d == 15 && *k == date_picker::DayKind::Selected);
     assert!(fifteenth.is_some());
     assert!(cells.iter().any(|(_, k)| *k == date_picker::DayKind::Today));
+    assert!(date_picker::SELECTABLE_DATES_GRID);
+    assert_eq!(
+        date_picker::classify_day(2026, 9, 12, selected, today),
+        date_picker::DayKind::Disabled
+    );
+    assert!(cells
+        .iter()
+        .any(|(d, k)| *d == 12 && *k == date_picker::DayKind::Disabled));
+    assert!(!date_picker::day_accepts_tap(
+        date_picker::DayKind::Disabled
+    ));
+    assert_eq!(
+        date_picker::apply_docked_tap(2026, 9, 12),
+        (
+            date_picker::CivilDate {
+                year: 2026,
+                month: 9,
+                day: 12
+            },
+            false
+        )
+    );
+    assert_eq!(
+        date_picker::apply_range_tap(
+            date_picker::DateRangeSelection::demo(),
+            date_picker::INPUT_ERROR_NOT_ALLOWED_DATE
+        ),
+        date_picker::DateRangeSelection::demo()
+    );
     assert_eq!(date_picker::month_nav_label(2026, 9), "September 2026 ▾");
     assert_eq!(date_picker::DOCKED_FIELD_LABEL, "Date of birth");
     assert!(date_picker::DOCKED_OPEN_BY_DEFAULT);

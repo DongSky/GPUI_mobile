@@ -2808,7 +2808,7 @@ fn docked_date_picker(
                     div().w(px(cal_w)).flex().flex_wrap().children(
                         cells.iter().copied().enumerate().map(|(i, (day, kind))| {
                             let (bg, fg, radius) = day_colors(pick, kind);
-                            let in_month = kind != DayKind::OutOfMonth;
+                            let in_month = date_picker::day_accepts_tap(kind);
                             let year = this.picker_year;
                             let month = this.picker_month;
                             div()
@@ -3367,7 +3367,7 @@ fn day_colors(
         DayKind::InRange => (paint(pick.day_range_container), paint(pick.day_range), 0.0),
         DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
         DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-        DayKind::OutOfMonth => (
+        DayKind::OutOfMonth | DayKind::Disabled => (
             paint(pick.container),
             paint(pick.day_out),
             pick.day_dp / 2.0,
@@ -3403,7 +3403,7 @@ fn range_month_block(
             cells.iter().copied().enumerate().map(|(i, (day, kind))| {
                 let fill = fills[i];
                 let (bg, fg, radius) = day_colors(pick, kind);
-                let in_month = kind != DayKind::OutOfMonth;
+                let in_month = date_picker::day_accepts_tap(kind);
                 let selected = kind == DayKind::Selected;
                 let cell_bg = if fill.is_some() || selected {
                     paint(pick.container)
@@ -4186,7 +4186,7 @@ fn date_picker_card(
                 div().w(px(cal_w)).flex().flex_wrap().children(
                     cells.iter().copied().enumerate().map(|(i, (day, kind))| {
                         let (bg, fg, radius) = day_colors(pick, kind);
-                        let in_month = kind != DayKind::OutOfMonth;
+                        let in_month = date_picker::day_accepts_tap(kind);
                         let year = this.picker_year;
                         let month = this.picker_month;
                         div()
@@ -8665,6 +8665,17 @@ mod tests {
                     day: 16
                 },
                 true
+            )
+        );
+        assert_eq!(
+            date_picker::apply_docked_tap(2026, 9, 12),
+            (
+                date_picker::CivilDate {
+                    year: 2026,
+                    month: 9,
+                    day: 12
+                },
+                false
             )
         );
         assert_eq!(date_picker::apply_date_month(2026, 9, 1), (2026, 10));

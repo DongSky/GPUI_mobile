@@ -1455,11 +1455,11 @@ fn catalog_body(
                                 DayKind::InMonth => {
                                     (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
                                 }
-                                DayKind::OutOfMonth => {
+                                DayKind::OutOfMonth | DayKind::Disabled => {
                                     (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
                                 }
                             };
-                            let in_month = kind != DayKind::OutOfMonth;
+                            let in_month = date_picker::day_accepts_tap(kind);
                             let year = this.picker_year;
                             let month = this.picker_month;
                             div()
@@ -7399,13 +7399,13 @@ fn android_range_month_block(
                     }
                     DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
                     DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                    DayKind::OutOfMonth => (
+                    DayKind::OutOfMonth | DayKind::Disabled => (
                         paint(pick.container),
                         paint(pick.day_out),
                         pick.day_dp / 2.0,
                     ),
                 };
-                let in_month = kind != DayKind::OutOfMonth;
+                let in_month = date_picker::day_accepts_tap(kind);
                 let selected = kind == DayKind::Selected;
                 let cell_bg = if fill.is_some() || selected {
                     paint(pick.container)
@@ -8053,13 +8053,18 @@ fn android_docked_date(
                                                 paint(pick.day),
                                                 pick.day_dp / 2.0,
                                             ),
+                                            DayKind::OutOfMonth | DayKind::Disabled => (
+                                                paint(pick.container),
+                                                paint(pick.day_out),
+                                                pick.day_dp / 2.0,
+                                            ),
                                             _ => (
                                                 paint(pick.container),
                                                 paint(pick.day),
                                                 pick.day_dp / 2.0,
                                             ),
                                         };
-                                        let in_month = kind != DayKind::OutOfMonth;
+                                        let in_month = date_picker::day_accepts_tap(kind);
                                         div()
                                             .id(SharedString::from(format!("docked-day-{i}")))
                                             .w(px(pick.day_dp))
