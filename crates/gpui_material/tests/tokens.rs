@@ -955,6 +955,11 @@ fn catalog_html_embeds_token_evidence() {
         "padding: {};",
         date_picker::dialog_buttons_padding_css()
     )));
+    assert!(html.contains("flex-wrap: wrap"));
+    assert!(html.contains(&format!(
+        "row-gap: {}",
+        date_picker::dialog_buttons_cross_gap_css()
+    )));
     assert!(html.contains(&format!(
         "padding: {}",
         date_picker::input_field_padding_css()
@@ -1408,6 +1413,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("range-header chrome")
             && e.notes.contains("DateRangePickerHeadlinePadding")
             && e.notes.contains("DialogButtonsPadding")
+            && e.notes.contains("cross-axis")
             && e.notes.contains("MonthYearHeight")
             && e.notes.contains("HeaderContainerHeight")
             && e.notes.contains("HeaderHeightOffset")
@@ -2980,7 +2986,8 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::DIALOG_BUTTONS_PAD_END_DP, 6.0);
     assert_eq!(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP, 8.0);
     assert_eq!(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP, 8.0);
-    assert_eq!(date_picker::DIALOG_BUTTONS_CROSS_GAP_DP, 12.0);
+    assert_eq!(date_picker::DIALOG_BUTTONS_CROSS_GAP_DP, 8.0);
+    assert_eq!(date_picker::dialog_buttons_cross_gap_css(), "8px");
     assert_eq!(date_picker::dialog_buttons_padding_css(), "0 6px 8px 0");
     assert_eq!(date_picker::month_subhead_label(2026, 9), "September 2026");
     assert_eq!(

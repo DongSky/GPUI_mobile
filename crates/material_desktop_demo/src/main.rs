@@ -3675,6 +3675,7 @@ fn date_range_picker_empty_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -3999,6 +4000,7 @@ fn date_range_hero(
                     .justify_end()
                     .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                     .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                    .flex_wrap()
                     .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                     .child(
                         div()
@@ -4143,6 +4145,7 @@ fn date_input_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -4263,6 +4266,7 @@ fn date_input_empty_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -4495,6 +4499,7 @@ fn date_range_input_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -4643,6 +4648,7 @@ fn date_range_input_empty_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -4792,6 +4798,7 @@ fn date_range_input_start_only_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -4941,6 +4948,7 @@ fn date_range_input_end_only_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -5201,6 +5209,7 @@ fn date_picker_empty_card(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(spaced_line(
                     date_picker::INPUT_CANCEL,
@@ -5485,6 +5494,7 @@ fn date_picker_card(
                     .justify_end()
                     .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                     .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                    .flex_wrap()
                     .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                     .child(m_button(
                         "date-cancel",
@@ -9939,6 +9949,8 @@ mod tests {
         assert_eq!(date_picker::DIALOG_BUTTONS_PAD_END_DP, 6.0);
         assert_eq!(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP, 8.0);
         assert_eq!(date_picker::dialog_buttons_padding_css(), "0 6px 8px 0");
+        assert_eq!(date_picker::DIALOG_BUTTONS_CROSS_GAP_DP, 8.0);
+        assert_eq!(date_picker::dialog_buttons_cross_gap_css(), "8px");
         assert!(date_picker::is_range_input_valid(
             "09/15/2026",
             "09/21/2026"

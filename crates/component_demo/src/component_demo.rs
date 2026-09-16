@@ -1611,6 +1611,7 @@ fn catalog_body(
                     .justify_end()
                     .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                     .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                    .flex_wrap()
                     .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                     .child(
                         div()
@@ -7411,6 +7412,7 @@ fn android_date_picker_empty(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -7535,6 +7537,7 @@ fn android_date_input(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -7653,6 +7656,7 @@ fn android_date_input_empty(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -8014,6 +8018,7 @@ fn android_date_range_picker_empty(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -8351,6 +8356,7 @@ fn android_date_range(
                     .justify_end()
                     .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                     .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                    .flex_wrap()
                     .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                     .child(
                         div()
@@ -8517,6 +8523,7 @@ fn android_date_range_input(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -8656,6 +8663,7 @@ fn android_date_range_input_empty(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -8796,6 +8804,7 @@ fn android_date_range_input_start_only(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()
@@ -8936,6 +8945,7 @@ fn android_date_range_input_end_only(
                 .justify_end()
                 .pr(px(date_picker::DIALOG_BUTTONS_PAD_END_DP))
                 .pb(px(date_picker::DIALOG_BUTTONS_PAD_BOTTOM_DP))
+                .flex_wrap()
                 .gap(px(date_picker::DIALOG_BUTTONS_MAIN_GAP_DP))
                 .child(
                     div()

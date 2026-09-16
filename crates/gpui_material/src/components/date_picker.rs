@@ -380,8 +380,8 @@ pub const DIALOG_BUTTONS_PAD_END_DP: f32 = 6.0;
 pub const DIALOG_BUTTONS_PAD_BOTTOM_DP: f32 = 8.0;
 /// Compose `DialogButtonsMainAxisSpacing`.
 pub const DIALOG_BUTTONS_MAIN_GAP_DP: f32 = 8.0;
-/// Compose `DialogButtonsCrossAxisSpacing`.
-pub const DIALOG_BUTTONS_CROSS_GAP_DP: f32 = 12.0;
+/// Compose `DialogButtonsCrossAxisSpacing` (androidx-main is 8).
+pub const DIALOG_BUTTONS_CROSS_GAP_DP: f32 = 8.0;
 /// Catalog / hosts apply official DatePickerDialog button paddings.
 pub const DIALOG_BUTTONS_PADDINGS: bool = true;
 
@@ -391,6 +391,11 @@ pub fn dialog_buttons_padding_css() -> String {
         "0 {:.0}px {:.0}px 0",
         DIALOG_BUTTONS_PAD_END_DP, DIALOG_BUTTONS_PAD_BOTTOM_DP
     )
+}
+
+/// CSS `row-gap` for `DialogButtonsCrossAxisSpacing`.
+pub fn dialog_buttons_cross_gap_css() -> String {
+    format!("{:.0}px", DIALOG_BUTTONS_CROSS_GAP_DP)
 }
 /// Compose `DatePicker` month pager (prev / next) on the single-date modal.
 pub const DATE_MONTH_NAV: bool = true;
