@@ -949,6 +949,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-range-start-only="1""#));
     assert!(html.contains(r#"data-range-start-only-headline="1""#));
     assert!(html.contains("Sep 15 – End date"));
+    assert!(html.contains(r#"data-hero="datepicker-range-end-only""#));
+    assert!(html.contains(r#"data-datepicker-range-end-only="1""#));
+    assert!(html.contains(r#"data-range-end-only="1""#));
+    assert!(html.contains(r#"data-range-end-only-headline="1""#));
+    assert!(html.contains("Start date – Sep 21"));
     assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
     assert!(html.contains(r#"data-range-input-errors="1""#));
     assert!(html.contains(r#"data-range-error="year""#));
@@ -1322,6 +1327,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
             && e.notes.contains("Sep 15 – End date")
+            && e.notes.contains("Start date – Sep 21")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
             && e.notes.contains("Date not allowed")
@@ -2677,6 +2683,30 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::range_field_value(date_picker::DateRangeSelection::start_only(), true),
         ""
+    );
+    assert!(date_picker::RANGE_END_ONLY);
+    assert_eq!(
+        date_picker::DateRangeSelection::end_only(),
+        date_picker::DateRangeSelection {
+            start: None,
+            end: Some(date_picker::RANGE_DEMO_END),
+        }
+    );
+    assert_eq!(
+        date_picker::header_range_selection(date_picker::DateRangeSelection::end_only()),
+        date_picker::RANGE_END_ONLY_HEADLINE
+    );
+    assert_eq!(
+        date_picker::range_field_value(date_picker::DateRangeSelection::end_only(), false),
+        ""
+    );
+    assert_eq!(
+        date_picker::range_field_value(date_picker::DateRangeSelection::end_only(), true),
+        "09/21/2026"
+    );
+    assert_eq!(
+        date_picker::range_month_of(date_picker::DateRangeSelection::end_only()),
+        (2026, 9)
     );
     assert_eq!(
         date_picker::date_input_error(""),

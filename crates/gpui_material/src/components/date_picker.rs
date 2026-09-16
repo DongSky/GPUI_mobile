@@ -336,6 +336,14 @@ impl DateRangeSelection {
             end: None,
         }
     }
+
+    /// Compose `DateRangePickerHeadline` when only end is set (`Start date – %1$s`).
+    pub const fn end_only() -> Self {
+        Self {
+            start: None,
+            end: Some(RANGE_DEMO_END),
+        }
+    }
 }
 
 /// First tap sets start; second tap ≥ start sets end, else replaces start; both set restarts.
@@ -404,7 +412,8 @@ pub fn header_range_selection(sel: DateRangeSelection) -> String {
     match (sel.start, sel.end) {
         (Some(start), Some(end)) => header_range_label(start, end),
         (Some(start), None) => format!("{} – {}", header_date_short(start), RANGE_END_LABEL),
-        (None, _) => format!("{} – {}", RANGE_START_LABEL, RANGE_END_LABEL),
+        (None, Some(end)) => format!("{} – {}", RANGE_START_LABEL, header_date_short(end)),
+        (None, None) => format!("{} – {}", RANGE_START_LABEL, RANGE_END_LABEL),
     }
 }
 
@@ -512,6 +521,9 @@ pub const RANGE_EMPTY_HEADLINE: &str = "Start date – End date";
 pub const RANGE_EMPTY: bool = true;
 /// Compose `DateRangePickerHeadline` when only start is set (`%1$s – End date`).
 pub const RANGE_START_ONLY: bool = true;
+/// Compose `mtrl_picker_range_header_only_end_selected` (`Start date – %1$s`).
+pub const RANGE_END_ONLY: bool = true;
+pub const RANGE_END_ONLY_HEADLINE: &str = "Start date – Sep 21";
 pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 /// Compose `DateInputValidator` supporting-text errors on range Input.
 pub const RANGE_INPUT_ERRORS: bool = true;
@@ -603,11 +615,12 @@ pub fn apply_range_dismiss(committed: DateRangeSelection) -> DateRangeSelection 
     committed
 }
 
-/// Month pager follows the draft start (or the demo month when empty).
+/// Month pager follows the draft start, else end, else the demo month.
 pub fn range_month_of(sel: DateRangeSelection) -> (i32, u32) {
-    match sel.start {
-        Some(s) => (s.year, s.month),
-        None => (RANGE_DEMO_START.year, RANGE_DEMO_START.month),
+    match (sel.start, sel.end) {
+        (Some(s), _) => (s.year, s.month),
+        (None, Some(e)) => (e.year, e.month),
+        (None, None) => (RANGE_DEMO_START.year, RANGE_DEMO_START.month),
     }
 }
 
