@@ -7477,7 +7477,7 @@ fn time_scroll_hero(
             )
         })
         .when(input_mode, |el| {
-            el.child(desktop_time_input(this, cx, &input))
+            el.child(desktop_time_input(this, theme, cx, &input))
         })
         .child(desktop_time_dialog_actions(
             theme,
@@ -7571,6 +7571,7 @@ fn desktop_period_column(
 
 fn desktop_time_input(
     this: &CatalogView,
+    theme: &Theme,
     cx: &mut Context<CatalogView>,
     a: &time_picker::TimeInputAppearance,
 ) -> impl IntoElement {
