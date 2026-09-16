@@ -36,6 +36,35 @@ pub fn headline_padding_css() -> String {
     )
 }
 
+/// Compose `DateRangePickerTitlePadding` = PaddingValues(start 64, end 12).
+/// Official range title has no top inset (unlike `DatePickerTitlePadding` top 16).
+/// Compose does not render Save / X header chrome; the 64 start is the title indent.
+pub const RANGE_TITLE_PAD_START_DP: f32 = 64.0;
+pub const RANGE_TITLE_PAD_END_DP: f32 = 12.0;
+pub const RANGE_TITLE_PAD_TOP_DP: f32 = 0.0;
+/// Compose `DateRangePickerHeadlinePadding` = PaddingValues(start 64, end 12, bottom 12).
+pub const RANGE_HEADLINE_PAD_START_DP: f32 = 64.0;
+pub const RANGE_HEADLINE_PAD_END_DP: f32 = 12.0;
+pub const RANGE_HEADLINE_PAD_BOTTOM_DP: f32 = 12.0;
+/// Catalog / hosts apply official range title + headline paddings.
+pub const RANGE_HEADER_PADDINGS: bool = true;
+
+/// CSS `padding` for `DateRangePickerTitlePadding` (top / end / bottom / start).
+pub fn range_title_padding_css() -> String {
+    format!(
+        "{:.0}px {:.0}px 0 {:.0}px",
+        RANGE_TITLE_PAD_TOP_DP, RANGE_TITLE_PAD_END_DP, RANGE_TITLE_PAD_START_DP
+    )
+}
+
+/// CSS `padding` for `DateRangePickerHeadlinePadding` (top / end / bottom / start).
+pub fn range_headline_padding_css() -> String {
+    format!(
+        "0 {:.0}px {:.0}px {:.0}px",
+        RANGE_HEADLINE_PAD_END_DP, RANGE_HEADLINE_PAD_BOTTOM_DP, RANGE_HEADLINE_PAD_START_DP
+    )
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CivilDate {
     pub year: i32,
