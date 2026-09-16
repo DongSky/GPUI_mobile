@@ -301,6 +301,14 @@ impl DateRangeSelection {
             end: Some(RANGE_DEMO_END),
         }
     }
+
+    /// Compose `DateRangePickerHeadline` after the first tap (start set, end open).
+    pub const fn start_only() -> Self {
+        Self {
+            start: Some(RANGE_DEMO_START),
+            end: None,
+        }
+    }
 }
 
 /// First tap sets start; second tap ≥ start sets end, else replaces start; both set restarts.
@@ -475,6 +483,8 @@ pub const RANGE_END_LABEL: &str = "End date";
 pub const RANGE_EMPTY_HEADLINE: &str = "Start date – End date";
 /// Catalog / host sibling for empty range Input.
 pub const RANGE_EMPTY: bool = true;
+/// Compose `DateRangePickerHeadline` when only start is set (`%1$s – End date`).
+pub const RANGE_START_ONLY: bool = true;
 pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 /// Compose `DateInputValidator` supporting-text errors on range Input.
 pub const RANGE_INPUT_ERRORS: bool = true;

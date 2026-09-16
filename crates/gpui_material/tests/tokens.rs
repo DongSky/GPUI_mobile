@@ -939,6 +939,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-range-input-empty="1""#));
     assert!(html.contains(r#"data-range-headline-empty="1""#));
     assert!(html.contains("Start date – End date"));
+    assert!(html.contains(r#"data-hero="datepicker-range-start-only""#));
+    assert!(html.contains(r#"data-datepicker-range-start-only="1""#));
+    assert!(html.contains(r#"data-range-start-only="1""#));
+    assert!(html.contains(r#"data-range-start-only-headline="1""#));
+    assert!(html.contains("Sep 15 – End date"));
     assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
     assert!(html.contains(r#"data-range-input-errors="1""#));
     assert!(html.contains(r#"data-range-error="year""#));
@@ -1311,6 +1316,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Entered date")
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
+            && e.notes.contains("Sep 15 – End date")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
             && e.notes.contains("Date not allowed")
@@ -2646,6 +2652,26 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::header_range_selection(date_picker::DateRangeSelection::empty()),
         date_picker::RANGE_EMPTY_HEADLINE
+    );
+    assert!(date_picker::RANGE_START_ONLY);
+    assert_eq!(
+        date_picker::DateRangeSelection::start_only(),
+        date_picker::DateRangeSelection {
+            start: Some(date_picker::RANGE_DEMO_START),
+            end: None,
+        }
+    );
+    assert_eq!(
+        date_picker::header_range_selection(date_picker::DateRangeSelection::start_only()),
+        "Sep 15 – End date"
+    );
+    assert_eq!(
+        date_picker::range_field_value(date_picker::DateRangeSelection::start_only(), false),
+        "09/15/2026"
+    );
+    assert_eq!(
+        date_picker::range_field_value(date_picker::DateRangeSelection::start_only(), true),
+        ""
     );
     assert_eq!(
         date_picker::date_input_error(""),
