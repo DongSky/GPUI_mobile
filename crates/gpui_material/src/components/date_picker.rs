@@ -316,6 +316,23 @@ pub const MONTH_SUBHEAD_PAD_BOTTOM_DP: f32 = 8.0;
 /// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
 pub const DATE_ACTIONS: bool = true;
 pub const DATE_DIVIDER_H_DP: f32 = 1.0;
+/// Compose `DatePickerDialog` `DialogButtonsPadding` = PaddingValues(bottom 8, end 6).
+pub const DIALOG_BUTTONS_PAD_END_DP: f32 = 6.0;
+pub const DIALOG_BUTTONS_PAD_BOTTOM_DP: f32 = 8.0;
+/// Compose `DialogButtonsMainAxisSpacing`.
+pub const DIALOG_BUTTONS_MAIN_GAP_DP: f32 = 8.0;
+/// Compose `DialogButtonsCrossAxisSpacing`.
+pub const DIALOG_BUTTONS_CROSS_GAP_DP: f32 = 12.0;
+/// Catalog / hosts apply official DatePickerDialog button paddings.
+pub const DIALOG_BUTTONS_PADDINGS: bool = true;
+
+/// CSS `padding` for `DialogButtonsPadding` (top / end / bottom / start).
+pub fn dialog_buttons_padding_css() -> String {
+    format!(
+        "0 {:.0}px {:.0}px 0",
+        DIALOG_BUTTONS_PAD_END_DP, DIALOG_BUTTONS_PAD_BOTTOM_DP
+    )
+}
 /// Compose `DatePicker` month pager (prev / next) on the single-date modal.
 pub const DATE_MONTH_NAV: bool = true;
 pub const DATE_PREV_MONTH: &str = "Previous month";
