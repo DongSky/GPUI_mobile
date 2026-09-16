@@ -882,6 +882,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-actions-live="1""#));
     assert!(html.contains(r#"data-date-grid="1""#));
     assert!(html.contains(r#"data-date-headline="1""#));
+    assert!(html.contains(r#"data-date-header-paddings="1""#));
+    assert!(html.contains(r#"data-date-title-pad="1""#));
+    assert!(html.contains(r#"data-date-headline-pad="1""#));
+    assert!(html.contains(&format!("padding: {}", date_picker::title_padding_css())));
+    assert!(html.contains(&format!("padding: {}", date_picker::headline_padding_css())));
     assert!(html.contains(r#"data-date-actions-divider="1""#));
     assert!(html.contains(r#"data-date-actions="1""#));
     assert!(html.contains(r#"data-date-cancel="1""#));
@@ -2766,6 +2771,16 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_START_DP, 24.0);
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_TOP_DP, 20.0);
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_BOTTOM_DP, 8.0);
+    assert!(date_picker::HEADER_PADDINGS);
+    assert_eq!(date_picker::TITLE_PAD_START_DP, 24.0);
+    assert_eq!(date_picker::TITLE_PAD_END_DP, 12.0);
+    assert_eq!(date_picker::TITLE_PAD_TOP_DP, 16.0);
+    assert_eq!(date_picker::HEADLINE_PAD_START_DP, 24.0);
+    assert_eq!(date_picker::HEADLINE_PAD_END_DP, 12.0);
+    assert_eq!(date_picker::HEADLINE_PAD_BOTTOM_DP, 12.0);
+    assert_eq!(date_picker::HEADER_PAD_DP, date_picker::TITLE_PAD_START_DP);
+    assert_eq!(date_picker::title_padding_css(), "16px 12px 0 24px");
+    assert_eq!(date_picker::headline_padding_css(), "0 12px 12px 24px");
     assert_eq!(date_picker::month_subhead_label(2026, 9), "September 2026");
     assert_eq!(
         date_picker::range_visible_months(2026, 9),

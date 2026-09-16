@@ -7,7 +7,34 @@ use crate::typography::TypeStyle;
 
 pub const DAY_DP: f32 = 40.0;
 pub const CORNER_DP: f32 = 28.0;
+/// Shared header start inset (Compose `DatePickerTitlePadding` start).
 pub const HEADER_PAD_DP: f32 = 24.0;
+/// Compose `DatePickerTitlePadding` = PaddingValues(start 24, end 12, top 16).
+pub const TITLE_PAD_START_DP: f32 = 24.0;
+pub const TITLE_PAD_END_DP: f32 = 12.0;
+pub const TITLE_PAD_TOP_DP: f32 = 16.0;
+/// Compose `DatePickerHeadlinePadding` = PaddingValues(start 24, end 12, bottom 12).
+pub const HEADLINE_PAD_START_DP: f32 = 24.0;
+pub const HEADLINE_PAD_END_DP: f32 = 12.0;
+pub const HEADLINE_PAD_BOTTOM_DP: f32 = 12.0;
+/// Catalog / hosts apply official title + headline paddings.
+pub const HEADER_PADDINGS: bool = true;
+
+/// CSS `padding` for `DatePickerTitlePadding` (top / end / bottom / start).
+pub fn title_padding_css() -> String {
+    format!(
+        "{:.0}px {:.0}px 0 {:.0}px",
+        TITLE_PAD_TOP_DP, TITLE_PAD_END_DP, TITLE_PAD_START_DP
+    )
+}
+
+/// CSS `padding` for `DatePickerHeadlinePadding` (top / end / bottom / start).
+pub fn headline_padding_css() -> String {
+    format!(
+        "0 {:.0}px {:.0}px {:.0}px",
+        HEADLINE_PAD_END_DP, HEADLINE_PAD_BOTTOM_DP, HEADLINE_PAD_START_DP
+    )
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CivilDate {

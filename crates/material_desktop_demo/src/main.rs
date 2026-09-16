@@ -3506,6 +3506,12 @@ fn date_range_picker_empty_card(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -3649,6 +3655,12 @@ fn date_range_hero(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -3925,6 +3937,12 @@ fn date_input_card(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4033,6 +4051,12 @@ fn date_input_empty_card(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4210,6 +4234,12 @@ fn date_range_input_card(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4330,6 +4360,12 @@ fn date_range_input_empty_card(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4448,6 +4484,12 @@ fn date_range_input_start_only_card(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4687,6 +4729,12 @@ fn date_picker_empty_card(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -4811,6 +4859,12 @@ fn date_picker_card(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-16.))
+                .mx(px(-16.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -9328,6 +9382,13 @@ mod tests {
             date_picker::header_range_selection(date_picker::DateRangeSelection::start_only()),
             "Sep 15 – End date"
         );
+        assert!(date_picker::HEADER_PADDINGS);
+        assert_eq!(date_picker::TITLE_PAD_START_DP, 24.0);
+        assert_eq!(date_picker::TITLE_PAD_END_DP, 12.0);
+        assert_eq!(date_picker::TITLE_PAD_TOP_DP, 16.0);
+        assert_eq!(date_picker::HEADLINE_PAD_START_DP, 24.0);
+        assert_eq!(date_picker::HEADLINE_PAD_END_DP, 12.0);
+        assert_eq!(date_picker::HEADLINE_PAD_BOTTOM_DP, 12.0);
         assert!(date_picker::is_range_input_valid(
             "09/15/2026",
             "09/21/2026"

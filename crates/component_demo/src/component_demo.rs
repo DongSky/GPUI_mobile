@@ -1327,6 +1327,10 @@ fn catalog_body(
         .child(
             div()
                 .w(px(pick.day_dp * 7.0))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .items_start()
                 .justify_between()
@@ -7206,6 +7210,12 @@ fn android_date_picker_empty(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -7318,6 +7328,12 @@ fn android_date_input(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -7425,6 +7441,12 @@ fn android_date_input_empty(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -7698,6 +7720,12 @@ fn android_date_range_picker_empty(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -7837,6 +7865,12 @@ fn android_date_range(
         .gap(px(8.))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -8121,6 +8155,12 @@ fn android_date_range_input(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -8243,6 +8283,12 @@ fn android_date_range_input_empty(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
@@ -8361,6 +8407,12 @@ fn android_date_range_input_start_only(
         .gap(px(date_picker::RANGE_INPUT_GAP_DP))
         .child(
             div()
+                .mt(px(-12.))
+                .mx(px(-12.))
+                .pt(px(date_picker::TITLE_PAD_TOP_DP))
+                .pr(px(date_picker::TITLE_PAD_END_DP))
+                .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
+                .pl(px(date_picker::TITLE_PAD_START_DP))
                 .flex()
                 .justify_between()
                 .child(
