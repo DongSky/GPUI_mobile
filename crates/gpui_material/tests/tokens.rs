@@ -1104,6 +1104,14 @@ fn catalog_html_embeds_token_evidence() {
         time_picker::SUPPORT_LABEL_TOP_DP
     )));
     assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
+    assert!(html.contains(r#"data-display-mode-toggle="1""#));
+    assert!(html.contains(time_picker::TOGGLE_KEYBOARD));
+    assert!(html.contains(time_picker::TOGGLE_SCROLL));
+    assert!(html.contains(time_picker::TOGGLE_TOUCH));
+    assert!(html.contains(&format!(
+        r#"title="{}"#,
+        time_picker::DEMO_DISPLAY_MODE.toggle_label()
+    )));
     assert!(html.contains(r#"data-time-display="input""#));
     assert!(html.contains(r#"data-time-dialog-title="input""#));
     assert!(html.contains(r#"data-time-dialog-title="picker""#));
@@ -1381,6 +1389,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("vibrant field outline")
             && e.notes.contains("SurfaceContainerLowest")
             && e.notes.contains("ScrollDisplayModeToggle")
+            && e.notes.contains("DisplayModeToggle")
+            && e.notes.contains("Switch to text input mode")
+            && e.notes.contains("Switch to clock mode")
             && e.notes.contains("TimePickerLayoutType")
             && e.notes.contains("Horizontal")
             && e.notes.contains("ClockDisplayBottomMargin")
@@ -3969,6 +3980,26 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(
         time_picker::TimePickerDisplayMode::Input.toggle_icon(),
         time_picker::SCHEDULE_ICON
+    );
+    assert!(time_picker::DISPLAY_MODE_TOGGLE);
+    assert_eq!(time_picker::TOGGLE_KEYBOARD, "Switch to text input mode");
+    assert_eq!(time_picker::TOGGLE_SCROLL, "Switch to scroll mode");
+    assert_eq!(time_picker::TOGGLE_TOUCH, "Switch to clock mode");
+    assert_eq!(
+        time_picker::TimePickerDisplayMode::Scroll.toggle_label(),
+        time_picker::TOGGLE_KEYBOARD
+    );
+    assert_eq!(
+        time_picker::TimePickerDisplayMode::Input.toggle_label(),
+        time_picker::TOGGLE_SCROLL
+    );
+    assert_eq!(
+        time_picker::display_mode_toggle_label(true),
+        time_picker::TOGGLE_KEYBOARD
+    );
+    assert_eq!(
+        time_picker::display_mode_toggle_label(false),
+        time_picker::TOGGLE_TOUCH
     );
     let input_a = time_picker::resolve_input(&theme);
     assert_eq!(input_a.container, theme.color.primary_container);

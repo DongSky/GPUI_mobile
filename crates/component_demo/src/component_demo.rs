@@ -393,6 +393,7 @@ struct CatalogView {
     time_display: time_picker::TimePickerDisplayMode,
     time_input: time_picker::TimeInputState,
     time_format: time_picker::TimeFormat,
+    time_toggle_tooltip_open: bool,
 }
 
 impl CatalogView {
@@ -6080,20 +6081,53 @@ fn android_time_scroll(
                         )
                         .child(
                             div()
-                                .id("scroll-display-mode-toggle")
-                                .w(px(time_picker::TOGGLE_SIZE_DP))
-                                .h(px(time_picker::TOGGLE_SIZE_DP))
-                                .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .text_size(px(time_picker::TOGGLE_ICON_DP))
-                                .text_color(paint(time_picker::vibrant_dialog_toggle(theme)))
-                                .child(mode.toggle_icon())
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.toggle_time_display();
-                                    cx.notify();
-                                })),
+                                .id("scroll-display-mode-toggle-wrap")
+                                .relative()
+                                .when(this.time_toggle_tooltip_open, |el| {
+                                    let tip = tooltip::resolve_plain(theme);
+                                    el.child(
+                                        div()
+                                            .id("scroll-display-mode-toggle-tooltip")
+                                            .absolute()
+                                            .bottom(px(time_picker::TOGGLE_SIZE_DP
+                                                + tooltip::ANCHOR_GAP_DP))
+                                            .right(px(0.))
+                                            .h(px(tip.min_height_dp))
+                                            .px(px(tip.pad_start_dp))
+                                            .py(px(tip.pad_top_dp))
+                                            .rounded(px(tip.corners.top_left))
+                                            .bg(paint(tip.container))
+                                            .text_color(paint(tip.supporting))
+                                            .text_size(px(tip.supporting_style.size_sp))
+                                            .whitespace_nowrap()
+                                            .flex()
+                                            .items_center()
+                                            .child(mode.toggle_label()),
+                                    )
+                                })
+                                .child(
+                                    div()
+                                        .id("scroll-display-mode-toggle")
+                                        .w(px(time_picker::TOGGLE_SIZE_DP))
+                                        .h(px(time_picker::TOGGLE_SIZE_DP))
+                                        .rounded(px(time_picker::TOGGLE_SIZE_DP / 2.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .text_size(px(time_picker::TOGGLE_ICON_DP))
+                                        .text_color(paint(time_picker::vibrant_dialog_toggle(
+                                            theme,
+                                        )))
+                                        .child(mode.toggle_icon())
+                                        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                            this.time_toggle_tooltip_open = *hovered;
+                                            cx.notify();
+                                        }))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.toggle_time_display();
+                                            cx.notify();
+                                        })),
+                                ),
                         ),
                 ),
         )
@@ -9783,6 +9817,7 @@ fn android_main(app: AndroidApp) {
                 time_display: time_picker::DEMO_DISPLAY_MODE,
                 time_input: time_picker::TimeInputState::demo(),
                 time_format: time_picker::DEMO_FORMAT,
+                time_toggle_tooltip_open: false,
             })
         })
         .expect("failed to open window");

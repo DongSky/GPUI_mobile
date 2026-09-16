@@ -13,7 +13,8 @@
 //! and `ScrollFieldDefaults.ScrollFieldHeight` 200 /
 //! `ScrollFieldDefaults.shape` CornerLarge. `TimeInput` (96×72
 //! fields, `TimePickerDefaults.shapes().timeFieldShape` CornerLarge) +
-//! `ScrollDisplayModeToggle` switch Scroll ↔ Input. 24-hour
+//! `ScrollDisplayModeToggle` switch Scroll ↔ Input + official
+//! `TimePickerDialogDefaults.DisplayModeToggle` a11y strings. 24-hour
 //! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
@@ -778,10 +779,11 @@ impl TimePickerDisplayMode {
         }
     }
 
+    /// Compose `ScrollDisplayModeToggle` contentDescription / tooltip.
     pub const fn toggle_label(self) -> &'static str {
         match self {
-            Self::Scroll => "Switch to input mode",
-            Self::Input => "Switch to scroll mode",
+            Self::Scroll => TOGGLE_KEYBOARD,
+            Self::Input => TOGGLE_SCROLL,
         }
     }
 
@@ -1019,10 +1021,28 @@ pub fn header_label_for(hour: u8, minute: u8, period: DayPeriod, format: TimeFor
 /// Compose `TimePickerDialogDefaults.ScrollDisplayModeToggle` 48dp target.
 pub const TOGGLE_SIZE_DP: f32 = 48.0;
 pub const TOGGLE_ICON_DP: f32 = 24.0;
-/// Keyboard — switch Scroll → Input.
+/// Keyboard — switch Scroll / Picker → Input.
 pub const KEYBOARD_ICON: &str = "⌨";
-/// Schedule / clock — switch Input → Scroll.
+/// Schedule / clock — switch Input → Scroll / Picker.
 pub const SCHEDULE_ICON: &str = "◷";
+/// Compose `m3c_time_picker_toggle_keyboard` (`DisplayModeToggle` / `ScrollDisplayModeToggle`).
+pub const TOGGLE_KEYBOARD: &str = "Switch to text input mode";
+/// Compose `m3c_time_picker_toggle_scroll` (`ScrollDisplayModeToggle` while Input).
+pub const TOGGLE_SCROLL: &str = "Switch to scroll mode";
+/// Compose `m3c_time_picker_toggle_touch` (`DisplayModeToggle` while Input → Picker).
+pub const TOGGLE_TOUCH: &str = "Switch to clock mode";
+/// Catalog / hosts apply official DisplayModeToggle a11y + tooltip strings.
+pub const DISPLAY_MODE_TOGGLE: bool = true;
+
+/// Compose `TimePickerDialogDefaults.DisplayModeToggle` a11y string.
+/// `picker` is the current clock (`TimePickerDisplayMode.Picker`) state.
+pub const fn display_mode_toggle_label(picker: bool) -> &'static str {
+    if picker {
+        TOGGLE_KEYBOARD
+    } else {
+        TOGGLE_TOUCH
+    }
+}
 
 /// Compose `TimePickerDefaults.shapes().timeFieldShape` / `ScrollFieldDefaults.shape`
 /// (`ShapeKeyTokens.CornerLarge` / `ShapeDefaults.Large`).
