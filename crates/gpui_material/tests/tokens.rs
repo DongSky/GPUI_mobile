@@ -912,6 +912,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-docked-year="2026""#));
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-picker-empty""#));
+    assert!(html.contains(r#"data-picker-empty="1""#));
+    assert!(html.contains("Selected date"));
     assert!(html.contains(r#"data-hero="datepicker-input-empty""#));
     assert!(html.contains(r#"data-date-input-empty="1""#));
     assert!(html.contains(r#"data-date-headline-empty="1""#));
@@ -1302,6 +1305,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("Entered date")
+            && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
@@ -2581,8 +2585,27 @@ fn date_picker_grid_and_weekday() {
         date_picker::DateInputError::NotAllowed
     );
     assert!(date_picker::INPUT_EMPTY);
+    assert!(date_picker::PICKER_EMPTY);
     assert_eq!(date_picker::INPUT_EMPTY_HEADLINE, "Entered date");
     assert_eq!(date_picker::PICKER_EMPTY_HEADLINE, "Selected date");
+    let empty_cells = date_picker::month_grid_unselected(
+        2026,
+        9,
+        date_picker::CivilDate {
+            year: 2026,
+            month: 9,
+            day: 11,
+        },
+    );
+    assert!(!empty_cells
+        .iter()
+        .any(|(_, k)| *k == date_picker::DayKind::Selected));
+    assert!(empty_cells
+        .iter()
+        .any(|&(d, k)| d == 11 && k == date_picker::DayKind::Today));
+    assert!(empty_cells
+        .iter()
+        .any(|&(d, k)| d == 15 && k == date_picker::DayKind::InMonth));
     assert_eq!(
         date_picker::date_headline(date_picker::DatePickerDisplayMode::Input, None),
         "Entered date"

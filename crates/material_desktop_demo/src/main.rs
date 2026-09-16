@@ -1172,6 +1172,7 @@ fn catalog_body(
         .child(date_range_hero(this, theme, &pick, cx))
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
+        .child(date_picker_empty_card(theme, &pick))
         .child(date_input_card(this, theme, &pick))
         .child(date_input_empty_card(theme, &pick))
         .child(date_input_error_card(theme, &pick))
@@ -4408,6 +4409,124 @@ fn date_range_input_error_card(
             &order_end,
             date_picker::DateInputError::Order,
         ))
+}
+
+fn date_picker_empty_card(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let today = date_picker::CivilDate {
+        year: 2026,
+        month: 9,
+        day: 11,
+    };
+    let cells = date_picker::month_grid_unselected(2026, 9, today);
+    let cal_w = pick.day_dp * 7.0;
+    div()
+        .id("date-picker-empty")
+        .w(px(cal_w + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(8.))
+        .child(
+            div()
+                .flex()
+                .items_start()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(spaced_line(
+                            date_picker::INPUT_HEADLINE,
+                            pick.year_style.size_sp,
+                            paint(pick.header_year),
+                        ))
+                        .child(
+                            div()
+                                .font_weight(type_weight(pick.date_style))
+                                .child(spaced_line(
+                                    date_picker::PICKER_EMPTY_HEADLINE,
+                                    pick.date_style.size_sp.min(28.0),
+                                    paint(pick.header_date),
+                                )),
+                        ),
+                )
+                .child(
+                    div()
+                        .w(px(date_picker::TOGGLE_SIZE_DP))
+                        .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
+                ),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .children(date_picker::WEEKDAYS.iter().map(|d| {
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(spaced_line(
+                            *d,
+                            pick.weekday_style.size_sp,
+                            paint(pick.weekday),
+                        ))
+                })),
+        )
+        .child(
+            div()
+                .w(px(cal_w))
+                .flex()
+                .flex_wrap()
+                .children(cells.iter().copied().map(|(day, kind)| {
+                    let (fg, outline) = match kind {
+                        DayKind::Today => (paint(pick.day), Some(paint(pick.day_today_outline))),
+                        DayKind::InMonth => (paint(pick.day), None),
+                        DayKind::OutOfMonth | DayKind::Disabled => (paint(pick.day_out), None),
+                        DayKind::Selected | DayKind::InRange => (paint(pick.day), None),
+                    };
+                    div()
+                        .w(px(pick.day_dp))
+                        .h(px(pick.day_dp))
+                        .rounded(px(pick.day_dp / 2.0))
+                        .text_color(fg)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .when(outline.is_some(), |el| {
+                            el.border_1().border_color(outline.unwrap())
+                        })
+                        .child(day.to_string())
+                })),
+        )
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .justify_end()
+                .gap(px(dialog::ACTION_GAP_DP))
+                .child(spaced_line(
+                    date_picker::INPUT_CANCEL,
+                    14.0,
+                    paint(theme.color.primary),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_OK,
+                    14.0,
+                    paint(theme.color.primary),
+                )),
+        )
 }
 
 fn date_picker_card(
@@ -8933,9 +9052,15 @@ mod tests {
         );
         assert_eq!(date_picker::RANGE_INPUT_HEADLINE, "Enter dates");
         assert_eq!(date_picker::INPUT_EMPTY_HEADLINE, "Entered date");
+        assert_eq!(date_picker::PICKER_EMPTY_HEADLINE, "Selected date");
+        assert!(date_picker::PICKER_EMPTY);
         assert_eq!(
             date_picker::date_headline(date_picker::DatePickerDisplayMode::Input, None),
             "Entered date"
+        );
+        assert_eq!(
+            date_picker::date_headline(date_picker::DatePickerDisplayMode::Picker, None),
+            "Selected date"
         );
         assert_eq!(date_picker::RANGE_EMPTY_HEADLINE, "Start date – End date");
         assert_eq!(

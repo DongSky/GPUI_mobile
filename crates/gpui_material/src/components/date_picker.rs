@@ -446,6 +446,8 @@ pub const INPUT_EMPTY_HEADLINE: &str = "Entered date";
 pub const PICKER_EMPTY_HEADLINE: &str = "Selected date";
 /// Catalog / host sibling for DatePickerHeadline Input empty.
 pub const INPUT_EMPTY: bool = true;
+/// Catalog / host sibling for DatePickerHeadline Picker empty.
+pub const PICKER_EMPTY: bool = true;
 pub const INPUT_SUPPORTING: &str = "Enter date";
 pub const INPUT_FIELD_LABEL: &str = "Date";
 pub const INPUT_PLACEHOLDER: &str = "MM/DD/YYYY";
@@ -885,6 +887,32 @@ pub fn month_grid_range_selection(
             out
         }
     }
+}
+
+/// Picker grid with no selected day (today outline + SelectableDates still apply).
+pub fn month_grid_unselected(year: i32, month: u32, today: CivilDate) -> [(u32, DayKind); 42] {
+    let raw = month_grid(year, month);
+    let mut out = raw;
+    for (i, (day, kind)) in raw.iter().enumerate() {
+        if *kind == DayKind::InMonth {
+            let date = CivilDate {
+                year,
+                month,
+                day: *day,
+            };
+            out[i] = (
+                *day,
+                if !is_selectable_date(date) {
+                    DayKind::Disabled
+                } else if date == today {
+                    DayKind::Today
+                } else {
+                    DayKind::InMonth
+                },
+            );
+        }
+    }
+    out
 }
 
 pub fn month_grid_classified(
