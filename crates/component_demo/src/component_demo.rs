@@ -399,6 +399,9 @@ struct CatalogView {
     date_month_nav_tooltip: Option<&'static str>,
     range_month_nav_tooltip: Option<&'static str>,
     docked_month_nav_tooltip: Option<&'static str>,
+    date_year_nav_tooltip: Option<i32>,
+    range_year_nav_tooltip: Option<i32>,
+    docked_year_nav_tooltip: Option<i32>,
 }
 
 impl CatalogView {
@@ -1568,10 +1571,21 @@ fn catalog_body(
                 .when(this.date_pane == date_picker::DatePickerPane::Year, |el| {
                     el.child(
                         div()
+                            .id("date-year-grid")
+                            .relative()
                             .w(px(pick.day_dp * 7.0))
                             .flex()
                             .flex_wrap()
                             .justify_between()
+                            .when(this.date_year_nav_tooltip.is_some(), |el| {
+                                el.child(android_date_display_mode_toggle_tooltip(
+                                    theme,
+                                    date_picker::navigate_to_year_label(
+                                        this.date_year_nav_tooltip.unwrap_or(2026),
+                                    ),
+                                    "date-year-nav-tooltip",
+                                ))
+                            })
                             .children(date_picker::year_window(this.picker_year).into_iter().map(
                                 |year| {
                                     let kind = date_picker::classify_year(
@@ -1605,6 +1619,11 @@ fn catalog_body(
                                                 .border_color(paint(pick.day_today_outline))
                                         })
                                         .child(year.to_string())
+                                        .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                            this.date_year_nav_tooltip =
+                                                if *hovered { Some(year) } else { None };
+                                            cx.notify();
+                                        }))
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.select_picker_year(year);
                                             cx.notify();
@@ -7980,7 +7999,7 @@ fn android_range_header_close(pick: &date_picker::DatePickerAppearance) -> impl 
 
 fn android_date_display_mode_toggle_tooltip(
     theme: &Theme,
-    label: &'static str,
+    label: impl Into<SharedString>,
     id: &'static str,
 ) -> impl IntoElement {
     let tip = tooltip::resolve_plain(theme);
@@ -7999,7 +8018,7 @@ fn android_date_display_mode_toggle_tooltip(
         .whitespace_nowrap()
         .flex()
         .items_center()
-        .child(label)
+        .child(label.into())
 }
 
 fn android_date_entry_divider(theme: &Theme) -> impl IntoElement {
@@ -8430,10 +8449,21 @@ fn android_date_range(
             |el| {
                 el.child(
                     div()
+                        .id("range-year-grid")
+                        .relative()
                         .w(px(cal_w))
                         .flex()
                         .flex_wrap()
                         .justify_between()
+                        .when(this.range_year_nav_tooltip.is_some(), |el| {
+                            el.child(android_date_display_mode_toggle_tooltip(
+                                theme,
+                                date_picker::navigate_to_year_label(
+                                    this.range_year_nav_tooltip.unwrap_or(2026),
+                                ),
+                                "range-year-nav-tooltip",
+                            ))
+                        })
                         .children(date_picker::year_window(year).into_iter().map(|y| {
                             let kind = date_picker::classify_year(y, year, this.today.year);
                             let (bg, fg) = match kind {
@@ -8459,6 +8489,11 @@ fn android_date_range(
                                     el.border_1().border_color(paint(pick.day_today_outline))
                                 })
                                 .child(y.to_string())
+                                .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                    this.range_year_nav_tooltip =
+                                        if *hovered { Some(y) } else { None };
+                                    cx.notify();
+                                }))
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.select_range_year(y);
                                     cx.notify();
@@ -9450,10 +9485,23 @@ fn android_docked_date(
                 )
                 .when(year_pane, |el| {
                     el.child(
-                        div().flex().flex_wrap().justify_between().children(
-                            date_picker::year_window(this.picker_year)
-                                .into_iter()
-                                .map(|y| {
+                        div()
+                            .id("docked-year-grid")
+                            .relative()
+                            .flex()
+                            .flex_wrap()
+                            .justify_between()
+                            .when(this.docked_year_nav_tooltip.is_some(), |el| {
+                                el.child(android_date_display_mode_toggle_tooltip(
+                                    theme,
+                                    date_picker::navigate_to_year_label(
+                                        this.docked_year_nav_tooltip.unwrap_or(2026),
+                                    ),
+                                    "docked-year-nav-tooltip",
+                                ))
+                            })
+                            .children(date_picker::year_window(this.picker_year).into_iter().map(
+                                |y| {
                                     let kind = date_picker::classify_year(
                                         y,
                                         this.picker_year,
@@ -9485,12 +9533,19 @@ fn android_docked_date(
                                                 .border_color(paint(pick.day_today_outline))
                                         })
                                         .child(y.to_string())
+                                        .on_hover(cx.listener(
+                                            move |this, hovered: &bool, _, cx| {
+                                                this.docked_year_nav_tooltip =
+                                                    if *hovered { Some(y) } else { None };
+                                                cx.notify();
+                                            },
+                                        ))
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.select_docked_year(y);
                                             cx.notify();
                                         }))
-                                }),
-                        ),
+                                },
+                            )),
                     )
                     .child(android_year_picker_divider(theme))
                 })
@@ -9988,6 +10043,9 @@ fn android_main(app: AndroidApp) {
                 date_month_nav_tooltip: None,
                 range_month_nav_tooltip: None,
                 docked_month_nav_tooltip: None,
+                date_year_nav_tooltip: None,
+                range_year_nav_tooltip: None,
+                docked_year_nav_tooltip: None,
             })
         })
         .expect("failed to open window");

@@ -424,6 +424,9 @@ struct CatalogView {
     date_month_nav_tooltip: Option<&'static str>,
     range_month_nav_tooltip: Option<&'static str>,
     docked_month_nav_tooltip: Option<&'static str>,
+    date_year_nav_tooltip: Option<i32>,
+    range_year_nav_tooltip: Option<i32>,
+    docked_year_nav_tooltip: Option<i32>,
 }
 
 impl CatalogView {
@@ -2905,10 +2908,21 @@ fn docked_date_picker(
             .when(year_pane, |el| {
                 el.child(
                     div()
+                        .id("docked-year-grid")
+                        .relative()
                         .w(px(cal_w))
                         .flex()
                         .flex_wrap()
                         .justify_between()
+                        .when(this.docked_year_nav_tooltip.is_some(), |el| {
+                            el.child(date_display_mode_toggle_tooltip(
+                                theme,
+                                date_picker::navigate_to_year_label(
+                                    this.docked_year_nav_tooltip.unwrap_or(2026),
+                                ),
+                                "docked-year-nav-tooltip",
+                            ))
+                        })
                         .children(date_picker::year_window(this.picker_year).into_iter().map(
                             |year| {
                                 let kind = date_picker::classify_year(
@@ -2941,6 +2955,11 @@ fn docked_date_picker(
                                         el.border_1().border_color(paint(pick.day_today_outline))
                                     })
                                     .child(year.to_string())
+                                    .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                        this.docked_year_nav_tooltip =
+                                            if *hovered { Some(year) } else { None };
+                                        cx.notify();
+                                    }))
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.select_docked_year(year);
                                         cx.notify();
@@ -3563,7 +3582,7 @@ fn range_header_close(pick: &date_picker::DatePickerAppearance) -> impl IntoElem
 
 fn date_display_mode_toggle_tooltip(
     theme: &Theme,
-    label: &'static str,
+    label: impl Into<SharedString>,
     id: &'static str,
 ) -> impl IntoElement {
     let tip = tooltip::resolve_plain(theme);
@@ -3582,7 +3601,7 @@ fn date_display_mode_toggle_tooltip(
         .whitespace_nowrap()
         .flex()
         .items_center()
-        .child(label)
+        .child(label.into())
 }
 
 fn date_entry_divider(theme: &Theme) -> impl IntoElement {
@@ -4005,10 +4024,21 @@ fn date_range_hero(
             |el| {
                 el.child(
                     div()
+                        .id("range-year-grid")
+                        .relative()
                         .w(px(cal_w))
                         .flex()
                         .flex_wrap()
                         .justify_between()
+                        .when(this.range_year_nav_tooltip.is_some(), |el| {
+                            el.child(date_display_mode_toggle_tooltip(
+                                theme,
+                                date_picker::navigate_to_year_label(
+                                    this.range_year_nav_tooltip.unwrap_or(2026),
+                                ),
+                                "range-year-nav-tooltip",
+                            ))
+                        })
                         .children(date_picker::year_window(year).into_iter().map(|y| {
                             let kind = date_picker::classify_year(y, year, this.today.year);
                             let (bg, fg) = match kind {
@@ -4034,6 +4064,11 @@ fn date_range_hero(
                                     el.border_1().border_color(paint(pick.day_today_outline))
                                 })
                                 .child(y.to_string())
+                                .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                    this.range_year_nav_tooltip =
+                                        if *hovered { Some(y) } else { None };
+                                    cx.notify();
+                                }))
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.select_range_year(y);
                                     cx.notify();
@@ -5571,10 +5606,21 @@ fn date_picker_card(
         .when(year_pane, |el| {
             el.child(
                 div()
+                    .id("date-year-grid")
+                    .relative()
                     .w(px(cal_w))
                     .flex()
                     .flex_wrap()
                     .justify_between()
+                    .when(this.date_year_nav_tooltip.is_some(), |el| {
+                        el.child(date_display_mode_toggle_tooltip(
+                            theme,
+                            date_picker::navigate_to_year_label(
+                                this.date_year_nav_tooltip.unwrap_or(2026),
+                            ),
+                            "date-year-nav-tooltip",
+                        ))
+                    })
                     .children(
                         date_picker::year_window(this.picker_year)
                             .into_iter()
@@ -5609,6 +5655,11 @@ fn date_picker_card(
                                         el.border_1().border_color(paint(pick.day_today_outline))
                                     })
                                     .child(year.to_string())
+                                    .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                        this.date_year_nav_tooltip =
+                                            if *hovered { Some(year) } else { None };
+                                        cx.notify();
+                                    }))
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         this.select_picker_year(year);
                                         cx.notify();
@@ -9898,6 +9949,9 @@ fn main() {
                     date_month_nav_tooltip: None,
                     range_month_nav_tooltip: None,
                     docked_month_nav_tooltip: None,
+                    date_year_nav_tooltip: None,
+                    range_year_nav_tooltip: None,
+                    docked_year_nav_tooltip: None,
                 })
             },
         )
@@ -10266,10 +10320,15 @@ mod tests {
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::MONTH_YEAR_NAV);
         assert!(date_picker::MONTH_NAV_A11Y);
+        assert!(date_picker::YEAR_PICKER_A11Y);
         assert_eq!(date_picker::PREV_MONTH, "Change to previous month");
         assert_eq!(
             date_picker::year_toggle_label(false),
             date_picker::SWITCH_TO_YEAR
+        );
+        assert_eq!(
+            date_picker::navigate_to_year_label(2026),
+            "Navigate to year 2026"
         );
         assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
         assert_eq!(date_picker::MONTH_NAV_ICON_DP, 48.0);

@@ -895,6 +895,17 @@ pub const YEAR_WINDOW: usize = 9;
 pub const YEAR_PICKER_DIVIDER: bool = true;
 /// `DividerDefaults.Thickness` on the YearPicker trailing rule.
 pub const YEAR_PICKER_DIVIDER_H_DP: f32 = 1.0;
+/// Compose `DatePickerYearPickerPaneTitle`.
+pub const YEAR_PICKER_PANE_TITLE: &str = "Year picker visible";
+/// Compose `DatePickerNavigateToYearDescription` (`Navigate to year %1$`).
+pub const NAVIGATE_TO_YEAR: &str = "Navigate to year";
+/// Catalog / hosts apply official YearPicker pane title + year-cell descriptions.
+pub const YEAR_PICKER_A11Y: bool = true;
+
+/// Compose year-cell contentDescription (`Navigate to year 2026`).
+pub fn navigate_to_year_label(year: i32) -> String {
+    format!("{NAVIGATE_TO_YEAR} {year}")
+}
 
 /// CSS `height` for the YearPicker trailing `HorizontalDivider`.
 pub fn year_picker_divider_height_css() -> String {
