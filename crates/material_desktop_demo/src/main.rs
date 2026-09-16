@@ -7124,8 +7124,8 @@ fn time_scroll_hero(
         .w_full()
         .pt(px(time_picker::PORT_TITLE_TOP_DP))
         .px(px(time_picker::CONTAINER_PAD_DP))
-        .rounded(px(a.corners.top_left))
-        .bg(paint(a.container))
+        .rounded(px(time_picker::VIBRANT_DIALOG_CORNER_DP))
+        .bg(paint(time_picker::vibrant_dialog_container(theme)))
         .shadow_md()
         .flex()
         .flex_col()
@@ -7149,7 +7149,7 @@ fn time_scroll_hero(
                 .child(spaced_line(
                     time_picker::title_for(mode),
                     a.title_style.size_sp,
-                    paint(a.header),
+                    paint(time_picker::vibrant_dialog_on_container(theme)),
                 ))
                 .child(
                     div()
@@ -7167,7 +7167,7 @@ fn time_scroll_hero(
                                 .justify_center()
                                 .text_size(px(16.))
                                 .font_weight(FontWeight::BOLD)
-                                .text_color(paint(input.toggle))
+                                .text_color(paint(time_picker::vibrant_dialog_toggle(theme)))
                                 .child(this.time_format.toggle_text())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.toggle_time_format();
@@ -7184,7 +7184,7 @@ fn time_scroll_hero(
                                 .items_center()
                                 .justify_center()
                                 .text_size(px(time_picker::TOGGLE_ICON_DP))
-                                .text_color(paint(input.toggle))
+                                .text_color(paint(time_picker::vibrant_dialog_toggle(theme)))
                                 .child(mode.toggle_icon())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.toggle_time_display();
@@ -10149,6 +10149,11 @@ mod tests {
         assert_eq!(time_picker::LAND_CONTENT_TOP_DP, 16.0);
         assert_eq!(time_picker::DIALOG_OK, "OK");
         assert_eq!(time_picker::DIALOG_CANCEL, "Cancel");
+        assert!(time_picker::VIBRANT_DIALOG);
+        assert_eq!(
+            time_picker::vibrant_dialog_container(&theme),
+            theme.color.surface_container
+        );
         assert_eq!(
             time_picker::DEMO_DISPLAY_MODE.toggle(),
             time_picker::TimePickerDisplayMode::Scroll

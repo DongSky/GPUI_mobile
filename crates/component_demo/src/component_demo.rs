@@ -6027,8 +6027,8 @@ fn android_time_scroll(
         .w_full()
         .pt(px(time_picker::PORT_TITLE_TOP_DP))
         .px(px(time_picker::CONTAINER_PAD_DP))
-        .rounded(px(a.corners.top_left))
-        .bg(paint(a.container))
+        .rounded(px(time_picker::VIBRANT_DIALOG_CORNER_DP))
+        .bg(paint(time_picker::vibrant_dialog_container(theme)))
         .flex()
         .flex_col()
         .tab_index(0)
@@ -6051,7 +6051,7 @@ fn android_time_scroll(
                 .child(
                     div()
                         .text_size(px(a.title_style.size_sp))
-                        .text_color(paint(a.header))
+                        .text_color(paint(time_picker::vibrant_dialog_on_container(theme)))
                         .child(time_picker::title_for(mode)),
                 )
                 .child(
@@ -6070,7 +6070,7 @@ fn android_time_scroll(
                                 .justify_center()
                                 .text_size(px(16.))
                                 .font_weight(FontWeight::BOLD)
-                                .text_color(paint(input.toggle))
+                                .text_color(paint(time_picker::vibrant_dialog_toggle(theme)))
                                 .child(this.time_format.toggle_text())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.toggle_time_format();
@@ -6087,7 +6087,7 @@ fn android_time_scroll(
                                 .items_center()
                                 .justify_center()
                                 .text_size(px(time_picker::TOGGLE_ICON_DP))
-                                .text_color(paint(input.toggle))
+                                .text_color(paint(time_picker::vibrant_dialog_toggle(theme)))
                                 .child(mode.toggle_icon())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.toggle_time_display();

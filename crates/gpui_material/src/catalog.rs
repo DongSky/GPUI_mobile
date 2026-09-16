@@ -8364,8 +8364,8 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer fields inside <code>TimePickerDialogDefaults.vibrantContainerColor</code> (<code>surfaceContainer</code>) / <code>vibrantShape</code> CornerExtraLarge. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-vibrant-dialog="1" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div class="time-dialog-title" data-time-dialog-title="{mode}" style="color:{hy};font-size:{ys}px">{title}</div>
     <div class="time-display-actions">
@@ -8417,10 +8417,10 @@ fn time_picker_section(theme: &Theme) -> String {
         fmt = format.label(),
         flabel = format.toggle_label(),
         ftext = format.toggle_text(),
-        bg = scroll.container.css_hex(),
-        r = scroll.corners.top_left,
+        bg = time_picker::vibrant_dialog_container(theme).css_hex(),
+        r = time_picker::VIBRANT_DIALOG_CORNER_DP,
         sh = ElevationLevels::css_shadow(scroll.elevation_dp),
-        hy = scroll.header.css_hex(),
+        hy = time_picker::vibrant_dialog_on_container(theme).css_hex(),
         ys = scroll.title_style.size_sp,
         title = time_picker::title_for(mode),
         input_title = time_picker::INPUT_TITLE,
@@ -8439,7 +8439,7 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = time_picker::DayPeriod::Pm.label(),
         mode = mode.label(),
         tlabel = mode.toggle_label(),
-        tg = input.toggle.css_hex(),
+        tg = time_picker::vibrant_dialog_toggle(theme).css_hex(),
         ticon = mode.toggle_icon(),
         ihh = input_state.hour.display(),
         imm = input_state.minute.display(),

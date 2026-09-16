@@ -1109,6 +1109,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-land-content="1""#));
     assert!(html.contains(time_picker::DIALOG_OK));
     assert!(html.contains(time_picker::DIALOG_CANCEL));
+    assert!(html.contains(r#"data-time-vibrant-dialog="1""#));
     assert!(html.contains(r#"data-time-format="24""#));
     assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
@@ -1380,6 +1381,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("TimePickerDialogDefaults.Title")
             && e.notes.contains("labelMedium")
             && e.notes.contains("TimePickerCustomLayout")
+            && e.notes.contains("vibrantContainerColor")
+            && e.notes.contains("surfaceContainer")
             && e.notes.contains("Cancel/OK")
             && e.notes.contains("ClockFaceSizeModifier")
             && e.notes.contains("238")
@@ -3953,6 +3956,20 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(time_picker::DIALOG_ACTIONS_GAP_DP, 8.0);
     assert_eq!(time_picker::DIALOG_OK, "OK");
     assert_eq!(time_picker::DIALOG_CANCEL, "Cancel");
+    assert!(time_picker::VIBRANT_DIALOG);
+    assert_eq!(time_picker::VIBRANT_DIALOG_CORNER_DP, 28.0);
+    assert_eq!(
+        time_picker::vibrant_dialog_container(&theme),
+        theme.color.surface_container
+    );
+    assert_eq!(
+        time_picker::vibrant_dialog_on_container(&theme),
+        theme.color.on_surface
+    );
+    assert_eq!(
+        time_picker::vibrant_dialog_toggle(&theme),
+        theme.color.on_surface_variant
+    );
     assert_eq!(
         time_picker::actions_bottom_dp(time_picker::TimePickerLayoutType::Vertical),
         24.0

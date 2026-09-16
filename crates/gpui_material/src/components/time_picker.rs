@@ -188,6 +188,25 @@ pub const DIALOG_ACTIONS_GAP_DP: f32 = 8.0;
 pub const DIALOG_ACTIONS: bool = true;
 pub const DIALOG_OK: &str = "OK";
 pub const DIALOG_CANCEL: &str = "Cancel";
+/// Compose `TimePickerDialogDefaults.vibrantContainerColor` (`surfaceContainer`).
+pub const VIBRANT_DIALOG: bool = true;
+/// Compose `TimePickerDialogDefaults.vibrantShape` (`CornerExtraLarge`).
+pub const VIBRANT_DIALOG_CORNER_DP: f32 = CORNER_DP;
+
+/// Dialog shell for the Expressive TimeScroll / TimeInput hero.
+pub fn vibrant_dialog_container(theme: &Theme) -> Argb {
+    theme.color.surface_container
+}
+
+/// Title / on-container for `VibrantTimePickerDialog`.
+pub fn vibrant_dialog_on_container(theme: &Theme) -> Argb {
+    theme.color.on_surface
+}
+
+/// ScrollDisplayModeToggle / format toggle on the vibrant dialog.
+pub fn vibrant_dialog_toggle(theme: &Theme) -> Argb {
+    theme.color.on_surface_variant
+}
 
 /// CSS `padding-bottom` for `TimePickerDialogDefaults.Title`.
 pub fn title_pad_bottom_css() -> String {
