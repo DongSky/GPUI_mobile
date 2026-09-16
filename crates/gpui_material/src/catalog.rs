@@ -420,10 +420,14 @@ a {{ color: var(--primary); }}
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }}
 .time-expressive {{
-  display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
+  display: flex; flex-direction: column; gap: 0; padding: 24px; max-width: 360px;
 }}
 .time-expressive .time-display-head {{
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-bottom: 20px;
+}}
+.time-expressive .time-dialog-title {{
+  font-weight: 500;
 }}
 .time-expressive .time-display-actions {{
   display: flex; align-items: center; gap: 4px;
@@ -2104,6 +2108,13 @@ document.querySelectorAll("[data-scroll-display-mode-toggle]").forEach(function 
     btn.setAttribute("data-display-mode", mode);
     btn.textContent = mode === "scroll" ? "⌨" : "◷";
     btn.setAttribute("title", mode === "scroll" ? "Switch to input mode" : "Switch to scroll mode");
+    var titleEl = host.querySelector("[data-time-dialog-title]");
+    if (titleEl) {{
+      titleEl.setAttribute("data-time-dialog-title", mode);
+      titleEl.textContent = mode === "input"
+        ? (host.getAttribute("data-time-input-title") || "Enter time")
+        : (host.getAttribute("data-time-scroll-title") || "Select time");
+    }}
     var scroll = host.querySelector("[data-time-scroll]");
     var input = host.querySelector("[data-time-input]");
     if (scroll) scroll.style.display = mode === "scroll" ? "" : "none";
@@ -8234,10 +8245,10 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
-<div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
-    <div style="color:{hy};font-size:{ys}px">{title}</div>
+    <div class="time-dialog-title" data-time-dialog-title="{mode}" style="color:{hy};font-size:{ys}px">{title}</div>
     <div class="time-display-actions">
       <button class="time-format-toggle" data-time-format-toggle="1" data-time-format="{fmt}" title="{flabel}" style="color:{tg}">{ftext}</button>
       <button class="time-display-toggle" data-scroll-display-mode-toggle="1" data-display-mode="{mode}" title="{tlabel}" style="color:{tg}">{ticon}</button>
@@ -8288,7 +8299,9 @@ fn time_picker_section(theme: &Theme) -> String {
         sh = ElevationLevels::css_shadow(scroll.elevation_dp),
         hy = scroll.header.css_hex(),
         ys = scroll.title_style.size_sp,
-        title = time_picker::TITLE,
+        title = time_picker::title_for(mode),
+        input_title = time_picker::INPUT_TITLE,
+        scroll_title = time_picker::SCROLL_TITLE,
         hour_field = hour_field,
         minute_field = minute_field,
         colon = scroll.colon.css_hex(),
@@ -8475,7 +8488,7 @@ fn time_picker_section(theme: &Theme) -> String {
     out.push_str(&format!(
         r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
 <div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
-  <div style="color:{hy};font-size:{ys}px">{title}</div>
+  <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
   <div class="time-row" data-period-toggle-margin="1">
     {selectors}
   </div>
@@ -8485,7 +8498,7 @@ fn time_picker_section(theme: &Theme) -> String {
 <p class="note">Compose <code>TimePickerLayoutType.Horizontal</code>: time selectors + 216×38 period sit beside the 256dp ClockFace (24dp gap). Used on medium+ / landscape so the dial is not cropped.</p>
 <div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-col">
-    <div style="color:{hy};font-size:{ys}px">{title}</div>
+    <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
     {selectors}
   </div>
   {clock}
@@ -8500,6 +8513,7 @@ fn time_picker_section(theme: &Theme) -> String {
         sh = ElevationLevels::css_shadow(a.elevation_dp),
         hy = a.header.css_hex(),
         ys = a.title_style.size_sp,
+        tpb = time_picker::TITLE_PAD_BOTTOM_DP,
         title = time_picker::TITLE,
         selectors = selectors,
         clock = clock_html,

@@ -1086,6 +1086,10 @@ fn catalog_html_embeds_token_evidence() {
     )));
     assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
     assert!(html.contains(r#"data-time-display="input""#));
+    assert!(html.contains(r#"data-time-dialog-title="input""#));
+    assert!(html.contains(r#"data-time-dialog-title="picker""#));
+    assert!(html.contains(time_picker::INPUT_TITLE));
+    assert!(html.contains("padding-bottom: 20px"));
     assert!(html.contains(r#"data-time-format="24""#));
     assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
@@ -1354,6 +1358,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DisplaySeparatorWidth")
             && e.notes.contains("PeriodToggleMargin")
             && e.notes.contains("SupportLabelTop")
+            && e.notes.contains("TimePickerDialogDefaults.Title")
+            && e.notes.contains("labelMedium")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3863,6 +3869,30 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(input_a.support_label, theme.color.on_surface_variant);
     assert_eq!(input_a.support_label_style.name, "bodySmall");
+    assert!(time_picker::DIALOG_TITLE);
+    assert_eq!(time_picker::TITLE_PAD_BOTTOM_DP, 20.0);
+    assert_eq!(time_picker::title_pad_bottom_css(), "20px");
+    assert_eq!(time_picker::TITLE, "Select time");
+    assert_eq!(time_picker::SCROLL_TITLE, "Select time");
+    assert_eq!(time_picker::INPUT_TITLE, "Enter time");
+    assert_eq!(
+        time_picker::title_for(time_picker::TimePickerDisplayMode::Input),
+        time_picker::INPUT_TITLE
+    );
+    assert_eq!(
+        time_picker::title_for(time_picker::TimePickerDisplayMode::Scroll),
+        time_picker::SCROLL_TITLE
+    );
+    assert_eq!(
+        time_picker::TimePickerStyle::Dial.title(),
+        time_picker::TITLE
+    );
+    assert_eq!(input_a.title_style.name, "labelMedium");
+    assert_eq!(
+        time_picker::resolve_scroll(&theme).title_style.name,
+        "labelMedium"
+    );
+    assert_eq!(time_picker::resolve(&theme).title_style.name, "labelMedium");
     let mut typed = time_picker::TimeInputState::demo();
     assert_eq!(
         typed.hour_value(),

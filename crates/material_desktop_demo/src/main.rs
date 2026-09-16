@@ -7118,7 +7118,6 @@ fn time_scroll_hero(
         .shadow_md()
         .flex()
         .flex_col()
-        .gap(px(16.))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.time_display == time_picker::TimePickerDisplayMode::Input {
@@ -7135,8 +7134,9 @@ fn time_scroll_hero(
                 .flex()
                 .items_center()
                 .justify_between()
+                .pb(px(time_picker::TITLE_PAD_BOTTOM_DP))
                 .child(spaced_line(
-                    time_picker::TITLE,
+                    time_picker::title_for(mode),
                     a.title_style.size_sp,
                     paint(a.header),
                 ))
@@ -7519,14 +7519,17 @@ fn time_picker_hero(
             div()
                 .flex()
                 .flex_col()
-                .child(spaced_line(
-                    time_picker::TITLE,
-                    a.title_style.size_sp,
-                    paint(a.header),
-                ))
                 .child(
                     div()
-                        .mt(px(16.))
+                        .pb(px(time_picker::TITLE_PAD_BOTTOM_DP))
+                        .child(spaced_line(
+                            time_picker::TITLE,
+                            a.title_style.size_sp,
+                            paint(a.header),
+                        )),
+                )
+                .child(
+                    div()
                         .flex()
                         .items_center()
                         .child(
@@ -10052,6 +10055,17 @@ mod tests {
         assert_eq!(time_picker::ScrollKind::Hour.support_label(), "Hour");
         assert_eq!(time_picker::ScrollKind::Minute.support_label(), "Minute");
         assert_eq!(input.support_label_style.name, "bodySmall");
+        assert!(time_picker::DIALOG_TITLE);
+        assert_eq!(time_picker::TITLE_PAD_BOTTOM_DP, 20.0);
+        assert_eq!(
+            time_picker::title_for(time_picker::TimePickerDisplayMode::Input),
+            "Enter time"
+        );
+        assert_eq!(
+            time_picker::title_for(time_picker::TimePickerDisplayMode::Scroll),
+            "Select time"
+        );
+        assert_eq!(input.title_style.name, "labelMedium");
         assert_eq!(
             time_picker::DEMO_DISPLAY_MODE.toggle(),
             time_picker::TimePickerDisplayMode::Scroll

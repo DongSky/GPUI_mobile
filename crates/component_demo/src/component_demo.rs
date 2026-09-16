@@ -6029,7 +6029,6 @@ fn android_time_scroll(
         .bg(paint(a.container))
         .flex()
         .flex_col()
-        .gap(px(16.))
         .tab_index(0)
         .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
             if this.time_display == time_picker::TimePickerDisplayMode::Input {
@@ -6046,11 +6045,12 @@ fn android_time_scroll(
                 .flex()
                 .items_center()
                 .justify_between()
+                .pb(px(time_picker::TITLE_PAD_BOTTOM_DP))
                 .child(
                     div()
                         .text_size(px(a.title_style.size_sp))
                         .text_color(paint(a.header))
-                        .child(time_picker::TITLE),
+                        .child(time_picker::title_for(mode)),
                 )
                 .child(
                     div()

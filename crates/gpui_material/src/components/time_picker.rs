@@ -95,7 +95,22 @@ pub fn period_h_dp(layout: TimePickerLayoutType) -> f32 {
         TimePickerLayoutType::Horizontal => PERIOD_HORIZONTAL_H_DP,
     }
 }
+/// Compose `TimePickerDialogTitle` (Picker) — `TimePickerDialogDefaults.Title`.
 pub const TITLE: &str = "Select time";
+/// Compose `TimeScrollDialogTitle`.
+pub const SCROLL_TITLE: &str = "Select time";
+/// Compose `TimeInputDialogTitle`.
+pub const INPUT_TITLE: &str = "Enter time";
+/// Compose `TimePickerDialogDefaults.Title` `padding(bottom = 20.dp)`.
+pub const TITLE_PAD_BOTTOM_DP: f32 = 20.0;
+/// Catalog / hosts apply official dialog title + 20dp bottom + labelMedium.
+pub const DIALOG_TITLE: bool = true;
+
+/// CSS `padding-bottom` for `TimePickerDialogDefaults.Title`.
+pub fn title_pad_bottom_css() -> String {
+    format!("{:.0}px", TITLE_PAD_BOTTOM_DP)
+}
+
 pub const DEMO_HOUR: u8 = 6;
 /// 6:30 PM in 24-hour (`is24Hour`) — catalog / host TimeInput hero.
 pub const DEMO_HOUR_24: u8 = 18;
@@ -272,7 +287,7 @@ pub fn resolve(theme: &Theme) -> TimePickerAppearance {
         elevation_dp: theme.elevation.level3,
         clock_dp: CLOCK_DP,
         number_dp: NUMBER_DP,
-        title_style: theme.typography.label_large,
+        title_style: theme.typography.label_medium,
         time_style: theme.typography.display_small.emphasized(),
         number_style: theme.typography.body_large,
         period_style: theme.typography.title_medium.emphasized(),
@@ -546,6 +561,15 @@ impl TimePickerStyle {
             Self::Input => "input",
         }
     }
+
+    /// Compose `TimePickerDialogDefaults.Title` string for this style.
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Dial => TITLE,
+            Self::Scroll => SCROLL_TITLE,
+            Self::Input => INPUT_TITLE,
+        }
+    }
 }
 
 /// Compose `TimePickerDisplayMode` for `ScrollDisplayModeToggle` (Scroll ↔ Input).
@@ -593,6 +617,19 @@ impl TimePickerDisplayMode {
             Self::Input => "Switch to scroll mode",
         }
     }
+
+    /// Compose `TimePickerDialogDefaults.Title` for Scroll ↔ Input.
+    pub const fn title(self) -> &'static str {
+        match self {
+            Self::Scroll => SCROLL_TITLE,
+            Self::Input => INPUT_TITLE,
+        }
+    }
+}
+
+/// Compose `TimePickerDialogDefaults.Title(displayMode)`.
+pub fn title_for(mode: TimePickerDisplayMode) -> &'static str {
+    mode.title()
 }
 
 /// Catalog / host hero starts on 24-hour TimeInput; toggle still paints TimeScroll.
@@ -1231,7 +1268,7 @@ pub fn resolve_scroll(theme: &Theme) -> TimeScrollAppearance {
         field_w_dp: SCROLL_FIELD_W_DP,
         field_h_dp: SCROLL_FIELD_H_DP,
         item_h_dp: SCROLL_ITEM_H_DP,
-        title_style: theme.typography.label_large,
+        title_style: theme.typography.label_medium,
         selected_style: theme.typography.display_large.emphasized(),
         unselected_style: theme.typography.display_medium,
         colon_style: theme.typography.display_large,
@@ -1293,7 +1330,7 @@ pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
         field_h_dp: INPUT_FIELD_H_DP,
         period_w_dp: INPUT_PERIOD_W_DP,
         period_h_dp: INPUT_PERIOD_H_DP,
-        title_style: theme.typography.label_large,
+        title_style: theme.typography.label_medium,
         field_style: theme.typography.display_large.emphasized(),
         colon_style: theme.typography.display_large,
         period_style: theme.typography.title_medium.emphasized(),
