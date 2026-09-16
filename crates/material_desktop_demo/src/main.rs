@@ -648,6 +648,17 @@ impl CatalogView {
         self.date_pane = date_picker::DatePickerPane::Calendar;
     }
 
+    fn shift_date_month(&mut self, delta: i32) {
+        if self.date_display != date_picker::DatePickerDisplayMode::Picker
+            || self.date_pane != date_picker::DatePickerPane::Calendar
+        {
+            return;
+        }
+        let (y, m) = date_picker::apply_date_month(self.picker_year, self.picker_month, delta);
+        self.picker_year = y;
+        self.picker_month = m;
+    }
+
     fn select_range_year(&mut self, year: i32) {
         let (y, m) = date_picker::apply_range_year(self.range_year, self.range_month, year);
         self.range_year = y;
@@ -3872,16 +3883,10 @@ fn date_picker_card(
                     .flex()
                     .items_center()
                     .justify_between()
-                    .when(calendar_pane, |nav| {
+                    .when(calendar_pane && date_picker::DATE_MONTH_NAV, |nav| {
                         nav.child(div().id("month-prev").p(px(8.)).child("<").on_click(
                             cx.listener(|this, _, _, cx| {
-                                let (y, m) = date_picker::add_months(
-                                    this.picker_year,
-                                    this.picker_month,
-                                    -1,
-                                );
-                                this.picker_year = y;
-                                this.picker_month = m;
+                                this.shift_date_month(-1);
                                 cx.notify();
                             }),
                         ))
@@ -3899,13 +3904,10 @@ fn date_picker_card(
                                 cx.notify();
                             })),
                     )
-                    .when(calendar_pane, |nav| {
+                    .when(calendar_pane && date_picker::DATE_MONTH_NAV, |nav| {
                         nav.child(div().id("month-next").p(px(8.)).child(">").on_click(
                             cx.listener(|this, _, _, cx| {
-                                let (y, m) =
-                                    date_picker::add_months(this.picker_year, this.picker_month, 1);
-                                this.picker_year = y;
-                                this.picker_month = m;
+                                this.shift_date_month(1);
                                 cx.notify();
                             }),
                         ))
@@ -8344,6 +8346,12 @@ mod tests {
         );
         assert!(date_picker::DATE_ACTIONS);
         assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
+        assert!(date_picker::DATE_MONTH_NAV);
+        assert_eq!(date_picker::apply_date_month(2026, 9, 1), (2026, 10));
+        assert_eq!(
+            date_picker::apply_date_month(date_picker::YEAR_RANGE_START, 1, -1),
+            (date_picker::YEAR_RANGE_START, 1)
+        );
         assert_eq!(
             date_picker::apply_date_confirm(date_picker::RANGE_DEMO_START),
             date_picker::RANGE_DEMO_START

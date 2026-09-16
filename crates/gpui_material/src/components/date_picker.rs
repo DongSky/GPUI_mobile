@@ -233,6 +233,10 @@ pub const RANGE_CONNECTOR: bool = true;
 /// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
 pub const DATE_ACTIONS: bool = true;
 pub const DATE_DIVIDER_H_DP: f32 = 1.0;
+/// Compose `DatePicker` month pager (prev / next) on the single-date modal.
+pub const DATE_MONTH_NAV: bool = true;
+pub const DATE_PREV_MONTH: &str = "Previous month";
+pub const DATE_NEXT_MONTH: &str = "Next month";
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,
@@ -452,6 +456,11 @@ pub fn apply_date_dismiss(committed: CivilDate) -> CivilDate {
 /// Month pager follows the committed / draft civil date.
 pub fn date_month_of(date: CivilDate) -> (i32, u32) {
     (date.year, date.month)
+}
+
+/// Page the single-date modal calendar; clamp to Compose `YearRange` 1900–2100.
+pub fn apply_date_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
+    apply_range_month(year, month, delta)
 }
 
 pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {
