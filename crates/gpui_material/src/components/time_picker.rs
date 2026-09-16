@@ -16,7 +16,8 @@
 //! `ScrollDisplayModeToggle` switch Scroll ↔ Input + official
 //! `TimePickerDialogDefaults.DisplayModeToggle` a11y strings +
 //! TimeSelector `Select hour` / `Select minutes` and TimeInput
-//! `for hour` / `for minutes`. 24-hour
+//! `for hour` / `for minutes` + ClockFace number suffixes
+//! (`6 o'clock` / `30 minutes` / `18 hours`). 24-hour
 //! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
@@ -82,6 +83,14 @@ pub const INPUT_HOUR_FIELD: &str = "for hour";
 pub const INPUT_MINUTE_FIELD: &str = "for minutes";
 /// Catalog / hosts apply official hour/minute selection a11y.
 pub const HOUR_MINUTE_A11Y: bool = true;
+/// Compose `TimePickerHourSuffix` (`%1$ o'clock`).
+pub const HOUR_SUFFIX: &str = "o'clock";
+/// Compose `TimePickerMinuteSuffix` (`%1$ minutes`).
+pub const MINUTE_SUFFIX: &str = "minutes";
+/// Compose `TimePicker24HourSuffix` (`%1$ hours`).
+pub const HOUR_24_SUFFIX: &str = "hours";
+/// Catalog / hosts apply official ClockFace number a11y suffixes.
+pub const CLOCK_NUMBER_A11Y: bool = true;
 
 /// CSS `border-width` for the PeriodSelector shell.
 pub fn period_outline_w_css() -> String {
@@ -891,6 +900,30 @@ impl TimeFormat {
 
 /// Catalog / host Expressive hero uses 24-hour TimeInput + 24-hour dial (no AM/PM).
 pub const DEMO_FORMAT: TimeFormat = TimeFormat::Hour24;
+
+/// Official 12-hour ClockFace number contentDescription (`6 o'clock`).
+pub fn hour_suffix_label(hour: u8) -> String {
+    format!("{} {HOUR_SUFFIX}", hour.clamp(1, 12))
+}
+
+/// Official ClockFace minute contentDescription (`30 minutes`).
+pub fn minute_suffix_label(minute: u8) -> String {
+    format!("{} {MINUTE_SUFFIX}", minute.min(59))
+}
+
+/// Official 24-hour ClockFace number contentDescription (`18 hours`).
+pub fn hour_24_suffix_label(hour: u8) -> String {
+    format!("{} {HOUR_24_SUFFIX}", hour.min(23))
+}
+
+/// Official ClockFace number contentDescription for the active face + format.
+pub fn clock_number_label(face: DialFace, value: u8, format: TimeFormat) -> String {
+    match face {
+        DialFace::Hour if format.is_24_hour() => hour_24_suffix_label(value),
+        DialFace::Hour => hour_suffix_label(value),
+        DialFace::Minute => minute_suffix_label(value),
+    }
+}
 
 pub fn time_selector_w_dp(format: TimeFormat) -> f32 {
     if format.is_24_hour() {

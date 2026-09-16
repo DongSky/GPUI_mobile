@@ -1,10 +1,10 @@
 //! HTML catalog generated from the same resolve() functions the GPUI demo uses.
 
 use crate::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, date_picker, dialog,
-    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
-    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
-    time_picker, toolbar, tooltip, top_app_bar, Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip,
+    date_picker, dialog, divider, fab, fab_menu, icon_button, list, menu, navigation_bar,
+    navigation_rail, photo_stub, progress, radio, search, side_sheet, slider, snackbar,
+    split_button, switch, tabs, text_field, time_picker, toolbar, tooltip, top_app_bar,
 };
 use crate::elevation::ElevationLevels;
 use crate::inventory::{self, Parity};
@@ -8302,7 +8302,7 @@ fn time_clock_html(
                 )
             };
             hours.push_str(&format!(
-                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" data-clock-number-a11y="1" title="{a11y}" aria-label="{a11y}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
                 h = cell.hour,
                 ring = cell.ring.label(),
                 fmt = fmt.label(),
@@ -8315,6 +8315,7 @@ fn time_clock_html(
                 fg = fg,
                 fw = fw,
                 label = cell.label,
+                a11y = time_picker::clock_number_label(time_picker::DialFace::Hour, cell.hour, fmt),
             ));
         }
     }
@@ -8336,7 +8337,7 @@ fn time_clock_html(
             )
         };
         minutes.push_str(&format!(
-            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" data-clock-number-a11y="1" title="{a11y}" aria-label="{a11y}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
             m = m,
             sel = selected as u8,
             x = x,
@@ -8346,6 +8347,7 @@ fn time_clock_html(
             fg = fg,
             fw = fw,
             label = format!("{:02}", m),
+            a11y = time_picker::minute_suffix_label(m),
         ));
     }
     let hand_d = time_picker::hand_svg_d_at_angle(clock_dp, 0.0, number_dp);
@@ -8361,7 +8363,7 @@ fn time_clock_html(
         1.0
     };
     format!(
-        r#"<div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
+        r#"<div class="clock" data-clock-number-a11y="1" style="width:{clock}px;height:{clock}px;background:{clk}">
     <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg) scale({hscale});--hand-base:{hdeg}deg;--hand-scale:{hscale}">
       <path d="{handd}" fill="{hand}"/>
     </svg>
@@ -8438,7 +8440,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, <code>ScrollFieldDefaults.shape</code> / <code>TimePickerDefaults.shapes().timeFieldShape</code> CornerLarge 16) + <code>vibrantColors()</code> primaryContainer fields inside <code>TimePickerDialogDefaults.vibrantContainerColor</code> (<code>surfaceContainer</code>) / <code>vibrantShape</code> CornerExtraLarge. <code>TimeInput</code> 96×72 + same CornerLarge + vibrant field outline (<code>SurfaceContainerLowest</code>, focused text/border <code>Primary</code> 2dp, unfocused <code>Transparent</code> 1dp) + <code>ScrollDisplayModeToggle</code> (⌨/⇅ SwipeVertical) + <code>TimePickerDialogDefaults.DisplayModeToggle</code> a11y (<code>Switch to text input mode</code> / <code>Switch to scroll mode</code> / <code>Switch to clock mode</code>) + official PeriodToggle a11y (<code>Select AM or PM</code>) + TimeSelector a11y (<code>Select hour</code> / <code>Select minutes</code>) + TimeInput field a11y (<code>for hour</code> / <code>for minutes</code>) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, <code>ScrollFieldDefaults.shape</code> / <code>TimePickerDefaults.shapes().timeFieldShape</code> CornerLarge 16) + <code>vibrantColors()</code> primaryContainer fields inside <code>TimePickerDialogDefaults.vibrantContainerColor</code> (<code>surfaceContainer</code>) / <code>vibrantShape</code> CornerExtraLarge. <code>TimeInput</code> 96×72 + same CornerLarge + vibrant field outline (<code>SurfaceContainerLowest</code>, focused text/border <code>Primary</code> 2dp, unfocused <code>Transparent</code> 1dp) + <code>ScrollDisplayModeToggle</code> (⌨/⇅ SwipeVertical) + <code>TimePickerDialogDefaults.DisplayModeToggle</code> a11y (<code>Switch to text input mode</code> / <code>Switch to scroll mode</code> / <code>Switch to clock mode</code>) + official PeriodToggle a11y (<code>Select AM or PM</code>) + TimeSelector a11y (<code>Select hour</code> / <code>Select minutes</code>) + TimeInput field a11y (<code>for hour</code> / <code>for minutes</code>) + ClockFace number a11y (<code>6 o'clock</code> / <code>30 minutes</code> / <code>18 hours</code>) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
 <div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-vibrant-dialog="1" data-time-picker-shapes="1" data-time-field-shape="large" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" data-display-mode-toggle="1" data-swipe-vertical="1" data-toggle-keyboard="{t_keyboard}" data-toggle-scroll="{t_scroll}" data-toggle-touch="{t_touch}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div class="time-dialog-title" data-time-dialog-title="{mode}" style="color:{hy};font-size:{ys}px">{title}</div>
@@ -8574,7 +8576,7 @@ fn time_picker_section(theme: &Theme) -> String {
                 )
             };
             hours.push_str(&format!(
-                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" data-clock-number-a11y="1" title="{a11y}" aria-label="{a11y}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
                 h = cell.hour,
                 ring = cell.ring.label(),
                 fmt = fmt.label(),
@@ -8587,6 +8589,7 @@ fn time_picker_section(theme: &Theme) -> String {
                 fg = fg,
                 fw = fw,
                 label = cell.label,
+                a11y = time_picker::clock_number_label(time_picker::DialFace::Hour, cell.hour, fmt),
             ));
         }
     }
@@ -8608,7 +8611,7 @@ fn time_picker_section(theme: &Theme) -> String {
             )
         };
         minutes.push_str(&format!(
-            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" data-clock-number-a11y="1" title="{a11y}" aria-label="{a11y}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
             m = m,
             sel = selected as u8,
             x = x,
@@ -8618,6 +8621,7 @@ fn time_picker_section(theme: &Theme) -> String {
             fg = fg,
             fw = fw,
             label = format!("{:02}", m),
+            a11y = time_picker::minute_suffix_label(m),
         ));
     }
     let am = time_picker::DayPeriod::Am;
@@ -8652,7 +8656,7 @@ fn time_picker_section(theme: &Theme) -> String {
     };
     let hour_active = time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
     let clock_html = format!(
-        r#"<div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
+        r#"<div class="clock" data-clock-number-a11y="1" style="width:{clock}px;height:{clock}px;background:{clk}">
     <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg) scale({hscale});--hand-base:{hdeg}deg;--hand-scale:{hscale}">
       <path d="{handd}" fill="{hand}"/>
     </svg>
@@ -8737,7 +8741,7 @@ fn time_picker_section(theme: &Theme) -> String {
         minute_sel = time_picker::MINUTE_SELECTION,
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). TimeSelector selected is <code>PrimaryContainer</code> / <code>OnPrimaryContainer</code>; idle is <code>SurfaceContainerHighest</code> / <code>OnSurface</code>. PeriodSelector is a 1dp <code>Outline</code> CornerSmall 8 shell (52×80 vertical / 216×38 horizontal) with official <code>Select AM or PM</code> PeriodToggle a11y. TimeSelector uses official <code>Select hour</code> / <code>Select minutes</code>. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace. <code>ClockFaceSizeModifier</code> picks 256 / 238 / 200 from available height.</p>
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). TimeSelector selected is <code>PrimaryContainer</code> / <code>OnPrimaryContainer</code>; idle is <code>SurfaceContainerHighest</code> / <code>OnSurface</code>. PeriodSelector is a 1dp <code>Outline</code> CornerSmall 8 shell (52×80 vertical / 216×38 horizontal) with official <code>Select AM or PM</code> PeriodToggle a11y. TimeSelector uses official <code>Select hour</code> / <code>Select minutes</code>. ClockFace numbers use official <code>TimePickerHourSuffix</code> / <code>TimePickerMinuteSuffix</code> / <code>TimePicker24HourSuffix</code> (<code>6 o'clock</code> / <code>30 minutes</code> / <code>18 hours</code>). <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace. <code>ClockFaceSizeModifier</code> picks 256 / 238 / 200 from available height.</p>
 <div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-clock-dial-sizes="1" data-clock-dial-size="max" data-time-dialog-layout="portrait" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
   <div class="time-row" data-period-toggle-margin="1">

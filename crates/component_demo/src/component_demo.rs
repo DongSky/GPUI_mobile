@@ -5,20 +5,20 @@
 use android_activity::AndroidApp;
 use gpui::prelude::*;
 use gpui::{
-    black, canvas, div, point, px, Animation, AnimationExt, App, Application, Context, FillOptions,
-    FillRule, FocusHandle, FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
-    MouseMoveEvent, ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent,
-    SharedString, Stateful, StrokeOptions, Styled, TextRun, Window,
+    Animation, AnimationExt, App, Application, Context, FillOptions, FillRule, FocusHandle,
+    FontWeight, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement, PathBuilder, PathStyle, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    Stateful, StrokeOptions, Styled, TextRun, Window, black, canvas, div, point, px,
 };
 use gpui_android::AndroidPlatform;
 use gpui_material::components::date_picker::{self, CivilDate, DayKind};
 use gpui_material::components::text_field::TextFieldEditor;
 use gpui_material::components::time_picker::{self, DayPeriod, DialFace};
 use gpui_material::components::{
-    badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog, divider,
-    fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub, progress,
-    radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field, toolbar,
-    tooltip, top_app_bar, Appearance,
+    Appearance, badge, bottom_sheet, button, button_group, card, carousel, checkbox, chip, dialog,
+    divider, fab, fab_menu, icon_button, list, menu, navigation_bar, navigation_rail, photo_stub,
+    progress, radio, search, side_sheet, slider, snackbar, split_button, switch, tabs, text_field,
+    toolbar, tooltip, top_app_bar,
 };
 use gpui_material::theme::Theme;
 use gpui_material::typography;
@@ -396,6 +396,7 @@ struct CatalogView {
     time_toggle_tooltip_open: bool,
     period_toggle_tooltip_open: bool,
     hour_minute_tooltip: Option<&'static str>,
+    clock_number_tooltip: Option<String>,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
     date_month_nav_tooltip: Option<&'static str>,
@@ -6586,7 +6587,7 @@ fn android_time_picker(
     let clock = time_picker::demo_host_clock_dp();
     let number = time_picker::NUMBER_DP;
     let hour_on = this.time_dial == DialFace::Hour;
-    let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
+    let labels: Vec<(u8, String, f32, f32, bool, String)> = match this.time_dial {
         DialFace::Hour => time_picker::hour_cells(this.time_format, clock, number)
             .into_iter()
             .map(|cell| {
@@ -6596,13 +6597,21 @@ fn android_time_picker(
                     cell.x,
                     cell.y,
                     cell.hour == this.time_dial_hour(),
+                    time_picker::clock_number_label(DialFace::Hour, cell.hour, this.time_format),
                 )
             })
             .collect(),
         DialFace::Minute => time_picker::minute_labels()
             .map(|m| {
                 let (x, y) = time_picker::minute_offset(m, clock, number);
-                (m, format!("{m:02}"), x, y, m == this.time_minute)
+                (
+                    m,
+                    format!("{m:02}"),
+                    x,
+                    y,
+                    m == this.time_minute,
+                    time_picker::minute_suffix_label(m),
+                )
             })
             .collect(),
     };
@@ -6908,53 +6917,72 @@ fn android_time_picker(
                             },
                         )
                 })
-                .children(labels.into_iter().map(|(value, label, x, y, selected)| {
-                    let face = this.time_dial;
-                    div()
-                        .id(SharedString::from(format!("dial-{value}")))
-                        .absolute()
-                        .left(px(x))
-                        .top(px(y))
-                        .w(px(number))
-                        .h(px(number))
-                        .rounded(px(number / 2.0))
-                        .bg(paint(if selected {
-                            a.number_selected_container
-                        } else {
-                            a.clock
-                        }))
-                        .text_color(paint(if selected {
-                            a.number_selected
-                        } else {
-                            a.number
-                        }))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.bump_time_hand();
-                            match face {
-                                DialFace::Hour => {
-                                    this.time_hour = time_picker::hour_from_dial(
-                                        time_picker::select_hour_for(
-                                            this.time_dial_hour(),
-                                            value,
-                                            this.time_format,
-                                        ),
-                                        this.time_period,
-                                        this.time_format,
-                                    );
-                                    this.time_dial = DialFace::Minute;
-                                }
-                                DialFace::Minute => {
-                                    this.time_minute =
-                                        time_picker::select_minute(this.time_minute, value);
-                                }
-                            }
-                            cx.notify();
-                        }))
-                })),
+                .children(
+                    labels
+                        .into_iter()
+                        .map(|(value, label, x, y, selected, a11y)| {
+                            let face = this.time_dial;
+                            let hovered =
+                                this.clock_number_tooltip.as_deref() == Some(a11y.as_str());
+                            let hover_label = a11y.clone();
+                            div()
+                                .id(SharedString::from(format!("dial-{value}")))
+                                .absolute()
+                                .left(px(x))
+                                .top(px(y))
+                                .w(px(number))
+                                .h(px(number))
+                                .rounded(px(number / 2.0))
+                                .bg(paint(if selected {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if selected {
+                                    a.number_selected
+                                } else {
+                                    a.number
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .when(hovered, |el| {
+                                    el.child(android_date_display_mode_toggle_tooltip(
+                                        theme,
+                                        a11y,
+                                        "clock-number-tooltip",
+                                    ))
+                                })
+                                .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                    this.clock_number_tooltip =
+                                        hovered.then(|| hover_label.clone());
+                                    cx.notify();
+                                }))
+                                .child(label)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.bump_time_hand();
+                                    match face {
+                                        DialFace::Hour => {
+                                            this.time_hour = time_picker::hour_from_dial(
+                                                time_picker::select_hour_for(
+                                                    this.time_dial_hour(),
+                                                    value,
+                                                    this.time_format,
+                                                ),
+                                                this.time_period,
+                                                this.time_format,
+                                            );
+                                            this.time_dial = DialFace::Minute;
+                                        }
+                                        DialFace::Minute => {
+                                            this.time_minute =
+                                                time_picker::select_minute(this.time_minute, value);
+                                        }
+                                    }
+                                    cx.notify();
+                                }))
+                        }),
+                ),
         )
         .child(android_time_dialog_actions(
             theme,
@@ -10131,6 +10159,7 @@ fn android_main(app: AndroidApp) {
                 time_toggle_tooltip_open: false,
                 period_toggle_tooltip_open: false,
                 hour_minute_tooltip: None,
+                clock_number_tooltip: None,
                 date_toggle_tooltip_open: false,
                 range_toggle_tooltip_open: false,
                 date_month_nav_tooltip: None,
