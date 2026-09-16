@@ -7354,6 +7354,11 @@ fn android_date_input_errors(
             date_picker::INPUT_ERROR_YEAR_SAMPLE,
             date_picker::DateInputError::YearRange,
         ))
+        .child(android_date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE,
+            date_picker::DateInputError::NotAllowed,
+        ))
 }
 
 fn android_range_month_block(

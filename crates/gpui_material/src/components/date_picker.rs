@@ -462,12 +462,24 @@ pub const INPUT_ERROR_FORMAT_SAMPLE: &str = "13/40/2026";
 pub const INPUT_ERROR_YEAR_RANGE: &str = "Date out of expected year range 1900 - 2100";
 /// Catalog year-range sample (parsed calendar day, outside YearRange).
 pub const INPUT_ERROR_YEAR_SAMPLE: &str = "09/15/1890";
+/// Compose `SelectableDates` (official DatePicker sample blocks Sat/Sun).
+pub const SELECTABLE_DATES: bool = true;
+/// `m3c_date_input_invalid_not_allowed` with `header_date_label` for the sample.
+pub const INPUT_ERROR_NOT_ALLOWED: &str = "Date not allowed: Sat, Sep 12";
+/// Catalog not-allowed sample (Saturday 2026-09-12).
+pub const INPUT_ERROR_NOT_ALLOWED_SAMPLE: &str = "09/12/2026";
+pub const INPUT_ERROR_NOT_ALLOWED_DATE: CivilDate = CivilDate {
+    year: 2026,
+    month: 9,
+    day: 12,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DateInputError {
     None,
     Format,
     YearRange,
+    NotAllowed,
     Order,
 }
 
@@ -477,6 +489,7 @@ impl DateInputError {
             Self::None => None,
             Self::Format => Some(INPUT_ERROR_FORMAT),
             Self::YearRange => Some(INPUT_ERROR_YEAR_RANGE),
+            Self::NotAllowed => Some(INPUT_ERROR_NOT_ALLOWED),
             Self::Order => Some(RANGE_INPUT_ERROR_ORDER),
         }
     }
@@ -684,6 +697,19 @@ fn year_out_of_expected_range(d: CivilDate) -> bool {
     d.year < YEAR_RANGE_START || d.year > YEAR_RANGE_END
 }
 
+/// Compose `SelectableDates.isSelectableDate` — weekends blocked in the demo.
+pub fn is_selectable_date(date: CivilDate) -> bool {
+    if !SELECTABLE_DATES {
+        return true;
+    }
+    let wd = weekday_sunday0(date.year, date.month, date.day);
+    wd != 0 && wd != 6
+}
+
+pub fn not_allowed_label(date: CivilDate) -> String {
+    format!("Date not allowed: {}", header_date_label(date))
+}
+
 /// Compose `DateInputValidator`: pattern, then year range, then end-before-start.
 pub fn range_input_error(start: &str, end: &str) -> DateInputError {
     let start_trim = start.trim();
@@ -711,13 +737,18 @@ pub fn range_input_error(start: &str, end: &str) -> DateInputError {
     {
         return DateInputError::YearRange;
     }
+    if start_date.is_some_and(|d| !is_selectable_date(d))
+        || end_date.is_some_and(|d| !is_selectable_date(d))
+    {
+        return DateInputError::NotAllowed;
+    }
     match (start_date, end_date) {
         (Some(s), Some(e)) if !range_input_ordered(s, e) => DateInputError::Order,
         _ => DateInputError::None,
     }
 }
 
-/// Compose `DateInputValidator` for a single field: pattern, then YearRange.
+/// Compose `DateInputValidator` for a single field: pattern, YearRange, SelectableDates.
 pub fn date_input_error(input: &str) -> DateInputError {
     let trim = input.trim();
     if trim.is_empty() {
@@ -726,6 +757,7 @@ pub fn date_input_error(input: &str) -> DateInputError {
     match parse_input_field(trim) {
         None => DateInputError::Format,
         Some(date) if year_out_of_expected_range(date) => DateInputError::YearRange,
+        Some(date) if !is_selectable_date(date) => DateInputError::NotAllowed,
         Some(_) => DateInputError::None,
     }
 }

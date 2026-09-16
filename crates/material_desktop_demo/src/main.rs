@@ -3939,6 +3939,11 @@ fn date_input_error_card(
             date_picker::INPUT_ERROR_YEAR_SAMPLE,
             date_picker::DateInputError::YearRange,
         ))
+        .child(date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE,
+            date_picker::DateInputError::NotAllowed,
+        ))
 }
 
 fn date_range_input_card(
@@ -8597,6 +8602,10 @@ mod tests {
         assert_eq!(
             date_picker::date_input_error(date_picker::INPUT_ERROR_YEAR_SAMPLE),
             date_picker::DateInputError::YearRange
+        );
+        assert_eq!(
+            date_picker::date_input_error(date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE),
+            date_picker::DateInputError::NotAllowed
         );
         assert_eq!(
             date_picker::range_input_error("13/40/2026", "09/21/2026"),

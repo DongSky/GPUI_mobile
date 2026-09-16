@@ -7029,7 +7029,7 @@ fn date_pickers(theme: &Theme) -> String {
   </div>
 </div>
 <h3>modal input errors</h3>
-<p class="note">Compose <code>DateInputValidator</code> on the single-date Input sibling: invalid pattern shows <code>Date format not recognized</code>; year outside 1900–2100 shows <code>Date out of expected year range 1900 - 2100</code>.</p>
+<p class="note">Compose <code>DateInputValidator</code> on the single-date Input sibling: invalid pattern shows <code>Date format not recognized</code>; year outside 1900–2100 shows <code>Date out of expected year range 1900 - 2100</code>; a date rejected by <code>SelectableDates</code> (weekends in this demo) shows <code>Date not allowed: Sat, Sep 12</code>.</p>
 <div class="cal dialog" data-datepicker-input-errors="1" data-hero="datepicker-input-errors" data-date-input-errors="1" data-date-display="input">
   <div class="dp-input-error-card" data-date-error="format">
     <div class="dp-input">{input_format_field}</div>
@@ -7038,6 +7038,10 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="dp-input-error-card" data-date-error="year">
     <div class="dp-input">{input_year_field}</div>
     <div class="dp-input-error" data-date-error-label="year" style="color:{errc}">{year_err}</div>
+  </div>
+  <div class="dp-input-error-card" data-date-error="allowed">
+    <div class="dp-input">{input_allowed_field}</div>
+    <div class="dp-input-error" data-date-error-label="allowed" style="color:{errc}">{allowed_err}</div>
   </div>
 </div>
 <h3>range input</h3>
@@ -7216,6 +7220,7 @@ fn date_pickers(theme: &Theme) -> String {
         errc = theme.color.error.css_hex(),
         format_err = date_picker::INPUT_ERROR_FORMAT,
         year_err = date_picker::INPUT_ERROR_YEAR_RANGE,
+        allowed_err = date_picker::INPUT_ERROR_NOT_ALLOWED,
         order_err = date_picker::RANGE_INPUT_ERROR_ORDER,
         input_format_field = paint_outlined_field(
             &text_field::resolve(
@@ -7243,6 +7248,20 @@ fn date_pickers(theme: &Theme) -> String {
             &format!(
                 r#"<div class="val">{}</div>"#,
                 date_picker::INPUT_ERROR_YEAR_SAMPLE
+            ),
+        ),
+        input_allowed_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-input-error="allowed" data-field-error="1""#,
+            date_picker::INPUT_FIELD_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE
             ),
         ),
         range_format_start = paint_outlined_field(

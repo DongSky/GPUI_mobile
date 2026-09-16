@@ -913,6 +913,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-hero="datepicker-input-errors""#));
     assert!(html.contains(r#"data-date-input-errors="1""#));
     assert!(html.contains(r#"data-date-error="year""#));
+    assert!(html.contains(r#"data-date-error="allowed""#));
+    assert!(html.contains("Date not allowed: Sat, Sep 12"));
+    assert!(html.contains(date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE));
     assert!(html.contains(r#"data-date-display="input""#));
     assert!(html.contains(r#"data-date-display="picker""#));
     assert!(html.contains(r#"data-date-display-live="1""#));
@@ -1287,6 +1290,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("year range")
+            && e.notes.contains("SelectableDates")
             && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
@@ -2507,6 +2511,25 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::date_input_error("09/15/2026"),
         date_picker::DateInputError::None
+    );
+    assert!(date_picker::SELECTABLE_DATES);
+    assert!(!date_picker::is_selectable_date(
+        date_picker::INPUT_ERROR_NOT_ALLOWED_DATE
+    ));
+    assert!(date_picker::is_selectable_date(
+        date_picker::RANGE_DEMO_START
+    ));
+    assert_eq!(
+        date_picker::header_date_label(date_picker::INPUT_ERROR_NOT_ALLOWED_DATE),
+        "Sat, Sep 12"
+    );
+    assert_eq!(
+        date_picker::date_input_error(date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE),
+        date_picker::DateInputError::NotAllowed
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/12/2026", "09/21/2026"),
+        date_picker::DateInputError::NotAllowed
     );
     assert_eq!(
         date_picker::date_input_error(""),
