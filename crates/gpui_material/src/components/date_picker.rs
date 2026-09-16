@@ -35,6 +35,25 @@ pub const RANGE_HEADER_HEIGHT_OFFSET_DP: f32 = 60.0;
 pub const RANGE_HEADER_MIN_H_DP: f32 = RANGE_HEADER_CONTAINER_H_DP - RANGE_HEADER_HEIGHT_OFFSET_DP;
 /// Catalog / hosts apply official header container min-heights.
 pub const HEADER_CONTAINER_HEIGHTS: bool = true;
+/// Compose `DateEntryContainer` header `HorizontalDivider` under title / headline / toggle.
+/// Color: `DatePickerColors.dividerColor` = `DividerTokens.Color` (outline-variant).
+/// Thickness: `DividerDefaults.Thickness`. Docked has no header chrome, so no divider.
+pub const DATE_ENTRY_DIVIDER: bool = true;
+pub const DATE_ENTRY_DIVIDER_H_DP: f32 = 1.0;
+
+/// CSS `height` for the DateEntryContainer header divider.
+pub fn date_entry_divider_height_css() -> String {
+    format!("{:.0}px", DATE_ENTRY_DIVIDER_H_DP)
+}
+
+/// Compose shows the header divider iff title, headline, or mode toggle is present.
+pub fn date_entry_divider_visible(
+    has_title: bool,
+    has_headline: bool,
+    has_mode_toggle: bool,
+) -> bool {
+    DATE_ENTRY_DIVIDER && (has_title || has_headline || has_mode_toggle)
+}
 
 /// CSS `min-height` for `HeaderContainerHeight`.
 pub fn header_min_height_css() -> String {

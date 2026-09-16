@@ -1380,6 +1380,9 @@ fn catalog_body(
                     )
                 }),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .when(
             this.date_display == date_picker::DatePickerDisplayMode::Picker,
             |el| {
@@ -7293,6 +7296,9 @@ fn android_date_picker_empty(
                         .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w(px(cal_w))
@@ -7421,6 +7427,9 @@ fn android_date_input(
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -7542,6 +7551,9 @@ fn android_date_input_empty(
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -7786,6 +7798,13 @@ fn android_range_header_close(pick: &date_picker::DatePickerAppearance) -> impl 
         .child(date_picker::RANGE_HEADER_CLOSE_GLYPH)
 }
 
+fn android_date_entry_divider(theme: &Theme) -> impl IntoElement {
+    div()
+        .w_full()
+        .h(px(date_picker::DATE_ENTRY_DIVIDER_H_DP))
+        .bg(paint(theme.color.outline_variant))
+}
+
 fn android_date_range_picker_empty(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -7856,6 +7875,9 @@ fn android_date_range_picker_empty(
                         ),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w(px(cal_w))
@@ -8039,6 +8061,9 @@ fn android_date_range(
                         }),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .when(picker, |el| {
             el.child(
                 div()
@@ -8356,7 +8381,9 @@ fn android_date_range_input(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -8506,7 +8533,9 @@ fn android_date_range_input_empty(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -8644,7 +8673,9 @@ fn android_date_range_input_start_only(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -8782,7 +8813,9 @@ fn android_date_range_input_end_only(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(android_date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()

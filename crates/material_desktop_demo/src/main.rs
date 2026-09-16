@@ -3519,6 +3519,13 @@ fn range_header_close(pick: &date_picker::DatePickerAppearance) -> impl IntoElem
         ))
 }
 
+fn date_entry_divider(theme: &Theme) -> impl IntoElement {
+    div()
+        .w_full()
+        .h(px(date_picker::DATE_ENTRY_DIVIDER_H_DP))
+        .bg(paint(theme.color.outline_variant))
+}
+
 fn date_range_picker_empty_card(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -3590,6 +3597,9 @@ fn date_range_picker_empty_card(
                         ),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w(px(cal_w))
@@ -3775,6 +3785,9 @@ fn date_range_hero(
                         }),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .when(picker, |el| {
             el.child(
                 div()
@@ -4078,6 +4091,9 @@ fn date_input_card(
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -4201,6 +4217,9 @@ fn date_input_empty_card(
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -4408,7 +4427,9 @@ fn date_range_input_card(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -4554,7 +4575,9 @@ fn date_range_input_empty_card(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -4701,7 +4724,9 @@ fn date_range_input_start_only_card(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -4848,7 +4873,9 @@ fn date_range_input_end_only_card(
                         ),
                 ),
         )
-        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w_full()
@@ -5111,6 +5138,9 @@ fn date_picker_empty_card(
                         .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
                 ),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .child(
             div()
                 .w(px(cal_w))
@@ -5263,6 +5293,9 @@ fn date_picker_card(
                     )
                 }),
         )
+        .when(date_picker::DATE_ENTRY_DIVIDER, |el| {
+            el.child(date_entry_divider(theme))
+        })
         .when(!input_mode, |el| {
             el.child(
                 div()
@@ -9883,6 +9916,10 @@ mod tests {
         );
         assert!(date_picker::DATE_ACTIONS);
         assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
+        assert!(date_picker::DATE_ENTRY_DIVIDER);
+        assert_eq!(date_picker::DATE_ENTRY_DIVIDER_H_DP, 1.0);
+        assert!(date_picker::date_entry_divider_visible(true, true, true));
+        assert!(!date_picker::date_entry_divider_visible(false, false, false));
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::MONTH_YEAR_NAV);
         assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
