@@ -673,6 +673,19 @@ impl CatalogView {
         self.docked_pane = date_picker::DatePickerPane::Calendar;
     }
 
+    fn select_docked_day(&mut self, year: i32, month: u32, day: u32) {
+        if !date_picker::DOCKED_LIVE_SELECT {
+            return;
+        }
+        let (date, dismiss) = date_picker::apply_docked_tap(year, month, day);
+        self.selected = date;
+        self.selected_committed = date_picker::apply_date_confirm(date);
+        if dismiss {
+            self.docked_open = false;
+        }
+        self.docked_pane = date_picker::DatePickerPane::Calendar;
+    }
+
     fn shift_docked_month(&mut self, delta: i32) {
         if self.docked_pane != date_picker::DatePickerPane::Calendar {
             return;
@@ -2806,12 +2819,7 @@ fn docked_date_picker(
                                 .child(day.to_string())
                                 .when(in_month, |el| {
                                     el.on_click(cx.listener(move |this, _, _, cx| {
-                                        this.selected = CivilDate { year, month, day };
-                                        this.selected_committed =
-                                            date_picker::apply_date_confirm(this.selected);
-                                        if date_picker::DOCKED_DISMISS_ON_SELECT {
-                                            this.docked_open = false;
-                                        }
+                                        this.select_docked_day(year, month, day);
                                         cx.notify();
                                     }))
                                 })
@@ -8435,7 +8443,19 @@ mod tests {
         assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::DOCKED_YEAR_PANE);
+        assert!(date_picker::DOCKED_LIVE_SELECT);
         assert_eq!(date_picker::apply_docked_year(2026, 9, 2027), (2027, 9));
+        assert_eq!(
+            date_picker::apply_docked_tap(2026, 9, 16),
+            (
+                date_picker::CivilDate {
+                    year: 2026,
+                    month: 9,
+                    day: 16
+                },
+                true
+            )
+        );
         assert_eq!(date_picker::apply_date_month(2026, 9, 1), (2026, 10));
         assert_eq!(
             date_picker::apply_date_month(date_picker::YEAR_RANGE_START, 1, -1),
