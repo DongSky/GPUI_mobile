@@ -351,6 +351,12 @@ pub fn dialog_buttons_padding_css() -> String {
 pub const DATE_MONTH_NAV: bool = true;
 pub const DATE_PREV_MONTH: &str = "Previous month";
 pub const DATE_NEXT_MONTH: &str = "Next month";
+/// Compose `MonthYearHeight` for `MonthsNavigation`.
+pub const MONTH_YEAR_H_DP: f32 = 56.0;
+/// Compose `RecommendedSizeForAccessibility` / IconButton target on month arrows.
+pub const MONTH_NAV_ICON_DP: f32 = 48.0;
+/// Catalog / hosts apply official MonthsNavigation (label start, arrows end).
+pub const MONTH_YEAR_NAV: bool = true;
 pub const RANGE_DEMO_START: CivilDate = CivilDate {
     year: 2026,
     month: 9,

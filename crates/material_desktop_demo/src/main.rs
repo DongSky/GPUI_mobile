@@ -2777,17 +2777,10 @@ fn docked_date_picker(
             .gap(px(4.))
             .child(
                 div()
+                    .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .when(calendar_pane, |nav| {
-                        nav.child(div().id("docked-month-prev").p(px(8.)).child("<").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_docked_month(-1);
-                                cx.notify();
-                            }),
-                        ))
-                    })
                     .child(
                         div()
                             .id("docked-year-control")
@@ -2802,12 +2795,39 @@ fn docked_date_picker(
                             })),
                     )
                     .when(calendar_pane, |nav| {
-                        nav.child(div().id("docked-month-next").p(px(8.)).child(">").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_docked_month(1);
-                                cx.notify();
-                            }),
-                        ))
+                        nav.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .child(
+                                    div()
+                                        .id("docked-month-prev")
+                                        .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child("<")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.shift_docked_month(-1);
+                                            cx.notify();
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .id("docked-month-next")
+                                        .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(">")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.shift_docked_month(1);
+                                            cx.notify();
+                                        })),
+                                ),
+                        )
                     }),
             )
             .when(calendar_pane, |el| {
@@ -3538,36 +3558,34 @@ fn date_range_picker_empty_card(
                         .items_start()
                         .justify_between()
                         .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(spaced_line(
-                            date_picker::RANGE_PICKER_TITLE,
-                            pick.year_style.size_sp,
-                            paint(pick.header_year),
-                        ))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(spaced_line(
+                                    date_picker::RANGE_PICKER_TITLE,
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::RANGE_EMPTY_HEADLINE,
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
+                        )
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
-                                .child(spaced_line(
-                                    date_picker::RANGE_EMPTY_HEADLINE,
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
+                                .w(px(date_picker::TOGGLE_SIZE_DP))
+                                .h(px(date_picker::TOGGLE_SIZE_DP))
+                                .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
                         ),
-                )
-                .child(
-                    div()
-                        .w(px(date_picker::TOGGLE_SIZE_DP))
-                        .h(px(date_picker::TOGGLE_SIZE_DP))
-                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
-                ),
                 ),
         )
         .child(
@@ -3725,15 +3743,13 @@ fn date_range_hero(
                                     pick.year_style.size_sp,
                                     paint(pick.header_year),
                                 ))
-                                .child(
-                                    div()
-                                        .font_weight(type_weight(pick.date_style))
-                                        .child(spaced_line(
-                                            date_picker::header_range_selection(this.date_range),
-                                            pick.date_style.size_sp.min(28.0),
-                                            paint(pick.header_date),
-                                        )),
-                                ),
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::header_range_selection(this.date_range),
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
                         )
                         .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
                             el.child(
@@ -3758,20 +3774,10 @@ fn date_range_hero(
         .when(picker, |el| {
             el.child(
                 div()
+                    .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .when(
-                        this.range_pane == date_picker::DatePickerPane::Calendar,
-                        |nav| {
-                            nav.child(div().id("range-month-prev").p(px(8.)).child("<").on_click(
-                                cx.listener(|this, _, _, cx| {
-                                    this.shift_range_month(-1);
-                                    cx.notify();
-                                }),
-                            ))
-                        },
-                    )
                     .child(
                         div()
                             .id("range-year-toggle")
@@ -3788,12 +3794,39 @@ fn date_range_hero(
                     .when(
                         this.range_pane == date_picker::DatePickerPane::Calendar,
                         |nav| {
-                            nav.child(div().id("range-month-next").p(px(8.)).child(">").on_click(
-                                cx.listener(|this, _, _, cx| {
-                                    this.shift_range_month(1);
-                                    cx.notify();
-                                }),
-                            ))
+                            nav.child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .child(
+                                        div()
+                                            .id("range-month-prev")
+                                            .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .child("<")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.shift_range_month(-1);
+                                                cx.notify();
+                                            })),
+                                    )
+                                    .child(
+                                        div()
+                                            .id("range-month-next")
+                                            .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .child(">")
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.shift_range_month(1);
+                                                cx.notify();
+                                            })),
+                                    ),
+                            )
                         },
                     ),
             )
@@ -4331,39 +4364,37 @@ fn date_range_input_card(
                         .items_start()
                         .justify_between()
                         .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(spaced_line(
-                            date_picker::RANGE_INPUT_HEADLINE,
-                            pick.year_style.size_sp,
-                            paint(pick.header_year),
-                        ))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(spaced_line(
+                                    date_picker::RANGE_INPUT_HEADLINE,
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::header_range_label(
+                                            date_picker::RANGE_DEMO_START,
+                                            date_picker::RANGE_DEMO_END,
+                                        ),
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
+                        )
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
-                                .child(spaced_line(
-                                    date_picker::header_range_label(
-                                        date_picker::RANGE_DEMO_START,
-                                        date_picker::RANGE_DEMO_END,
-                                    ),
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
+                                .w(px(date_picker::TOGGLE_SIZE_DP))
+                                .h(px(date_picker::TOGGLE_SIZE_DP))
+                                .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                         ),
-                )
-                .child(
-                    div()
-                        .w(px(date_picker::TOGGLE_SIZE_DP))
-                        .h(px(date_picker::TOGGLE_SIZE_DP))
-                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
-                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4480,36 +4511,34 @@ fn date_range_input_empty_card(
                         .items_start()
                         .justify_between()
                         .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(spaced_line(
-                            date_picker::RANGE_INPUT_HEADLINE,
-                            pick.year_style.size_sp,
-                            paint(pick.header_year),
-                        ))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(spaced_line(
+                                    date_picker::RANGE_INPUT_HEADLINE,
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::RANGE_EMPTY_HEADLINE,
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
+                        )
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
-                                .child(spaced_line(
-                                    date_picker::RANGE_EMPTY_HEADLINE,
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
+                                .w(px(date_picker::TOGGLE_SIZE_DP))
+                                .h(px(date_picker::TOGGLE_SIZE_DP))
+                                .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                         ),
-                )
-                .child(
-                    div()
-                        .w(px(date_picker::TOGGLE_SIZE_DP))
-                        .h(px(date_picker::TOGGLE_SIZE_DP))
-                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
-                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4627,36 +4656,34 @@ fn date_range_input_start_only_card(
                         .items_start()
                         .justify_between()
                         .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(spaced_line(
-                            date_picker::RANGE_INPUT_HEADLINE,
-                            pick.year_style.size_sp,
-                            paint(pick.header_year),
-                        ))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(spaced_line(
+                                    date_picker::RANGE_INPUT_HEADLINE,
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::header_range_selection(sel),
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
+                        )
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
-                                .child(spaced_line(
-                                    date_picker::header_range_selection(sel),
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
+                                .w(px(date_picker::TOGGLE_SIZE_DP))
+                                .h(px(date_picker::TOGGLE_SIZE_DP))
+                                .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                         ),
-                )
-                .child(
-                    div()
-                        .w(px(date_picker::TOGGLE_SIZE_DP))
-                        .h(px(date_picker::TOGGLE_SIZE_DP))
-                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
-                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4774,36 +4801,34 @@ fn date_range_input_end_only_card(
                         .items_start()
                         .justify_between()
                         .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(spaced_line(
-                            date_picker::RANGE_INPUT_HEADLINE,
-                            pick.year_style.size_sp,
-                            paint(pick.header_year),
-                        ))
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(spaced_line(
+                                    date_picker::RANGE_INPUT_HEADLINE,
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(div().font_weight(type_weight(pick.date_style)).child(
+                                    spaced_line(
+                                        date_picker::header_range_selection(sel),
+                                        pick.date_style.size_sp.min(28.0),
+                                        paint(pick.header_date),
+                                    ),
+                                )),
+                        )
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
-                                .child(spaced_line(
-                                    date_picker::header_range_selection(sel),
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
+                                .w(px(date_picker::TOGGLE_SIZE_DP))
+                                .h(px(date_picker::TOGGLE_SIZE_DP))
+                                .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
                         ),
-                )
-                .child(
-                    div()
-                        .w(px(date_picker::TOGGLE_SIZE_DP))
-                        .h(px(date_picker::TOGGLE_SIZE_DP))
-                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
-                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -5219,17 +5244,10 @@ fn date_picker_card(
         .when(!input_mode, |el| {
             el.child(
                 div()
+                    .h(px(date_picker::MONTH_YEAR_H_DP))
                     .flex()
                     .items_center()
                     .justify_between()
-                    .when(calendar_pane && date_picker::DATE_MONTH_NAV, |nav| {
-                        nav.child(div().id("month-prev").p(px(8.)).child("<").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_date_month(-1);
-                                cx.notify();
-                            }),
-                        ))
-                    })
                     .child(
                         div()
                             .id("year-control")
@@ -5244,12 +5262,39 @@ fn date_picker_card(
                             })),
                     )
                     .when(calendar_pane && date_picker::DATE_MONTH_NAV, |nav| {
-                        nav.child(div().id("month-next").p(px(8.)).child(">").on_click(
-                            cx.listener(|this, _, _, cx| {
-                                this.shift_date_month(1);
-                                cx.notify();
-                            }),
-                        ))
+                        nav.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .child(
+                                    div()
+                                        .id("month-prev")
+                                        .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child("<")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.shift_date_month(-1);
+                                            cx.notify();
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .id("month-next")
+                                        .w(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .h(px(date_picker::MONTH_NAV_ICON_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(">")
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.shift_date_month(1);
+                                            cx.notify();
+                                        })),
+                                ),
+                        )
                     }),
             )
         })
@@ -9797,6 +9842,9 @@ mod tests {
         assert!(date_picker::DATE_ACTIONS);
         assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
         assert!(date_picker::DATE_MONTH_NAV);
+        assert!(date_picker::MONTH_YEAR_NAV);
+        assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
+        assert_eq!(date_picker::MONTH_NAV_ICON_DP, 48.0);
         assert!(date_picker::DOCKED_YEAR_PANE);
         assert!(date_picker::DOCKED_LIVE_SELECT);
         assert!(date_picker::DOCKED_TRAILING);

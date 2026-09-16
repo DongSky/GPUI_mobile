@@ -929,6 +929,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"aria-label="Close""#));
     assert!(html.contains(r#"data-date-range-headline-pad="1""#));
     assert!(html.contains(r#"data-date-range-header-paddings="1""#));
+    assert!(html.contains(r#"data-date-month-year="1""#));
+    assert!(html.contains("month-nav-arrows"));
+    assert!(html.contains("height: 56px; min-height: 56px"));
     assert!(html.contains(r#"data-date-dialog-buttons="1""#));
     assert!(html.contains(&format!(
         "padding: {};",
@@ -1356,6 +1359,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("range-header chrome")
             && e.notes.contains("DateRangePickerHeadlinePadding")
             && e.notes.contains("DialogButtonsPadding")
+            && e.notes.contains("MonthYearHeight")
             && e.notes.contains("Entered date")
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
@@ -2902,6 +2906,9 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::DATE_ACTIONS);
     assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
     assert!(date_picker::DATE_MONTH_NAV);
+    assert!(date_picker::MONTH_YEAR_NAV);
+    assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);
+    assert_eq!(date_picker::MONTH_NAV_ICON_DP, 48.0);
     assert!(date_picker::DOCKED_YEAR_PANE);
     assert!(date_picker::DOCKED_LIVE_SELECT);
     assert!(date_picker::DOCKED_TRAILING);
