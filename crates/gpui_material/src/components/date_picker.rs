@@ -851,6 +851,15 @@ pub const YEAR_CONTAINER_H_DP: f32 = 36.0;
 pub const YEAR_GAP_DP: f32 = 16.0;
 /// Catalog / host window (3 rows × 3 cols) around the displayed year.
 pub const YEAR_WINDOW: usize = 9;
+/// Compose `SwitchableDateEntryContent` `HorizontalDivider` under `YearPicker`.
+pub const YEAR_PICKER_DIVIDER: bool = true;
+/// `DividerDefaults.Thickness` on the YearPicker trailing rule.
+pub const YEAR_PICKER_DIVIDER_H_DP: f32 = 1.0;
+
+/// CSS `height` for the YearPicker trailing `HorizontalDivider`.
+pub fn year_picker_divider_height_css() -> String {
+    format!("{:.0}px", YEAR_PICKER_DIVIDER_H_DP)
+}
 
 /// Calendar month grid ↔ Compose `YearPicker`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -879,6 +888,11 @@ impl DatePickerPane {
 pub const LIVE_PANE: DatePickerPane = DatePickerPane::Calendar;
 /// Catalog year-picker sibling starts open.
 pub const DEMO_PANE: DatePickerPane = DatePickerPane::Year;
+
+/// Official YearPicker paints the trailing divider only while the year pane is open.
+pub fn year_picker_divider_visible(pane: DatePickerPane) -> bool {
+    YEAR_PICKER_DIVIDER && pane == DatePickerPane::Year
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum YearKind {

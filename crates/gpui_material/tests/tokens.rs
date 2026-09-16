@@ -938,6 +938,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-entry-divider="1""#));
     assert!(html.contains(r#"class="dp-entry-divider" data-date-entry-divider="1""#));
     assert!(html.contains(".cal .dp-entry-divider { height: 1px; margin: 0 -12px; }"));
+    assert!(html.contains(r#"data-date-year-divider="1""#));
+    assert_eq!(html.matches(r#"data-date-year-divider="1""#).count(), 4);
+    assert!(html.contains(".cal .dp-year-divider"));
     assert!(html.contains(r#"data-date-range-header-min="1""#));
     assert!(html.contains(&format!(
         "min-height: {};",
@@ -1398,6 +1401,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Date not allowed")
             && e.notes.contains("Disabled")
             && e.notes.contains("YearPicker")
+            && e.notes.contains("YearPicker trailing HorizontalDivider")
     }));
     assert!(INVENTORY
         .iter()
@@ -2546,6 +2550,15 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::YEAR_CONTAINER_W_DP, 72.0);
     assert_eq!(date_picker::YEAR_CONTAINER_H_DP, 36.0);
     assert_eq!(date_picker::YEAR_GAP_DP, 16.0);
+    assert!(date_picker::YEAR_PICKER_DIVIDER);
+    assert_eq!(date_picker::YEAR_PICKER_DIVIDER_H_DP, 1.0);
+    assert_eq!(date_picker::year_picker_divider_height_css(), "1px");
+    assert!(date_picker::year_picker_divider_visible(
+        date_picker::DatePickerPane::Year
+    ));
+    assert!(!date_picker::year_picker_divider_visible(
+        date_picker::DatePickerPane::Calendar
+    ));
     assert_eq!(date_picker::year_window(2026)[4], 2026);
     assert_eq!(
         date_picker::classify_year(2026, 2026, 2026),
@@ -2879,7 +2892,9 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::date_entry_divider_visible(true, false, false));
     assert!(date_picker::date_entry_divider_visible(false, true, false));
     assert!(date_picker::date_entry_divider_visible(false, false, true));
-    assert!(!date_picker::date_entry_divider_visible(false, false, false));
+    assert!(!date_picker::date_entry_divider_visible(
+        false, false, false
+    ));
     assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);
     assert_eq!(date_picker::RANGE_HEADER_HEIGHT_OFFSET_DP, 60.0);
     assert_eq!(date_picker::RANGE_HEADER_MIN_H_DP, 68.0);

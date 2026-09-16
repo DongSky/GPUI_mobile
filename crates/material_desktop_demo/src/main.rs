@@ -2908,6 +2908,7 @@ fn docked_date_picker(
                             },
                         )),
                 )
+                .child(year_picker_divider(theme))
             })
             .into_any_element()
     });
@@ -3526,6 +3527,13 @@ fn date_entry_divider(theme: &Theme) -> impl IntoElement {
         .bg(paint(theme.color.outline_variant))
 }
 
+fn year_picker_divider(theme: &Theme) -> impl IntoElement {
+    div()
+        .w_full()
+        .h(px(date_picker::YEAR_PICKER_DIVIDER_H_DP))
+        .bg(paint(theme.color.outline_variant))
+}
+
 fn date_range_picker_empty_card(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -3916,6 +3924,7 @@ fn date_range_hero(
                                 }))
                         })),
                 )
+                .child(year_picker_divider(theme))
             },
         )
         .when(!picker, |el| {
@@ -5433,6 +5442,7 @@ fn date_picker_card(
                             }),
                     ),
             )
+            .child(year_picker_divider(theme))
         })
         .when(input_mode, |el| {
             el.child(
@@ -9918,8 +9928,19 @@ mod tests {
         assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
         assert!(date_picker::DATE_ENTRY_DIVIDER);
         assert_eq!(date_picker::DATE_ENTRY_DIVIDER_H_DP, 1.0);
+        assert!(date_picker::YEAR_PICKER_DIVIDER);
+        assert_eq!(date_picker::YEAR_PICKER_DIVIDER_H_DP, 1.0);
+        assert_eq!(date_picker::year_picker_divider_height_css(), "1px");
+        assert!(date_picker::year_picker_divider_visible(
+            date_picker::DatePickerPane::Year
+        ));
+        assert!(!date_picker::year_picker_divider_visible(
+            date_picker::DatePickerPane::Calendar
+        ));
         assert!(date_picker::date_entry_divider_visible(true, true, true));
-        assert!(!date_picker::date_entry_divider_visible(false, false, false));
+        assert!(!date_picker::date_entry_divider_visible(
+            false, false, false
+        ));
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::MONTH_YEAR_NAV);
         assert_eq!(date_picker::MONTH_YEAR_H_DP, 56.0);

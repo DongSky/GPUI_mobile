@@ -1555,6 +1555,7 @@ fn catalog_body(
                                 },
                             )),
                     )
+                    .child(android_year_picker_divider(theme))
                 })
             },
         )
@@ -7805,6 +7806,13 @@ fn android_date_entry_divider(theme: &Theme) -> impl IntoElement {
         .bg(paint(theme.color.outline_variant))
 }
 
+fn android_year_picker_divider(theme: &Theme) -> impl IntoElement {
+    div()
+        .w_full()
+        .h(px(date_picker::YEAR_PICKER_DIVIDER_H_DP))
+        .bg(paint(theme.color.outline_variant))
+}
+
 fn android_date_range_picker_empty(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -8202,6 +8210,7 @@ fn android_date_range(
                                 }))
                         })),
                 )
+                .child(android_year_picker_divider(theme))
             },
         )
         .when(!picker, |el| {
@@ -9190,6 +9199,7 @@ fn android_docked_date(
                                     }),
                             ),
                         )
+                        .child(android_year_picker_divider(theme))
                     })
                     .when(calendar_pane, |el| {
                         el.child(
