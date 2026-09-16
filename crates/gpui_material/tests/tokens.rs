@@ -1116,6 +1116,22 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(time_picker::MINUTE_SELECTION));
     assert!(html.contains(time_picker::INPUT_HOUR_FIELD));
     assert!(html.contains(time_picker::INPUT_MINUTE_FIELD));
+    assert!(html.contains(r#"data-clock-number-a11y="1""#));
+    assert!(html.contains(&time_picker::clock_number_label(
+        time_picker::DialFace::Hour,
+        time_picker::DEMO_HOUR,
+        time_picker::TimeFormat::Hour12,
+    )));
+    assert!(html.contains(&time_picker::clock_number_label(
+        time_picker::DialFace::Hour,
+        time_picker::DEMO_HOUR_24,
+        time_picker::TimeFormat::Hour24,
+    )));
+    assert!(html.contains(&time_picker::clock_number_label(
+        time_picker::DialFace::Minute,
+        time_picker::DEMO_MINUTE,
+        time_picker::TimeFormat::Hour12,
+    )));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1436,6 +1452,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Select AM or PM")
             && e.notes.contains("Select hour")
             && e.notes.contains("for hour")
+            && e.notes.contains("o'clock")
+            && e.notes.contains("hours")
             && e.notes.contains("238")
             && e.notes.contains("200dp")
     }));
@@ -3984,6 +4002,34 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(
         time_picker::ScrollKind::Minute.input_field_label(),
         time_picker::INPUT_MINUTE_FIELD
+    );
+    assert!(time_picker::CLOCK_NUMBER_A11Y);
+    assert_eq!(time_picker::HOUR_SUFFIX, "o'clock");
+    assert_eq!(time_picker::MINUTE_SUFFIX, "minutes");
+    assert_eq!(time_picker::HOUR_24_SUFFIX, "hours");
+    assert_eq!(
+        time_picker::clock_number_label(
+            time_picker::DialFace::Hour,
+            6,
+            time_picker::TimeFormat::Hour12
+        ),
+        "6 o'clock"
+    );
+    assert_eq!(
+        time_picker::clock_number_label(
+            time_picker::DialFace::Hour,
+            18,
+            time_picker::TimeFormat::Hour24
+        ),
+        "18 hours"
+    );
+    assert_eq!(
+        time_picker::clock_number_label(
+            time_picker::DialFace::Minute,
+            30,
+            time_picker::TimeFormat::Hour12
+        ),
+        "30 minutes"
     );
     assert_eq!(
         time_picker::DEMO_STYLE,

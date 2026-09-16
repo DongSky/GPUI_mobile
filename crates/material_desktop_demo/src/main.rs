@@ -421,6 +421,7 @@ struct CatalogView {
     time_toggle_tooltip_open: bool,
     period_toggle_tooltip_open: bool,
     hour_minute_tooltip: Option<&'static str>,
+    clock_number_tooltip: Option<String>,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
     date_month_nav_tooltip: Option<&'static str>,
@@ -8193,9 +8194,26 @@ fn time_picker_hero(
                         })
                         .children(labels.into_iter().map(|(value, label, x, y, selected)| {
                             let face = this.time_dial;
+                            let a11y =
+                                time_picker::clock_number_label(face, value, this.time_format);
+                            let tip_open =
+                                this.clock_number_tooltip.as_deref() == Some(a11y.as_str());
                             div()
                                 .id(SharedString::from(format!("dial-{value}")))
                                 .absolute()
+                                .relative()
+                                .when(tip_open, |el| {
+                                    el.child(date_display_mode_toggle_tooltip(
+                                        theme,
+                                        a11y.clone(),
+                                        "clock-number-tooltip",
+                                    ))
+                                })
+                                .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                    this.clock_number_tooltip =
+                                        if *hovered { Some(a11y.clone()) } else { None };
+                                    cx.notify();
+                                }))
                                 .left(px(x))
                                 .top(px(y))
                                 .w(px(number))
@@ -10037,6 +10055,7 @@ fn main() {
                     time_toggle_tooltip_open: false,
                     period_toggle_tooltip_open: false,
                     hour_minute_tooltip: None,
+                    clock_number_tooltip: None,
                     date_toggle_tooltip_open: false,
                     range_toggle_tooltip_open: false,
                     date_month_nav_tooltip: None,

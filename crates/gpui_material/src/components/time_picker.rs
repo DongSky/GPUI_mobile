@@ -15,8 +15,9 @@
 //! fields, `TimePickerDefaults.shapes().timeFieldShape` CornerLarge) +
 //! `ScrollDisplayModeToggle` switch Scroll ↔ Input + official
 //! `TimePickerDialogDefaults.DisplayModeToggle` a11y strings +
-//! TimeSelector `Select hour` / `Select minutes` and TimeInput
-//! `for hour` / `for minutes`. 24-hour
+//! TimeSelector `Select hour` / `Select minutes`, TimeInput
+//! `for hour` / `for minutes`, and ClockFace `N o'clock` /
+//! `N minutes` / `N hours`. 24-hour
 //! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
@@ -82,6 +83,14 @@ pub const INPUT_HOUR_FIELD: &str = "for hour";
 pub const INPUT_MINUTE_FIELD: &str = "for minutes";
 /// Catalog / hosts apply official hour/minute selection a11y.
 pub const HOUR_MINUTE_A11Y: bool = true;
+/// Compose `TimePickerHourSuffix` (`%1$ o'clock`).
+pub const HOUR_SUFFIX: &str = "o'clock";
+/// Compose `TimePickerMinuteSuffix` (`%1$ minutes`).
+pub const MINUTE_SUFFIX: &str = "minutes";
+/// Compose `TimePicker24HourSuffix` (`%1$ hours`).
+pub const HOUR_24_SUFFIX: &str = "hours";
+/// Catalog / hosts apply official ClockFace number a11y.
+pub const CLOCK_NUMBER_A11Y: bool = true;
 
 /// CSS `border-width` for the PeriodSelector shell.
 pub fn period_outline_w_css() -> String {
@@ -912,6 +921,20 @@ pub fn selector_radius_dp(face: DialFace, hour: u8, format: TimeFormat, clock_dp
     match face {
         DialFace::Hour => circle_radius_dp(hour_ring(hour, format), clock_dp),
         DialFace::Minute => circle_radius_dp(DialRing::Outer, clock_dp),
+    }
+}
+
+/// Official ClockFace number contentDescription.
+pub fn clock_number_label(face: DialFace, value: u8, format: TimeFormat) -> String {
+    match face {
+        DialFace::Minute => format!("{value} {MINUTE_SUFFIX}"),
+        DialFace::Hour => {
+            if format.is_24_hour() {
+                format!("{value} {HOUR_24_SUFFIX}")
+            } else {
+                format!("{value} {HOUR_SUFFIX}")
+            }
+        }
     }
 }
 
