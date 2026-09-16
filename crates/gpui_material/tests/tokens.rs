@@ -1113,6 +1113,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(time_picker::DIALOG_OK));
     assert!(html.contains(time_picker::DIALOG_CANCEL));
     assert!(html.contains(r#"data-time-vibrant-dialog="1""#));
+    assert!(html.contains(r#"data-time-picker-shapes="1""#));
+    assert!(html.contains(r#"data-time-field-shape="large""#));
     assert!(html.contains(r#"data-time-format="24""#));
     assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
@@ -3943,6 +3945,11 @@ fn search_bar_and_time_picker_tokens() {
         input_a.field_corners.top_left,
         time_picker::INPUT_FIELD_CORNER_DP
     );
+    assert!(time_picker::TIME_PICKER_SHAPES);
+    assert_eq!(time_picker::TIME_FIELD_SHAPE_CORNER_DP, 16.0);
+    assert_eq!(time_picker::INPUT_FIELD_CORNER_DP, 16.0);
+    assert_eq!(time_picker::SCROLL_FIELD_CORNER_DP, 16.0);
+    assert_eq!(time_picker::time_field_shape_corner_css(), "16px");
     assert_eq!(input_a.field_style.name, "displayLargeEmphasized");
     assert!(time_picker::SUPPORT_LABEL);
     assert_eq!(time_picker::SUPPORT_LABEL_TOP_DP, 7.0);

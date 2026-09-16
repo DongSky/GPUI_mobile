@@ -10,8 +10,10 @@
 //!
 //! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
 //! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
-//! and `ScrollFieldDefaults.ScrollFieldHeight` 200. `TimeInput` (96×72
-//! fields) + `ScrollDisplayModeToggle` switch Scroll ↔ Input. 24-hour
+//! and `ScrollFieldDefaults.ScrollFieldHeight` 200 /
+//! `ScrollFieldDefaults.shape` CornerLarge. `TimeInput` (96×72
+//! fields, `TimePickerDefaults.shapes().timeFieldShape` CornerLarge) +
+//! `ScrollDisplayModeToggle` switch Scroll ↔ Input. 24-hour
 //! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
@@ -992,11 +994,17 @@ pub const KEYBOARD_ICON: &str = "⌨";
 /// Schedule / clock — switch Input → Scroll.
 pub const SCHEDULE_ICON: &str = "◷";
 
-/// Time-input field tokens (`TimeInputTokens.TimeFieldContainer*`).
+/// Compose `TimePickerDefaults.shapes().timeFieldShape` / `ScrollFieldDefaults.shape`
+/// (`ShapeKeyTokens.CornerLarge` / `ShapeDefaults.Large`).
+pub const TIME_FIELD_SHAPE_CORNER_DP: f32 = 16.0;
+/// Catalog / hosts apply official TimePickerShapes + ScrollField shape.
+pub const TIME_PICKER_SHAPES: bool = true;
+
+/// Time-input field tokens (`TimeInputTokens.TimeFieldContainer*` size).
 pub const INPUT_FIELD_W_DP: f32 = 96.0;
 pub const INPUT_FIELD_H_DP: f32 = 72.0;
-/// `TimePickerDefaults.shapes().timeFieldShape` / extra-large.
-pub const INPUT_FIELD_CORNER_DP: f32 = 28.0;
+/// TimeInput field corners follow `TimePickerDefaults.shapes().timeFieldShape`.
+pub const INPUT_FIELD_CORNER_DP: f32 = TIME_FIELD_SHAPE_CORNER_DP;
 pub const INPUT_PERIOD_W_DP: f32 = 52.0;
 pub const INPUT_PERIOD_H_DP: f32 = 72.0;
 pub const INPUT_GAP_DP: f32 = 24.0;
@@ -1029,8 +1037,13 @@ pub const SCROLL_ITEM_H_DP: f32 = SCROLL_FIELD_H_DP / SCROLL_VISIBLE as f32;
 /// Official time-selection sample: 8dp between fields, 12dp row pad.
 pub const SCROLL_GAP_DP: f32 = 8.0;
 pub const SCROLL_PAD_DP: f32 = 12.0;
-/// `TimePickerDefaults.shapes().timeFieldShape` / extra-large.
-pub const SCROLL_FIELD_CORNER_DP: f32 = 28.0;
+/// TimeScroll field corners follow `ScrollFieldDefaults.shape` (`CornerLarge`).
+pub const SCROLL_FIELD_CORNER_DP: f32 = TIME_FIELD_SHAPE_CORNER_DP;
+
+/// CSS `border-radius` for official time-field / ScrollField shape.
+pub fn time_field_shape_corner_css() -> String {
+    format!("{:.0}px", TIME_FIELD_SHAPE_CORNER_DP)
+}
 /// Colon `offset(y = (-4).dp)` in the Compose time-selection sample.
 pub const SCROLL_COLON_OFFSET_Y_DP: f32 = -4.0;
 pub const HOUR_COUNT: usize = 12;

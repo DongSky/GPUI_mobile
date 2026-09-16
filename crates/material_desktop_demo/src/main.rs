@@ -10154,6 +10154,10 @@ mod tests {
         assert_eq!(time_picker::DIALOG_OK, "OK");
         assert_eq!(time_picker::DIALOG_CANCEL, "Cancel");
         assert!(time_picker::VIBRANT_DIALOG);
+        assert!(time_picker::TIME_PICKER_SHAPES);
+        assert_eq!(time_picker::TIME_FIELD_SHAPE_CORNER_DP, 16.0);
+        assert_eq!(time_picker::SCROLL_FIELD_CORNER_DP, 16.0);
+        assert_eq!(time_picker::INPUT_FIELD_CORNER_DP, 16.0);
         assert_eq!(
             time_picker::vibrant_dialog_container(&theme),
             theme.color.surface_container
