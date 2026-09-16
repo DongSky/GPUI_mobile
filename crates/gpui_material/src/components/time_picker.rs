@@ -105,10 +105,61 @@ pub const INPUT_TITLE: &str = "Enter time";
 pub const TITLE_PAD_BOTTOM_DP: f32 = 20.0;
 /// Catalog / hosts apply official dialog title + 20dp bottom + labelMedium.
 pub const DIALOG_TITLE: bool = true;
+/// Compose `TimePickerCustomLayout` portrait title top.
+pub const PORT_TITLE_TOP_DP: f32 = 24.0;
+/// Compose `TimePickerCustomLayout` portrait actions bottom.
+pub const PORT_ACTIONS_BOTTOM_DP: f32 = 24.0;
+/// Compose `TimePickerCustomLayout` landscape title inset.
+pub const LAND_TITLE_TOP_DP: f32 = 24.0;
+/// Compose `TimePickerCustomLayout` landscape content top.
+pub const LAND_CONTENT_TOP_DP: f32 = 16.0;
+/// Compose `TimePickerCustomLayout` landscape content → actions gap.
+pub const LAND_CONTENT_ACTIONS_DP: f32 = 4.0;
+/// Compose `TimePickerCustomLayout` landscape actions bottom.
+pub const LAND_ACTIONS_BOTTOM_DP: f32 = 8.0;
+/// Compose `TimePickerDialog` action `Arrangement.spacedBy(8.dp)`.
+pub const DIALOG_ACTIONS_GAP_DP: f32 = 8.0;
+/// Catalog / hosts paint official TimePickerDialog Cancel / OK.
+pub const DIALOG_ACTIONS: bool = true;
+pub const DIALOG_OK: &str = "OK";
+pub const DIALOG_CANCEL: &str = "Cancel";
 
 /// CSS `padding-bottom` for `TimePickerDialogDefaults.Title`.
 pub fn title_pad_bottom_css() -> String {
     format!("{:.0}px", TITLE_PAD_BOTTOM_DP)
+}
+
+/// CSS `padding` top for portrait `TimePickerCustomLayout` title.
+pub fn port_title_top_css() -> String {
+    format!("{:.0}px", PORT_TITLE_TOP_DP)
+}
+
+/// CSS `padding-bottom` for portrait dialog actions.
+pub fn port_actions_bottom_css() -> String {
+    format!("{:.0}px", PORT_ACTIONS_BOTTOM_DP)
+}
+
+/// CSS `margin` / `padding-top` for landscape content.
+pub fn land_content_top_css() -> String {
+    format!("{:.0}px", LAND_CONTENT_TOP_DP)
+}
+
+/// CSS `padding-bottom` for landscape dialog actions.
+pub fn land_actions_bottom_css() -> String {
+    format!("{:.0}px", LAND_ACTIONS_BOTTOM_DP)
+}
+
+/// CSS `gap` between Cancel and OK.
+pub fn dialog_actions_gap_css() -> String {
+    format!("{:.0}px", DIALOG_ACTIONS_GAP_DP)
+}
+
+/// Portrait vs landscape action-row bottom inset.
+pub fn actions_bottom_dp(layout: TimePickerLayoutType) -> f32 {
+    match layout {
+        TimePickerLayoutType::Vertical => PORT_ACTIONS_BOTTOM_DP,
+        TimePickerLayoutType::Horizontal => LAND_ACTIONS_BOTTOM_DP,
+    }
 }
 
 pub const DEMO_HOUR: u8 = 6;

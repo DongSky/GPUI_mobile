@@ -348,8 +348,11 @@ a {{ color: var(--primary); }}
   margin-top: 36px; margin-bottom: 24px;
 }}
 .timepicker[data-time-layout="horizontal"] {{
-  flex-direction: row; align-items: flex-start; max-width: 720px; gap: 24px;
-  padding: 24px;
+  flex-direction: column; align-items: flex-start; max-width: 720px; gap: 0;
+  padding: 24px 24px 8px 24px;
+}}
+.timepicker[data-time-layout="horizontal"] .time-body {{
+  display: flex; flex-direction: row; align-items: flex-start; gap: 24px; width: 100%;
 }}
 .timepicker[data-time-layout="horizontal"] .clock {{
   margin-top: 0; margin-bottom: 0;
@@ -358,6 +361,13 @@ a {{ color: var(--primary); }}
   display: flex; flex-direction: column; gap: 0; flex: 0 0 auto;
 }}
 .timepicker[data-time-layout="horizontal"] .time-col > :first-child {{ margin-bottom: 16px; }}
+.timepicker .time-dialog-actions, .time-expressive .time-dialog-actions {{
+  display: flex; justify-content: flex-end; gap: 8px; width: 100%;
+  padding-bottom: 24px;
+}}
+.timepicker[data-time-layout="horizontal"] .time-dialog-actions {{
+  padding-top: 4px; padding-bottom: 0;
+}}
 .timepicker[data-time-layout="horizontal"] .time-fields {{ margin-top: 0; }}
 .timepicker[data-time-layout="horizontal"] .period {{ margin-top: 12px; }}
 .timepicker[data-time-layout="horizontal"] .period {{
@@ -420,7 +430,7 @@ a {{ color: var(--primary); }}
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }}
 .time-expressive {{
-  display: flex; flex-direction: column; gap: 0; padding: 24px; max-width: 360px;
+  display: flex; flex-direction: column; gap: 0; padding: 24px 24px 0; max-width: 360px;
 }}
 .time-expressive .time-display-head {{
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -8245,7 +8255,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, Corner 28) + <code>vibrantColors()</code> primaryContainer. <code>TimeInput</code> 96×72 + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
 <div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div class="time-dialog-title" data-time-dialog-title="{mode}" style="color:{hy};font-size:{ys}px">{title}</div>
@@ -8281,6 +8291,10 @@ fn time_picker_section(theme: &Theme) -> String {
         <button data-period="PM" style="background:{ipmb};color:{ipmf}">{pm}</button>
       </div>
     </div>
+  </div>
+  <div class="time-dialog-actions" data-time-dialog-actions="1" data-time-dialog-layout="portrait">
+    <button type="button" class="btn" data-time-dialog-cancel="1" style="background:transparent;color:{act}">{cancel}</button>
+    <button type="button" class="btn" data-time-dialog-ok="1" style="background:transparent;color:{act}">{ok}</button>
   </div>
 </div>
 <h3>dial</h3>"#,
@@ -8339,6 +8353,9 @@ fn time_picker_section(theme: &Theme) -> String {
         iamf = iam_fg,
         ipmb = ipm_bg,
         ipmf = ipm_fg,
+        act = theme.color.primary.css_hex(),
+        cancel = time_picker::DIALOG_CANCEL,
+        ok = time_picker::DIALOG_OK,
     );
 
     let a = time_picker::resolve(theme);
@@ -8486,22 +8503,32 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = pm.label(),
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
-<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-time-dialog-layout="portrait" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
   <div class="time-row" data-period-toggle-margin="1">
     {selectors}
   </div>
   {clock}
+  <div class="time-dialog-actions" data-time-dialog-actions="1">
+    <button type="button" class="btn" data-time-dialog-cancel="1" style="background:transparent;color:{act}">{cancel}</button>
+    <button type="button" class="btn" data-time-dialog-ok="1" style="background:transparent;color:{act}">{ok}</button>
+  </div>
 </div>
 <h3>horizontal (landscape)</h3>
-<p class="note">Compose <code>TimePickerLayoutType.Horizontal</code>: time selectors + 216×38 period sit beside the 256dp ClockFace (24dp gap). Used on medium+ / landscape so the dial is not cropped.</p>
-<div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
-  <div class="time-col">
-    <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
-    {selectors}
+<p class="note">Compose <code>TimePickerLayoutType.Horizontal</code> + <code>TimePickerCustomLayout</code> landscape: title 24 / content top 16 / actions bottom 8. Time selectors + 216×38 period sit beside the 256dp ClockFace (24dp gap). Used on medium+ / landscape so the dial is not cropped.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-time-dialog-layout="landscape" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  <div class="time-body" data-time-land-content="1">
+    <div class="time-col">
+      <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
+      {selectors}
+    </div>
+    {clock}
   </div>
-  {clock}
+  <div class="time-dialog-actions" data-time-dialog-actions="1">
+    <button type="button" class="btn" data-time-dialog-cancel="1" style="background:transparent;color:{act}">{cancel}</button>
+    <button type="button" class="btn" data-time-dialog-ok="1" style="background:transparent;color:{act}">{ok}</button>
+  </div>
 </div>"#,
         hour = dial_hour,
         minute = time_picker::DEMO_MINUTE,
@@ -8517,6 +8544,9 @@ fn time_picker_section(theme: &Theme) -> String {
         title = time_picker::TITLE,
         selectors = selectors,
         clock = clock_html,
+        act = theme.color.primary.css_hex(),
+        cancel = time_picker::DIALOG_CANCEL,
+        ok = time_picker::DIALOG_OK,
     ));
     out
 }

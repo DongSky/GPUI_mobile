@@ -6024,7 +6024,8 @@ fn android_time_scroll(
     let input_mode = mode == time_picker::TimePickerDisplayMode::Input;
     div()
         .w_full()
-        .p(px(time_picker::CONTAINER_PAD_DP))
+        .pt(px(time_picker::PORT_TITLE_TOP_DP))
+        .px(px(time_picker::CONTAINER_PAD_DP))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .flex()
@@ -6128,6 +6129,40 @@ fn android_time_scroll(
         .when(input_mode, |el| {
             el.child(android_time_input(this, cx, &input))
         })
+        .child(android_time_dialog_actions(
+            theme,
+            time_picker::TimePickerLayoutType::Vertical,
+        ))
+}
+
+fn android_time_dialog_actions(
+    theme: &Theme,
+    layout: time_picker::TimePickerLayoutType,
+) -> impl IntoElement {
+    let top = if layout.is_horizontal() {
+        time_picker::LAND_CONTENT_ACTIONS_DP
+    } else {
+        0.0
+    };
+    div()
+        .w_full()
+        .flex()
+        .justify_end()
+        .gap(px(time_picker::DIALOG_ACTIONS_GAP_DP))
+        .pt(px(top))
+        .pb(px(time_picker::actions_bottom_dp(layout)))
+        .child(
+            div()
+                .text_size(px(14.))
+                .text_color(paint(theme.color.primary))
+                .child(time_picker::DIALOG_CANCEL),
+        )
+        .child(
+            div()
+                .text_size(px(14.))
+                .text_color(paint(theme.color.primary))
+                .child(time_picker::DIALOG_OK),
+        )
 }
 
 fn android_period_column(
@@ -6698,6 +6733,10 @@ fn android_time_picker(
                         }))
                 })),
         )
+        .child(android_time_dialog_actions(
+            theme,
+            time_picker::TimePickerLayoutType::Vertical,
+        ))
 }
 
 fn android_icon_button_widths(theme: &Theme) -> impl IntoElement {

@@ -7112,7 +7112,8 @@ fn time_scroll_hero(
     let input_mode = mode == time_picker::TimePickerDisplayMode::Input;
     div()
         .w_full()
-        .p(px(time_picker::CONTAINER_PAD_DP))
+        .pt(px(time_picker::PORT_TITLE_TOP_DP))
+        .px(px(time_picker::CONTAINER_PAD_DP))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .shadow_md()
@@ -7218,6 +7219,38 @@ fn time_scroll_hero(
         .when(input_mode, |el| {
             el.child(desktop_time_input(this, cx, &input))
         })
+        .child(desktop_time_dialog_actions(
+            theme,
+            time_picker::TimePickerLayoutType::Vertical,
+        ))
+}
+
+fn desktop_time_dialog_actions(
+    theme: &Theme,
+    layout: time_picker::TimePickerLayoutType,
+) -> impl IntoElement {
+    let top = if layout.is_horizontal() {
+        time_picker::LAND_CONTENT_ACTIONS_DP
+    } else {
+        0.0
+    };
+    div()
+        .w_full()
+        .flex()
+        .justify_end()
+        .gap(px(time_picker::DIALOG_ACTIONS_GAP_DP))
+        .pt(px(top))
+        .pb(px(time_picker::actions_bottom_dp(layout)))
+        .child(spaced_line(
+            time_picker::DIALOG_CANCEL,
+            14.0,
+            paint(theme.color.primary),
+        ))
+        .child(spaced_line(
+            time_picker::DIALOG_OK,
+            14.0,
+            paint(theme.color.primary),
+        ))
 }
 
 fn desktop_period_column(
@@ -7507,326 +7540,343 @@ fn time_picker_hero(
     let hand_color = paint(a.hand);
     div()
         .w_full()
-        .p(px(time_picker::CONTAINER_PAD_DP))
+        .pt(px(time_picker::LAND_TITLE_TOP_DP))
+        .px(px(time_picker::CONTAINER_PAD_DP))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .shadow_md()
         .flex()
-        .flex_row()
-        .items_start()
-        .gap(px(time_picker::HORIZONTAL_GAP_DP))
+        .flex_col()
         .child(
             div()
                 .flex()
-                .flex_col()
-                .child(
-                    div()
-                        .pb(px(time_picker::TITLE_PAD_BOTTOM_DP))
-                        .child(spaced_line(
-                            time_picker::TITLE,
-                            a.title_style.size_sp,
-                            paint(a.header),
-                        )),
-                )
+                .flex_row()
+                .items_start()
+                .gap(px(time_picker::HORIZONTAL_GAP_DP))
                 .child(
                     div()
                         .flex()
-                        .items_center()
+                        .flex_col()
                         .child(
                             div()
-                                .id("time-hour-field")
-                                .px(px(8.))
-                                .p(px(4.))
-                                .rounded(px(8.))
-                                .bg(paint(if hour_on {
-                                    a.number_selected_container
-                                } else {
-                                    a.clock
-                                }))
-                                .text_color(paint(if hour_on {
-                                    a.number_selected
-                                } else {
-                                    a.header
-                                }))
-                                .font_weight(type_weight(a.time_style))
-                                .w(px(time_picker::time_selector_w_dp(this.time_format)))
-                                .h(px(time_picker::TIME_SELECTOR_H_DP))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(time_picker::format_hour_field_for(
-                                    this.time_dial_hour(),
-                                    this.time_format,
-                                ))
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.bump_time_hand();
-                                    this.time_dial = DialFace::Hour;
-                                    cx.notify();
-                                })),
+                                .pb(px(time_picker::TITLE_PAD_BOTTOM_DP))
+                                .child(spaced_line(
+                                    time_picker::TITLE,
+                                    a.title_style.size_sp,
+                                    paint(a.header),
+                                )),
                         )
                         .child(
                             div()
-                                .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
-                                .h(px(time_picker::DISPLAY_SEPARATOR_H_DP))
                                 .flex()
                                 .items_center()
-                                .justify_center()
-                                .font_weight(type_weight(a.time_style))
-                                .text_color(paint(a.header))
-                                .child(":"),
-                        )
-                        .child(
-                            div()
-                                .id("time-minute-field")
-                                .px(px(8.))
-                                .p(px(4.))
-                                .rounded(px(8.))
-                                .bg(paint(if !hour_on {
-                                    a.number_selected_container
-                                } else {
-                                    a.clock
-                                }))
-                                .text_color(paint(if !hour_on {
-                                    a.number_selected
-                                } else {
-                                    a.header
-                                }))
-                                .font_weight(type_weight(a.time_style))
-                                .w(px(time_picker::time_selector_w_dp(this.time_format)))
-                                .h(px(time_picker::TIME_SELECTOR_H_DP))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(time_picker::format_minute_field(this.time_minute))
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.bump_time_hand();
-                                    this.time_dial = DialFace::Minute;
-                                    cx.notify();
-                                })),
-                        ),
-                )
-                .when(this.time_format.shows_period(), |col| {
-                    col.child(
-                        div()
-                            .mt(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
-                            .flex()
-                            .flex_row()
-                            .w(px(time_picker::period_w_dp(
-                                time_picker::TimePickerLayoutType::Horizontal,
-                            )))
-                            .h(px(time_picker::period_h_dp(
-                                time_picker::TimePickerLayoutType::Horizontal,
-                            )))
-                            .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                                let selected = this.time_period == period;
-                                div()
-                                    .id(SharedString::from(period.label()))
-                                    .flex_1()
-                                    .h_full()
-                                    .rounded(px(8.))
-                                    .bg(paint(if selected {
-                                        a.period_selected_container
-                                    } else {
-                                        a.period_idle_container
-                                    }))
-                                    .text_color(paint(if selected {
-                                        a.period_selected
-                                    } else {
-                                        a.period_idle
-                                    }))
-                                    .font_weight(type_weight(a.period_style))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .child(period.label())
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.time_period = period;
-                                        cx.notify();
-                                    }))
-                            })),
-                    )
-                }),
-        )
-        .child(
-            div()
-                .relative()
-                .w(px(clock))
-                .h(px(clock))
-                .rounded(px(clock / 2.0))
-                .bg(paint(a.clock))
-                .child(
-                    div()
-                        .absolute()
-                        .top(px(0.))
-                        .left(px(0.))
-                        .w(px(clock))
-                        .h(px(clock))
-                        .with_animation(
-                            SharedString::from(format!(
-                                "time-hand-{hand_gen}-{}",
-                                if hour_live { "live" } else { "once" }
-                            )),
-                            if hour_live {
-                                Animation::new(Duration::from_millis(hand_ms.saturating_mul(12)))
-                                    .repeat()
-                            } else {
-                                Animation::new(Duration::from_millis(hand_ms))
-                            },
-                            move |this, delta| {
-                                let angle = if hour_live {
-                                    time_picker::hour_face_live_angle_deg(
-                                        live_hour,
-                                        live_minute,
-                                        delta,
-                                    )
-                                } else {
-                                    time_picker::lerp_angle_deg(from_angle, to_angle, delta)
-                                };
-                                let quad = time_picker::hand_quad_at_radius(
-                                    clock,
-                                    angle,
-                                    number,
-                                    live_radius,
-                                );
-                                this.child(
-                                    canvas(
-                                        move |_, _, _| {},
-                                        move |bounds, _, window, _| {
-                                            let mut builder = PathBuilder::fill();
-                                            for (i, (x, y)) in quad.iter().enumerate() {
-                                                let p = point(
-                                                    bounds.origin.x + px(*x),
-                                                    bounds.origin.y + px(*y),
-                                                );
-                                                if i == 0 {
-                                                    builder.move_to(p);
-                                                } else {
-                                                    builder.line_to(p);
-                                                }
-                                            }
-                                            builder.close();
-                                            if let Ok(path) = builder.build() {
-                                                window.paint_path(path, hand_color);
-                                            }
-                                            let mut hub_b = PathBuilder::fill();
-                                            let r = time_picker::HAND_HUB_DP / 2.0;
-                                            let n = 12u32;
-                                            for i in 0..n {
-                                                let ang =
-                                                    i as f32 / n as f32 * std::f32::consts::TAU;
-                                                let p = point(
-                                                    bounds.origin.x + px(hub.0 + r * ang.cos()),
-                                                    bounds.origin.y + px(hub.1 + r * ang.sin()),
-                                                );
-                                                if i == 0 {
-                                                    hub_b.move_to(p);
-                                                } else {
-                                                    hub_b.line_to(p);
-                                                }
-                                            }
-                                            hub_b.close();
-                                            if let Ok(path) = hub_b.build() {
-                                                window.paint_path(path, hand_color);
-                                            }
-                                        },
-                                    )
-                                    .w(px(clock))
-                                    .h(px(clock)),
-                                )
-                            },
-                        ),
-                )
-                .child({
-                    let second_color = hand_color;
-                    let period = time_picker::SECOND_HAND_FRAME_MS as u64;
-                    div()
-                        .absolute()
-                        .top(px(0.))
-                        .left(px(0.))
-                        .w(px(clock))
-                        .h(px(clock))
-                        .with_animation(
-                            "time-second-hand",
-                            Animation::new(Duration::from_millis(period)).repeat(),
-                            move |this, _delta| {
-                                let angle = time_picker::second_hand_angle_wall_clock();
-                                let quad = time_picker::second_hand_quad(clock, angle, number);
-                                this.child(
-                                    canvas(
-                                        move |_, _, _| {},
-                                        move |bounds, _, window, _| {
-                                            let mut builder = PathBuilder::fill();
-                                            for (i, (x, y)) in quad.iter().enumerate() {
-                                                let p = point(
-                                                    bounds.origin.x + px(*x),
-                                                    bounds.origin.y + px(*y),
-                                                );
-                                                if i == 0 {
-                                                    builder.move_to(p);
-                                                } else {
-                                                    builder.line_to(p);
-                                                }
-                                            }
-                                            builder.close();
-                                            if let Ok(path) = builder.build() {
-                                                window.paint_path(path, second_color);
-                                            }
-                                        },
-                                    )
-                                    .w(px(clock))
-                                    .h(px(clock)),
-                                )
-                            },
-                        )
-                })
-                .children(labels.into_iter().map(|(value, label, x, y, selected)| {
-                    let face = this.time_dial;
-                    div()
-                        .id(SharedString::from(format!("dial-{value}")))
-                        .absolute()
-                        .left(px(x))
-                        .top(px(y))
-                        .w(px(number))
-                        .h(px(number))
-                        .rounded(px(number / 2.0))
-                        .bg(paint(if selected {
-                            a.number_selected_container
-                        } else {
-                            a.clock
-                        }))
-                        .text_color(paint(if selected {
-                            a.number_selected
-                        } else {
-                            a.number
-                        }))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.bump_time_hand();
-                            match face {
-                                DialFace::Hour => {
-                                    this.time_hour = time_picker::hour_from_dial(
-                                        time_picker::select_hour_for(
+                                .child(
+                                    div()
+                                        .id("time-hour-field")
+                                        .px(px(8.))
+                                        .p(px(4.))
+                                        .rounded(px(8.))
+                                        .bg(paint(if hour_on {
+                                            a.number_selected_container
+                                        } else {
+                                            a.clock
+                                        }))
+                                        .text_color(paint(if hour_on {
+                                            a.number_selected
+                                        } else {
+                                            a.header
+                                        }))
+                                        .font_weight(type_weight(a.time_style))
+                                        .w(px(time_picker::time_selector_w_dp(this.time_format)))
+                                        .h(px(time_picker::TIME_SELECTOR_H_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(time_picker::format_hour_field_for(
                                             this.time_dial_hour(),
-                                            value,
                                             this.time_format,
-                                        ),
-                                        this.time_period,
-                                        this.time_format,
-                                    );
-                                    this.time_dial = DialFace::Minute;
-                                }
-                                DialFace::Minute => {
-                                    this.time_minute =
-                                        time_picker::select_minute(this.time_minute, value);
-                                }
-                            }
-                            cx.notify();
-                        }))
-                })),
+                                        ))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.bump_time_hand();
+                                            this.time_dial = DialFace::Hour;
+                                            cx.notify();
+                                        })),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
+                                        .h(px(time_picker::DISPLAY_SEPARATOR_H_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .font_weight(type_weight(a.time_style))
+                                        .text_color(paint(a.header))
+                                        .child(":"),
+                                )
+                                .child(
+                                    div()
+                                        .id("time-minute-field")
+                                        .px(px(8.))
+                                        .p(px(4.))
+                                        .rounded(px(8.))
+                                        .bg(paint(if !hour_on {
+                                            a.number_selected_container
+                                        } else {
+                                            a.clock
+                                        }))
+                                        .text_color(paint(if !hour_on {
+                                            a.number_selected
+                                        } else {
+                                            a.header
+                                        }))
+                                        .font_weight(type_weight(a.time_style))
+                                        .w(px(time_picker::time_selector_w_dp(this.time_format)))
+                                        .h(px(time_picker::TIME_SELECTOR_H_DP))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(time_picker::format_minute_field(this.time_minute))
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.bump_time_hand();
+                                            this.time_dial = DialFace::Minute;
+                                            cx.notify();
+                                        })),
+                                ),
+                        )
+                        .when(this.time_format.shows_period(), |col| {
+                            col.child(
+                                div()
+                                    .mt(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
+                                    .flex()
+                                    .flex_row()
+                                    .w(px(time_picker::period_w_dp(
+                                        time_picker::TimePickerLayoutType::Horizontal,
+                                    )))
+                                    .h(px(time_picker::period_h_dp(
+                                        time_picker::TimePickerLayoutType::Horizontal,
+                                    )))
+                                    .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(
+                                        |period| {
+                                            let selected = this.time_period == period;
+                                            div()
+                                                .id(SharedString::from(period.label()))
+                                                .flex_1()
+                                                .h_full()
+                                                .rounded(px(8.))
+                                                .bg(paint(if selected {
+                                                    a.period_selected_container
+                                                } else {
+                                                    a.period_idle_container
+                                                }))
+                                                .text_color(paint(if selected {
+                                                    a.period_selected
+                                                } else {
+                                                    a.period_idle
+                                                }))
+                                                .font_weight(type_weight(a.period_style))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .child(period.label())
+                                                .on_click(cx.listener(move |this, _, _, cx| {
+                                                    this.time_period = period;
+                                                    cx.notify();
+                                                }))
+                                        },
+                                    )),
+                            )
+                        }),
+                )
+                .child(
+                    div()
+                        .relative()
+                        .w(px(clock))
+                        .h(px(clock))
+                        .rounded(px(clock / 2.0))
+                        .bg(paint(a.clock))
+                        .child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(clock))
+                                .h(px(clock))
+                                .with_animation(
+                                    SharedString::from(format!(
+                                        "time-hand-{hand_gen}-{}",
+                                        if hour_live { "live" } else { "once" }
+                                    )),
+                                    if hour_live {
+                                        Animation::new(Duration::from_millis(
+                                            hand_ms.saturating_mul(12),
+                                        ))
+                                        .repeat()
+                                    } else {
+                                        Animation::new(Duration::from_millis(hand_ms))
+                                    },
+                                    move |this, delta| {
+                                        let angle = if hour_live {
+                                            time_picker::hour_face_live_angle_deg(
+                                                live_hour,
+                                                live_minute,
+                                                delta,
+                                            )
+                                        } else {
+                                            time_picker::lerp_angle_deg(from_angle, to_angle, delta)
+                                        };
+                                        let quad = time_picker::hand_quad_at_radius(
+                                            clock,
+                                            angle,
+                                            number,
+                                            live_radius,
+                                        );
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let mut builder = PathBuilder::fill();
+                                                    for (i, (x, y)) in quad.iter().enumerate() {
+                                                        let p = point(
+                                                            bounds.origin.x + px(*x),
+                                                            bounds.origin.y + px(*y),
+                                                        );
+                                                        if i == 0 {
+                                                            builder.move_to(p);
+                                                        } else {
+                                                            builder.line_to(p);
+                                                        }
+                                                    }
+                                                    builder.close();
+                                                    if let Ok(path) = builder.build() {
+                                                        window.paint_path(path, hand_color);
+                                                    }
+                                                    let mut hub_b = PathBuilder::fill();
+                                                    let r = time_picker::HAND_HUB_DP / 2.0;
+                                                    let n = 12u32;
+                                                    for i in 0..n {
+                                                        let ang = i as f32 / n as f32
+                                                            * std::f32::consts::TAU;
+                                                        let p = point(
+                                                            bounds.origin.x
+                                                                + px(hub.0 + r * ang.cos()),
+                                                            bounds.origin.y
+                                                                + px(hub.1 + r * ang.sin()),
+                                                        );
+                                                        if i == 0 {
+                                                            hub_b.move_to(p);
+                                                        } else {
+                                                            hub_b.line_to(p);
+                                                        }
+                                                    }
+                                                    hub_b.close();
+                                                    if let Ok(path) = hub_b.build() {
+                                                        window.paint_path(path, hand_color);
+                                                    }
+                                                },
+                                            )
+                                            .w(px(clock))
+                                            .h(px(clock)),
+                                        )
+                                    },
+                                ),
+                        )
+                        .child({
+                            let second_color = hand_color;
+                            let period = time_picker::SECOND_HAND_FRAME_MS as u64;
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(0.))
+                                .w(px(clock))
+                                .h(px(clock))
+                                .with_animation(
+                                    "time-second-hand",
+                                    Animation::new(Duration::from_millis(period)).repeat(),
+                                    move |this, _delta| {
+                                        let angle = time_picker::second_hand_angle_wall_clock();
+                                        let quad =
+                                            time_picker::second_hand_quad(clock, angle, number);
+                                        this.child(
+                                            canvas(
+                                                move |_, _, _| {},
+                                                move |bounds, _, window, _| {
+                                                    let mut builder = PathBuilder::fill();
+                                                    for (i, (x, y)) in quad.iter().enumerate() {
+                                                        let p = point(
+                                                            bounds.origin.x + px(*x),
+                                                            bounds.origin.y + px(*y),
+                                                        );
+                                                        if i == 0 {
+                                                            builder.move_to(p);
+                                                        } else {
+                                                            builder.line_to(p);
+                                                        }
+                                                    }
+                                                    builder.close();
+                                                    if let Ok(path) = builder.build() {
+                                                        window.paint_path(path, second_color);
+                                                    }
+                                                },
+                                            )
+                                            .w(px(clock))
+                                            .h(px(clock)),
+                                        )
+                                    },
+                                )
+                        })
+                        .children(labels.into_iter().map(|(value, label, x, y, selected)| {
+                            let face = this.time_dial;
+                            div()
+                                .id(SharedString::from(format!("dial-{value}")))
+                                .absolute()
+                                .left(px(x))
+                                .top(px(y))
+                                .w(px(number))
+                                .h(px(number))
+                                .rounded(px(number / 2.0))
+                                .bg(paint(if selected {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if selected {
+                                    a.number_selected
+                                } else {
+                                    a.number
+                                }))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(label)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.bump_time_hand();
+                                    match face {
+                                        DialFace::Hour => {
+                                            this.time_hour = time_picker::hour_from_dial(
+                                                time_picker::select_hour_for(
+                                                    this.time_dial_hour(),
+                                                    value,
+                                                    this.time_format,
+                                                ),
+                                                this.time_period,
+                                                this.time_format,
+                                            );
+                                            this.time_dial = DialFace::Minute;
+                                        }
+                                        DialFace::Minute => {
+                                            this.time_minute =
+                                                time_picker::select_minute(this.time_minute, value);
+                                        }
+                                    }
+                                    cx.notify();
+                                }))
+                        })),
+                ),
         )
+        .child(desktop_time_dialog_actions(
+            theme,
+            time_picker::TimePickerLayoutType::Horizontal,
+        ))
 }
 
 fn wide_rail_icon_hero(
@@ -10066,6 +10116,12 @@ mod tests {
             "Select time"
         );
         assert_eq!(input.title_style.name, "labelMedium");
+        assert!(time_picker::DIALOG_ACTIONS);
+        assert_eq!(time_picker::PORT_ACTIONS_BOTTOM_DP, 24.0);
+        assert_eq!(time_picker::LAND_ACTIONS_BOTTOM_DP, 8.0);
+        assert_eq!(time_picker::LAND_CONTENT_TOP_DP, 16.0);
+        assert_eq!(time_picker::DIALOG_OK, "OK");
+        assert_eq!(time_picker::DIALOG_CANCEL, "Cancel");
         assert_eq!(
             time_picker::DEMO_DISPLAY_MODE.toggle(),
             time_picker::TimePickerDisplayMode::Scroll

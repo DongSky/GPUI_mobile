@@ -1090,6 +1090,12 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-dialog-title="picker""#));
     assert!(html.contains(time_picker::INPUT_TITLE));
     assert!(html.contains("padding-bottom: 20px"));
+    assert!(html.contains(r#"data-time-dialog-actions="1""#));
+    assert!(html.contains(r#"data-time-dialog-layout="portrait""#));
+    assert!(html.contains(r#"data-time-dialog-layout="landscape""#));
+    assert!(html.contains(r#"data-time-land-content="1""#));
+    assert!(html.contains(time_picker::DIALOG_OK));
+    assert!(html.contains(time_picker::DIALOG_CANCEL));
     assert!(html.contains(r#"data-time-format="24""#));
     assert!(html.contains("data-time-format-toggle=\"1\""));
     assert!(html.contains(r#"data-scroll-field="hour""#));
@@ -1360,6 +1366,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("SupportLabelTop")
             && e.notes.contains("TimePickerDialogDefaults.Title")
             && e.notes.contains("labelMedium")
+            && e.notes.contains("TimePickerCustomLayout")
+            && e.notes.contains("Cancel/OK")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3888,6 +3896,27 @@ fn search_bar_and_time_picker_tokens() {
         time_picker::TITLE
     );
     assert_eq!(input_a.title_style.name, "labelMedium");
+    assert!(time_picker::DIALOG_ACTIONS);
+    assert_eq!(time_picker::PORT_TITLE_TOP_DP, 24.0);
+    assert_eq!(time_picker::PORT_ACTIONS_BOTTOM_DP, 24.0);
+    assert_eq!(time_picker::LAND_TITLE_TOP_DP, 24.0);
+    assert_eq!(time_picker::LAND_CONTENT_TOP_DP, 16.0);
+    assert_eq!(time_picker::LAND_CONTENT_ACTIONS_DP, 4.0);
+    assert_eq!(time_picker::LAND_ACTIONS_BOTTOM_DP, 8.0);
+    assert_eq!(time_picker::DIALOG_ACTIONS_GAP_DP, 8.0);
+    assert_eq!(time_picker::DIALOG_OK, "OK");
+    assert_eq!(time_picker::DIALOG_CANCEL, "Cancel");
+    assert_eq!(
+        time_picker::actions_bottom_dp(time_picker::TimePickerLayoutType::Vertical),
+        24.0
+    );
+    assert_eq!(
+        time_picker::actions_bottom_dp(time_picker::TimePickerLayoutType::Horizontal),
+        8.0
+    );
+    assert_eq!(time_picker::port_actions_bottom_css(), "24px");
+    assert_eq!(time_picker::land_content_top_css(), "16px");
+    assert_eq!(time_picker::land_actions_bottom_css(), "8px");
     assert_eq!(
         time_picker::resolve_scroll(&theme).title_style.name,
         "labelMedium"
