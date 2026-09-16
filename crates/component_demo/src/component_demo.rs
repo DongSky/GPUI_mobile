@@ -6382,91 +6382,103 @@ fn android_time_picker(
     let hand_color = paint(a.hand);
     div()
         .w_full()
-        .p(px(16.))
+        .pt(px(16.))
+        .px(px(16.))
         .rounded(px(a.corners.top_left))
         .bg(paint(a.container))
         .flex()
         .flex_col()
-        .gap(px(8.))
         .child(
             div()
                 .flex()
+                .flex_col()
                 .gap(px(8.))
                 .child(
                     div()
-                        .id("time-hour-field")
-                        .px(px(8.))
-                        .bg(paint(if hour_on {
-                            a.number_selected_container
-                        } else {
-                            a.clock
-                        }))
-                        .text_color(paint(if hour_on { a.number_selected } else { a.header }))
-                        .child(time_picker::format_hour_field_for(
-                            this.time_dial_hour(),
-                            this.time_format,
-                        ))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.bump_time_hand();
-                            this.time_dial = DialFace::Hour;
-                            cx.notify();
-                        })),
-                )
-                .child(div().child(":"))
-                .child(
-                    div()
-                        .id("time-minute-field")
-                        .px(px(8.))
-                        .bg(paint(if !hour_on {
-                            a.number_selected_container
-                        } else {
-                            a.clock
-                        }))
-                        .text_color(paint(if !hour_on {
-                            a.number_selected
-                        } else {
-                            a.header
-                        }))
-                        .child(time_picker::format_minute_field(this.time_minute))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.bump_time_hand();
-                            this.time_dial = DialFace::Minute;
-                            cx.notify();
-                        })),
-                ),
-        )
-        .when(this.time_format.shows_period(), |col| {
-            col.child(div().flex().gap(px(8.)).children(
-                [DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                    let selected = this.time_period == period;
-                    div()
-                        .id(SharedString::from(period.label()))
-                        .px(px(12.))
-                        .h(px(time_picker::PERIOD_H_DP))
-                        .rounded(px(8.))
-                        .bg(paint(if selected {
-                            a.period_selected_container
-                        } else {
-                            a.period_idle_container
-                        }))
-                        .text_color(paint(if selected {
-                            a.period_selected
-                        } else {
-                            a.period_idle
-                        }))
                         .flex()
-                        .items_center()
-                        .child(period.label())
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.time_period = period;
-                            cx.notify();
-                        }))
+                        .gap(px(8.))
+                        .child(
+                            div()
+                                .id("time-hour-field")
+                                .px(px(8.))
+                                .bg(paint(if hour_on {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if hour_on {
+                                    a.number_selected
+                                } else {
+                                    a.header
+                                }))
+                                .child(time_picker::format_hour_field_for(
+                                    this.time_dial_hour(),
+                                    this.time_format,
+                                ))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.bump_time_hand();
+                                    this.time_dial = DialFace::Hour;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(div().child(":"))
+                        .child(
+                            div()
+                                .id("time-minute-field")
+                                .px(px(8.))
+                                .bg(paint(if !hour_on {
+                                    a.number_selected_container
+                                } else {
+                                    a.clock
+                                }))
+                                .text_color(paint(if !hour_on {
+                                    a.number_selected
+                                } else {
+                                    a.header
+                                }))
+                                .child(time_picker::format_minute_field(this.time_minute))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.bump_time_hand();
+                                    this.time_dial = DialFace::Minute;
+                                    cx.notify();
+                                })),
+                        ),
+                )
+                .when(this.time_format.shows_period(), |col| {
+                    col.child(div().flex().gap(px(8.)).children(
+                        [DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                            let selected = this.time_period == period;
+                            div()
+                                .id(SharedString::from(period.label()))
+                                .px(px(12.))
+                                .h(px(time_picker::PERIOD_H_DP))
+                                .rounded(px(8.))
+                                .bg(paint(if selected {
+                                    a.period_selected_container
+                                } else {
+                                    a.period_idle_container
+                                }))
+                                .text_color(paint(if selected {
+                                    a.period_selected
+                                } else {
+                                    a.period_idle
+                                }))
+                                .flex()
+                                .items_center()
+                                .child(period.label())
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.time_period = period;
+                                    cx.notify();
+                                }))
+                        }),
+                    ))
                 }),
-            ))
-        })
+        )
         .child(
             div()
                 .relative()
+                .mt(px(time_picker::CLOCK_DISPLAY_BOTTOM_MARGIN_DP))
+                .mb(px(time_picker::CLOCK_FACE_BOTTOM_MARGIN_DP))
                 .w(px(clock))
                 .h(px(clock))
                 .rounded(px(clock / 2.0))

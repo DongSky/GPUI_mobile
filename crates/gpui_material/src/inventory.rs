@@ -284,7 +284,7 @@ pub const INVENTORY: &[ComponentEntry] = &[
         material: "Time pickers (dial + TimeScroll + TimeInput)",
         docs: "https://m3.material.io/components/time-pickers/specs",
         parity: Parity::Done,
-        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h or 00–23 / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. TimeInput 96×72 extra-large fields + ScrollDisplayModeToggle (⌨/◷ Scroll↔Input). 24-hour (is24Hour) uses 00–23 and hides AM/PM. Dial: Compose ClockFace 24h dual ring (outer 00–11 OuterCircle 101 / inner 12–23 InnerCircle 69) + 12h outer 1–12; TimePickerLayoutType Vertical (compact) + Horizontal landscape (selectors beside 256dp ClockFace, 216×38 period, 24dp gap); analog hand spatial-fast lerp to ring radius; time selector 114dp (24h) / 96dp; wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header",
+        notes: "Expressive TimeScroll (recommended): two ScrollFields (12h or 00–23 / 00–59 wrap, 200dp / 3-item, Corner 28) + vibrantColors primaryContainer; catalog rAF + host vsync fling. TimeInput 96×72 extra-large fields + ScrollDisplayModeToggle (⌨/◷ Scroll↔Input). 24-hour (is24Hour) uses 00–23 and hides AM/PM. Dial: Compose ClockFace 24h dual ring (outer 00–11 OuterCircle 101 / inner 12–23 InnerCircle 69) + 12h outer 1–12; ClockDisplayBottomMargin 36 + ClockFaceBottomMargin 24 on Vertical; TimePickerLayoutType Vertical (compact) + Horizontal landscape (selectors beside 256dp ClockFace, 216×38 period, 24dp gap); analog hand spatial-fast lerp to ring radius; time selector 114dp (24h) / 96dp; wall-clock second hand at 16ms GPUI frames; displaySmallEmphasized header",
     },
     ComponentEntry {
         name: "Carousel",

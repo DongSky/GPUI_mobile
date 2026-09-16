@@ -39,6 +39,12 @@ pub const PERIOD_HORIZONTAL_W_DP: f32 = 216.0;
 pub const PERIOD_HORIZONTAL_H_DP: f32 = 38.0;
 /// Gap between the selector column and the 256dp ClockFace (horizontal).
 pub const HORIZONTAL_GAP_DP: f32 = 24.0;
+/// Compose `ClockDisplayBottomMargin` — vertical gap ClockDisplay → ClockFace.
+pub const CLOCK_DISPLAY_BOTTOM_MARGIN_DP: f32 = 36.0;
+/// Compose `ClockFaceBottomMargin` — space below ClockFace (vertical).
+pub const CLOCK_FACE_BOTTOM_MARGIN_DP: f32 = 24.0;
+/// Catalog / hosts apply official vertical ClockFace margins.
+pub const CLOCK_FACE_MARGINS: bool = true;
 
 /// Compose `TimePickerLayoutType` — vertical (portrait) vs horizontal (landscape).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

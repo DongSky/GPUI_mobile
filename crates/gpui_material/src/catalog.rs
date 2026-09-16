@@ -342,10 +342,17 @@ a {{ color: var(--primary); }}
   flex: 0 0 auto;
 }}
 .timepicker {{
-  display: flex; flex-direction: column; gap: 16px; padding: 24px; max-width: 360px;
+  display: flex; flex-direction: column; gap: 0; padding: 24px 24px 0; max-width: 360px;
+}}
+.timepicker .clock {{
+  margin-top: 36px; margin-bottom: 24px;
 }}
 .timepicker[data-time-layout="horizontal"] {{
   flex-direction: row; align-items: flex-start; max-width: 720px; gap: 24px;
+  padding: 24px;
+}}
+.timepicker[data-time-layout="horizontal"] .clock {{
+  margin-top: 0; margin-bottom: 0;
 }}
 .timepicker[data-time-layout="horizontal"] .time-col {{
   display: flex; flex-direction: column; gap: 16px; flex: 0 0 auto;
@@ -356,7 +363,7 @@ a {{ color: var(--primary); }}
 .timepicker[data-time-layout="horizontal"] .period button {{
   width: 108px; height: 38px;
 }}
-.timepicker .time-row {{ display: flex; align-items: center; gap: 12px; }}
+.timepicker .time-row {{ display: flex; align-items: center; gap: 12px; margin-top: 16px; }}
 .timepicker .time-fields {{ display: flex; align-items: center; gap: 4px; }}
 .timepicker .time-field {{
   min-width: 96px; min-height: 80px; padding: 8px 12px; border-radius: 8px; text-align: center;
@@ -8416,8 +8423,8 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = pm.label(),
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
-<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div style="color:{hy};font-size:{ys}px">{title}</div>
   <div class="time-row">
     {selectors}

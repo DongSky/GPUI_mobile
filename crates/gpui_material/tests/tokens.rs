@@ -1048,6 +1048,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("0 results"));
     assert!(html.contains("data-timepicker=\"1\""));
     assert!(html.contains(r#"data-time-layout="vertical""#));
+    assert!(html.contains(r#"data-clock-face-margins="1""#));
+    assert!(html.contains("margin-top: 36px; margin-bottom: 24px"));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
     assert!(html.contains(r#"data-hero="timepicker-horizontal""#));
     assert!(html.contains("data-time-scroll=\"1\""));
@@ -1319,6 +1321,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ScrollDisplayModeToggle")
             && e.notes.contains("TimePickerLayoutType")
             && e.notes.contains("Horizontal")
+            && e.notes.contains("ClockDisplayBottomMargin")
+            && e.notes.contains("ClockFaceBottomMargin")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3673,6 +3677,9 @@ fn search_bar_and_time_picker_tokens() {
         38.0
     );
     assert_eq!(time_picker::HORIZONTAL_GAP_DP, 24.0);
+    assert!(time_picker::CLOCK_FACE_MARGINS);
+    assert_eq!(time_picker::CLOCK_DISPLAY_BOTTOM_MARGIN_DP, 36.0);
+    assert_eq!(time_picker::CLOCK_FACE_BOTTOM_MARGIN_DP, 24.0);
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll
