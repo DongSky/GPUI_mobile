@@ -2853,7 +2853,7 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::RANGE_HEADLINE_PAD_START_DP, 64.0);
     assert_eq!(date_picker::RANGE_HEADLINE_PAD_END_DP, 12.0);
     assert_eq!(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP, 12.0);
-    assert_eq!(date_picker::range_title_padding_css(), "0 12px 0 64px");
+    assert_eq!(date_picker::range_title_padding_css(), "0px 12px 0 64px");
     assert_eq!(
         date_picker::range_headline_padding_css(),
         "0 12px 12px 64px"
