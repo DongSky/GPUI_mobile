@@ -1050,6 +1050,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-layout="vertical""#));
     assert!(html.contains(r#"data-clock-face-margins="1""#));
     assert!(html.contains("margin-top: 36px; margin-bottom: 24px"));
+    assert!(html.contains(r#"data-display-separator="1""#));
+    assert!(html.contains("width: 24px; height: 80px"));
+    assert!(html.contains(r#"data-period-toggle-margin="1""#));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
     assert!(html.contains(r#"data-hero="timepicker-horizontal""#));
     assert!(html.contains("data-time-scroll=\"1\""));
@@ -1323,6 +1326,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Horizontal")
             && e.notes.contains("ClockDisplayBottomMargin")
             && e.notes.contains("ClockFaceBottomMargin")
+            && e.notes.contains("DisplaySeparatorWidth")
+            && e.notes.contains("PeriodToggleMargin")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3680,6 +3685,12 @@ fn search_bar_and_time_picker_tokens() {
     assert!(time_picker::CLOCK_FACE_MARGINS);
     assert_eq!(time_picker::CLOCK_DISPLAY_BOTTOM_MARGIN_DP, 36.0);
     assert_eq!(time_picker::CLOCK_FACE_BOTTOM_MARGIN_DP, 24.0);
+    assert!(time_picker::DISPLAY_SEPARATOR);
+    assert_eq!(time_picker::DISPLAY_SEPARATOR_W_DP, 24.0);
+    assert_eq!(time_picker::DISPLAY_SEPARATOR_H_DP, 80.0);
+    assert_eq!(time_picker::INPUT_DISPLAY_SEPARATOR_H_DP, 72.0);
+    assert!(time_picker::PERIOD_TOGGLE_MARGIN);
+    assert_eq!(time_picker::PERIOD_TOGGLE_MARGIN_DP, 12.0);
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll

@@ -355,8 +355,11 @@ a {{ color: var(--primary); }}
   margin-top: 0; margin-bottom: 0;
 }}
 .timepicker[data-time-layout="horizontal"] .time-col {{
-  display: flex; flex-direction: column; gap: 16px; flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 0; flex: 0 0 auto;
 }}
+.timepicker[data-time-layout="horizontal"] .time-col > :first-child {{ margin-bottom: 16px; }}
+.timepicker[data-time-layout="horizontal"] .time-fields {{ margin-top: 0; }}
+.timepicker[data-time-layout="horizontal"] .period {{ margin-top: 12px; }}
 .timepicker[data-time-layout="horizontal"] .period {{
   flex-direction: row; width: 216px;
 }}
@@ -364,7 +367,11 @@ a {{ color: var(--primary); }}
   width: 108px; height: 38px;
 }}
 .timepicker .time-row {{ display: flex; align-items: center; gap: 12px; margin-top: 16px; }}
-.timepicker .time-fields {{ display: flex; align-items: center; gap: 4px; }}
+.timepicker .time-fields {{ display: flex; align-items: center; gap: 0; }}
+.timepicker .time-sep {{
+  width: 24px; height: 80px; flex: 0 0 24px;
+  display: flex; align-items: center; justify-content: center;
+}}
 .timepicker .time-field {{
   min-width: 96px; min-height: 80px; padding: 8px 12px; border-radius: 8px; text-align: center;
   cursor: pointer; border: 2px solid transparent;
@@ -429,14 +436,16 @@ a {{ color: var(--primary); }}
 .time-expressive[data-time-display="input"] [data-time-scroll] {{ display: none; }}
 .time-expressive[data-time-display="scroll"] [data-time-input] {{ display: none; }}
 .time-expressive[data-time-format="24"] .period {{ display: none; }}
-.time-input-row {{ display: flex; align-items: center; gap: 8px; }}
+.time-input-row {{ display: flex; align-items: center; gap: 0; }}
 .time-input-field {{
   width: 96px; height: 72px; border: none; border-radius: 28px; text-align: center;
   font: 500 57px/64px Roboto, sans-serif; padding: 0;
 }}
 .time-input-colon {{
+  width: 24px; height: 72px; flex: 0 0 24px;
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }}
+.time-input-row .period {{ margin-left: 12px; }}
 .time-input .period button {{ height: 32px; }}
 .field {{
   width: 280px; height: 56px; padding: 8px 16px;
@@ -8218,7 +8227,7 @@ fn time_picker_section(theme: &Theme) -> String {
   <div class="time-input" data-time-input="1" data-time-picker-style="input" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
     <div class="time-input-row">
       <input class="time-input-field" data-time-input-field="hour" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
-      <div class="time-input-colon" style="color:{icolon};font-size:{ics}px;font-weight:{icw}">:</div>
+      <div class="time-input-colon" data-display-separator="1" style="color:{icolon};font-size:{ics}px;font-weight:{icw}">:</div>
       <input class="time-input-field" data-time-input-field="minute" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
       <div class="period">
         <button data-period="AM" style="background:{iamb};color:{iamf}">{am}</button>
@@ -8400,10 +8409,10 @@ fn time_picker_section(theme: &Theme) -> String {
     let selectors = format!(
         r#"<div class="time-fields">
       <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
-      <div style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
+      <div class="time-sep" data-display-separator="1" style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
       <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{mm}</div>
     </div>
-    <div class="period">
+    <div class="period" data-period-toggle-margin="1">
       <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
       <button data-period="PM" style="background:{pmb};color:{pmf}">{pm}</button>
     </div>"#,
@@ -8423,10 +8432,10 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = pm.label(),
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
 <div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div style="color:{hy};font-size:{ys}px">{title}</div>
-  <div class="time-row">
+  <div class="time-row" data-period-toggle-margin="1">
     {selectors}
   </div>
   {clock}

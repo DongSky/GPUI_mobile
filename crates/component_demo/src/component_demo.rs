@@ -6172,7 +6172,6 @@ fn android_time_input(
     div()
         .flex()
         .items_center()
-        .gap(px(time_picker::INPUT_COLON_GAP_DP))
         .child(android_time_input_field(
             this,
             cx,
@@ -6182,6 +6181,11 @@ fn android_time_input(
         ))
         .child(
             div()
+                .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
+                .h(px(time_picker::INPUT_DISPLAY_SEPARATOR_H_DP))
+                .flex()
+                .items_center()
+                .justify_center()
                 .text_size(px(a.colon_style.size_sp))
                 .font_weight(type_weight(a.colon_style))
                 .text_color(paint(a.colon))
@@ -6197,6 +6201,7 @@ fn android_time_input(
         .when(this.time_format.shows_period(), |row| {
             row.child(
                 div()
+                    .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
                     .flex()
                     .flex_col()
                     .gap(px(time_picker::PERIOD_GAP_DP))
@@ -6421,7 +6426,15 @@ fn android_time_picker(
                                     cx.notify();
                                 })),
                         )
-                        .child(div().child(":"))
+                        .child(
+                            div()
+                                .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
+                                .h(px(time_picker::DISPLAY_SEPARATOR_H_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(":"),
+                        )
                         .child(
                             div()
                                 .id("time-minute-field")

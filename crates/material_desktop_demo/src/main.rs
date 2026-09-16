@@ -7202,7 +7202,6 @@ fn desktop_time_input(
     div()
         .flex()
         .items_center()
-        .gap(px(time_picker::INPUT_COLON_GAP_DP))
         .child(desktop_time_input_field(
             this,
             cx,
@@ -7212,6 +7211,11 @@ fn desktop_time_input(
         ))
         .child(
             div()
+                .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
+                .h(px(time_picker::INPUT_DISPLAY_SEPARATOR_H_DP))
+                .flex()
+                .items_center()
+                .justify_center()
                 .text_size(px(a.colon_style.size_sp))
                 .font_weight(type_weight(a.colon_style))
                 .text_color(paint(a.colon))
@@ -7227,6 +7231,7 @@ fn desktop_time_input(
         .when(this.time_format.shows_period(), |row| {
             row.child(
                 div()
+                    .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
                     .flex()
                     .flex_col()
                     .gap(px(time_picker::PERIOD_GAP_DP))
@@ -7425,7 +7430,6 @@ fn time_picker_hero(
             div()
                 .flex()
                 .flex_col()
-                .gap(px(16.))
                 .child(spaced_line(
                     time_picker::TITLE,
                     a.title_style.size_sp,
@@ -7433,9 +7437,9 @@ fn time_picker_hero(
                 ))
                 .child(
                     div()
+                        .mt(px(16.))
                         .flex()
                         .items_center()
-                        .gap(px(4.))
                         .child(
                             div()
                                 .id("time-hour-field")
@@ -7470,6 +7474,11 @@ fn time_picker_hero(
                         )
                         .child(
                             div()
+                                .w(px(time_picker::DISPLAY_SEPARATOR_W_DP))
+                                .h(px(time_picker::DISPLAY_SEPARATOR_H_DP))
+                                .flex()
+                                .items_center()
+                                .justify_center()
                                 .font_weight(type_weight(a.time_style))
                                 .text_color(paint(a.header))
                                 .child(":"),
@@ -7507,6 +7516,7 @@ fn time_picker_hero(
                 .when(this.time_format.shows_period(), |col| {
                     col.child(
                         div()
+                            .mt(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
                             .flex()
                             .flex_row()
                             .w(px(time_picker::period_w_dp(

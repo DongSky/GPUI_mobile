@@ -29,6 +29,12 @@ pub const TIME_SELECTOR_W_DP: f32 = 96.0;
 /// Time selector container width (24h vertical).
 pub const TIME_SELECTOR_W_24H_DP: f32 = 114.0;
 pub const TIME_SELECTOR_H_DP: f32 = 80.0;
+/// Compose `DisplaySeparatorWidth` — hour:minute colon slot.
+pub const DISPLAY_SEPARATOR_W_DP: f32 = 24.0;
+/// Dial `DisplaySeparator` height = `PeriodSelectorVerticalContainerHeight`.
+pub const DISPLAY_SEPARATOR_H_DP: f32 = TIME_SELECTOR_H_DP;
+/// Catalog / hosts apply official DisplaySeparator.
+pub const DISPLAY_SEPARATOR: bool = true;
 pub const CONTAINER_PAD_DP: f32 = 24.0;
 pub const CORNER_DP: f32 = 28.0;
 pub const PERIOD_W_DP: f32 = 52.0;
@@ -45,6 +51,10 @@ pub const CLOCK_DISPLAY_BOTTOM_MARGIN_DP: f32 = 36.0;
 pub const CLOCK_FACE_BOTTOM_MARGIN_DP: f32 = 24.0;
 /// Catalog / hosts apply official vertical ClockFace margins.
 pub const CLOCK_FACE_MARGINS: bool = true;
+/// Compose `PeriodToggleMargin` (start on vertical, top on horizontal).
+pub const PERIOD_TOGGLE_MARGIN_DP: f32 = 12.0;
+/// Catalog / hosts apply official period-toggle inset.
+pub const PERIOD_TOGGLE_MARGIN: bool = true;
 
 /// Compose `TimePickerLayoutType` — vertical (portrait) vs horizontal (landscape).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -819,6 +829,8 @@ pub const INPUT_PERIOD_W_DP: f32 = 52.0;
 pub const INPUT_PERIOD_H_DP: f32 = 72.0;
 pub const INPUT_GAP_DP: f32 = 24.0;
 pub const INPUT_COLON_GAP_DP: f32 = 8.0;
+/// TimeInput `DisplaySeparator` height = `PeriodSelectorContainerHeight`.
+pub const INPUT_DISPLAY_SEPARATOR_H_DP: f32 = INPUT_FIELD_H_DP;
 
 /// Catalog / host hero uses Compose `TimeScroll` (recommended).
 pub const DEMO_STYLE: TimePickerStyle = TimePickerStyle::Scroll;
