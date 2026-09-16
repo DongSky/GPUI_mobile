@@ -3485,6 +3485,20 @@ fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl Int
         }))
 }
 
+fn range_header_close(pick: &date_picker::DatePickerAppearance) -> impl IntoElement {
+    div()
+        .w(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+        .h(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(spaced_line(
+            date_picker::RANGE_HEADER_CLOSE_GLYPH,
+            24.0,
+            paint(pick.header_year),
+        ))
+}
+
 fn date_range_picker_empty_card(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -3512,11 +3526,18 @@ fn date_range_picker_empty_card(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
+                .child(range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -3546,6 +3567,7 @@ fn date_range_picker_empty_card(
                         .items_center()
                         .justify_center()
                         .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(
@@ -3665,48 +3687,73 @@ fn date_range_hero(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
                 .child(
                     div()
+                        .id("range-header-close")
+                        .w(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+                        .h(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
                         .flex()
-                        .flex_col()
-                        .gap(px(4.))
+                        .items_center()
+                        .justify_center()
                         .child(spaced_line(
-                            date_picker::range_title_for(this.range_display),
-                            pick.year_style.size_sp,
+                            date_picker::RANGE_HEADER_CLOSE_GLYPH,
+                            24.0,
                             paint(pick.header_year),
                         ))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.dismiss_date_range();
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
                         .child(
                             div()
-                                .font_weight(type_weight(pick.date_style))
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
                                 .child(spaced_line(
-                                    date_picker::header_range_selection(this.date_range),
-                                    pick.date_style.size_sp.min(28.0),
-                                    paint(pick.header_date),
-                                )),
-                        ),
-                )
-                .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
-                    el.child(
-                        div()
-                            .id("range-display-toggle")
-                            .w(px(date_picker::TOGGLE_SIZE_DP))
-                            .h(px(date_picker::TOGGLE_SIZE_DP))
-                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(this.range_display.toggle_icon())
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_range_display();
-                                cx.notify();
-                            })),
-                    )
-                }),
+                                    date_picker::range_title_for(this.range_display),
+                                    pick.year_style.size_sp,
+                                    paint(pick.header_year),
+                                ))
+                                .child(
+                                    div()
+                                        .font_weight(type_weight(pick.date_style))
+                                        .child(spaced_line(
+                                            date_picker::header_range_selection(this.date_range),
+                                            pick.date_style.size_sp.min(28.0),
+                                            paint(pick.header_date),
+                                        )),
+                                ),
+                        )
+                        .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
+                            el.child(
+                                div()
+                                    .id("range-display-toggle")
+                                    .w(px(date_picker::TOGGLE_SIZE_DP))
+                                    .h(px(date_picker::TOGGLE_SIZE_DP))
+                                    .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                    .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(this.range_display.toggle_icon())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.toggle_range_display();
+                                        cx.notify();
+                                    })),
+                            )
+                        }),
+                ),
         )
         .when(picker, |el| {
             el.child(
@@ -4272,11 +4319,18 @@ fn date_range_input_card(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
+                .child(range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -4309,6 +4363,7 @@ fn date_range_input_card(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4413,11 +4468,18 @@ fn date_range_input_empty_card(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
+                .child(range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -4447,6 +4509,7 @@ fn date_range_input_empty_card(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4552,11 +4615,18 @@ fn date_range_input_start_only_card(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
+                .child(range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -4586,6 +4656,7 @@ fn date_range_input_start_only_card(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -4691,11 +4762,18 @@ fn date_range_input_end_only_card(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
                 .items_start()
-                .justify_between()
+                .child(range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .items_start()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -4725,6 +4803,7 @@ fn date_range_input_end_only_card(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -9628,6 +9707,19 @@ mod tests {
         assert_eq!(date_picker::TOGGLE_PAD_BOTTOM_DP, 12.0);
         assert_eq!(date_picker::toggle_padding_css(), "0 12px 12px 0");
         assert!(date_picker::RANGE_HEADER_PADDINGS);
+        assert!(date_picker::RANGE_HEADER_CHROME);
+        assert!(date_picker::RANGE_HEADER_CLOSE);
+        assert_eq!(
+            date_picker::RANGE_HEADER_CLOSE_INSET_DP
+                + date_picker::RANGE_HEADER_CLOSE_TARGET_DP
+                + date_picker::RANGE_HEADER_CLOSE_INSET_DP,
+            date_picker::RANGE_TITLE_PAD_START_DP
+        );
+        assert_eq!(date_picker::RANGE_HEADER_CLOSE_GLYPH, "✕");
+        assert_eq!(
+            date_picker::apply_range_header_close(date_picker::DateRangeSelection::demo()),
+            date_picker::DateRangeSelection::demo()
+        );
         assert_eq!(date_picker::RANGE_TITLE_PAD_START_DP, 64.0);
         assert_eq!(date_picker::RANGE_TITLE_PAD_END_DP, 12.0);
         assert_eq!(date_picker::RANGE_HEADLINE_PAD_START_DP, 64.0);

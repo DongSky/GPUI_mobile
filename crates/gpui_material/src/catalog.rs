@@ -1275,6 +1275,13 @@ table.inv th {{ font-weight: 500; }}
 .cal [data-date-headline-pad] {{ padding: 0 12px 12px 24px; }}
 .cal [data-date-range-title-pad] {{ padding: 0px 12px 0 64px; }}
 .cal [data-date-range-headline-pad] {{ padding: 0 12px 12px 64px; }}
+.cal [data-range-header-chrome] {{ position: relative; }}
+.cal [data-range-header-close] {{
+  position: absolute; left: 8px; top: 8px; width: 48px; height: 48px;
+  border: none; background: transparent; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; line-height: 24px; color: inherit;
+}}
 .cal .head .dp-toggle {{ margin-top: 16px; }}
 .cal [data-date-range-header-paddings] .dp-toggle {{ margin-top: 0; }}
 .cal [data-date-toggle-pad] {{ padding: 0 12px 12px 0; }}
@@ -2465,20 +2472,30 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
     set("start", start);
     set("end", end);
   }}
+  function dismissRange() {{
+    var start = readCommit("start");
+    var end = readCommit("end");
+    writeSel(start, end);
+    if (start) {{
+      host.setAttribute("data-range-year", String(start.y));
+      host.setAttribute("data-range-month", String(start.m));
+      paintMonthLabel();
+    }}
+    host.setAttribute("data-date-pane", "calendar");
+    paintRangeGrid();
+  }}
   var cancelBtn = host.querySelector("[data-range-cancel]");
   if (cancelBtn) {{
     cancelBtn.addEventListener("click", function (ev) {{
       ev.stopPropagation();
-      var start = readCommit("start");
-      var end = readCommit("end");
-      writeSel(start, end);
-      if (start) {{
-        host.setAttribute("data-range-year", String(start.y));
-        host.setAttribute("data-range-month", String(start.m));
-        paintMonthLabel();
-      }}
-      host.setAttribute("data-date-pane", "calendar");
-      paintRangeGrid();
+      dismissRange();
+    }});
+  }}
+  var closeBtn = host.querySelector("[data-range-header-close]");
+  if (closeBtn) {{
+    closeBtn.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      dismissRange();
     }});
   }}
   var okBtn = host.querySelector("[data-range-ok]");
@@ -6993,9 +7010,10 @@ fn date_pickers(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Header uses Compose <code>DatePickerTitlePadding</code> (start 24 / end 12 / top 16) and <code>DatePickerHeadlinePadding</code> (start 24 / end 12 / bottom 12). Range header uses <code>DateRangePickerTitlePadding</code> (start 64 / end 12) and <code>DateRangePickerHeadlinePadding</code> (start 64 / end 12 / bottom 12); Compose does not add Save / X chrome. Mode toggle uses <code>DatePickerModeTogglePadding</code> (end 12 / bottom 12). Dialog Cancel/OK uses Compose <code>DatePickerDialog</code> <code>DialogButtonsPadding</code> (end 6 / bottom 8) and 8dp main-axis spacing. <code>SelectableDates</code> greys out Sat/Sun (not tappable). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static) with <code>InputTextFieldPadding</code> (start 24 / end 24 / top 10) plus <code>InputTextNonErroneousBottomPadding</code> 16. Compose <code>DatePickerHeadline</code> Picker empty shows <code>Selected date</code>; Input empty shows <code>Entered date</code>. Single-date Input supporting-text errors use Compose <code>DateInputValidator</code> (format / year-range / not-allowed). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields) with the same validator (format / year-range / not-allowed / order). Compose <code>DateRangePickerHeadline</code> empty shows <code>Start date – End date</code>; start-only shows <code>Sep 15 – End date</code>; end-only shows <code>Start date – Sep 21</code>. Compose <code>DateRangePickerTitle</code> Picker empty uses <code>Select dates</code> with an unselected VerticalMonthsList. Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
-<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-range-vertical-months="1" data-date-header-paddings="1" data-date-range-header-paddings="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Header uses Compose <code>DatePickerTitlePadding</code> (start 24 / end 12 / top 16) and <code>DatePickerHeadlinePadding</code> (start 24 / end 12 / bottom 12). Range header uses official chrome: leading close/back in the 64dp start column plus Compose <code>DateRangePickerTitlePadding</code> / <code>DateRangePickerHeadlinePadding</code> (start 64 / end 12 / bottom 12). Mode toggle uses <code>DatePickerModeTogglePadding</code> (end 12 / bottom 12). Dialog Cancel/OK uses Compose <code>DatePickerDialog</code> <code>DialogButtonsPadding</code> (end 6 / bottom 8) and 8dp main-axis spacing. <code>SelectableDates</code> greys out Sat/Sun (not tappable). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static) with <code>InputTextFieldPadding</code> (start 24 / end 24 / top 10) plus <code>InputTextNonErroneousBottomPadding</code> 16. Compose <code>DatePickerHeadline</code> Picker empty shows <code>Selected date</code>; Input empty shows <code>Entered date</code>. Single-date Input supporting-text errors use Compose <code>DateInputValidator</code> (format / year-range / not-allowed). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields) with the same validator (format / year-range / not-allowed / order). Compose <code>DateRangePickerHeadline</code> empty shows <code>Start date – End date</code>; start-only shows <code>Sep 15 – End date</code>; end-only shows <code>Start date – Sep 21</code>. Compose <code>DateRangePickerTitle</code> Picker empty uses <code>Select dates</code> with an unselected VerticalMonthsList. Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-range-vertical-months="1" data-date-header-paddings="1" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-range-title="1" data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_title}</div>
       <div data-range-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
@@ -7022,8 +7040,9 @@ fn date_pickers(theme: &Theme) -> String {
 </div>
 <h3>range picker empty</h3>
 <p class="note">Compose <code>DateRangePickerTitle</code> / <code>DateRangePickerHeadline</code> when Picker has no selection: <code>Select dates</code> + <code>Start date – End date</code>, VerticalMonthsList with today outline and no selected or in-range days.</p>
-<div class="cal dialog" data-datepicker-range-picker-empty="1" data-hero="datepicker-range-picker-empty" data-range-picker-empty="1" data-range-headline-empty="1" data-date-range-header-paddings="1" data-date-display="picker" data-date-display-mode="picker" data-range-vertical-months="1" data-week-start="sunday" data-selectable-dates="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<div class="cal dialog" data-datepicker-range-picker-empty="1" data-hero="datepicker-range-picker-empty" data-range-picker-empty="1" data-range-headline-empty="1" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="picker" data-date-display-mode="picker" data-range-vertical-months="1" data-week-start="sunday" data-selectable-dates="1" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-range-picker-title="1" data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_picker_title}</div>
       <div data-range-picker-empty-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_empty_headline}</div>
@@ -7147,8 +7166,9 @@ fn date_pickers(theme: &Theme) -> String {
 </div>
 <h3>range input</h3>
 <p class="note">Compose <code>DateRangePicker</code> <code>DisplayMode.Input</code>: <code>Enter dates</code>, two outlined <code>Start date</code> / <code>End date</code> fields, calendar toggle, Cancel / OK. Supporting-text errors use Compose <code>DateInputValidator</code> (<code>Date format not recognized</code> / <code>Date out of expected year range 1900 - 2100</code> / <code>Date not allowed</code> / <code>End date can't be before start date</code>).</p>
-<div class="cal dialog" data-datepicker-range-input="1" data-hero="datepicker-range-input" data-date-range-header-paddings="1" data-date-display="input" data-date-display-mode="input">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<div class="cal dialog" data-datepicker-range-input="1" data-hero="datepicker-range-input" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="input" data-date-display-mode="input">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
@@ -7167,8 +7187,9 @@ fn date_pickers(theme: &Theme) -> String {
 </div>
 <h3>range input empty</h3>
 <p class="note">Compose <code>DateRangePickerHeadline</code> when both ends are unset: headlineLarge <code>Start date – End date</code>, empty outlined Start/End <code>MM/DD/YYYY</code>.</p>
-<div class="cal dialog" data-datepicker-range-input-empty="1" data-hero="datepicker-range-input-empty" data-range-input-empty="1" data-range-headline-empty="1" data-date-range-header-paddings="1" data-date-display="input" data-date-display-mode="input">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<div class="cal dialog" data-datepicker-range-input-empty="1" data-hero="datepicker-range-input-empty" data-range-input-empty="1" data-range-headline-empty="1" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="input" data-date-display-mode="input">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-empty-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_empty_headline}</div>
@@ -7187,8 +7208,9 @@ fn date_pickers(theme: &Theme) -> String {
 </div>
 <h3>range input start only</h3>
 <p class="note">Compose <code>DateRangePickerHeadline</code> after the first selection: headlineLarge <code>Sep 15 – End date</code> (<code>mtrl_picker_range_header_only_start_selected</code>), Start outlined <code>09/15/2026</code>, End still the <code>MM/DD/YYYY</code> pattern.</p>
-<div class="cal dialog" data-datepicker-range-start-only="1" data-hero="datepicker-range-start-only" data-range-start-only="1" data-range-headline-start-only="1" data-date-range-header-paddings="1" data-date-display="input" data-date-display-mode="input">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<div class="cal dialog" data-datepicker-range-start-only="1" data-hero="datepicker-range-start-only" data-range-start-only="1" data-range-headline-start-only="1" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="input" data-date-display-mode="input">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-start-only-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_start_only_headline}</div>
@@ -7207,8 +7229,9 @@ fn date_pickers(theme: &Theme) -> String {
 </div>
 <h3>range input end only</h3>
 <p class="note">Compose <code>DateRangePickerHeadline</code> when only end is set: headlineLarge <code>Start date – Sep 21</code> (<code>mtrl_picker_range_header_only_end_selected</code>), Start still the <code>MM/DD/YYYY</code> pattern, End outlined <code>09/21/2026</code>.</p>
-<div class="cal dialog" data-datepicker-range-end-only="1" data-hero="datepicker-range-end-only" data-range-end-only="1" data-range-headline-end-only="1" data-date-range-header-paddings="1" data-date-display="input" data-date-display-mode="input">
-  <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+<div class="cal dialog" data-datepicker-range-end-only="1" data-hero="datepicker-range-end-only" data-range-end-only="1" data-range-headline-end-only="1" data-date-range-header-paddings="1" data-range-header-chrome="1" data-date-display="input" data-date-display-mode="input">
+  <div class="head" data-range-header-chrome="1" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <button type="button" data-range-header-close="1" aria-label="{range_close_label}">{range_close}</button>
     <div>
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-end-only-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_end_only_headline}</div>
@@ -7280,6 +7303,8 @@ fn date_pickers(theme: &Theme) -> String {
         years = paint_year_grid(&a, selected.year, today.year),
         docked_years = paint_docked_year_grid(&a, selected.year, today.year),
         range_title = date_picker::RANGE_HERO_TITLE,
+        range_close = date_picker::RANGE_HEADER_CLOSE_GLYPH,
+        range_close_label = date_picker::RANGE_HEADER_CLOSE_LABEL,
         range_headline = date_picker::header_range_label(
             date_picker::RANGE_DEMO_START,
             date_picker::RANGE_DEMO_END

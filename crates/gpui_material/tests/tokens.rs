@@ -923,6 +923,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-input-pad="1""#));
     assert!(html.contains(r#"data-date-toggle-pad="1""#));
     assert!(html.contains(r#"data-date-range-title-pad="1""#));
+    assert!(html.contains(r#"data-range-header-chrome="1""#));
+    assert!(html.contains(r#"data-range-header-close="1""#));
+    assert!(html.contains(date_picker::RANGE_HEADER_CLOSE_GLYPH));
+    assert!(html.contains(r#"aria-label="Close""#));
     assert!(html.contains(r#"data-date-range-headline-pad="1""#));
     assert!(html.contains(r#"data-date-range-header-paddings="1""#));
     assert!(html.contains(r#"data-date-dialog-buttons="1""#));
@@ -1349,6 +1353,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("InputTextFieldPadding")
             && e.notes.contains("DatePickerModeTogglePadding")
             && e.notes.contains("DateRangePickerTitlePadding")
+            && e.notes.contains("range-header chrome")
             && e.notes.contains("DateRangePickerHeadlinePadding")
             && e.notes.contains("DialogButtonsPadding")
             && e.notes.contains("Entered date")
@@ -2863,6 +2868,22 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::range_headline_padding_css(),
         "0 12px 12px 64px"
+    );
+    assert!(date_picker::RANGE_HEADER_CHROME);
+    assert!(date_picker::RANGE_HEADER_CLOSE);
+    assert_eq!(date_picker::RANGE_HEADER_CLOSE_TARGET_DP, 48.0);
+    assert_eq!(date_picker::RANGE_HEADER_CLOSE_INSET_DP, 8.0);
+    assert_eq!(
+        date_picker::RANGE_HEADER_CLOSE_INSET_DP
+            + date_picker::RANGE_HEADER_CLOSE_TARGET_DP
+            + date_picker::RANGE_HEADER_CLOSE_INSET_DP,
+        date_picker::RANGE_TITLE_PAD_START_DP
+    );
+    assert_eq!(date_picker::RANGE_HEADER_CLOSE_GLYPH, "✕");
+    assert_eq!(date_picker::RANGE_HEADER_CLOSE_LABEL, "Close");
+    assert_eq!(
+        date_picker::apply_range_header_close(date_picker::DateRangeSelection::empty()),
+        date_picker::DateRangeSelection::empty()
     );
     assert!(date_picker::DIALOG_BUTTONS_PADDINGS);
     assert_eq!(date_picker::DIALOG_BUTTONS_PAD_END_DP, 6.0);

@@ -7729,6 +7729,18 @@ fn android_range_month_block(
         ))
 }
 
+fn android_range_header_close(pick: &date_picker::DatePickerAppearance) -> impl IntoElement {
+    div()
+        .w(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+        .h(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+        .flex()
+        .items_center()
+        .justify_center()
+        .text_size(px(24.))
+        .text_color(paint(pick.header_year))
+        .child(date_picker::RANGE_HEADER_CLOSE_GLYPH)
+}
+
 fn android_date_range_picker_empty(
     theme: &Theme,
     pick: &date_picker::DatePickerAppearance,
@@ -7756,10 +7768,17 @@ fn android_date_range_picker_empty(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
+                .child(android_range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -7787,6 +7806,7 @@ fn android_date_range_picker_empty(
                         .items_center()
                         .justify_center()
                         .child(date_picker::LIVE_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(
@@ -7905,45 +7925,68 @@ fn android_date_range(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
                 .child(
                     div()
+                        .id("range-header-close")
+                        .w(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
+                        .h(px(date_picker::RANGE_HEADER_CLOSE_TARGET_DP))
                         .flex()
-                        .flex_col()
-                        .gap(px(4.))
-                        .child(
-                            div()
-                                .text_size(px(pick.year_style.size_sp))
-                                .text_color(paint(pick.header_year))
-                                .child(date_picker::range_title_for(this.range_display)),
-                        )
-                        .child(
-                            div()
-                                .text_size(px(22.))
-                                .text_color(paint(pick.header_date))
-                                .child(date_picker::header_range_selection(this.date_range)),
-                        ),
+                        .items_center()
+                        .justify_center()
+                        .text_size(px(24.))
+                        .text_color(paint(pick.header_year))
+                        .child(date_picker::RANGE_HEADER_CLOSE_GLYPH)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.dismiss_date_range();
+                            cx.notify();
+                        })),
                 )
-                .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
-                    el.child(
-                        div()
-                            .id("range-display-toggle")
-                            .w(px(date_picker::TOGGLE_SIZE_DP))
-                            .h(px(date_picker::TOGGLE_SIZE_DP))
-                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(this.range_display.toggle_icon())
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_range_display();
-                                cx.notify();
-                            })),
-                    )
-                }),
+                .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap(px(4.))
+                                .child(
+                                    div()
+                                        .text_size(px(pick.year_style.size_sp))
+                                        .text_color(paint(pick.header_year))
+                                        .child(date_picker::range_title_for(this.range_display)),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(22.))
+                                        .text_color(paint(pick.header_date))
+                                        .child(date_picker::header_range_selection(this.date_range)),
+                                ),
+                        )
+                        .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
+                            el.child(
+                                div()
+                                    .id("range-display-toggle")
+                                    .w(px(date_picker::TOGGLE_SIZE_DP))
+                                    .h(px(date_picker::TOGGLE_SIZE_DP))
+                                    .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                    .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(this.range_display.toggle_icon())
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.toggle_range_display();
+                                        cx.notify();
+                                    })),
+                            )
+                        }),
+                ),
         )
         .when(picker, |el| {
             el.child(
@@ -8199,10 +8242,17 @@ fn android_date_range_input(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
+                .child(android_range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -8233,6 +8283,7 @@ fn android_date_range_input(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -8342,10 +8393,17 @@ fn android_date_range_input_empty(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
+                .child(android_range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -8373,6 +8431,7 @@ fn android_date_range_input_empty(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -8470,10 +8529,17 @@ fn android_date_range_input_start_only(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
+                .child(android_range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -8501,6 +8567,7 @@ fn android_date_range_input_start_only(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
@@ -8598,10 +8665,17 @@ fn android_date_range_input_end_only(
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
-                .pl(px(date_picker::RANGE_TITLE_PAD_START_DP))
+                .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
                 .flex()
-                .justify_between()
+                .items_start()
+                .child(android_range_header_close(pick))
                 .child(
+                    div()
+                        .flex_1()
+                        .pl(px(date_picker::RANGE_HEADER_CLOSE_INSET_DP))
+                        .flex()
+                        .justify_between()
+                        .child(
                     div()
                         .flex()
                         .flex_col()
@@ -8629,6 +8703,7 @@ fn android_date_range_input_end_only(
                         .items_center()
                         .justify_center()
                         .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
                 ),
         )
         .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
