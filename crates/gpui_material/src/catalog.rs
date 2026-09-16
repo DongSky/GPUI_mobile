@@ -455,8 +455,8 @@ a {{ color: var(--primary); }}
   display: flex; flex-direction: column; align-items: center; width: 96px;
 }}
 .time-input-field {{
-  width: 96px; height: 72px; border: none; border-radius: 16px; text-align: center;
-  font: 500 57px/64px Roboto, sans-serif; padding: 0;
+  width: 96px; height: 72px; border: 1px solid transparent; border-radius: 16px; text-align: center;
+  font: 500 57px/64px Roboto, sans-serif; padding: 0; outline: none;
 }}
 .time-input-colon {{
   width: 24px; height: 72px; flex: 0 0 24px;
@@ -2186,6 +2186,24 @@ document.querySelectorAll("[data-time-format-toggle]").forEach(function (btn) {{
   }});
 }});
 document.querySelectorAll("[data-time-input-field]").forEach(function (field) {{
+  function paintTimeInputField(on) {{
+    var box = field.closest("[data-time-input]");
+    field.setAttribute("data-focused", on ? "1" : "0");
+    if (!box) return;
+    field.style.background = on
+      ? (box.getAttribute("data-time-field-focus-bg") || field.style.background)
+      : (box.getAttribute("data-time-field-bg") || field.style.background);
+    field.style.color = on
+      ? (box.getAttribute("data-time-field-focus-fg") || field.style.color)
+      : (box.getAttribute("data-time-field-fg") || field.style.color);
+    field.style.borderColor = on
+      ? (box.getAttribute("data-time-field-focus-bd") || field.style.borderColor)
+      : (box.getAttribute("data-time-field-bd") || "transparent");
+    field.style.borderWidth = on ? "2px" : "1px";
+    field.style.borderStyle = "solid";
+  }}
+  field.addEventListener("focus", function () {{ paintTimeInputField(true); }});
+  field.addEventListener("blur", function () {{ paintTimeInputField(false); }});
   field.addEventListener("input", function () {{
     var raw = (field.value || "").replace(/\\D/g, "").slice(0, 2);
     var kind = field.getAttribute("data-time-input-field");
@@ -8372,7 +8390,7 @@ fn time_picker_section(theme: &Theme) -> String {
     let format = time_picker::DEMO_FORMAT;
     let mut out = format!(
         r#"<h2>Time picker</h2>
-<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, <code>ScrollFieldDefaults.shape</code> / <code>TimePickerDefaults.shapes().timeFieldShape</code> CornerLarge 16) + <code>vibrantColors()</code> primaryContainer fields inside <code>TimePickerDialogDefaults.vibrantContainerColor</code> (<code>surfaceContainer</code>) / <code>vibrantShape</code> CornerExtraLarge. <code>TimeInput</code> 96×72 + same CornerLarge + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
+<p class="note">Expressive (recommended): Compose <code>TimeScroll</code> + two <code>ScrollField</code>s (200dp / 3-item wrap, <code>ScrollFieldDefaults.shape</code> / <code>TimePickerDefaults.shapes().timeFieldShape</code> CornerLarge 16) + <code>vibrantColors()</code> primaryContainer fields inside <code>TimePickerDialogDefaults.vibrantContainerColor</code> (<code>surfaceContainer</code>) / <code>vibrantShape</code> CornerExtraLarge. <code>TimeInput</code> 96×72 + same CornerLarge + vibrant field outline (<code>SurfaceContainerLowest</code>, focused text/border <code>Primary</code> 2dp, unfocused <code>Transparent</code> 1dp) + <code>ScrollDisplayModeToggle</code> (⌨/◷) + Hour/Minute supporting text (<code>SupportLabelTop</code> 7). <code>TimePickerDialogDefaults.Title</code> is mode-specific (Picker/Scroll <code>Select time</code>, Input <code>Enter time</code>) with 20dp bottom + labelMedium. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. 24-hour (<code>is24Hour</code>) uses 00–23 and hides AM/PM. Dial below is Compose 24-hour <code>ClockFace</code> (outer 00–11 / inner 12–23). <a href="https://m3.material.io/components/time-pickers/specs">spec</a></p>
 <div class="time-expressive dialog" data-time-display="{mode}" data-time-format="{fmt}" data-hero="timepicker" data-time-vibrant-dialog="1" data-time-picker-shapes="1" data-time-field-shape="large" data-time-input-title="{input_title}" data-time-scroll-title="{scroll_title}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-display-head">
     <div class="time-dialog-title" data-time-dialog-title="{mode}" style="color:{hy};font-size:{ys}px">{title}</div>
@@ -8392,15 +8410,15 @@ fn time_picker_section(theme: &Theme) -> String {
       </div>
     </div>
   </div>
-  <div class="time-input" data-time-input="1" data-time-picker-style="input" data-hour="{hour}" data-minute="{minute}" data-period="{period}">
+  <div class="time-input" data-time-input="1" data-time-picker-style="input" data-time-field-outline="1" data-hour="{hour}" data-minute="{minute}" data-period="{period}" data-time-field-bg="{imbg}" data-time-field-fg="{imfg}" data-time-field-bd="{imbd}" data-time-field-focus-bg="{ifbg}" data-time-field-focus-fg="{iffg}" data-time-field-focus-bd="{ifbd}">
     <div class="time-input-row">
       <div class="time-input-col">
-        <input class="time-input-field" data-time-input-field="hour" data-time-field-shape="large" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+        <input class="time-input-field" data-time-input-field="hour" data-time-field-shape="large" data-focused="1" maxlength="2" inputmode="numeric" value="{ihh}" style="background:{ifbg};color:{iffg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px;border:{ifow} solid {ifbd}"/>
         <div class="time-input-support" data-time-support-label="hour" style="color:{isl};font-size:{iss}px;margin-top:{ist}px">{ihl}</div>
       </div>
       <div class="time-input-colon" data-display-separator="1" style="color:{icolon};font-size:{ics}px;font-weight:{icw}">:</div>
       <div class="time-input-col">
-        <input class="time-input-field" data-time-input-field="minute" data-time-field-shape="large" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px"/>
+        <input class="time-input-field" data-time-input-field="minute" data-time-field-shape="large" maxlength="2" inputmode="numeric" value="{imm}" style="background:{imbg};color:{imfg};width:{ifw}px;height:{ifh}px;border-radius:{ifr}px;border:{imow} solid {imbd}"/>
         <div class="time-input-support" data-time-support-label="minute" style="color:{isl};font-size:{iss}px;margin-top:{ist}px">{iml}</div>
       </div>
       <div class="period">
@@ -8453,8 +8471,12 @@ fn time_picker_section(theme: &Theme) -> String {
         imm = input_state.minute.display(),
         ifbg = input.field_focused.css_hex(),
         iffg = input.field_focused_content.css_hex(),
+        ifbd = input.field_focused_outline.css_hex(),
+        ifow = time_picker::time_field_outline_w_css(true),
         imbg = input.field_container.css_hex(),
         imfg = input.field_content.css_hex(),
+        imbd = input.field_outline.css_hex(),
+        imow = time_picker::time_field_outline_w_css(false),
         ifw = input.field_w_dp,
         ifh = input.field_h_dp,
         ifr = input.field_corners.top_left,

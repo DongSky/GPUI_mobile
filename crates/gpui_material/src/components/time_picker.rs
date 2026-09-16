@@ -1011,6 +1011,25 @@ pub const INPUT_GAP_DP: f32 = 24.0;
 pub const INPUT_COLON_GAP_DP: f32 = 8.0;
 /// TimeInput `DisplaySeparator` height = `PeriodSelectorContainerHeight`.
 pub const INPUT_DISPLAY_SEPARATOR_H_DP: f32 = INPUT_FIELD_H_DP;
+/// Compose TimeInput `OutlinedTextFieldDefaults` focused border thickness.
+pub const TIME_FIELD_FOCUS_OUTLINE_W_DP: f32 = 2.0;
+/// Compose TimeInput unfocused border thickness (vibrant color is transparent).
+pub const TIME_FIELD_UNFOCUSED_OUTLINE_W_DP: f32 = 1.0;
+/// Catalog / hosts apply official vibrant TimeInput field outline + colors.
+pub const TIME_FIELD_OUTLINE: bool = true;
+
+/// CSS `border-width` for a TimeInput field.
+pub fn time_field_outline_w_css(focused: bool) -> String {
+    format!(
+        "{:.0}px",
+        if focused {
+            TIME_FIELD_FOCUS_OUTLINE_W_DP
+        } else {
+            TIME_FIELD_UNFOCUSED_OUTLINE_W_DP
+        }
+    )
+}
+
 /// Compose `SupportLabelTop` on TimeInput Hour / Minute supporting text.
 pub const SUPPORT_LABEL_TOP_DP: f32 = 7.0;
 /// Catalog / hosts paint official TimeInput supporting labels.
@@ -1454,6 +1473,10 @@ pub struct TimeInputAppearance {
     pub support_label: Argb,
     /// `TimeInputTokens.TimeFieldSupportingTextFont`.
     pub support_label_style: TypeStyle,
+    /// Vibrant unfocused outline (`Transparent`).
+    pub field_outline: Argb,
+    /// Vibrant focused outline (`Primary`, 2dp).
+    pub field_focused_outline: Argb,
 }
 
 pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
@@ -1462,11 +1485,11 @@ pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
         corners: Corners::all(CORNER_DP),
         container: c.primary_container,
         header: c.on_primary_container,
-        field_container: c.surface_container_highest,
-        field_focused: c.on_primary_container,
+        field_container: c.surface_container_lowest,
+        field_focused: c.surface_container_lowest,
         field_corners: Corners::all(INPUT_FIELD_CORNER_DP),
         field_content: c.on_surface,
-        field_focused_content: c.primary_container,
+        field_focused_content: c.primary,
         colon: c.on_primary_container,
         period_selected_container: c.on_primary_container,
         period_selected: c.primary_container,
@@ -1484,6 +1507,8 @@ pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
         period_style: theme.typography.title_medium.emphasized(),
         support_label: c.on_surface_variant,
         support_label_style: theme.typography.body_small,
+        field_outline: Argb::TRANSPARENT,
+        field_focused_outline: c.primary,
     }
 }
 

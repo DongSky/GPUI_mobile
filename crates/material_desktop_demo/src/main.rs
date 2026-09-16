@@ -7425,6 +7425,12 @@ fn desktop_time_input_field(
         } else {
             a.field_content
         }))
+        .when(focused, |el| {
+            el.border_2().border_color(paint(a.field_focused_outline))
+        })
+        .when(!focused, |el| {
+            el.border_1().border_color(paint(a.field_outline))
+        })
         .text_size(px(a.field_style.size_sp))
         .font_weight(type_weight(a.field_style))
         .flex()
@@ -10116,6 +10122,13 @@ mod tests {
         let input = time_picker::resolve_input(&theme);
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);
+        assert!(time_picker::TIME_FIELD_OUTLINE);
+        assert_eq!(time_picker::TIME_FIELD_FOCUS_OUTLINE_W_DP, 2.0);
+        assert_eq!(time_picker::TIME_FIELD_UNFOCUSED_OUTLINE_W_DP, 1.0);
+        assert_eq!(input.field_container, theme.color.surface_container_lowest);
+        assert_eq!(input.field_focused, theme.color.surface_container_lowest);
+        assert_eq!(input.field_focused_content, theme.color.primary);
+        assert_eq!(input.field_focused_outline, theme.color.primary);
         assert!(time_picker::SUPPORT_LABEL);
         assert_eq!(time_picker::SUPPORT_LABEL_TOP_DP, 7.0);
         assert_eq!(time_picker::ScrollKind::Hour.support_label(), "Hour");

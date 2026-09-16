@@ -1093,6 +1093,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
     assert!(html.contains(r#"data-time-picker-style="input""#));
     assert!(html.contains("data-time-input=\"1\""));
+    assert!(html.contains(r#"data-time-field-outline="1""#));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1375,6 +1376,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("vibrantColors")
             && e.notes.contains("200dp")
             && e.notes.contains("TimeInput")
+            && e.notes.contains("vibrant field outline")
+            && e.notes.contains("SurfaceContainerLowest")
             && e.notes.contains("ScrollDisplayModeToggle")
             && e.notes.contains("TimePickerLayoutType")
             && e.notes.contains("Horizontal")
@@ -3951,6 +3954,20 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(time_picker::SCROLL_FIELD_CORNER_DP, 16.0);
     assert_eq!(time_picker::time_field_shape_corner_css(), "16px");
     assert_eq!(input_a.field_style.name, "displayLargeEmphasized");
+    assert!(time_picker::TIME_FIELD_OUTLINE);
+    assert_eq!(time_picker::TIME_FIELD_FOCUS_OUTLINE_W_DP, 2.0);
+    assert_eq!(time_picker::TIME_FIELD_UNFOCUSED_OUTLINE_W_DP, 1.0);
+    assert_eq!(time_picker::time_field_outline_w_css(true), "2px");
+    assert_eq!(time_picker::time_field_outline_w_css(false), "1px");
+    assert_eq!(
+        input_a.field_container,
+        theme.color.surface_container_lowest
+    );
+    assert_eq!(input_a.field_focused, theme.color.surface_container_lowest);
+    assert_eq!(input_a.field_content, theme.color.on_surface);
+    assert_eq!(input_a.field_focused_content, theme.color.primary);
+    assert_eq!(input_a.field_outline, Argb::TRANSPARENT);
+    assert_eq!(input_a.field_focused_outline, theme.color.primary);
     assert!(time_picker::SUPPORT_LABEL);
     assert_eq!(time_picker::SUPPORT_LABEL_TOP_DP, 7.0);
     assert_eq!(time_picker::support_label_top_css(), "7px");

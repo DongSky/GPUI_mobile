@@ -6328,6 +6328,12 @@ fn android_time_input_field(
         } else {
             a.field_content
         }))
+        .when(focused, |el| {
+            el.border_2().border_color(paint(a.field_focused_outline))
+        })
+        .when(!focused, |el| {
+            el.border_1().border_color(paint(a.field_outline))
+        })
         .text_size(px(a.field_style.size_sp))
         .font_weight(type_weight(a.field_style))
         .flex()
