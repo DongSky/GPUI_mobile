@@ -1176,6 +1176,7 @@ fn catalog_body(
         .child(date_input_empty_card(theme, &pick))
         .child(date_input_error_card(theme, &pick))
         .child(date_range_input_card(theme, &pick))
+        .child(date_range_input_empty_card(theme, &pick))
         .child(date_range_input_error_card(theme, &pick))
 }
 
@@ -4143,6 +4144,123 @@ fn date_range_input_card(
                 ))
                 .child(spaced_line(
                     end,
+                    field.input_style.size_sp,
+                    paint(field.input),
+                )),
+        )
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .justify_end()
+                .gap(px(dialog::ACTION_GAP_DP))
+                .child(spaced_line(
+                    date_picker::INPUT_CANCEL,
+                    14.0,
+                    paint(theme.color.primary),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_OK,
+                    14.0,
+                    paint(theme.color.primary),
+                )),
+        )
+}
+
+fn date_range_input_empty_card(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Enabled,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.outline);
+    div()
+        .id("date-range-input-empty")
+        .w(px(pick.day_dp * 7.0 + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+        .child(
+            div()
+                .flex()
+                .items_start()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.))
+                        .child(spaced_line(
+                            date_picker::RANGE_INPUT_HEADLINE,
+                            pick.year_style.size_sp,
+                            paint(pick.header_year),
+                        ))
+                        .child(
+                            div()
+                                .font_weight(type_weight(pick.date_style))
+                                .child(spaced_line(
+                                    date_picker::RANGE_EMPTY_HEADLINE,
+                                    pick.date_style.size_sp.min(28.0),
+                                    paint(pick.header_date),
+                                )),
+                        ),
+                )
+                .child(
+                    div()
+                        .w(px(date_picker::TOGGLE_SIZE_DP))
+                        .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(date_picker::DEMO_DISPLAY_MODE.toggle_icon()),
+                ),
+        )
+        .child(div().w_full().h(px(1.)).bg(paint(pick.header_year)))
+        .child(
+            div()
+                .w_full()
+                .px(px(field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(spaced_line(
+                    date_picker::RANGE_START_LABEL,
+                    field.label_style.size_sp,
+                    paint(field.label),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_PLACEHOLDER,
+                    field.input_style.size_sp,
+                    paint(field.input),
+                )),
+        )
+        .child(
+            div()
+                .w_full()
+                .px(px(field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(spaced_line(
+                    date_picker::RANGE_END_LABEL,
+                    field.label_style.size_sp,
+                    paint(field.label),
+                ))
+                .child(spaced_line(
+                    date_picker::INPUT_PLACEHOLDER,
                     field.input_style.size_sp,
                     paint(field.input),
                 )),
@@ -8818,6 +8936,11 @@ mod tests {
         assert_eq!(
             date_picker::date_headline(date_picker::DatePickerDisplayMode::Input, None),
             "Entered date"
+        );
+        assert_eq!(date_picker::RANGE_EMPTY_HEADLINE, "Start date – End date");
+        assert_eq!(
+            date_picker::header_range_selection(date_picker::DateRangeSelection::empty()),
+            date_picker::RANGE_EMPTY_HEADLINE
         );
         assert!(date_picker::is_range_input_valid(
             "09/15/2026",

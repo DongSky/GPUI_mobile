@@ -929,6 +929,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-hero="datepicker-year""#));
     assert!(html.contains(r#"data-hero="datepicker-range-input""#));
     assert!(html.contains(r#"data-datepicker-range-input="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-range-input-empty""#));
+    assert!(html.contains(r#"data-range-input-empty="1""#));
+    assert!(html.contains(r#"data-range-headline-empty="1""#));
+    assert!(html.contains("Start date – End date"));
     assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
     assert!(html.contains(r#"data-range-input-errors="1""#));
     assert!(html.contains(r#"data-range-error="year""#));
@@ -1298,6 +1302,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("Entered date")
+            && e.notes.contains("Start date – End date")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
             && e.notes.contains("Date not allowed")
@@ -2592,6 +2597,12 @@ fn date_picker_grid_and_weekday() {
             Some(date_picker::RANGE_DEMO_START)
         ),
         date_picker::header_date_label(date_picker::RANGE_DEMO_START)
+    );
+    assert!(date_picker::RANGE_EMPTY);
+    assert_eq!(date_picker::RANGE_EMPTY_HEADLINE, "Start date – End date");
+    assert_eq!(
+        date_picker::header_range_selection(date_picker::DateRangeSelection::empty()),
+        date_picker::RANGE_EMPTY_HEADLINE
     );
     assert_eq!(
         date_picker::date_input_error(""),

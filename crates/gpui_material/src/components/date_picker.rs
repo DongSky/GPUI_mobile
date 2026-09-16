@@ -465,6 +465,10 @@ pub const RANGE_INPUT_HEADLINE: &str = "Enter dates";
 /// Compose `DateRangePickerStartHeadline` / `DateRangePickerEndHeadline`.
 pub const RANGE_START_LABEL: &str = "Start date";
 pub const RANGE_END_LABEL: &str = "End date";
+/// Compose `DateRangePickerHeadline` when both ends are unset.
+pub const RANGE_EMPTY_HEADLINE: &str = "Start date – End date";
+/// Catalog / host sibling for empty range Input.
+pub const RANGE_EMPTY: bool = true;
 pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 /// Compose `DateInputValidator` supporting-text errors on range Input.
 pub const RANGE_INPUT_ERRORS: bool = true;
