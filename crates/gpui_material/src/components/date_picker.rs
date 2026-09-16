@@ -596,10 +596,11 @@ impl DatePickerDisplayMode {
         }
     }
 
+    /// Compose `DisplayModeToggleButton` contentDescription.
     pub const fn toggle_label(self) -> &'static str {
         match self {
-            Self::Picker => "Switch to input mode",
-            Self::Input => "Switch to calendar mode",
+            Self::Picker => TOGGLE_INPUT,
+            Self::Input => TOGGLE_CALENDAR,
         }
     }
 }
@@ -608,6 +609,12 @@ impl DatePickerDisplayMode {
 pub const DEMO_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Input;
 /// Live modal starts on Picker (Compose `initialDisplayMode` default).
 pub const LIVE_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Picker;
+/// Compose `m3c_date_picker_switch_to_input_mode`.
+pub const TOGGLE_INPUT: &str = "Switch to text input mode";
+/// Compose `m3c_date_picker_switch_to_calendar_mode`.
+pub const TOGGLE_CALENDAR: &str = "Switch to calendar input mode";
+/// Catalog / hosts apply official DatePicker DisplayModeToggleButton strings.
+pub const DISPLAY_MODE_TOGGLE: bool = true;
 /// Compose `DatePickerDefaults.showModeToggle`.
 pub const SHOW_MODE_TOGGLE: bool = true;
 /// Compose mode-toggle 48dp target.

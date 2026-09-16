@@ -2542,8 +2542,10 @@ document.querySelectorAll("[data-date-range-live]").forEach(function (host) {{
       host.setAttribute("data-date-display-mode", mode);
       host.setAttribute("data-date-pane", "calendar");
       displayToggle.textContent = mode === "picker" ? "✎" : "▦";
+      displayToggle.setAttribute("title", mode === "picker"
+        ? "{date_toggle_input}" : "{date_toggle_calendar}");
       displayToggle.setAttribute("aria-label", mode === "picker"
-        ? "Switch to input mode" : "Switch to calendar mode");
+        ? "{date_toggle_input}" : "{date_toggle_calendar}");
       var title = host.querySelector("[data-range-title]");
       if (title) title.textContent = mode === "input" ? "Enter dates" : "Depart – Return dates";
       paintRangeFields(readStart(), readEnd());
@@ -2785,8 +2787,10 @@ document.querySelectorAll("[data-date-display-live] [data-date-display-toggle]")
     host.setAttribute("data-date-display", mode);
     host.setAttribute("data-date-display-mode", mode);
     btn.textContent = mode === "picker" ? "✎" : "▦";
+    btn.setAttribute("title", mode === "picker"
+      ? "{date_toggle_input}" : "{date_toggle_calendar}");
     btn.setAttribute("aria-label", mode === "picker"
-      ? "Switch to input mode" : "Switch to calendar mode");
+      ? "{date_toggle_input}" : "{date_toggle_calendar}");
   }});
 }});
 document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
@@ -3675,6 +3679,8 @@ document.querySelectorAll("[data-menu-keyboard]").forEach(function (root) {{
         header_state_exp = navigation_rail::HEADER_STATE_EXPANDED,
         toggle_keyboard = time_picker::TOGGLE_KEYBOARD,
         toggle_scroll = time_picker::TOGGLE_SCROLL,
+        date_toggle_input = date_picker::TOGGLE_INPUT,
+        date_toggle_calendar = date_picker::TOGGLE_CALENDAR,
         gap = button_group::CONNECTED_GAP_DP,
         h1s = theme.typography.display_small.emphasized().size_sp,
         h1l = theme.typography.display_small.emphasized().line_height_sp,
@@ -7122,7 +7128,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-range-title="1" data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_title}</div>
       <div data-range-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" data-range-display-toggle="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-range-display-toggle="1" data-date-display-mode-toggle="1" title="{live_toggle_label}" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="month-nav" data-range-month-nav="1" data-date-month-year="1">
@@ -7155,7 +7161,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-range-picker-title="1" data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_picker_title}</div>
       <div data-range-picker-empty-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_empty_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{live_toggle_label}" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="week" data-date-weekdays="1">{week}</div>
@@ -7172,7 +7178,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-headline="1" data-date-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
       <div class="dp-supporting" data-date-supporting="1" style="color:{hy};font-size:{ys}px;margin-top:8px">{input_supporting}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-toggle="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-toggle="1" data-date-display-mode-toggle="1" title="{live_toggle_label}" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="month-nav" data-date-month-nav="1" data-date-month-year="1">
@@ -7201,7 +7207,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-title-pad="1" style="color:{hy};font-size:{ys}px">{input_headline}</div>
       <div data-picker-empty-headline="1" data-date-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{picker_empty_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{live_toggle_label}" aria-label="{live_toggle_label}">{live_toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="month-nav" data-date-month-year="1">
@@ -7243,7 +7249,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{headline}</div>
       <div style="color:{hy};font-size:{ys}px;margin-top:8px">{input_supporting}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-toggle="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-toggle="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-input" data-date-input-field="1" data-date-input-pad="1">{input_field}</div>
@@ -7260,7 +7266,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-title-pad="1" style="color:{hy};font-size:{ys}px">{input_headline}</div>
       <div data-date-empty-headline="1" data-date-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{empty_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-input" data-date-input-empty-field="1" data-date-input-pad="1">{empty_input_field}</div>
@@ -7294,7 +7300,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-range-input" data-date-range-fields="1" data-date-input-pad="1">
@@ -7315,7 +7321,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-empty-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_empty_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-range-input" data-date-range-empty-fields="1" data-date-input-pad="1">
@@ -7336,7 +7342,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-start-only-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_start_only_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-range-input" data-date-range-start-only-fields="1" data-date-input-pad="1">
@@ -7357,7 +7363,7 @@ fn date_pickers(theme: &Theme) -> String {
       <div data-date-range-title-pad="1" style="color:{hy};font-size:{ys}px">{range_input_headline}</div>
       <div data-range-end-only-headline="1" data-date-range-headline-pad="1" style="color:{hd};font-size:{ds}px;font-weight:{dw}">{range_end_only_headline}</div>
     </div>
-    <div class="dp-toggle" data-date-toggle-pad="1" aria-label="{toggle_label}">{toggle_icon}</div>
+    <div class="dp-toggle" data-date-toggle-pad="1" data-date-display-mode-toggle="1" title="{toggle_label}" aria-label="{toggle_label}">{toggle_icon}</div>
   </div>
   <div class="dp-entry-divider" data-date-entry-divider="1" style="background:{divc};height:{divh}px"></div>
   <div class="dp-range-input" data-date-range-end-only-fields="1" data-date-input-pad="1">

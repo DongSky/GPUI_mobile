@@ -992,6 +992,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-display="picker""#));
     assert!(html.contains(r#"data-date-display-live="1""#));
     assert!(html.contains(r#"data-date-display-toggle="1""#));
+    assert!(html.contains(r#"data-date-display-mode-toggle="1""#));
+    assert!(html.contains(date_picker::TOGGLE_INPUT));
+    assert!(html.contains(date_picker::TOGGLE_CALENDAR));
     assert!(html.contains(r#"data-hero="datepicker-year""#));
     assert!(html.contains(r#"data-hero="datepicker-range-input""#));
     assert!(html.contains(r#"data-datepicker-range-input="1""#));
@@ -1449,6 +1452,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("InputTextFieldPadding")
             && e.notes.contains("DatePickerModeTogglePadding")
+            && e.notes.contains("DisplayModeToggleButton")
+            && e.notes.contains("Switch to calendar input mode")
             && e.notes.contains("DateRangePickerTitlePadding")
             && e.notes.contains("range-header chrome")
             && e.notes.contains("DateRangePickerHeadlinePadding")
@@ -2611,6 +2616,20 @@ fn date_picker_grid_and_weekday() {
         date_picker::DatePickerDisplayMode::Picker
     );
     assert!(date_picker::SHOW_MODE_TOGGLE);
+    assert!(date_picker::DISPLAY_MODE_TOGGLE);
+    assert_eq!(
+        date_picker::DatePickerDisplayMode::Picker.toggle_label(),
+        date_picker::TOGGLE_INPUT
+    );
+    assert_eq!(
+        date_picker::DatePickerDisplayMode::Input.toggle_label(),
+        date_picker::TOGGLE_CALENDAR
+    );
+    assert_eq!(date_picker::TOGGLE_INPUT, "Switch to text input mode");
+    assert_eq!(
+        date_picker::TOGGLE_CALENDAR,
+        "Switch to calendar input mode"
+    );
     assert_eq!(date_picker::TOGGLE_SIZE_DP, 48.0);
     assert_eq!(
         date_picker::apply_display_toggle(date_picker::DatePickerDisplayMode::Picker),

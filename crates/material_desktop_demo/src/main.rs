@@ -419,6 +419,8 @@ struct CatalogView {
     time_input: time_picker::TimeInputState,
     time_format: time_picker::TimeFormat,
     time_toggle_tooltip_open: bool,
+    date_toggle_tooltip_open: bool,
+    range_toggle_tooltip_open: bool,
 }
 
 impl CatalogView {
@@ -3522,6 +3524,30 @@ fn range_header_close(pick: &date_picker::DatePickerAppearance) -> impl IntoElem
         ))
 }
 
+fn date_display_mode_toggle_tooltip(
+    theme: &Theme,
+    label: &'static str,
+    id: &'static str,
+) -> impl IntoElement {
+    let tip = tooltip::resolve_plain(theme);
+    div()
+        .id(id)
+        .absolute()
+        .bottom(px(date_picker::TOGGLE_SIZE_DP + tooltip::ANCHOR_GAP_DP))
+        .right(px(0.))
+        .h(px(tip.min_height_dp))
+        .px(px(tip.pad_start_dp))
+        .py(px(tip.pad_top_dp))
+        .rounded(px(tip.corners.top_left))
+        .bg(paint(tip.container))
+        .text_color(paint(tip.supporting))
+        .text_size(px(tip.supporting_style.size_sp))
+        .whitespace_nowrap()
+        .flex()
+        .items_center()
+        .child(label)
+}
+
 fn date_entry_divider(theme: &Theme) -> impl IntoElement {
     div()
         .w_full()
@@ -3779,19 +3805,35 @@ fn date_range_hero(
                         .when(date_picker::RANGE_SHOW_MODE_TOGGLE, |el| {
                             el.child(
                                 div()
-                                    .id("range-display-toggle")
-                                    .w(px(date_picker::TOGGLE_SIZE_DP))
-                                    .h(px(date_picker::TOGGLE_SIZE_DP))
-                                    .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                                    .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .child(this.range_display.toggle_icon())
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.toggle_range_display();
-                                        cx.notify();
-                                    })),
+                                    .id("range-display-toggle-wrap")
+                                    .relative()
+                                    .when(this.range_toggle_tooltip_open, |el| {
+                                        el.child(date_display_mode_toggle_tooltip(
+                                            theme,
+                                            this.range_display.toggle_label(),
+                                            "range-display-toggle-tooltip",
+                                        ))
+                                    })
+                                    .child(
+                                        div()
+                                            .id("range-display-toggle")
+                                            .w(px(date_picker::TOGGLE_SIZE_DP))
+                                            .h(px(date_picker::TOGGLE_SIZE_DP))
+                                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .child(this.range_display.toggle_icon())
+                                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                                this.range_toggle_tooltip_open = *hovered;
+                                                cx.notify();
+                                            }))
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.toggle_range_display();
+                                                cx.notify();
+                                            })),
+                                    ),
                             )
                         }),
                 ),
@@ -5297,19 +5339,35 @@ fn date_picker_card(
                 .when(date_picker::SHOW_MODE_TOGGLE, |el| {
                     el.child(
                         div()
-                            .id("date-display-toggle")
-                            .w(px(date_picker::TOGGLE_SIZE_DP))
-                            .h(px(date_picker::TOGGLE_SIZE_DP))
-                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
-                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(this.date_display.toggle_icon())
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.toggle_date_display();
-                                cx.notify();
-                            })),
+                            .id("date-display-toggle-wrap")
+                            .relative()
+                            .when(this.date_toggle_tooltip_open, |el| {
+                                el.child(date_display_mode_toggle_tooltip(
+                                    theme,
+                                    this.date_display.toggle_label(),
+                                    "date-display-toggle-tooltip",
+                                ))
+                            })
+                            .child(
+                                div()
+                                    .id("date-display-toggle")
+                                    .w(px(date_picker::TOGGLE_SIZE_DP))
+                                    .h(px(date_picker::TOGGLE_SIZE_DP))
+                                    .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                                    .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .child(this.date_display.toggle_icon())
+                                    .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                        this.date_toggle_tooltip_open = *hovered;
+                                        cx.notify();
+                                    }))
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.toggle_date_display();
+                                        cx.notify();
+                                    })),
+                            ),
                     )
                 }),
         )
@@ -9730,6 +9788,8 @@ fn main() {
                     time_input: time_picker::TimeInputState::demo(),
                     time_format: time_picker::DEMO_FORMAT,
                     time_toggle_tooltip_open: false,
+                    date_toggle_tooltip_open: false,
+                    range_toggle_tooltip_open: false,
                 })
             },
         )
@@ -9903,6 +9963,15 @@ mod tests {
             date_picker::DatePickerDisplayMode::Picker
         );
         assert!(date_picker::SHOW_MODE_TOGGLE);
+        assert!(date_picker::DISPLAY_MODE_TOGGLE);
+        assert_eq!(
+            date_picker::DatePickerDisplayMode::Picker.toggle_label(),
+            date_picker::TOGGLE_INPUT
+        );
+        assert_eq!(
+            date_picker::DatePickerDisplayMode::Input.toggle_label(),
+            date_picker::TOGGLE_CALENDAR
+        );
         assert_eq!(
             date_picker::apply_display_toggle(date_picker::LIVE_DISPLAY_MODE),
             date_picker::DatePickerDisplayMode::Input
