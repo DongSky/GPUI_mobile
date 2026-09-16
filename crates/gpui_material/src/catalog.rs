@@ -1277,6 +1277,10 @@ table.inv th {{ font-weight: 500; }}
 .cal[data-date-pane="year"] [data-date-month-delta] {{ visibility: hidden; }}
 .cal[data-date-pane="calendar"] .dp-years {{ display: none; }}
 .cal[data-date-display="input"] .dp-years {{ display: none; }}
+[data-datepicker-docked][data-docked-pane="year"] .week,
+[data-datepicker-docked][data-docked-pane="year"] [data-docked-grid] {{ display: none; }}
+[data-datepicker-docked][data-docked-pane="year"] [data-docked-month] {{ visibility: hidden; }}
+[data-datepicker-docked][data-docked-pane="calendar"] [data-docked-years] {{ display: none; }}
 .dp-years {{
   display: grid; grid-template-columns: repeat(3, 72px); justify-content: space-evenly;
   row-gap: 16px; padding: 8px 12px 16px;
@@ -2654,9 +2658,37 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
     dock.setAttribute("data-year", String(y));
     dock.setAttribute("data-month", String(m));
   }}
+  function yearWindow(center) {{
+    var start = Math.max(1900, Math.min(2100, center) - 4);
+    if (start + 8 > 2100) start = 2100 - 8;
+    if (start < 1900) start = 1900;
+    var out = [];
+    for (var i = 0; i < 9; i++) out.push(start + i);
+    return out;
+  }}
+  function paintDockedYears() {{
+    var box = dock.querySelector("[data-docked-years]");
+    if (!box) return;
+    var displayed = parseInt(dock.getAttribute("data-year") || "2026", 10);
+    var todayY = parseInt(dock.getAttribute("data-today-year") || "2026", 10);
+    var selBg = dock.getAttribute("data-year-sel-bg") || dock.getAttribute("data-day-sel-bg") || "#6750A4";
+    var selFg = dock.getAttribute("data-year-sel-fg") || dock.getAttribute("data-day-sel-fg") || "#fff";
+    var idle = dock.getAttribute("data-year-idle-fg") || dock.getAttribute("data-day-in") || "#1C1B1F";
+    var todayBd = dock.getAttribute("data-year-today-bd") || dock.getAttribute("data-day-today") || "#6750A4";
+    var html = "";
+    yearWindow(displayed).forEach(function (year) {{
+      var kind = year === displayed ? "Selected" : (year === todayY ? "Today" : "Default");
+      var bg = kind === "Selected" ? selBg : "transparent";
+      var fg = kind === "Selected" ? selFg : idle;
+      var border = kind === "Today" ? ("1px solid " + todayBd) : "none";
+      html += '<div class="dp-year" data-docked-year="'+year+'" data-year-kind="'+kind+'" style="background:'+bg+';color:'+fg+';border:'+border+'">'+year+'</div>';
+    }});
+    box.innerHTML = html;
+  }}
   dock.querySelectorAll("[data-docked-month]").forEach(function (btn) {{
     btn.addEventListener("click", function (ev) {{
       ev.stopPropagation();
+      if (dock.getAttribute("data-docked-pane") === "year") return;
       var label = dock.querySelector("[data-docked-month-label]");
       if (!label) return;
       var delta = parseInt(btn.getAttribute("data-docked-month") || "0", 10);
@@ -2666,9 +2698,36 @@ document.querySelectorAll("[data-datepicker-docked]").forEach(function (dock) {{
       mi += delta;
       while (mi < 0) {{ mi += 12; year -= 1; }}
       while (mi > 11) {{ mi -= 12; year += 1; }}
+      if (year < 1900) {{ year = 1900; mi = 0; }}
+      if (year > 2100) {{ year = 2100; mi = 11; }}
       label.textContent = months[mi] + " " + year + " ▾";
       paintDockedGrid(year, mi + 1);
     }});
+  }});
+  var yearToggle = dock.querySelector("[data-docked-year-toggle]");
+  if (yearToggle) {{
+    yearToggle.style.cursor = "pointer";
+    yearToggle.addEventListener("click", function (ev) {{
+      ev.stopPropagation();
+      var pane = dock.getAttribute("data-docked-pane") === "year" ? "calendar" : "year";
+      dock.setAttribute("data-docked-pane", pane);
+      if (pane === "year") paintDockedYears();
+    }});
+  }}
+  dock.addEventListener("click", function (ev) {{
+    var cell = ev.target.closest("[data-docked-year]");
+    if (!cell || !dock.contains(cell)) return;
+    ev.stopPropagation();
+    var picked = parseInt(cell.getAttribute("data-docked-year") || "0", 10);
+    if (!picked) return;
+    var year = Math.max(1900, Math.min(2100, picked));
+    var month = parseInt(dock.getAttribute("data-month") || "9", 10);
+    dock.setAttribute("data-year", String(year));
+    dock.setAttribute("data-docked-pane", "calendar");
+    var label = dock.querySelector("[data-docked-month-label]");
+    var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    if (label) label.textContent = months[month - 1] + " " + year + " ▾";
+    paintDockedGrid(year, month);
   }});
   document.addEventListener("click", function () {{
     if (dock.getAttribute("data-dismiss-outside") === "1") setOpen(false);
@@ -6732,6 +6791,14 @@ fn paint_year_grid(
     grid
 }
 
+fn paint_docked_year_grid(
+    a: &date_picker::DatePickerAppearance,
+    displayed: i32,
+    today_year: i32,
+) -> String {
+    paint_year_grid(a, displayed, today_year).replace("data-date-year=", "data-docked-year=")
+}
+
 fn date_pickers(theme: &Theme) -> String {
     let a = date_picker::resolve(theme);
     let today = date_picker::CivilDate {
@@ -6770,7 +6837,7 @@ fn date_pickers(theme: &Theme) -> String {
     let range_grid = paint_date_grid_fills(&a, range_cells, range_fills);
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors. Docked popup anchors under the outlined field with elevation shadow, month navigation, and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors. Docked popup anchors under the outlined field with elevation shadow, month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
@@ -6821,16 +6888,17 @@ fn date_pickers(theme: &Theme) -> String {
     <button type="button" class="btn" data-date-ok="1" style="background:transparent;color:{act}">{ok}</button>
   </div>
 </div>
-<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1" data-year="2026" data-month="9" data-selected-year="2026" data-selected-month="9" data-selected-day="15" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}">
+<div class="docked" data-datepicker-docked="1" data-hero="datepicker-docked" data-popup="open" data-dismiss-outside="1" data-docked-pane="calendar" data-year="2026" data-month="9" data-selected-year="2026" data-selected-month="9" data-selected-day="15" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}">
   {docked_field}
   <div class="cal dialog" data-datepicker-popup="open" style="background:{bg};border-radius:8px {r}px {r}px {r}px;box-shadow:{sh};margin-top:4px;width:100%">
     <div class="month-nav">
       <button type="button" data-docked-month="-1" aria-label="Previous month">&lt;</button>
-      <div data-docked-month-label="1">{month}</div>
+      <div data-docked-month-label="1" data-docked-year-toggle="1">{month}</div>
       <button type="button" data-docked-month="1" aria-label="Next month">&gt;</button>
     </div>
     <div class="week">{week}</div>
     <div class="grid" data-docked-grid="1">{grid}</div>
+    <div class="dp-years" data-docked-years="1">{docked_years}</div>
   </div>
 </div>
 <h3>modal input</h3>
@@ -6891,6 +6959,7 @@ fn date_pickers(theme: &Theme) -> String {
         headline = date_picker::header_date_label(selected),
         month = date_picker::month_nav_label(2026, 9),
         years = paint_year_grid(&a, selected.year, today.year),
+        docked_years = paint_docked_year_grid(&a, selected.year, today.year),
         range_title = date_picker::RANGE_HERO_TITLE,
         range_headline = date_picker::header_range_label(
             date_picker::RANGE_DEMO_START,

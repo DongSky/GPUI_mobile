@@ -342,6 +342,8 @@ pub const DOCKED_OPEN_BY_DEFAULT: bool = true;
 pub const DOCKED_DISMISS_ON_SELECT: bool = true;
 /// Clicking outside the field+popup dismisses (desktop/HTML/Android).
 pub const DOCKED_DISMISS_ON_OUTSIDE: bool = true;
+/// Docked popup month ▾ opens Compose `YearPicker` (independent of the modal / range hero).
+pub const DOCKED_YEAR_PANE: bool = true;
 
 pub fn docked_field_value(date: CivilDate) -> String {
     format!("{}, {}", header_date_short(date), date.year)
@@ -461,6 +463,11 @@ pub fn date_month_of(date: CivilDate) -> (i32, u32) {
 /// Page the single-date modal calendar; clamp to Compose `YearRange` 1900–2100.
 pub fn apply_date_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
     apply_range_month(year, month, delta)
+}
+
+/// Jump the docked calendar to a YearPicker year; keep the displayed month.
+pub fn apply_docked_year(year: i32, month: u32, picked: i32) -> (i32, u32) {
+    apply_range_year(year, month, picked)
 }
 
 pub fn supporting_for(mode: DatePickerDisplayMode) -> Option<&'static str> {

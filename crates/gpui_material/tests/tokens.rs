@@ -896,6 +896,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-button-group=\"connected\""));
     assert!(html.contains("data-slider-range=\"1\""));
     assert!(html.contains("data-datepicker-docked=\"1\""));
+    assert!(html.contains(r#"data-docked-pane="calendar""#));
+    assert!(html.contains(r#"data-docked-year-toggle="1""#));
+    assert!(html.contains(r#"data-docked-years="1""#));
+    assert!(html.contains(r#"data-docked-year="2026""#));
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
     assert!(html.contains(r#"data-date-display="input""#));
@@ -1259,6 +1263,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("drawRangeBackground")
             && e.notes.contains("modal Confirm/Cancel")
             && e.notes.contains("modal month nav")
+            && e.notes.contains("docked popup")
+            && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
         .iter()
@@ -2503,6 +2509,12 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::DATE_ACTIONS);
     assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);
     assert!(date_picker::DATE_MONTH_NAV);
+    assert!(date_picker::DOCKED_YEAR_PANE);
+    assert_eq!(date_picker::apply_docked_year(2026, 9, 2027), (2027, 9));
+    assert_eq!(
+        date_picker::apply_docked_year(2026, 9, 1890),
+        (date_picker::YEAR_RANGE_START, 9)
+    );
     assert_eq!(date_picker::apply_date_month(2026, 9, 1), (2026, 10));
     assert_eq!(
         date_picker::apply_date_month(date_picker::YEAR_RANGE_START, 1, -1),
