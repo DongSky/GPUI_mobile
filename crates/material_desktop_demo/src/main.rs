@@ -419,6 +419,7 @@ struct CatalogView {
     time_input: time_picker::TimeInputState,
     time_format: time_picker::TimeFormat,
     time_toggle_tooltip_open: bool,
+    period_toggle_tooltip_open: bool,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
     date_month_nav_tooltip: Option<&'static str>,
@@ -7471,7 +7472,7 @@ fn time_scroll_hero(
                         &a,
                     ))
                     .when(this.time_format.shows_period(), |row| {
-                        row.child(desktop_period_column(this, cx, &a))
+                        row.child(desktop_period_column(this, theme, cx, &a))
                     }),
             )
         })
@@ -7514,10 +7515,24 @@ fn desktop_time_dialog_actions(
 
 fn desktop_period_column(
     this: &CatalogView,
+    theme: &Theme,
     cx: &mut Context<CatalogView>,
     a: &time_picker::TimeScrollAppearance,
 ) -> impl IntoElement {
     div()
+        .id("scroll-period-toggle")
+        .relative()
+        .when(this.period_toggle_tooltip_open, |el| {
+            el.child(date_display_mode_toggle_tooltip(
+                theme,
+                time_picker::PERIOD_TOGGLE_LABEL,
+                "scroll-period-toggle-tooltip",
+            ))
+        })
+        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+            this.period_toggle_tooltip_open = *hovered;
+            cx.notify();
+        }))
         .flex()
         .flex_col()
         .w(px(time_picker::PERIOD_W_DP))
@@ -7592,7 +7607,20 @@ fn desktop_time_input(
         .when(this.time_format.shows_period(), |row| {
             row.child(
                 div()
+                    .id("input-period-toggle")
+                    .relative()
                     .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
+                    .when(this.period_toggle_tooltip_open, |el| {
+                        el.child(date_display_mode_toggle_tooltip(
+                            theme,
+                            time_picker::PERIOD_TOGGLE_LABEL,
+                            "input-period-toggle-tooltip",
+                        ))
+                    })
+                    .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                        this.period_toggle_tooltip_open = *hovered;
+                        cx.notify();
+                    }))
                     .flex()
                     .flex_col()
                     .w(px(a.period_w_dp))
@@ -7919,7 +7947,20 @@ fn time_picker_hero(
                         .when(this.time_format.shows_period(), |col| {
                             col.child(
                                 div()
+                                    .id("dial-period-toggle")
+                                    .relative()
                                     .mt(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
+                                    .when(this.period_toggle_tooltip_open, |el| {
+                                        el.child(date_display_mode_toggle_tooltip(
+                                            theme,
+                                            time_picker::PERIOD_TOGGLE_LABEL,
+                                            "dial-period-toggle-tooltip",
+                                        ))
+                                    })
+                                    .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                        this.period_toggle_tooltip_open = *hovered;
+                                        cx.notify();
+                                    }))
                                     .flex()
                                     .flex_row()
                                     .w(px(time_picker::period_w_dp(
@@ -9944,6 +9985,7 @@ fn main() {
                     time_input: time_picker::TimeInputState::demo(),
                     time_format: time_picker::DEMO_FORMAT,
                     time_toggle_tooltip_open: false,
+                    period_toggle_tooltip_open: false,
                     date_toggle_tooltip_open: false,
                     range_toggle_tooltip_open: false,
                     date_month_nav_tooltip: None,

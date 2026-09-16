@@ -394,6 +394,7 @@ struct CatalogView {
     time_input: time_picker::TimeInputState,
     time_format: time_picker::TimeFormat,
     time_toggle_tooltip_open: bool,
+    period_toggle_tooltip_open: bool,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
     date_month_nav_tooltip: Option<&'static str>,
@@ -6232,12 +6233,12 @@ fn android_time_scroll(
                         &a,
                     ))
                     .when(this.time_format.shows_period(), |row| {
-                        row.child(android_period_column(this, cx, &a))
+                        row.child(android_period_column(this, theme, cx, &a))
                     }),
             )
         })
         .when(input_mode, |el| {
-            el.child(android_time_input(this, cx, &input))
+            el.child(android_time_input(this, theme, cx, &input))
         })
         .child(android_time_dialog_actions(
             theme,
@@ -6277,10 +6278,24 @@ fn android_time_dialog_actions(
 
 fn android_period_column(
     this: &CatalogView,
+    theme: &Theme,
     cx: &mut Context<CatalogView>,
     a: &time_picker::TimeScrollAppearance,
 ) -> impl IntoElement {
     div()
+        .id("scroll-period-toggle")
+        .relative()
+        .when(this.period_toggle_tooltip_open, |el| {
+            el.child(android_date_display_mode_toggle_tooltip(
+                theme,
+                time_picker::PERIOD_TOGGLE_LABEL,
+                "scroll-period-toggle-tooltip",
+            ))
+        })
+        .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+            this.period_toggle_tooltip_open = *hovered;
+            cx.notify();
+        }))
         .flex()
         .flex_col()
         .w(px(time_picker::PERIOD_W_DP))
@@ -6319,6 +6334,7 @@ fn android_period_column(
 
 fn android_time_input(
     this: &CatalogView,
+    theme: &Theme,
     cx: &mut Context<CatalogView>,
     a: &time_picker::TimeInputAppearance,
 ) -> impl IntoElement {
@@ -6355,7 +6371,20 @@ fn android_time_input(
         .when(this.time_format.shows_period(), |row| {
             row.child(
                 div()
+                    .id("input-period-toggle")
+                    .relative()
                     .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
+                    .when(this.period_toggle_tooltip_open, |el| {
+                        el.child(android_date_display_mode_toggle_tooltip(
+                            theme,
+                            time_picker::PERIOD_TOGGLE_LABEL,
+                            "input-period-toggle-tooltip",
+                        ))
+                    })
+                    .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                        this.period_toggle_tooltip_open = *hovered;
+                        cx.notify();
+                    }))
                     .flex()
                     .flex_col()
                     .w(px(a.period_w_dp))
@@ -6648,6 +6677,19 @@ fn android_time_picker(
                 .when(this.time_format.shows_period(), |col| {
                     col.child(
                         div()
+                            .id("dial-period-toggle")
+                            .relative()
+                            .when(this.period_toggle_tooltip_open, |el| {
+                                el.child(android_date_display_mode_toggle_tooltip(
+                                    theme,
+                                    time_picker::PERIOD_TOGGLE_LABEL,
+                                    "dial-period-toggle-tooltip",
+                                ))
+                            })
+                            .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                this.period_toggle_tooltip_open = *hovered;
+                                cx.notify();
+                            }))
                             .flex()
                             .flex_col()
                             .w(px(time_picker::PERIOD_W_DP))
@@ -10038,6 +10080,7 @@ fn android_main(app: AndroidApp) {
                 time_input: time_picker::TimeInputState::demo(),
                 time_format: time_picker::DEMO_FORMAT,
                 time_toggle_tooltip_open: false,
+                period_toggle_tooltip_open: false,
                 date_toggle_tooltip_open: false,
                 range_toggle_tooltip_open: false,
                 date_month_nav_tooltip: None,

@@ -1109,6 +1109,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-field-outline="1""#));
     assert!(html.contains(r#"data-time-selector-colors="1""#));
     assert!(html.contains(r#"data-period-outline="1""#));
+    assert!(html.contains(r#"data-period-toggle-a11y="1""#));
+    assert!(html.contains(time_picker::PERIOD_TOGGLE_LABEL));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1425,6 +1427,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("TimeSelector")
             && e.notes.contains("PrimaryContainer")
             && e.notes.contains("PeriodSelector")
+            && e.notes.contains("PeriodToggle a11y")
+            && e.notes.contains("Select AM or PM")
             && e.notes.contains("238")
             && e.notes.contains("200dp")
     }));
@@ -3951,6 +3955,8 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(time_picker::INPUT_DISPLAY_SEPARATOR_H_DP, 72.0);
     assert!(time_picker::PERIOD_TOGGLE_MARGIN);
     assert_eq!(time_picker::PERIOD_TOGGLE_MARGIN_DP, 12.0);
+    assert!(time_picker::PERIOD_TOGGLE_A11Y);
+    assert_eq!(time_picker::PERIOD_TOGGLE_LABEL, "Select AM or PM");
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll

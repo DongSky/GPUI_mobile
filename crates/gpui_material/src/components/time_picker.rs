@@ -66,6 +66,10 @@ pub const PERIOD_CONTAINER_H_DP: f32 = 80.0;
 pub const PERIOD_OUTLINE_W_DP: f32 = 1.0;
 /// Catalog / hosts apply official PeriodSelector outline.
 pub const PERIOD_OUTLINE: bool = true;
+/// Compose `TimePickerPeriodToggle`.
+pub const PERIOD_TOGGLE_LABEL: &str = "Select AM or PM";
+/// Catalog / hosts apply official PeriodToggle contentDescription.
+pub const PERIOD_TOGGLE_A11Y: bool = true;
 
 /// CSS `border-width` for the PeriodSelector shell.
 pub fn period_outline_w_css() -> String {
