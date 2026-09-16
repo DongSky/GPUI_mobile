@@ -499,6 +499,25 @@ pub const PICKER_EMPTY: bool = true;
 pub const INPUT_SUPPORTING: &str = "Enter date";
 pub const INPUT_FIELD_LABEL: &str = "Date";
 pub const INPUT_PLACEHOLDER: &str = "MM/DD/YYYY";
+/// Compose `InputTextFieldPadding` (start 24 / end 24 / top 10).
+pub const INPUT_FIELD_PAD_START_DP: f32 = 24.0;
+pub const INPUT_FIELD_PAD_END_DP: f32 = 24.0;
+pub const INPUT_FIELD_PAD_TOP_DP: f32 = 10.0;
+/// Compose `InputTextNonErroneousBottomPadding`.
+pub const INPUT_FIELD_PAD_BOTTOM_DP: f32 = 16.0;
+/// Catalog / hosts apply official Date Input field paddings.
+pub const INPUT_FIELD_PADDINGS: bool = true;
+
+/// CSS `padding` for Date Input fields (top / end / bottom / start).
+pub fn input_field_padding_css() -> String {
+    format!(
+        "{:.0}px {:.0}px {:.0}px {:.0}px",
+        INPUT_FIELD_PAD_TOP_DP,
+        INPUT_FIELD_PAD_END_DP,
+        INPUT_FIELD_PAD_BOTTOM_DP,
+        INPUT_FIELD_PAD_START_DP
+    )
+}
 pub const INPUT_TOGGLE_EDIT: &str = "✎";
 pub const INPUT_TOGGLE_CALENDAR: &str = "▦";
 pub const INPUT_OK: &str = "OK";

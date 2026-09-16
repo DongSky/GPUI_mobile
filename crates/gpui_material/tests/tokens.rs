@@ -920,6 +920,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-docked-year="2026""#));
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
+    assert!(html.contains(r#"data-date-input-pad="1""#));
+    assert!(html.contains(&format!(
+        "padding: {}",
+        date_picker::input_field_padding_css()
+    )));
     assert!(html.contains(r#"data-hero="datepicker-picker-empty""#));
     assert!(html.contains(r#"data-picker-empty="1""#));
     assert!(html.contains("Selected date"));
@@ -1323,6 +1328,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("live day select")
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
+            && e.notes.contains("InputTextFieldPadding")
             && e.notes.contains("Entered date")
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
@@ -2811,6 +2817,15 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::HEADER_PAD_DP, date_picker::TITLE_PAD_START_DP);
     assert_eq!(date_picker::title_padding_css(), "16px 12px 0 24px");
     assert_eq!(date_picker::headline_padding_css(), "0 12px 12px 24px");
+    assert!(date_picker::INPUT_FIELD_PADDINGS);
+    assert_eq!(date_picker::INPUT_FIELD_PAD_START_DP, 24.0);
+    assert_eq!(date_picker::INPUT_FIELD_PAD_END_DP, 24.0);
+    assert_eq!(date_picker::INPUT_FIELD_PAD_TOP_DP, 10.0);
+    assert_eq!(date_picker::INPUT_FIELD_PAD_BOTTOM_DP, 16.0);
+    assert_eq!(
+        date_picker::input_field_padding_css(),
+        "10px 24px 16px 24px"
+    );
     assert_eq!(date_picker::month_subhead_label(2026, 9), "September 2026");
     assert_eq!(
         date_picker::range_visible_months(2026, 9),

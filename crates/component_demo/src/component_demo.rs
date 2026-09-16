@@ -7374,28 +7374,36 @@ fn android_date_input(
         .child(
             div()
                 .w_full()
-                .px(px(12.))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(
-                    field
-                        .field
-                        .outline
-                        .map(|(c, _)| c)
-                        .unwrap_or(theme.color.outline),
-                ))
+                .mx(px(-12.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
                 .child(
                     div()
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(date_picker::INPUT_FIELD_LABEL),
-                )
-                .child(
-                    div()
-                        .text_size(px(field.input_style.size_sp))
-                        .text_color(paint(field.input))
-                        .child(date_picker::input_field_value(this.selected)),
+                        .w_full()
+                        .px(px(12.))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(
+                            field
+                                .field
+                                .outline
+                                .map(|(c, _)| c)
+                                .unwrap_or(theme.color.outline),
+                        ))
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .child(date_picker::INPUT_FIELD_LABEL),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(date_picker::input_field_value(this.selected)),
+                        ),
                 ),
         )
         .child(
@@ -7481,22 +7489,30 @@ fn android_date_input_empty(
         .child(
             div()
                 .w_full()
-                .px(px(12.))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
+                .mx(px(-12.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
                 .child(
                     div()
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(date_picker::INPUT_FIELD_LABEL),
-                )
-                .child(
-                    div()
-                        .text_size(px(field.input_style.size_sp))
-                        .text_color(paint(field.input))
-                        .child(date_picker::INPUT_PLACEHOLDER),
+                        .w_full()
+                        .px(px(12.))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .child(date_picker::INPUT_FIELD_LABEL),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(date_picker::INPUT_PLACEHOLDER),
+                        ),
                 ),
         )
         .child(
@@ -8199,45 +8215,56 @@ fn android_date_range_input(
         .child(
             div()
                 .w_full()
-                .px(px(12.))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
+                .mx(px(-12.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .flex()
+                .flex_col()
+                .gap(px(date_picker::RANGE_INPUT_GAP_DP))
                 .child(
                     div()
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(date_picker::RANGE_START_LABEL),
+                        .w_full()
+                        .px(px(12.))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .child(date_picker::RANGE_START_LABEL),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(date_picker::input_field_value(
+                                    date_picker::RANGE_DEMO_START,
+                                )),
+                        ),
                 )
                 .child(
                     div()
-                        .text_size(px(field.input_style.size_sp))
-                        .text_color(paint(field.input))
-                        .child(date_picker::input_field_value(
-                            date_picker::RANGE_DEMO_START,
-                        )),
-                ),
-        )
-        .child(
-            div()
-                .w_full()
-                .px(px(12.))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(
-                    div()
-                        .text_size(px(field.label_style.size_sp))
-                        .text_color(paint(field.label))
-                        .child(date_picker::RANGE_END_LABEL),
-                )
-                .child(
-                    div()
-                        .text_size(px(field.input_style.size_sp))
-                        .text_color(paint(field.input))
-                        .child(date_picker::input_field_value(date_picker::RANGE_DEMO_END)),
+                        .w_full()
+                        .px(px(12.))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(
+                            div()
+                                .text_size(px(field.label_style.size_sp))
+                                .text_color(paint(field.label))
+                                .child(date_picker::RANGE_END_LABEL),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(field.input_style.size_sp))
+                                .text_color(paint(field.input))
+                                .child(date_picker::input_field_value(date_picker::RANGE_DEMO_END)),
+                        ),
                 ),
         )
         .child(

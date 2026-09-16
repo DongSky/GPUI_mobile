@@ -3985,27 +3985,35 @@ fn date_input_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(
-                    field
-                        .field
-                        .outline
-                        .map(|(c, _)| c)
-                        .unwrap_or(theme.color.outline),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_FIELD_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    value,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(
+                            field
+                                .field
+                                .outline
+                                .map(|(c, _)| c)
+                                .unwrap_or(theme.color.outline),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_FIELD_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            value,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -4094,21 +4102,29 @@ fn date_input_empty_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::INPUT_FIELD_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_PLACEHOLDER,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::INPUT_FIELD_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_PLACEHOLDER,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -4281,40 +4297,51 @@ fn date_range_input_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_START_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    start,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
-        )
-        .child(
-            div()
-                .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_END_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    end,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .flex()
+                .flex_col()
+                .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_START_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            start,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_END_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            end,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -4404,40 +4431,51 @@ fn date_range_input_empty_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_START_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_PLACEHOLDER,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
-        )
-        .child(
-            div()
-                .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_END_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_PLACEHOLDER,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .flex()
+                .flex_col()
+                .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_START_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_PLACEHOLDER,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_END_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_PLACEHOLDER,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -4528,40 +4566,51 @@ fn date_range_input_start_only_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_START_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::range_field_value(sel, false),
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
-        )
-        .child(
-            div()
-                .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_END_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_PLACEHOLDER,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .flex()
+                .flex_col()
+                .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_START_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::range_field_value(sel, false),
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_END_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_PLACEHOLDER,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -4652,40 +4701,51 @@ fn date_range_input_end_only_card(
         .child(
             div()
                 .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_START_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::INPUT_PLACEHOLDER,
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
-        )
-        .child(
-            div()
-                .w_full()
-                .px(px(field.field.pad_start_dp))
-                .py(px(8.))
-                .rounded(px(field.field.corners.top_left))
-                .border_1()
-                .border_color(paint(outline))
-                .child(spaced_line(
-                    date_picker::RANGE_END_LABEL,
-                    field.label_style.size_sp,
-                    paint(field.label),
-                ))
-                .child(spaced_line(
-                    date_picker::range_field_value(sel, true),
-                    field.input_style.size_sp,
-                    paint(field.input),
-                )),
+                .mx(px(-16.))
+                .px(px(date_picker::INPUT_FIELD_PAD_START_DP))
+                .pt(px(date_picker::INPUT_FIELD_PAD_TOP_DP))
+                .pb(px(date_picker::INPUT_FIELD_PAD_BOTTOM_DP))
+                .flex()
+                .flex_col()
+                .gap(px(date_picker::RANGE_INPUT_GAP_DP))
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_START_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::INPUT_PLACEHOLDER,
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                )
+                .child(
+                    div()
+                        .w_full()
+                        .px(px(field.field.pad_start_dp))
+                        .py(px(8.))
+                        .rounded(px(field.field.corners.top_left))
+                        .border_1()
+                        .border_color(paint(outline))
+                        .child(spaced_line(
+                            date_picker::RANGE_END_LABEL,
+                            field.label_style.size_sp,
+                            paint(field.label),
+                        ))
+                        .child(spaced_line(
+                            date_picker::range_field_value(sel, true),
+                            field.input_style.size_sp,
+                            paint(field.input),
+                        )),
+                ),
         )
         .child(
             div()
@@ -9519,6 +9579,10 @@ mod tests {
         assert_eq!(date_picker::HEADLINE_PAD_START_DP, 24.0);
         assert_eq!(date_picker::HEADLINE_PAD_END_DP, 12.0);
         assert_eq!(date_picker::HEADLINE_PAD_BOTTOM_DP, 12.0);
+        assert!(date_picker::INPUT_FIELD_PADDINGS);
+        assert_eq!(date_picker::INPUT_FIELD_PAD_START_DP, 24.0);
+        assert_eq!(date_picker::INPUT_FIELD_PAD_TOP_DP, 10.0);
+        assert_eq!(date_picker::INPUT_FIELD_PAD_BOTTOM_DP, 16.0);
         assert!(date_picker::is_range_input_valid(
             "09/15/2026",
             "09/21/2026"
