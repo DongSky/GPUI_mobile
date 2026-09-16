@@ -901,6 +901,21 @@ pub const YEAR_PICKER_PANE_TITLE: &str = "Year picker visible";
 pub const NAVIGATE_TO_YEAR: &str = "Navigate to year";
 /// Catalog / hosts apply official YearPicker pane title + year-cell descriptions.
 pub const YEAR_PICKER_A11Y: bool = true;
+/// Compose `DatePickerTodayDescription`.
+pub const TODAY_DESCRIPTION: &str = "Today";
+/// Compose `DateRangePickerDayInRange`.
+pub const DAY_IN_RANGE: &str = "In range";
+/// Catalog / hosts apply official day-cell Today / In range a11y.
+pub const DAY_CELL_A11Y: bool = true;
+
+/// Official day-cell contentDescription suffix (`Today` / `In range`).
+pub const fn day_cell_a11y(kind: DayKind) -> Option<&'static str> {
+    match kind {
+        DayKind::Today => Some(TODAY_DESCRIPTION),
+        DayKind::InRange => Some(DAY_IN_RANGE),
+        _ => None,
+    }
+}
 
 /// Compose year-cell contentDescription (`Navigate to year 2026`).
 pub fn navigate_to_year_label(year: i32) -> String {

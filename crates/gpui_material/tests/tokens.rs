@@ -1003,6 +1003,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-year-picker-a11y="1""#));
     assert!(html.contains(date_picker::YEAR_PICKER_PANE_TITLE));
     assert!(html.contains(&date_picker::navigate_to_year_label(2026)));
+    assert!(html.contains(r#"data-day-cell-a11y="1""#));
+    assert!(html.contains(date_picker::TODAY_DESCRIPTION));
+    assert!(html.contains(date_picker::DAY_IN_RANGE));
     assert!(!html.contains("aria-label=\"Previous month\""));
     assert!(!html.contains("aria-label=\"Next month\""));
     assert!(html.contains(r#"data-hero="datepicker-year""#));
@@ -1521,6 +1524,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("YearPicker")
             && e.notes.contains("YearPicker a11y")
             && e.notes.contains("Year picker visible")
+            && e.notes.contains("day-cell a11y")
+            && e.notes.contains("In range")
             && e.notes.contains("Navigate to year")
             && e.notes.contains("YearPicker trailing HorizontalDivider")
             && e.notes.contains("WeekDays")
@@ -3146,6 +3151,21 @@ fn date_picker_grid_and_weekday() {
     );
     assert!(date_picker::YEAR_PICKER_A11Y);
     assert_eq!(date_picker::YEAR_PICKER_PANE_TITLE, "Year picker visible");
+    assert!(date_picker::DAY_CELL_A11Y);
+    assert_eq!(date_picker::TODAY_DESCRIPTION, "Today");
+    assert_eq!(date_picker::DAY_IN_RANGE, "In range");
+    assert_eq!(
+        date_picker::day_cell_a11y(date_picker::DayKind::Today),
+        Some(date_picker::TODAY_DESCRIPTION)
+    );
+    assert_eq!(
+        date_picker::day_cell_a11y(date_picker::DayKind::InRange),
+        Some(date_picker::DAY_IN_RANGE)
+    );
+    assert_eq!(
+        date_picker::day_cell_a11y(date_picker::DayKind::Selected),
+        None
+    );
     assert_eq!(date_picker::NAVIGATE_TO_YEAR, "Navigate to year");
     assert_eq!(
         date_picker::navigate_to_year_label(2026),

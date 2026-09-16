@@ -430,6 +430,9 @@ struct CatalogView {
     date_year_nav_tooltip: Option<i32>,
     range_year_nav_tooltip: Option<i32>,
     docked_year_nav_tooltip: Option<i32>,
+    date_day_a11y_tooltip: Option<&'static str>,
+    range_day_a11y_tooltip: Option<&'static str>,
+    docked_day_a11y_tooltip: Option<&'static str>,
 }
 
 impl CatalogView {
@@ -2886,6 +2889,27 @@ fn docked_date_picker(
                             let month = this.picker_month;
                             div()
                                 .id(SharedString::from(format!("docked-day-{i}")))
+                                .relative()
+                                .when(
+                                    date_picker::day_cell_a11y(kind).is_some()
+                                        && this.docked_day_a11y_tooltip
+                                            == date_picker::day_cell_a11y(kind),
+                                    |el| {
+                                        el.child(date_display_mode_toggle_tooltip(
+                                            theme,
+                                            date_picker::day_cell_a11y(kind).unwrap_or(""),
+                                            "docked-day-a11y-tooltip",
+                                        ))
+                                    },
+                                )
+                                .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                    this.docked_day_a11y_tooltip = if *hovered {
+                                        date_picker::day_cell_a11y(kind)
+                                    } else {
+                                        None
+                                    };
+                                    cx.notify();
+                                }))
                                 .w(px(pick.day_dp))
                                 .h(px(pick.day_dp))
                                 .rounded(px(radius))
@@ -3501,9 +3525,29 @@ fn range_month_block(
                     bg
                 };
                 let cell_radius = if fill.is_some() { 0.0 } else { radius };
+                let theme = this.theme();
                 div()
                     .id(SharedString::from(format!("range-day-{year}-{month}-{i}")))
                     .relative()
+                    .when(
+                        date_picker::day_cell_a11y(kind).is_some()
+                            && this.range_day_a11y_tooltip == date_picker::day_cell_a11y(kind),
+                        |el| {
+                            el.child(date_display_mode_toggle_tooltip(
+                                &theme,
+                                date_picker::day_cell_a11y(kind).unwrap_or(""),
+                                "range-day-a11y-tooltip",
+                            ))
+                        },
+                    )
+                    .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                        this.range_day_a11y_tooltip = if *hovered {
+                            date_picker::day_cell_a11y(kind)
+                        } else {
+                            None
+                        };
+                        cx.notify();
+                    }))
                     .w(px(pick.day_dp))
                     .h(px(pick.day_dp))
                     .rounded(px(cell_radius))
@@ -5584,6 +5628,27 @@ fn date_picker_card(
                         let month = this.picker_month;
                         div()
                             .id(SharedString::from(format!("day-{i}")))
+                            .relative()
+                            .when(
+                                date_picker::day_cell_a11y(kind).is_some()
+                                    && this.date_day_a11y_tooltip
+                                        == date_picker::day_cell_a11y(kind),
+                                |el| {
+                                    el.child(date_display_mode_toggle_tooltip(
+                                        theme,
+                                        date_picker::day_cell_a11y(kind).unwrap_or(""),
+                                        "date-day-a11y-tooltip",
+                                    ))
+                                },
+                            )
+                            .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+                                this.date_day_a11y_tooltip = if *hovered {
+                                    date_picker::day_cell_a11y(kind)
+                                } else {
+                                    None
+                                };
+                                cx.notify();
+                            }))
                             .w(px(pick.day_dp))
                             .h(px(pick.day_dp))
                             .rounded(px(radius))
@@ -10064,6 +10129,9 @@ fn main() {
                     date_year_nav_tooltip: None,
                     range_year_nav_tooltip: None,
                     docked_year_nav_tooltip: None,
+                    date_day_a11y_tooltip: None,
+                    range_day_a11y_tooltip: None,
+                    docked_day_a11y_tooltip: None,
                 })
             },
         )
