@@ -912,6 +912,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-docked-year="2026""#));
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-input-empty""#));
+    assert!(html.contains(r#"data-date-input-empty="1""#));
+    assert!(html.contains(r#"data-date-headline-empty="1""#));
+    assert!(html.contains("Entered date"));
     assert!(html.contains(r#"data-hero="datepicker-input-errors""#));
     assert!(html.contains(r#"data-date-input-errors="1""#));
     assert!(html.contains(r#"data-date-error="year""#));
@@ -1293,6 +1297,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("live day select")
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
+            && e.notes.contains("Entered date")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
             && e.notes.contains("Date not allowed")
@@ -2569,6 +2574,24 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::range_input_error("09/15/2026", "09/13/2026"),
         date_picker::DateInputError::NotAllowed
+    );
+    assert!(date_picker::INPUT_EMPTY);
+    assert_eq!(date_picker::INPUT_EMPTY_HEADLINE, "Entered date");
+    assert_eq!(date_picker::PICKER_EMPTY_HEADLINE, "Selected date");
+    assert_eq!(
+        date_picker::date_headline(date_picker::DatePickerDisplayMode::Input, None),
+        "Entered date"
+    );
+    assert_eq!(
+        date_picker::date_headline(date_picker::DatePickerDisplayMode::Picker, None),
+        "Selected date"
+    );
+    assert_eq!(
+        date_picker::date_headline(
+            date_picker::DatePickerDisplayMode::Input,
+            Some(date_picker::RANGE_DEMO_START)
+        ),
+        date_picker::header_date_label(date_picker::RANGE_DEMO_START)
     );
     assert_eq!(
         date_picker::date_input_error(""),

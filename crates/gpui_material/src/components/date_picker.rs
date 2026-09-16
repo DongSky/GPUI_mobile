@@ -440,6 +440,12 @@ pub const SHOW_MODE_TOGGLE: bool = true;
 /// Compose mode-toggle 48dp target.
 pub const TOGGLE_SIZE_DP: f32 = 48.0;
 pub const INPUT_HEADLINE: &str = "Select date";
+/// Compose `m3c_date_input_headline` when Input has no selection.
+pub const INPUT_EMPTY_HEADLINE: &str = "Entered date";
+/// Compose `m3c_date_picker_headline` when Picker has no selection.
+pub const PICKER_EMPTY_HEADLINE: &str = "Selected date";
+/// Catalog / host sibling for DatePickerHeadline Input empty.
+pub const INPUT_EMPTY: bool = true;
 pub const INPUT_SUPPORTING: &str = "Enter date";
 pub const INPUT_FIELD_LABEL: &str = "Date";
 pub const INPUT_PLACEHOLDER: &str = "MM/DD/YYYY";
@@ -511,6 +517,21 @@ impl DateInputError {
 
 pub fn apply_display_toggle(mode: DatePickerDisplayMode) -> DatePickerDisplayMode {
     mode.toggle()
+}
+
+/// Compose `DatePickerHeadline`: formatted date, or the mode's empty placeholder.
+pub fn date_headline(mode: DatePickerDisplayMode, selected: Option<CivilDate>) -> String {
+    match selected {
+        Some(date) => header_date_label(date),
+        None => empty_headline(mode).to_string(),
+    }
+}
+
+pub fn empty_headline(mode: DatePickerDisplayMode) -> &'static str {
+    match mode {
+        DatePickerDisplayMode::Input => INPUT_EMPTY_HEADLINE,
+        DatePickerDisplayMode::Picker => PICKER_EMPTY_HEADLINE,
+    }
 }
 
 /// Overview travel title in Picker; Compose `DateRangeInputTitle` in Input.
