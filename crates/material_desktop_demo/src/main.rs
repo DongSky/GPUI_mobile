@@ -3540,6 +3540,8 @@ fn date_range_picker_empty_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -3691,6 +3693,8 @@ fn date_range_hero(
                             .id("range-display-toggle")
                             .w(px(date_picker::TOGGLE_SIZE_DP))
                             .h(px(date_picker::TOGGLE_SIZE_DP))
+                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -3974,8 +3978,10 @@ fn date_input_card(
                 )
                 .child(
                     div()
-                        .w(px(48.))
-                        .h(px(48.))
+                        .w(px(date_picker::TOGGLE_SIZE_DP))
+                        .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4093,6 +4099,8 @@ fn date_input_empty_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4287,6 +4295,8 @@ fn date_range_input_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4421,6 +4431,8 @@ fn date_range_input_empty_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4556,6 +4568,8 @@ fn date_range_input_start_only_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4691,6 +4705,8 @@ fn date_range_input_end_only_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -4947,6 +4963,8 @@ fn date_picker_empty_card(
                     div()
                         .w(px(date_picker::TOGGLE_SIZE_DP))
                         .h(px(date_picker::TOGGLE_SIZE_DP))
+                        .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                        .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -5088,6 +5106,8 @@ fn date_picker_card(
                             .id("date-display-toggle")
                             .w(px(date_picker::TOGGLE_SIZE_DP))
                             .h(px(date_picker::TOGGLE_SIZE_DP))
+                            .pr(px(date_picker::TOGGLE_PAD_END_DP))
+                            .pb(px(date_picker::TOGGLE_PAD_BOTTOM_DP))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -9583,6 +9603,10 @@ mod tests {
         assert_eq!(date_picker::INPUT_FIELD_PAD_START_DP, 24.0);
         assert_eq!(date_picker::INPUT_FIELD_PAD_TOP_DP, 10.0);
         assert_eq!(date_picker::INPUT_FIELD_PAD_BOTTOM_DP, 16.0);
+        assert!(date_picker::TOGGLE_PADDINGS);
+        assert_eq!(date_picker::TOGGLE_PAD_END_DP, 12.0);
+        assert_eq!(date_picker::TOGGLE_PAD_BOTTOM_DP, 12.0);
+        assert_eq!(date_picker::toggle_padding_css(), "0 12px 12px 0");
         assert!(date_picker::is_range_input_valid(
             "09/15/2026",
             "09/21/2026"

@@ -487,6 +487,19 @@ pub const LIVE_DISPLAY_MODE: DatePickerDisplayMode = DatePickerDisplayMode::Pick
 pub const SHOW_MODE_TOGGLE: bool = true;
 /// Compose mode-toggle 48dp target.
 pub const TOGGLE_SIZE_DP: f32 = 48.0;
+/// Compose `DatePickerModeTogglePadding` = PaddingValues(end 12, bottom 12).
+pub const TOGGLE_PAD_END_DP: f32 = 12.0;
+pub const TOGGLE_PAD_BOTTOM_DP: f32 = 12.0;
+/// Catalog / hosts apply official mode-toggle paddings.
+pub const TOGGLE_PADDINGS: bool = true;
+
+/// CSS `padding` for `DatePickerModeTogglePadding` (top / end / bottom / start).
+pub fn toggle_padding_css() -> String {
+    format!(
+        "0 {:.0}px {:.0}px 0",
+        TOGGLE_PAD_END_DP, TOGGLE_PAD_BOTTOM_DP
+    )
+}
 pub const INPUT_HEADLINE: &str = "Select date";
 /// Compose `m3c_date_input_headline` when Input has no selection.
 pub const INPUT_EMPTY_HEADLINE: &str = "Entered date";
