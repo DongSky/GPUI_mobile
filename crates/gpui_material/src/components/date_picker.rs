@@ -40,12 +40,16 @@ pub struct DatePickerAppearance {
     pub day_out: Argb,
     pub day_range_container: Argb,
     pub day_range: Argb,
+    /// Compose `DatePickerDefaults.subheadContentColor` (month subhead).
+    pub month_subhead: Argb,
     pub elevation_dp: f32,
     pub day_dp: f32,
     pub year_style: TypeStyle,
     pub date_style: TypeStyle,
     pub weekday_style: TypeStyle,
     pub day_style: TypeStyle,
+    /// `DatePickerModalTokens.RangeSelectionMonthSubheadFont` → titleSmall.
+    pub month_subhead_style: TypeStyle,
 }
 
 pub fn resolve(theme: &Theme) -> DatePickerAppearance {
@@ -66,12 +70,14 @@ pub fn resolve(theme: &Theme) -> DatePickerAppearance {
             .composite_over(c.surface_container_high),
         day_range_container: c.secondary_container,
         day_range: c.on_secondary_container,
+        month_subhead: c.on_surface_variant,
         elevation_dp: theme.elevation.level3,
         day_dp: DAY_DP,
         year_style: theme.typography.label_large,
         date_style: theme.typography.headline_large.emphasized(),
         weekday_style: theme.typography.body_small,
         day_style: theme.typography.body_large,
+        month_subhead_style: theme.typography.title_small,
     }
 }
 
@@ -230,6 +236,14 @@ pub const RANGE_DIVIDER_H_DP: f32 = 1.0;
 /// Compose `drawRangeBackground` half-cell start/end connectors
 /// (`DateRangePicker.kt` firstIsSelectionStart / lastIsSelectionEnd).
 pub const RANGE_CONNECTOR: bool = true;
+/// Compose `VerticalMonthsList`: stacked months with a month/year subhead.
+pub const RANGE_VERTICAL_MONTHS: bool = true;
+/// Catalog / host window (Compose LazyColumn; two months stay on-screen).
+pub const RANGE_VISIBLE_MONTHS: usize = 2;
+/// `DateRangePicker.kt` `CalendarMonthSubheadPadding`.
+pub const MONTH_SUBHEAD_PAD_START_DP: f32 = 24.0;
+pub const MONTH_SUBHEAD_PAD_TOP_DP: f32 = 20.0;
+pub const MONTH_SUBHEAD_PAD_BOTTOM_DP: f32 = 8.0;
 /// Compose modal `DatePicker` header divider + Confirm/Cancel (draft until OK).
 pub const DATE_ACTIONS: bool = true;
 pub const DATE_DIVIDER_H_DP: f32 = 1.0;
@@ -318,6 +332,20 @@ pub fn apply_range_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
     } else {
         (y, m)
     }
+}
+
+/// Compose `dateFormatter.formatMonthYear` — month subhead, no year ▾.
+pub fn month_subhead_label(year: i32, month: u32) -> String {
+    month_title(year, month)
+}
+
+/// Visible `VerticalMonthsList` window starting at the displayed month.
+pub fn range_visible_months(year: i32, month: u32) -> [(i32, u32); RANGE_VISIBLE_MONTHS] {
+    let mut out = [(year, month); RANGE_VISIBLE_MONTHS];
+    for i in 1..RANGE_VISIBLE_MONTHS {
+        out[i] = apply_range_month(out[i - 1].0, out[i - 1].1, 1);
+    }
+    out
 }
 
 /// Headline placeholders use Compose `Start date` / `End date` until both ends exist.

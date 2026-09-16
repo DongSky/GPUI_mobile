@@ -872,6 +872,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-range-cancel="1""#));
     assert!(html.contains(r#"data-range-ok="1""#));
     assert!(html.contains(r#"data-range-connector="1""#));
+    assert!(html.contains(r#"data-range-vertical-months="1""#));
+    assert!(html.contains(r#"data-range-months="1""#));
+    assert!(html.contains(r#"data-range-subhead="1""#));
+    assert!(html.contains("October 2026"));
     assert!(html.contains(r#"data-range-fill="start-half""#));
     assert!(html.contains(r#"data-range-fill="end-half""#));
     assert!(html.contains(r#"data-range-fill="full""#));
@@ -1263,6 +1267,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("live start→end")
             && e.notes.contains("DateRangePicker")
             && e.notes.contains("drawRangeBackground")
+            && e.notes.contains("VerticalMonthsList")
             && e.notes.contains("modal Confirm/Cancel")
             && e.notes.contains("modal month nav")
             && e.notes.contains("docked popup")
@@ -2508,6 +2513,18 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::RANGE_SHOW_MODE_TOGGLE);
     assert!(date_picker::RANGE_ACTIONS);
     assert!(date_picker::RANGE_CONNECTOR);
+    assert!(date_picker::RANGE_VERTICAL_MONTHS);
+    assert_eq!(date_picker::RANGE_VISIBLE_MONTHS, 2);
+    assert_eq!(date_picker::MONTH_SUBHEAD_PAD_START_DP, 24.0);
+    assert_eq!(date_picker::MONTH_SUBHEAD_PAD_TOP_DP, 20.0);
+    assert_eq!(date_picker::MONTH_SUBHEAD_PAD_BOTTOM_DP, 8.0);
+    assert_eq!(date_picker::month_subhead_label(2026, 9), "September 2026");
+    assert_eq!(
+        date_picker::range_visible_months(2026, 9),
+        [(2026, 9), (2026, 10)]
+    );
+    assert_eq!(a.month_subhead_style.name, "titleSmall");
+    assert_eq!(a.month_subhead, theme.color.on_surface_variant);
     assert_eq!(date_picker::RANGE_DIVIDER_H_DP, 1.0);
     assert!(date_picker::DATE_ACTIONS);
     assert_eq!(date_picker::DATE_DIVIDER_H_DP, 1.0);

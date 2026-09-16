@@ -7273,6 +7273,106 @@ fn android_date_input(
         )
 }
 
+fn android_range_month_block(
+    this: &CatalogView,
+    pick: &date_picker::DatePickerAppearance,
+    year: i32,
+    month: u32,
+    cal_w: f32,
+    cx: &mut Context<CatalogView>,
+) -> impl IntoElement {
+    let cells = date_picker::month_grid_range_selection(year, month, this.date_range, this.today);
+    let fills = date_picker::range_fills(year, month, cells, this.date_range);
+    div()
+        .w(px(cal_w))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .pt(px(date_picker::MONTH_SUBHEAD_PAD_TOP_DP))
+                .pb(px(date_picker::MONTH_SUBHEAD_PAD_BOTTOM_DP))
+                .pl(px(date_picker::MONTH_SUBHEAD_PAD_START_DP))
+                .text_size(px(pick.month_subhead_style.size_sp))
+                .font_weight(type_weight(pick.month_subhead_style))
+                .text_color(paint(pick.month_subhead))
+                .child(date_picker::month_subhead_label(year, month)),
+        )
+        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+            cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                let fill = fills[i];
+                let (bg, fg, radius) = match kind {
+                    DayKind::Selected => (
+                        paint(pick.day_selected_container),
+                        paint(pick.day_selected),
+                        pick.day_dp / 2.0,
+                    ),
+                    DayKind::InRange => {
+                        (paint(pick.day_range_container), paint(pick.day_range), 0.0)
+                    }
+                    DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
+                    DayKind::OutOfMonth => {
+                        (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
+                    }
+                };
+                let in_month = kind != DayKind::OutOfMonth;
+                let selected = kind == DayKind::Selected;
+                let cell_bg = if fill.is_some() || selected {
+                    paint(pick.container)
+                } else {
+                    bg
+                };
+                let cell_radius = if fill.is_some() { 0.0 } else { radius };
+                div()
+                    .id(SharedString::from(format!("range-day-{year}-{month}-{i}")))
+                    .relative()
+                    .w(px(pick.day_dp))
+                    .h(px(pick.day_dp))
+                    .rounded(px(cell_radius))
+                    .bg(cell_bg)
+                    .text_color(fg)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(fill.is_some(), |el| {
+                        el.child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(fill.connector_left_dp(pick.day_dp)))
+                                .w(px(fill.connector_width_dp(pick.day_dp)))
+                                .h(px(pick.day_dp))
+                                .bg(paint(pick.day_range_container)),
+                        )
+                    })
+                    .when(selected, |el| {
+                        el.child(
+                            div()
+                                .w(px(pick.day_dp))
+                                .h(px(pick.day_dp))
+                                .rounded(px(pick.day_dp / 2.0))
+                                .bg(paint(pick.day_selected_container))
+                                .text_color(paint(pick.day_selected))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(day.to_string()),
+                        )
+                    })
+                    .when(!selected, |el| el.child(day.to_string()))
+                    .when(kind == DayKind::Today, |el| {
+                        el.border_1().border_color(paint(pick.day_today_outline))
+                    })
+                    .when(in_month, |el| {
+                        el.on_click(cx.listener(move |this, _, _, cx| {
+                            this.tap_date_range(CivilDate { year, month, day });
+                            cx.notify();
+                        }))
+                    })
+            }),
+        ))
+}
+
 fn android_date_range(
     this: &CatalogView,
     theme: &Theme,
@@ -7281,8 +7381,6 @@ fn android_date_range(
 ) -> impl IntoElement {
     let year = this.range_year;
     let month = this.range_month;
-    let cells = date_picker::month_grid_range_selection(year, month, this.date_range, this.today);
-    let fills = date_picker::range_fills(year, month, cells, this.date_range);
     let cal_w = pick.day_dp * 7.0;
     let picker = this.range_display == date_picker::DatePickerDisplayMode::Picker;
     let field = text_field::resolve(
@@ -7400,86 +7498,19 @@ fn android_date_range(
                             .child(*d)
                     }),
                 ))
-                .child(div().w(px(cal_w)).flex().flex_wrap().children(
-                    cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                        let fill = fills[i];
-                        let (bg, fg, radius) = match kind {
-                            DayKind::Selected => (
-                                paint(pick.day_selected_container),
-                                paint(pick.day_selected),
-                                pick.day_dp / 2.0,
-                            ),
-                            DayKind::InRange => {
-                                (paint(pick.day_range_container), paint(pick.day_range), 0.0)
-                            }
-                            DayKind::Today => {
-                                (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
-                            }
-                            DayKind::InMonth => {
-                                (paint(pick.container), paint(pick.day), pick.day_dp / 2.0)
-                            }
-                            DayKind::OutOfMonth => (
-                                paint(pick.container),
-                                paint(pick.day_out),
-                                pick.day_dp / 2.0,
-                            ),
-                        };
-                        let in_month = kind != DayKind::OutOfMonth;
-                        let selected = kind == DayKind::Selected;
-                        let cell_bg = if fill.is_some() || selected {
-                            paint(pick.container)
-                        } else {
-                            bg
-                        };
-                        let cell_radius = if fill.is_some() { 0.0 } else { radius };
-                        div()
-                            .id(SharedString::from(format!("range-day-{i}")))
-                            .relative()
-                            .w(px(pick.day_dp))
-                            .h(px(pick.day_dp))
-                            .rounded(px(cell_radius))
-                            .bg(cell_bg)
-                            .text_color(fg)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when(fill.is_some(), |el| {
-                                el.child(
-                                    div()
-                                        .absolute()
-                                        .top(px(0.))
-                                        .left(px(fill.connector_left_dp(pick.day_dp)))
-                                        .w(px(fill.connector_width_dp(pick.day_dp)))
-                                        .h(px(pick.day_dp))
-                                        .bg(paint(pick.day_range_container)),
-                                )
-                            })
-                            .when(selected, |el| {
-                                el.child(
-                                    div()
-                                        .w(px(pick.day_dp))
-                                        .h(px(pick.day_dp))
-                                        .rounded(px(pick.day_dp / 2.0))
-                                        .bg(paint(pick.day_selected_container))
-                                        .text_color(paint(pick.day_selected))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .child(day.to_string()),
-                                )
-                            })
-                            .when(!selected, |el| el.child(day.to_string()))
-                            .when(kind == DayKind::Today, |el| {
-                                el.border_1().border_color(paint(pick.day_today_outline))
-                            })
-                            .when(in_month, |el| {
-                                el.on_click(cx.listener(move |this, _, _, cx| {
-                                    this.tap_date_range(CivilDate { year, month, day });
-                                    cx.notify();
-                                }))
-                            })
-                    }),
-                ))
+                .child({
+                    let months = date_picker::range_visible_months(year, month);
+                    div()
+                        .w(px(cal_w))
+                        .flex()
+                        .flex_col()
+                        .child(android_range_month_block(
+                            this, pick, months[0].0, months[0].1, cal_w, cx,
+                        ))
+                        .child(android_range_month_block(
+                            this, pick, months[1].0, months[1].1, cal_w, cx,
+                        ))
+                })
             },
         )
         .when(
