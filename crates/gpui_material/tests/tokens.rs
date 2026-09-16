@@ -1094,6 +1094,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-time-picker-style="input""#));
     assert!(html.contains("data-time-input=\"1\""));
     assert!(html.contains(r#"data-time-field-outline="1""#));
+    assert!(html.contains(r#"data-time-selector-colors="1""#));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1393,6 +1394,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("surfaceContainer")
             && e.notes.contains("Cancel/OK")
             && e.notes.contains("ClockFaceSizeModifier")
+            && e.notes.contains("TimeSelector")
+            && e.notes.contains("PrimaryContainer")
             && e.notes.contains("238")
             && e.notes.contains("200dp")
     }));
@@ -3768,6 +3771,20 @@ fn search_bar_and_time_picker_tokens() {
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
     assert_eq!(time.number_dp, 48.0);
+    assert!(time_picker::TIME_SELECTOR_COLORS);
+    assert_eq!(
+        time.time_selector_selected_container,
+        theme.color.primary_container
+    );
+    assert_eq!(
+        time.time_selector_selected,
+        theme.color.on_primary_container
+    );
+    assert_eq!(
+        time.time_selector_container,
+        theme.color.surface_container_highest
+    );
+    assert_eq!(time.time_selector_content, theme.color.on_surface);
     assert!(time_picker::CLOCK_DIAL_SIZES);
     assert_eq!(time_picker::TIME_PICKER_MAX_HEIGHT_DP, 384.0);
     assert_eq!(time_picker::TIME_PICKER_MID_HEIGHT_DP, 330.0);

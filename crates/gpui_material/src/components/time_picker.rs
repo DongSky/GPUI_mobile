@@ -44,6 +44,8 @@ pub const TIME_SELECTOR_W_DP: f32 = 96.0;
 /// Time selector container width (24h vertical).
 pub const TIME_SELECTOR_W_24H_DP: f32 = 114.0;
 pub const TIME_SELECTOR_H_DP: f32 = 80.0;
+/// Catalog / hosts apply official TimeSelector selected / idle colors.
+pub const TIME_SELECTOR_COLORS: bool = true;
 /// Compose `DisplaySeparatorWidth` — hour:minute colon slot.
 pub const DISPLAY_SEPARATOR_W_DP: f32 = 24.0;
 /// Dial `DisplaySeparator` height = `PeriodSelectorVerticalContainerHeight`.
@@ -404,6 +406,14 @@ pub struct TimePickerAppearance {
     pub time_style: TypeStyle,
     pub number_style: TypeStyle,
     pub period_style: TypeStyle,
+    /// `TimePickerTokens.TimeSelectorContainerColor` (`PrimaryContainer`).
+    pub time_selector_selected_container: Argb,
+    /// `TimePickerTokens.TimeSelectorLabelTextColor` (`OnPrimaryContainer`).
+    pub time_selector_selected: Argb,
+    /// `TimePickerTokens.TimeSelectorUnselectedContainerColor`.
+    pub time_selector_container: Argb,
+    /// `TimePickerTokens.TimeSelectorUnselectedLabelColor` (`OnSurface`).
+    pub time_selector_content: Argb,
 }
 
 pub fn resolve(theme: &Theme) -> TimePickerAppearance {
@@ -428,6 +438,10 @@ pub fn resolve(theme: &Theme) -> TimePickerAppearance {
         time_style: theme.typography.display_small.emphasized(),
         number_style: theme.typography.body_large,
         period_style: theme.typography.title_medium.emphasized(),
+        time_selector_selected_container: c.primary_container,
+        time_selector_selected: c.on_primary_container,
+        time_selector_container: c.surface_container_highest,
+        time_selector_content: c.on_surface,
     }
 }
 

@@ -1922,7 +1922,15 @@ document.querySelectorAll("[data-timepicker]").forEach(function (picker) {{
       hh.textContent = format === "24" ? String(hour).padStart(2, "0") : String(hour);
     }}
     picker.querySelectorAll("[data-time-field]").forEach(function (el) {{
-      el.setAttribute("data-active", el.getAttribute("data-time-field") === face ? "1" : "0");
+      var on = el.getAttribute("data-time-field") === face;
+      el.setAttribute("data-active", on ? "1" : "0");
+      var box = el.closest("[data-time-selector-colors]") || picker;
+      el.style.background = on
+        ? (box.getAttribute("data-time-selector-sel-bg") || el.style.background)
+        : (box.getAttribute("data-time-selector-idle-bg") || el.style.background);
+      el.style.color = on
+        ? (box.getAttribute("data-time-selector-sel-fg") || el.style.color)
+        : (box.getAttribute("data-time-selector-idle-fg") || el.style.color);
     }});
   }}
   picker.querySelectorAll("[data-hour]").forEach(function (el) {{
@@ -8629,10 +8637,10 @@ fn time_picker_section(theme: &Theme) -> String {
         format,
     );
     let selectors = format!(
-        r#"<div class="time-fields">
-      <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
+        r#"<div class="time-fields" data-time-selector-colors="1" data-time-selector-sel-bg="{tsb}" data-time-selector-sel-fg="{tsf}" data-time-selector-idle-bg="{tib}" data-time-selector-idle-fg="{tif}">
+      <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hfg};background:{hbg}">{hh}</div>
       <div class="time-sep" data-display-separator="1" style="font-size:{ds}px;font-weight:{dw};color:{hd}">:</div>
-      <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{mm}</div>
+      <div class="time-field" data-time-field="minute" data-active="{ma}" style="font-size:{ds}px;font-weight:{dw};color:{mfg};background:{mbg}">{mm}</div>
     </div>
     <div class="period" data-period-toggle-margin="1">
       <button data-period="AM" style="background:{amb};color:{amf}">{am}</button>
@@ -8645,7 +8653,30 @@ fn time_picker_section(theme: &Theme) -> String {
         mm = time_picker::format_minute_field(time_picker::DEMO_MINUTE),
         ha = hour_active as u8,
         ma = (!hour_active) as u8,
-        clk = a.clock.css_hex(),
+        tsb = a.time_selector_selected_container.css_hex(),
+        tsf = a.time_selector_selected.css_hex(),
+        tib = a.time_selector_container.css_hex(),
+        tif = a.time_selector_content.css_hex(),
+        hbg = if hour_active {
+            a.time_selector_selected_container.css_hex()
+        } else {
+            a.time_selector_container.css_hex()
+        },
+        hfg = if hour_active {
+            a.time_selector_selected.css_hex()
+        } else {
+            a.time_selector_content.css_hex()
+        },
+        mbg = if hour_active {
+            a.time_selector_container.css_hex()
+        } else {
+            a.time_selector_selected_container.css_hex()
+        },
+        mfg = if hour_active {
+            a.time_selector_content.css_hex()
+        } else {
+            a.time_selector_selected.css_hex()
+        },
         amb = am_bg,
         amf = am_fg,
         pmb = pm_bg,
@@ -8654,7 +8685,7 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = pm.label(),
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace. <code>ClockFaceSizeModifier</code> picks 256 / 238 / 200 from available height.</p>
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). TimeSelector selected is <code>PrimaryContainer</code> / <code>OnPrimaryContainer</code>; idle is <code>SurfaceContainerHighest</code> / <code>OnSurface</code>. <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace. <code>ClockFaceSizeModifier</code> picks 256 / 238 / 200 from available height.</p>
 <div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-clock-dial-sizes="1" data-clock-dial-size="max" data-time-dialog-layout="portrait" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
   <div class="time-row" data-period-toggle-margin="1">

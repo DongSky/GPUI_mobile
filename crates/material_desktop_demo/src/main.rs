@@ -7594,14 +7594,14 @@ fn time_picker_hero(
                                         .p(px(4.))
                                         .rounded(px(8.))
                                         .bg(paint(if hour_on {
-                                            a.number_selected_container
+                                            a.time_selector_selected_container
                                         } else {
-                                            a.clock
+                                            a.time_selector_container
                                         }))
                                         .text_color(paint(if hour_on {
-                                            a.number_selected
+                                            a.time_selector_selected
                                         } else {
-                                            a.header
+                                            a.time_selector_content
                                         }))
                                         .font_weight(type_weight(a.time_style))
                                         .w(px(time_picker::time_selector_w_dp(this.time_format)))
@@ -7637,14 +7637,14 @@ fn time_picker_hero(
                                         .p(px(4.))
                                         .rounded(px(8.))
                                         .bg(paint(if !hour_on {
-                                            a.number_selected_container
+                                            a.time_selector_selected_container
                                         } else {
-                                            a.clock
+                                            a.time_selector_container
                                         }))
                                         .text_color(paint(if !hour_on {
-                                            a.number_selected
+                                            a.time_selector_selected
                                         } else {
-                                            a.header
+                                            a.time_selector_content
                                         }))
                                         .font_weight(type_weight(a.time_style))
                                         .w(px(time_picker::time_selector_w_dp(this.time_format)))
@@ -10123,6 +10123,16 @@ mod tests {
         assert_eq!(input.field_w_dp, 96.0);
         assert_eq!(input.field_h_dp, 72.0);
         assert!(time_picker::TIME_FIELD_OUTLINE);
+        assert!(time_picker::TIME_SELECTOR_COLORS);
+        let dial = time_picker::resolve(&theme);
+        assert_eq!(
+            dial.time_selector_selected_container,
+            theme.color.primary_container
+        );
+        assert_eq!(
+            dial.time_selector_selected,
+            theme.color.on_primary_container
+        );
         assert_eq!(time_picker::TIME_FIELD_FOCUS_OUTLINE_W_DP, 2.0);
         assert_eq!(time_picker::TIME_FIELD_UNFOCUSED_OUTLINE_W_DP, 1.0);
         assert_eq!(input.field_container, theme.color.surface_container_lowest);

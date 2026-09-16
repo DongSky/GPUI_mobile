@@ -6479,14 +6479,14 @@ fn android_time_picker(
                                 .id("time-hour-field")
                                 .px(px(8.))
                                 .bg(paint(if hour_on {
-                                    a.number_selected_container
+                                    a.time_selector_selected_container
                                 } else {
-                                    a.clock
+                                    a.time_selector_container
                                 }))
                                 .text_color(paint(if hour_on {
-                                    a.number_selected
+                                    a.time_selector_selected
                                 } else {
-                                    a.header
+                                    a.time_selector_content
                                 }))
                                 .child(time_picker::format_hour_field_for(
                                     this.time_dial_hour(),
@@ -6512,14 +6512,14 @@ fn android_time_picker(
                                 .id("time-minute-field")
                                 .px(px(8.))
                                 .bg(paint(if !hour_on {
-                                    a.number_selected_container
+                                    a.time_selector_selected_container
                                 } else {
-                                    a.clock
+                                    a.time_selector_container
                                 }))
                                 .text_color(paint(if !hour_on {
-                                    a.number_selected
+                                    a.time_selector_selected
                                 } else {
-                                    a.header
+                                    a.time_selector_content
                                 }))
                                 .child(time_picker::format_minute_field(this.time_minute))
                                 .on_click(cx.listener(|this, _, _, cx| {
