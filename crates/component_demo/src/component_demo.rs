@@ -645,6 +645,13 @@ impl CatalogView {
         self.docked_pane = date_picker::DatePickerPane::Calendar;
     }
 
+    fn toggle_docked_open(&mut self) {
+        self.docked_open = date_picker::apply_docked_toggle(self.docked_open);
+        if !self.docked_open {
+            self.docked_pane = date_picker::DatePickerPane::Calendar;
+        }
+    }
+
     fn select_docked_day(&mut self, year: i32, month: u32, day: u32) {
         if !date_picker::DOCKED_LIVE_SELECT {
             return;
@@ -7311,9 +7318,11 @@ fn android_range_month_block(
                     }
                     DayKind::Today => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
                     DayKind::InMonth => (paint(pick.container), paint(pick.day), pick.day_dp / 2.0),
-                    DayKind::OutOfMonth => {
-                        (paint(pick.container), paint(pick.day_out), pick.day_dp / 2.0)
-                    }
+                    DayKind::OutOfMonth => (
+                        paint(pick.container),
+                        paint(pick.day_out),
+                        pick.day_dp / 2.0,
+                    ),
                 };
                 let in_month = kind != DayKind::OutOfMonth;
                 let selected = kind == DayKind::Selected;
@@ -7505,10 +7514,20 @@ fn android_date_range(
                         .flex()
                         .flex_col()
                         .child(android_range_month_block(
-                            this, pick, months[0].0, months[0].1, cal_w, cx,
+                            this,
+                            pick,
+                            months[0].0,
+                            months[0].1,
+                            cal_w,
+                            cx,
                         ))
                         .child(android_range_month_block(
-                            this, pick, months[1].0, months[1].1, cal_w, cx,
+                            this,
+                            pick,
+                            months[1].0,
+                            months[1].1,
+                            cal_w,
+                            cx,
                         ))
                 })
             },
@@ -7788,20 +7807,44 @@ fn android_docked_date(
                 cx.notify();
             }
         }))
-        .child(field_block(
-            "docked-date-field",
-            &field,
-            date_picker::DOCKED_FIELD_LABEL,
-            value,
-            "",
-            cx.listener(|this, _, _, cx| {
-                this.docked_open = !this.docked_open;
-                if !this.docked_open {
-                    this.docked_pane = date_picker::DatePickerPane::Calendar;
-                }
-                cx.notify();
-            }),
-        ));
+        .child(
+            div()
+                .relative()
+                .child(field_block(
+                    "docked-date-field",
+                    &field,
+                    date_picker::DOCKED_FIELD_LABEL,
+                    value,
+                    "",
+                    cx.listener(|this, _, _, cx| {
+                        this.toggle_docked_open();
+                        cx.notify();
+                    }),
+                ))
+                .when(date_picker::DOCKED_TRAILING, |el| {
+                    el.child(
+                        div()
+                            .id("docked-trailing")
+                            .absolute()
+                            .right(px(4.))
+                            .top(px((field.field.height_dp
+                                - date_picker::DOCKED_TRAILING_TARGET_DP)
+                                / 2.0))
+                            .w(px(date_picker::DOCKED_TRAILING_TARGET_DP))
+                            .h(px(date_picker::DOCKED_TRAILING_TARGET_DP))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .text_color(paint(field.trailing_icon))
+                            .text_size(px(date_picker::DOCKED_TRAILING_DP))
+                            .child(date_picker::DOCKED_TRAILING_ICON)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toggle_docked_open();
+                                cx.notify();
+                            })),
+                    )
+                }),
+        );
     if this.docked_open {
         let year = this.picker_year;
         let month = this.picker_month;

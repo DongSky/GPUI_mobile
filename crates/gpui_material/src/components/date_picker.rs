@@ -435,6 +435,13 @@ pub const INPUT_TOGGLE_EDIT: &str = "✎";
 pub const INPUT_TOGGLE_CALENDAR: &str = "▦";
 pub const INPUT_OK: &str = "OK";
 pub const INPUT_CANCEL: &str = "Cancel";
+/// Compose `Icons.Default.DateRange` trailing icon button (M3 docked spec item 4).
+pub const DOCKED_TRAILING: bool = true;
+/// Catalog/host stand-in for the DateRange calendar glyph.
+pub const DOCKED_TRAILING_ICON: &str = INPUT_TOGGLE_CALENDAR;
+pub const DOCKED_TRAILING_LABEL: &str = "Select date";
+pub const DOCKED_TRAILING_DP: f32 = 24.0;
+pub const DOCKED_TRAILING_TARGET_DP: f32 = 48.0;
 /// Compose `DateRangeInputTitle`.
 pub const RANGE_INPUT_HEADLINE: &str = "Enter dates";
 /// Compose `DateRangePickerStartHeadline` / `DateRangePickerEndHeadline`.
@@ -498,6 +505,11 @@ pub fn apply_date_month(year: i32, month: u32, delta: i32) -> (i32, u32) {
 /// Jump the docked calendar to a YearPicker year; keep the displayed month.
 pub fn apply_docked_year(year: i32, month: u32, picked: i32) -> (i32, u32) {
     apply_range_year(year, month, picked)
+}
+
+/// Field or trailing DateRange icon toggles the docked popup.
+pub fn apply_docked_toggle(open: bool) -> bool {
+    !open
 }
 
 /// Tap an in-month docked day: commit the civil date and whether the popup dismisses.

@@ -673,6 +673,13 @@ impl CatalogView {
         self.docked_pane = date_picker::DatePickerPane::Calendar;
     }
 
+    fn toggle_docked_open(&mut self) {
+        self.docked_open = date_picker::apply_docked_toggle(self.docked_open);
+        if !self.docked_open {
+            self.docked_pane = date_picker::DatePickerPane::Calendar;
+        }
+    }
+
     fn select_docked_day(&mut self, year: i32, month: u32, day: u32) {
         if !date_picker::DOCKED_LIVE_SELECT {
             return;
@@ -2889,20 +2896,44 @@ fn docked_date_picker(
                 cx.notify();
             }
         }))
-        .child(field_block(
-            "docked-date-field",
-            &field,
-            date_picker::DOCKED_FIELD_LABEL,
-            value,
-            "",
-            cx.listener(|this, _, _, cx| {
-                this.docked_open = !this.docked_open;
-                if !this.docked_open {
-                    this.docked_pane = date_picker::DatePickerPane::Calendar;
-                }
-                cx.notify();
-            }),
-        ))
+        .child(
+            div()
+                .relative()
+                .child(field_block(
+                    "docked-date-field",
+                    &field,
+                    date_picker::DOCKED_FIELD_LABEL,
+                    value,
+                    "",
+                    cx.listener(|this, _, _, cx| {
+                        this.toggle_docked_open();
+                        cx.notify();
+                    }),
+                ))
+                .when(date_picker::DOCKED_TRAILING, |el| {
+                    el.child(
+                        div()
+                            .id("docked-trailing")
+                            .absolute()
+                            .right(px(4.))
+                            .top(px((field.field.height_dp
+                                - date_picker::DOCKED_TRAILING_TARGET_DP)
+                                / 2.0))
+                            .w(px(date_picker::DOCKED_TRAILING_TARGET_DP))
+                            .h(px(date_picker::DOCKED_TRAILING_TARGET_DP))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .text_color(paint(field.trailing_icon))
+                            .text_size(px(date_picker::DOCKED_TRAILING_DP))
+                            .child(date_picker::DOCKED_TRAILING_ICON)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.toggle_docked_open();
+                                cx.notify();
+                            })),
+                    )
+                }),
+        )
         .children(popup)
 }
 
@@ -3367,68 +3398,66 @@ fn range_month_block(
                 .text_color(paint(pick.month_subhead))
                 .child(date_picker::month_subhead_label(year, month)),
         )
-        .child(
-            div().w(px(cal_w)).flex().flex_wrap().children(
-                cells.iter().copied().enumerate().map(|(i, (day, kind))| {
-                    let fill = fills[i];
-                    let (bg, fg, radius) = day_colors(pick, kind);
-                    let in_month = kind != DayKind::OutOfMonth;
-                    let selected = kind == DayKind::Selected;
-                    let cell_bg = if fill.is_some() || selected {
-                        paint(pick.container)
-                    } else {
-                        bg
-                    };
-                    let cell_radius = if fill.is_some() { 0.0 } else { radius };
-                    div()
-                        .id(SharedString::from(format!("range-day-{year}-{month}-{i}")))
-                        .relative()
-                        .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
-                        .rounded(px(cell_radius))
-                        .bg(cell_bg)
-                        .text_color(fg)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .when(fill.is_some(), |el| {
-                            el.child(
-                                div()
-                                    .absolute()
-                                    .top(px(0.))
-                                    .left(px(fill.connector_left_dp(pick.day_dp)))
-                                    .w(px(fill.connector_width_dp(pick.day_dp)))
-                                    .h(px(pick.day_dp))
-                                    .bg(paint(pick.day_range_container)),
-                            )
-                        })
-                        .when(selected, |el| {
-                            el.child(
-                                div()
-                                    .w(px(pick.day_dp))
-                                    .h(px(pick.day_dp))
-                                    .rounded(px(pick.day_dp / 2.0))
-                                    .bg(paint(pick.day_selected_container))
-                                    .text_color(paint(pick.day_selected))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .child(day.to_string()),
-                            )
-                        })
-                        .when(!selected, |el| el.child(day.to_string()))
-                        .when(kind == DayKind::Today, |el| {
-                            el.border_1().border_color(paint(pick.day_today_outline))
-                        })
-                        .when(in_month, |el| {
-                            el.on_click(cx.listener(move |this, _, _, cx| {
-                                this.tap_date_range(CivilDate { year, month, day });
-                                cx.notify();
-                            }))
-                        })
-                }),
-            ),
-        )
+        .child(div().w(px(cal_w)).flex().flex_wrap().children(
+            cells.iter().copied().enumerate().map(|(i, (day, kind))| {
+                let fill = fills[i];
+                let (bg, fg, radius) = day_colors(pick, kind);
+                let in_month = kind != DayKind::OutOfMonth;
+                let selected = kind == DayKind::Selected;
+                let cell_bg = if fill.is_some() || selected {
+                    paint(pick.container)
+                } else {
+                    bg
+                };
+                let cell_radius = if fill.is_some() { 0.0 } else { radius };
+                div()
+                    .id(SharedString::from(format!("range-day-{year}-{month}-{i}")))
+                    .relative()
+                    .w(px(pick.day_dp))
+                    .h(px(pick.day_dp))
+                    .rounded(px(cell_radius))
+                    .bg(cell_bg)
+                    .text_color(fg)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(fill.is_some(), |el| {
+                        el.child(
+                            div()
+                                .absolute()
+                                .top(px(0.))
+                                .left(px(fill.connector_left_dp(pick.day_dp)))
+                                .w(px(fill.connector_width_dp(pick.day_dp)))
+                                .h(px(pick.day_dp))
+                                .bg(paint(pick.day_range_container)),
+                        )
+                    })
+                    .when(selected, |el| {
+                        el.child(
+                            div()
+                                .w(px(pick.day_dp))
+                                .h(px(pick.day_dp))
+                                .rounded(px(pick.day_dp / 2.0))
+                                .bg(paint(pick.day_selected_container))
+                                .text_color(paint(pick.day_selected))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(day.to_string()),
+                        )
+                    })
+                    .when(!selected, |el| el.child(day.to_string()))
+                    .when(kind == DayKind::Today, |el| {
+                        el.border_1().border_color(paint(pick.day_today_outline))
+                    })
+                    .when(in_month, |el| {
+                        el.on_click(cx.listener(move |this, _, _, cx| {
+                            this.tap_date_range(CivilDate { year, month, day });
+                            cx.notify();
+                        }))
+                    })
+            }),
+        ))
 }
 
 fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl IntoElement {
@@ -3565,21 +3594,29 @@ fn date_range_hero(
         .when(
             picker && this.range_pane == date_picker::DatePickerPane::Calendar,
             |el| {
-                {
-                    let months = date_picker::range_visible_months(year, month);
-                    el.child(weekday_row(pick, cal_w)).child(
-                        div()
-                            .w(px(cal_w))
-                            .flex()
-                            .flex_col()
-                            .child(range_month_block(
-                                this, pick, months[0].0, months[0].1, cal_w, cx,
-                            ))
-                            .child(range_month_block(
-                                this, pick, months[1].0, months[1].1, cal_w, cx,
-                            )),
-                    )
-                }
+                let months = date_picker::range_visible_months(year, month);
+                el.child(weekday_row(pick, cal_w)).child(
+                    div()
+                        .w(px(cal_w))
+                        .flex()
+                        .flex_col()
+                        .child(range_month_block(
+                            this,
+                            pick,
+                            months[0].0,
+                            months[0].1,
+                            cal_w,
+                            cx,
+                        ))
+                        .child(range_month_block(
+                            this,
+                            pick,
+                            months[1].0,
+                            months[1].1,
+                            cal_w,
+                            cx,
+                        )),
+                )
             },
         )
         .when(
@@ -8488,6 +8525,12 @@ mod tests {
         assert!(date_picker::DATE_MONTH_NAV);
         assert!(date_picker::DOCKED_YEAR_PANE);
         assert!(date_picker::DOCKED_LIVE_SELECT);
+        assert!(date_picker::DOCKED_TRAILING);
+        assert_eq!(
+            date_picker::DOCKED_TRAILING_ICON,
+            date_picker::INPUT_TOGGLE_CALENDAR
+        );
+        assert!(!date_picker::apply_docked_toggle(true));
         assert_eq!(date_picker::apply_docked_year(2026, 9, 2027), (2027, 9));
         assert_eq!(
             date_picker::apply_docked_tap(2026, 9, 16),

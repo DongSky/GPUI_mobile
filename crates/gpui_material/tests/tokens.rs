@@ -903,6 +903,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-docked-pane="calendar""#));
     assert!(html.contains(r#"data-docked-select-live="1""#));
     assert!(html.contains(r#"data-docked-dismiss-select="1""#));
+    assert!(html.contains(r#"data-docked-trailing="1""#));
+    assert!(html.contains(date_picker::DOCKED_TRAILING_ICON));
     assert!(html.contains(r#"data-docked-year-toggle="1""#));
     assert!(html.contains(r#"data-docked-years="1""#));
     assert!(html.contains(r#"data-docked-year="2026""#));
@@ -1272,6 +1274,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("modal month nav")
             && e.notes.contains("docked popup")
             && e.notes.contains("live day select")
+            && e.notes.contains("DateRange")
             && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
@@ -2531,6 +2534,14 @@ fn date_picker_grid_and_weekday() {
     assert!(date_picker::DATE_MONTH_NAV);
     assert!(date_picker::DOCKED_YEAR_PANE);
     assert!(date_picker::DOCKED_LIVE_SELECT);
+    assert!(date_picker::DOCKED_TRAILING);
+    assert_eq!(
+        date_picker::DOCKED_TRAILING_ICON,
+        date_picker::INPUT_TOGGLE_CALENDAR
+    );
+    assert_eq!(date_picker::DOCKED_TRAILING_TARGET_DP, 48.0);
+    assert!(!date_picker::apply_docked_toggle(true));
+    assert!(date_picker::apply_docked_toggle(false));
     assert_eq!(date_picker::apply_docked_year(2026, 9, 2027), (2027, 9));
     assert_eq!(
         date_picker::apply_docked_tap(2026, 9, 16),
