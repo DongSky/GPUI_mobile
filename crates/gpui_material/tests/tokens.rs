@@ -933,6 +933,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("month-nav-arrows"));
     assert!(html.contains("height: 56px; min-height: 56px"));
     assert!(html.contains(r#"data-date-header-min="1""#));
+    assert!(html.contains(r#"data-date-container="1""#));
+    assert!(html.contains("max-width: 360px; max-height: 568px"));
     assert!(html.contains(r#"data-date-range-header-min="1""#));
     assert!(html.contains(&format!(
         "min-height: {};",
@@ -1381,6 +1383,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("MonthYearHeight")
             && e.notes.contains("HeaderContainerHeight")
             && e.notes.contains("HeaderHeightOffset")
+            && e.notes.contains("ContainerWidth")
+            && e.notes.contains("ContainerHeight")
             && e.notes.contains("Entered date")
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
@@ -2860,6 +2864,9 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_TOP_DP, 20.0);
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_BOTTOM_DP, 8.0);
     assert!(date_picker::HEADER_PADDINGS);
+    assert!(date_picker::CONTAINER_SIZE);
+    assert_eq!(date_picker::CONTAINER_W_DP, 360.0);
+    assert_eq!(date_picker::CONTAINER_H_DP, 568.0);
     assert!(date_picker::HEADER_CONTAINER_HEIGHTS);
     assert_eq!(date_picker::HEADER_CONTAINER_H_DP, 120.0);
     assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);

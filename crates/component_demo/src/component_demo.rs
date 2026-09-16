@@ -7244,7 +7244,8 @@ fn android_date_picker_empty(
     let cal_w = pick.day_dp * 7.0;
     div()
         .id("date-picker-empty")
-        .w(px(cal_w))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -7367,7 +7368,8 @@ fn android_date_input(
     );
     div()
         .id("date-input")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -7491,7 +7493,8 @@ fn android_date_input_empty(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-input-empty")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -7644,7 +7647,8 @@ fn android_date_input_errors(
 ) -> impl IntoElement {
     div()
         .id("date-input-errors")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -7795,7 +7799,8 @@ fn android_date_range_picker_empty(
     let cal_w = pick.day_dp * 7.0;
     div()
         .id("date-range-picker-empty")
-        .w(px(cal_w))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -7953,7 +7958,8 @@ fn android_date_range(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-range")
-        .w(px(cal_w))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -8290,7 +8296,8 @@ fn android_date_range_input(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-range-input")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -8442,7 +8449,8 @@ fn android_date_range_input_empty(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-range-input-empty")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -8579,7 +8587,8 @@ fn android_date_range_input_start_only(
     let sel = date_picker::DateRangeSelection::start_only();
     div()
         .id("date-range-input-start-only")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -8716,7 +8725,8 @@ fn android_date_range_input_end_only(
     let sel = date_picker::DateRangeSelection::end_only();
     div()
         .id("date-range-input-end-only")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -8931,7 +8941,8 @@ fn android_date_range_input_errors(
     let order_end = date_picker::input_field_value(date_picker::RANGE_DEMO_START);
     div()
         .id("date-range-input-errors")
-        .w(px(pick.day_dp * 7.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(12.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))

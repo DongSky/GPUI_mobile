@@ -3532,7 +3532,8 @@ fn date_range_picker_empty_card(
     let cal_w = pick.day_dp * 7.0;
     div()
         .id("date-range-picker-empty")
-        .w(px(cal_w + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -3692,7 +3693,8 @@ fn date_range_hero(
         .map(|(c, _)| c)
         .unwrap_or(theme.color.outline);
     div()
-        .w(px(cal_w + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4019,7 +4021,8 @@ fn date_input_card(
     );
     let value = date_picker::input_field_value(this.selected);
     div()
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4146,7 +4149,8 @@ fn date_input_empty_card(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-input-empty")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4300,7 +4304,8 @@ fn date_input_error_card(
 ) -> impl IntoElement {
     div()
         .id("date-input-errors")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4342,7 +4347,8 @@ fn date_range_input_card(
         .map(|(c, _)| c)
         .unwrap_or(theme.color.outline);
     div()
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4490,7 +4496,8 @@ fn date_range_input_empty_card(
         .unwrap_or(theme.color.outline);
     div()
         .id("date-range-input-empty")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4636,7 +4643,8 @@ fn date_range_input_start_only_card(
     let sel = date_picker::DateRangeSelection::start_only();
     div()
         .id("date-range-input-start-only")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -4782,7 +4790,8 @@ fn date_range_input_end_only_card(
     let sel = date_picker::DateRangeSelection::end_only();
     div()
         .id("date-range-input-end-only")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -5003,7 +5012,8 @@ fn date_range_input_error_card(
     let order_end = date_picker::input_field_value(date_picker::RANGE_DEMO_START);
     div()
         .id("date-range-input-errors")
-        .w(px(pick.day_dp * 7.0 + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -5049,7 +5059,8 @@ fn date_picker_empty_card(
     let cal_w = pick.day_dp * 7.0;
     div()
         .id("date-picker-empty")
-        .w(px(cal_w + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -5184,7 +5195,8 @@ fn date_picker_card(
     );
     let value = date_picker::input_field_value(this.selected);
     div()
-        .w(px(cal_w + 32.0))
+        .w(px(date_picker::CONTAINER_W_DP))
+        .max_h(px(date_picker::CONTAINER_H_DP))
         .p(px(16.))
         .rounded(px(pick.corners.top_left))
         .bg(paint(pick.container))
@@ -9757,6 +9769,9 @@ mod tests {
             date_picker::RANGE_END_ONLY_HEADLINE
         );
         assert!(date_picker::HEADER_PADDINGS);
+        assert!(date_picker::CONTAINER_SIZE);
+        assert_eq!(date_picker::CONTAINER_W_DP, 360.0);
+        assert_eq!(date_picker::CONTAINER_H_DP, 568.0);
         assert!(date_picker::HEADER_CONTAINER_HEIGHTS);
         assert_eq!(date_picker::HEADER_CONTAINER_H_DP, 120.0);
         assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);

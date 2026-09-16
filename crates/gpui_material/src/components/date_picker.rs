@@ -7,6 +7,12 @@ use crate::typography::TypeStyle;
 
 pub const DAY_DP: f32 = 40.0;
 pub const CORNER_DP: f32 = 28.0;
+/// `DatePickerModalTokens.ContainerWidth` / DatePickerDialog `requiredWidth`.
+pub const CONTAINER_W_DP: f32 = 360.0;
+/// `DatePickerModalTokens.ContainerHeight` / DatePickerDialog `heightIn(max)`.
+pub const CONTAINER_H_DP: f32 = 568.0;
+/// Catalog / hosts apply official DatePickerDialog container size.
+pub const CONTAINER_SIZE: bool = true;
 /// Shared header start inset (Compose `DatePickerTitlePadding` start).
 pub const HEADER_PAD_DP: f32 = 24.0;
 /// Compose `DatePickerTitlePadding` = PaddingValues(start 24, end 12, top 16).
