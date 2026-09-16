@@ -1175,6 +1175,7 @@ fn catalog_body(
         .child(date_input_card(this, theme, &pick))
         .child(date_input_error_card(theme, &pick))
         .child(date_range_input_card(theme, &pick))
+        .child(date_range_input_error_card(theme, &pick))
 }
 
 fn paint_icon_button(a: &Appearance) -> impl IntoElement + use<> {
@@ -4065,6 +4066,132 @@ fn date_range_input_card(
                     paint(theme.color.primary),
                 )),
         )
+}
+
+fn date_range_input_error_field(
+    theme: &Theme,
+    start: &str,
+    end: &str,
+    error: date_picker::DateInputError,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Error,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.error);
+    let end_field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        if error == date_picker::DateInputError::Order {
+            InteractionState::Error
+        } else {
+            InteractionState::Enabled
+        },
+        true,
+    );
+    let end_outline = end_field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.outline);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(
+            div()
+                .w_full()
+                .px(px(field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(spaced_line(
+                    date_picker::RANGE_START_LABEL,
+                    field.label_style.size_sp,
+                    paint(field.label),
+                ))
+                .child(spaced_line(
+                    start,
+                    field.input_style.size_sp,
+                    paint(field.input),
+                )),
+        )
+        .child(
+            div()
+                .w_full()
+                .px(px(end_field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(end_field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(end_outline))
+                .child(spaced_line(
+                    date_picker::RANGE_END_LABEL,
+                    end_field.label_style.size_sp,
+                    paint(end_field.label),
+                ))
+                .child(spaced_line(
+                    end,
+                    end_field.input_style.size_sp,
+                    paint(end_field.input),
+                )),
+        )
+        .children(error.label().map(|msg| {
+            spaced_line(
+                msg,
+                field.supporting_style.size_sp,
+                paint(theme.color.error),
+            )
+        }))
+}
+
+fn date_range_input_error_card(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let valid_end = date_picker::input_field_value(date_picker::RANGE_DEMO_END);
+    let order_start = date_picker::input_field_value(date_picker::RANGE_DEMO_END);
+    let order_end = date_picker::input_field_value(date_picker::RANGE_DEMO_START);
+    div()
+        .id("date-range-input-errors")
+        .w(px(pick.day_dp * 7.0 + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_FORMAT_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::Format,
+        ))
+        .child(date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_YEAR_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::YearRange,
+        ))
+        .child(date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::NotAllowed,
+        ))
+        .child(date_range_input_error_field(
+            theme,
+            &order_start,
+            &order_end,
+            date_picker::DateInputError::Order,
+        ))
 }
 
 fn date_picker_card(
@@ -8618,6 +8745,13 @@ mod tests {
         assert_eq!(
             date_picker::range_input_error("09/21/2026", "09/15/2026"),
             date_picker::DateInputError::Order
+        );
+        assert_eq!(
+            date_picker::range_input_error(
+                date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE,
+                "09/21/2026"
+            ),
+            date_picker::DateInputError::NotAllowed
         );
         assert!(date_picker::RANGE_LIVE);
         let restarted = date_picker::apply_range_tap(

@@ -928,6 +928,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
     assert!(html.contains(r#"data-range-input-errors="1""#));
     assert!(html.contains(r#"data-range-error="year""#));
+    assert!(html.contains(r#"data-range-error="allowed""#));
+    assert!(html.contains(r#"data-date-range-allowed-start="1""#));
     assert!(html.contains("Date format not recognized"));
     assert!(html.contains("Date out of expected year range 1900 - 2100"));
     assert!(html.contains("End date can't be before start date"));
@@ -1293,6 +1295,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateInputValidator")
             && e.notes.contains("year range")
             && e.notes.contains("SelectableDates")
+            && e.notes.contains("Date not allowed")
             && e.notes.contains("Disabled")
             && e.notes.contains("YearPicker")
     }));
@@ -2561,6 +2564,10 @@ fn date_picker_grid_and_weekday() {
     );
     assert_eq!(
         date_picker::range_input_error("09/12/2026", "09/21/2026"),
+        date_picker::DateInputError::NotAllowed
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/15/2026", "09/13/2026"),
         date_picker::DateInputError::NotAllowed
     );
     assert_eq!(

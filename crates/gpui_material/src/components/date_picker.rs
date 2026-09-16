@@ -728,7 +728,7 @@ pub fn not_allowed_label(date: CivilDate) -> String {
     format!("Date not allowed: {}", header_date_label(date))
 }
 
-/// Compose `DateInputValidator`: pattern, then year range, then end-before-start.
+/// Compose `DateInputValidator`: pattern, year range, SelectableDates, then end-before-start.
 pub fn range_input_error(start: &str, end: &str) -> DateInputError {
     let start_trim = start.trim();
     let end_trim = end.trim();

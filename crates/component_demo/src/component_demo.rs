@@ -1611,6 +1611,7 @@ fn catalog_body(
         .child(android_date_input(this, theme, pick))
         .child(android_date_input_errors(theme, pick))
         .child(android_date_range_input(theme, pick))
+        .child(android_date_range_input_errors(theme, pick))
         .child(section_title(theme, "Overlays"))
         .child(
             div()
@@ -7873,6 +7874,135 @@ fn android_date_range_input(
                         .child(date_picker::INPUT_OK),
                 ),
         )
+}
+
+fn android_date_range_input_error_field(
+    theme: &Theme,
+    start: &str,
+    end: &str,
+    error: date_picker::DateInputError,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Error,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.error);
+    let end_field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        if error == date_picker::DateInputError::Order {
+            InteractionState::Error
+        } else {
+            InteractionState::Enabled
+        },
+        true,
+    );
+    let end_outline = end_field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.outline);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(
+            div()
+                .w_full()
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(date_picker::RANGE_START_LABEL),
+                )
+                .child(
+                    div()
+                        .text_size(px(field.input_style.size_sp))
+                        .text_color(paint(field.input))
+                        .child(start.to_string()),
+                ),
+        )
+        .child(
+            div()
+                .w_full()
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(px(end_field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(end_outline))
+                .child(
+                    div()
+                        .text_size(px(end_field.label_style.size_sp))
+                        .text_color(paint(end_field.label))
+                        .child(date_picker::RANGE_END_LABEL),
+                )
+                .child(
+                    div()
+                        .text_size(px(end_field.input_style.size_sp))
+                        .text_color(paint(end_field.input))
+                        .child(end.to_string()),
+                ),
+        )
+        .children(error.label().map(|msg| {
+            div()
+                .text_size(px(field.supporting_style.size_sp))
+                .text_color(paint(theme.color.error))
+                .child(msg)
+        }))
+}
+
+fn android_date_range_input_errors(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    let valid_end = date_picker::input_field_value(date_picker::RANGE_DEMO_END);
+    let order_start = date_picker::input_field_value(date_picker::RANGE_DEMO_END);
+    let order_end = date_picker::input_field_value(date_picker::RANGE_DEMO_START);
+    div()
+        .id("date-range-input-errors")
+        .w(px(pick.day_dp * 7.0))
+        .p(px(12.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(android_date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_FORMAT_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::Format,
+        ))
+        .child(android_date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_YEAR_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::YearRange,
+        ))
+        .child(android_date_range_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_NOT_ALLOWED_SAMPLE,
+            &valid_end,
+            date_picker::DateInputError::NotAllowed,
+        ))
+        .child(android_date_range_input_error_field(
+            theme,
+            &order_start,
+            &order_end,
+            date_picker::DateInputError::Order,
+        ))
 }
 
 fn android_docked_date(
