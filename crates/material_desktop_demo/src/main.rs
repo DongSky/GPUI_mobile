@@ -1173,6 +1173,7 @@ fn catalog_body(
         .child(docked_date_picker(this, theme, &pick, &cells, cx))
         .child(date_picker_card(this, theme, &pick, &cells, cx))
         .child(date_input_card(this, theme, &pick))
+        .child(date_input_error_card(theme, &pick))
         .child(date_range_input_card(theme, &pick))
 }
 
@@ -3864,6 +3865,80 @@ fn date_input_card(
                     paint(theme.color.primary),
                 )),
         )
+}
+
+fn date_input_error_field(
+    theme: &Theme,
+    value: &'static str,
+    error: date_picker::DateInputError,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Error,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.error);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(
+            div()
+                .w_full()
+                .px(px(field.field.pad_start_dp))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(spaced_line(
+                    date_picker::INPUT_FIELD_LABEL,
+                    field.label_style.size_sp,
+                    paint(field.label),
+                ))
+                .child(spaced_line(
+                    value,
+                    field.input_style.size_sp,
+                    paint(field.input),
+                )),
+        )
+        .children(error.label().map(|msg| {
+            spaced_line(
+                msg,
+                field.supporting_style.size_sp,
+                paint(theme.color.error),
+            )
+        }))
+}
+
+fn date_input_error_card(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    div()
+        .id("date-input-errors")
+        .w(px(pick.day_dp * 7.0 + 32.0))
+        .p(px(16.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_FORMAT_SAMPLE,
+            date_picker::DateInputError::Format,
+        ))
+        .child(date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_YEAR_SAMPLE,
+            date_picker::DateInputError::YearRange,
+        ))
 }
 
 fn date_range_input_card(
@@ -8514,6 +8589,15 @@ mod tests {
             "09/21/2026"
         ));
         assert!(date_picker::RANGE_INPUT_ERRORS);
+        assert!(date_picker::DATE_INPUT_ERRORS);
+        assert_eq!(
+            date_picker::date_input_error("13/40/2026"),
+            date_picker::DateInputError::Format
+        );
+        assert_eq!(
+            date_picker::date_input_error(date_picker::INPUT_ERROR_YEAR_SAMPLE),
+            date_picker::DateInputError::YearRange
+        );
         assert_eq!(
             date_picker::range_input_error("13/40/2026", "09/21/2026"),
             date_picker::DateInputError::Format

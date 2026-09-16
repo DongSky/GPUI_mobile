@@ -1609,6 +1609,7 @@ fn catalog_body(
             )
         })
         .child(android_date_input(this, theme, pick))
+        .child(android_date_input_errors(theme, pick))
         .child(android_date_range_input(theme, pick))
         .child(section_title(theme, "Overlays"))
         .child(
@@ -7278,6 +7279,81 @@ fn android_date_input(
                         .child(date_picker::INPUT_OK),
                 ),
         )
+}
+
+fn android_date_input_error_field(
+    theme: &Theme,
+    value: &'static str,
+    error: date_picker::DateInputError,
+) -> impl IntoElement {
+    let field = text_field::resolve(
+        theme,
+        text_field::TextFieldVariant::Outlined,
+        InteractionState::Error,
+        true,
+    );
+    let outline = field
+        .field
+        .outline
+        .map(|(c, _)| c)
+        .unwrap_or(theme.color.error);
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .child(
+            div()
+                .w_full()
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(px(field.field.corners.top_left))
+                .border_1()
+                .border_color(paint(outline))
+                .child(
+                    div()
+                        .text_size(px(field.label_style.size_sp))
+                        .text_color(paint(field.label))
+                        .child(date_picker::INPUT_FIELD_LABEL),
+                )
+                .child(
+                    div()
+                        .text_size(px(field.input_style.size_sp))
+                        .text_color(paint(field.input))
+                        .child(value),
+                ),
+        )
+        .children(error.label().map(|msg| {
+            div()
+                .text_size(px(field.supporting_style.size_sp))
+                .text_color(paint(theme.color.error))
+                .child(msg)
+        }))
+}
+
+fn android_date_input_errors(
+    theme: &Theme,
+    pick: &date_picker::DatePickerAppearance,
+) -> impl IntoElement {
+    div()
+        .id("date-input-errors")
+        .w(px(pick.day_dp * 7.0))
+        .p(px(12.))
+        .rounded(px(pick.corners.top_left))
+        .bg(paint(pick.container))
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(android_date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_FORMAT_SAMPLE,
+            date_picker::DateInputError::Format,
+        ))
+        .child(android_date_input_error_field(
+            theme,
+            date_picker::INPUT_ERROR_YEAR_SAMPLE,
+            date_picker::DateInputError::YearRange,
+        ))
 }
 
 fn android_range_month_block(

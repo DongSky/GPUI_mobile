@@ -1315,7 +1315,11 @@ table.inv th {{ font-weight: 500; }}
 .dp-range-error {{
   font-size: 12px; line-height: 16px; padding: 0 12px 8px;
 }}
-.cal[data-range-input-errors] .dp-range-error-card {{ margin-bottom: 12px; }}
+.cal[data-range-input-errors] .dp-range-error-card,
+.cal[data-date-input-errors] .dp-input-error-card {{ margin-bottom: 12px; }}
+.dp-input-error {{
+  font-size: 12px; line-height: 16px; padding: 0 12px 8px;
+}}
 .dp-divider {{ height: 1px; margin: 0 12px 8px; }}
 .cal .dp-toggle {{
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
@@ -6943,7 +6947,7 @@ fn date_pickers(theme: &Theme) -> String {
     );
     format!(
         r#"<h2>Date picker</h2>
-<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
+<p class="note">Official modal: “Select date” + headlineLargeEmphasized + Sunday-first 7-column grid (matches live m3.material.io modal, not ISO Monday-first). Prev/next pages months (YearRange 1900–2100). Month ▾ opens Compose <code>YearPicker</code> (3×72×36, YearRange 1900–2100). <code>showModeToggle</code> swaps Picker↔Input on this modal (edit/calendar). Cancel/OK draft-commit the modal date (docked still writes immediately). Modal date input sibling starts on Compose <code>DisplayMode.Input</code> (outlined <code>MM/DD/YYYY</code>, static). Single-date Input supporting-text errors use Compose <code>DateInputValidator</code> (format / year-range). Modal date range input is Compose <code>DateRangePicker</code> Input (Start/End outlined fields). Overview range hero is live: tap start then end ≥ start (third tap restarts); prev/next pages months (cross-month InRange); month ▾ opens a range-hero <code>YearPicker</code>; range-hero <code>showModeToggle</code> swaps calendar ↔ Start/End input (sibling range input stays); Cancel/OK draft-commit the range; <code>drawRangeBackground</code> half-cell start/end connectors; Compose <code>VerticalMonthsList</code> stacks two months with titleSmall subheads (<code>CalendarMonthSubheadPadding</code> 24/20/8). Docked popup anchors under the outlined field with elevation shadow, a trailing DateRange icon (Compose <code>Icons.Default.DateRange</code>), month navigation, month ▾ <code>YearPicker</code> (independent of the modal / range hero), live day select (tap writes the outlined field and dismisses), and outside-click dismiss. 40dp cells. <a href="https://m3.material.io/components/date-pickers/overview">overview</a></p>
 <div class="cal dialog" data-datepicker-range="1" data-hero="datepicker-range" data-date-range-live="1" data-range-display-live="1" data-range-connector="1" data-range-vertical-months="1" data-date-display="picker" data-date-display-mode="picker" data-date-pane="calendar" data-week-start="sunday" data-range-year="2026" data-range-month="9" data-range-start-year="2026" data-range-start-month="9" data-range-start-day="15" data-range-end-year="2026" data-range-end-month="9" data-range-end-day="21" data-range-commit-start-year="2026" data-range-commit-start-month="9" data-range-commit-start-day="15" data-range-commit-end-year="2026" data-range-commit-end-month="9" data-range-commit-end-day="21" data-today-year="2026" data-today-month="9" data-today-day="11" data-day-sel-bg="{selbg}" data-day-sel-fg="{selfg}" data-day-range-bg="{rngbg}" data-day-range-fg="{rngfg}" data-day-today="{todaybd}" data-day-in="{infg}" data-day-out="{outfg}" data-year-sel-bg="{selbg}" data-year-sel-fg="{selfg}" data-year-idle-fg="{hy}" data-year-today-bd="{todaybd}" style="background:{bg};border-radius:{r}px;box-shadow:{sh};margin-bottom:16px">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
@@ -7008,7 +7012,7 @@ fn date_pickers(theme: &Theme) -> String {
   </div>
 </div>
 <h3>modal input</h3>
-<p class="note">Compose <code>DatePickerDisplayMode.Input</code>: headline + supporting text, outlined <code>MM/DD/YYYY</code> field, calendar/edit toggle, Cancel / OK.</p>
+<p class="note">Compose <code>DatePickerDisplayMode.Input</code>: headline + supporting text, outlined <code>MM/DD/YYYY</code> field, calendar/edit toggle, Cancel / OK. Supporting-text errors use Compose <code>DateInputValidator</code> (<code>Date format not recognized</code> / year-range).</p>
 <div class="cal dialog" data-datepicker-input="1" data-hero="datepicker-input" data-date-display="input" data-date-display-mode="input">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
@@ -7022,6 +7026,18 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="actions" style="padding:8px 12px 0">
     <button class="btn" style="background:transparent;color:{act}">{cancel}</button>
     <button class="btn" style="background:transparent;color:{act}">{ok}</button>
+  </div>
+</div>
+<h3>modal input errors</h3>
+<p class="note">Compose <code>DateInputValidator</code> on the single-date Input sibling: invalid pattern shows <code>Date format not recognized</code>; year outside 1900–2100 shows <code>Date out of expected year range 1900 - 2100</code>.</p>
+<div class="cal dialog" data-datepicker-input-errors="1" data-hero="datepicker-input-errors" data-date-input-errors="1" data-date-display="input">
+  <div class="dp-input-error-card" data-date-error="format">
+    <div class="dp-input">{input_format_field}</div>
+    <div class="dp-input-error" data-date-error-label="format" style="color:{errc}">{format_err}</div>
+  </div>
+  <div class="dp-input-error-card" data-date-error="year">
+    <div class="dp-input">{input_year_field}</div>
+    <div class="dp-input-error" data-date-error-label="year" style="color:{errc}">{year_err}</div>
   </div>
 </div>
 <h3>range input</h3>
@@ -7201,6 +7217,34 @@ fn date_pickers(theme: &Theme) -> String {
         format_err = date_picker::INPUT_ERROR_FORMAT,
         year_err = date_picker::INPUT_ERROR_YEAR_RANGE,
         order_err = date_picker::RANGE_INPUT_ERROR_ORDER,
+        input_format_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-input-error="format" data-field-error="1""#,
+            date_picker::INPUT_FIELD_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::INPUT_ERROR_FORMAT_SAMPLE
+            ),
+        ),
+        input_year_field = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-input-error="year" data-field-error="1""#,
+            date_picker::INPUT_FIELD_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::INPUT_ERROR_YEAR_SAMPLE
+            ),
+        ),
         range_format_start = paint_outlined_field(
             &text_field::resolve(
                 theme,

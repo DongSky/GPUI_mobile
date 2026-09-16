@@ -910,6 +910,9 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-docked-year="2026""#));
     assert!(html.contains(r#"data-hero="datepicker-input""#));
     assert!(html.contains(r#"data-datepicker-input="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-input-errors""#));
+    assert!(html.contains(r#"data-date-input-errors="1""#));
+    assert!(html.contains(r#"data-date-error="year""#));
     assert!(html.contains(r#"data-date-display="input""#));
     assert!(html.contains(r#"data-date-display="picker""#));
     assert!(html.contains(r#"data-date-display-live="1""#));
@@ -2488,6 +2491,29 @@ fn date_picker_grid_and_weekday() {
         date_picker::range_input_error("", ""),
         date_picker::DateInputError::None
     );
+    assert!(date_picker::DATE_INPUT_ERRORS);
+    assert_eq!(
+        date_picker::date_input_error("13/40/2026"),
+        date_picker::DateInputError::Format
+    );
+    assert_eq!(
+        date_picker::date_input_error(date_picker::INPUT_ERROR_YEAR_SAMPLE),
+        date_picker::DateInputError::YearRange
+    );
+    assert_eq!(
+        date_picker::date_input_error("09/15/2101"),
+        date_picker::DateInputError::YearRange
+    );
+    assert_eq!(
+        date_picker::date_input_error("09/15/2026"),
+        date_picker::DateInputError::None
+    );
+    assert_eq!(
+        date_picker::date_input_error(""),
+        date_picker::DateInputError::None
+    );
+    assert!(date_picker::is_date_input_valid("09/15/2026"));
+    assert!(!date_picker::is_date_input_valid("09/15/1890"));
     assert!(date_picker::range_input_ordered(
         date_picker::RANGE_DEMO_START,
         date_picker::RANGE_DEMO_END

@@ -450,6 +450,8 @@ pub const RANGE_END_LABEL: &str = "End date";
 pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
 /// Compose `DateInputValidator` supporting-text errors on range Input.
 pub const RANGE_INPUT_ERRORS: bool = true;
+/// Compose `DateInputValidator` supporting-text on single-date Input.
+pub const DATE_INPUT_ERRORS: bool = true;
 /// `m3c_date_input_invalid_for_pattern`.
 pub const INPUT_ERROR_FORMAT: &str = "Date format not recognized";
 /// `m3c_date_range_input_invalid_range_input`.
@@ -713,6 +715,23 @@ pub fn range_input_error(start: &str, end: &str) -> DateInputError {
         (Some(s), Some(e)) if !range_input_ordered(s, e) => DateInputError::Order,
         _ => DateInputError::None,
     }
+}
+
+/// Compose `DateInputValidator` for a single field: pattern, then YearRange.
+pub fn date_input_error(input: &str) -> DateInputError {
+    let trim = input.trim();
+    if trim.is_empty() {
+        return DateInputError::None;
+    }
+    match parse_input_field(trim) {
+        None => DateInputError::Format,
+        Some(date) if year_out_of_expected_range(date) => DateInputError::YearRange,
+        Some(_) => DateInputError::None,
+    }
+}
+
+pub fn is_date_input_valid(input: &str) -> bool {
+    matches!(date_input_error(input), DateInputError::None) && parse_input_field(input).is_some()
 }
 
 pub fn date_in_range_interior(day: CivilDate, start: CivilDate, end: CivilDate) -> bool {
