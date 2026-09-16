@@ -932,6 +932,16 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-date-month-year="1""#));
     assert!(html.contains("month-nav-arrows"));
     assert!(html.contains("height: 56px; min-height: 56px"));
+    assert!(html.contains(r#"data-date-header-min="1""#));
+    assert!(html.contains(r#"data-date-range-header-min="1""#));
+    assert!(html.contains(&format!(
+        "min-height: {};",
+        date_picker::header_min_height_css()
+    )));
+    assert!(html.contains(&format!(
+        "min-height: {};",
+        date_picker::range_header_min_height_css()
+    )));
     assert!(html.contains(r#"data-date-dialog-buttons="1""#));
     assert!(html.contains(&format!(
         "padding: {};",
@@ -1369,6 +1379,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("DateRangePickerHeadlinePadding")
             && e.notes.contains("DialogButtonsPadding")
             && e.notes.contains("MonthYearHeight")
+            && e.notes.contains("HeaderContainerHeight")
+            && e.notes.contains("HeaderHeightOffset")
             && e.notes.contains("Entered date")
             && e.notes.contains("Selected date")
             && e.notes.contains("Start date – End date")
@@ -2848,6 +2860,17 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_TOP_DP, 20.0);
     assert_eq!(date_picker::MONTH_SUBHEAD_PAD_BOTTOM_DP, 8.0);
     assert!(date_picker::HEADER_PADDINGS);
+    assert!(date_picker::HEADER_CONTAINER_HEIGHTS);
+    assert_eq!(date_picker::HEADER_CONTAINER_H_DP, 120.0);
+    assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);
+    assert_eq!(date_picker::RANGE_HEADER_HEIGHT_OFFSET_DP, 60.0);
+    assert_eq!(date_picker::RANGE_HEADER_MIN_H_DP, 68.0);
+    assert_eq!(
+        date_picker::RANGE_HEADER_MIN_H_DP,
+        date_picker::RANGE_HEADER_CONTAINER_H_DP - date_picker::RANGE_HEADER_HEIGHT_OFFSET_DP
+    );
+    assert_eq!(date_picker::header_min_height_css(), "120px");
+    assert_eq!(date_picker::range_header_min_height_css(), "68px");
     assert_eq!(date_picker::TITLE_PAD_START_DP, 24.0);
     assert_eq!(date_picker::TITLE_PAD_END_DP, 12.0);
     assert_eq!(date_picker::TITLE_PAD_TOP_DP, 16.0);

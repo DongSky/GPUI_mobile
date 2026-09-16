@@ -19,6 +19,26 @@ pub const HEADLINE_PAD_END_DP: f32 = 12.0;
 pub const HEADLINE_PAD_BOTTOM_DP: f32 = 12.0;
 /// Catalog / hosts apply official title + headline paddings.
 pub const HEADER_PADDINGS: bool = true;
+/// `DatePickerModalTokens.HeaderContainerHeight` (title + headline + toggle).
+pub const HEADER_CONTAINER_H_DP: f32 = 120.0;
+/// `DatePickerModalTokens.RangeSelectionHeaderContainerHeight`.
+pub const RANGE_HEADER_CONTAINER_H_DP: f32 = 128.0;
+/// Compose `HeaderHeightOffset` — Save/X toolbar is not in the default layout.
+pub const RANGE_HEADER_HEIGHT_OFFSET_DP: f32 = 60.0;
+/// Compose range `headerMinHeight` = token 128 − offset 60.
+pub const RANGE_HEADER_MIN_H_DP: f32 = RANGE_HEADER_CONTAINER_H_DP - RANGE_HEADER_HEIGHT_OFFSET_DP;
+/// Catalog / hosts apply official header container min-heights.
+pub const HEADER_CONTAINER_HEIGHTS: bool = true;
+
+/// CSS `min-height` for `HeaderContainerHeight`.
+pub fn header_min_height_css() -> String {
+    format!("{:.0}px", HEADER_CONTAINER_H_DP)
+}
+
+/// CSS `min-height` for Compose range header (`128 − 60`).
+pub fn range_header_min_height_css() -> String {
+    format!("{:.0}px", RANGE_HEADER_MIN_H_DP)
+}
 
 /// CSS `padding` for `DatePickerTitlePadding` (top / end / bottom / start).
 pub fn title_padding_css() -> String {

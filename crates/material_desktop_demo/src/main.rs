@@ -3543,6 +3543,7 @@ fn date_range_picker_empty_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -3702,6 +3703,7 @@ fn date_range_hero(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -4028,6 +4030,7 @@ fn date_input_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::HEADER_CONTAINER_H_DP))
                 .pt(px(date_picker::TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::TITLE_PAD_END_DP))
                 .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
@@ -4154,6 +4157,7 @@ fn date_input_empty_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::HEADER_CONTAINER_H_DP))
                 .pt(px(date_picker::TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::TITLE_PAD_END_DP))
                 .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
@@ -4349,6 +4353,7 @@ fn date_range_input_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -4496,6 +4501,7 @@ fn date_range_input_empty_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -4641,6 +4647,7 @@ fn date_range_input_start_only_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -4786,6 +4793,7 @@ fn date_range_input_end_only_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::RANGE_HEADER_MIN_H_DP))
                 .pt(px(date_picker::RANGE_TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::RANGE_TITLE_PAD_END_DP))
                 .pb(px(date_picker::RANGE_HEADLINE_PAD_BOTTOM_DP))
@@ -5052,6 +5060,7 @@ fn date_picker_empty_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::HEADER_CONTAINER_H_DP))
                 .pt(px(date_picker::TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::TITLE_PAD_END_DP))
                 .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
@@ -5186,6 +5195,7 @@ fn date_picker_card(
             div()
                 .mt(px(-16.))
                 .mx(px(-16.))
+                .min_h(px(date_picker::HEADER_CONTAINER_H_DP))
                 .pt(px(date_picker::TITLE_PAD_TOP_DP))
                 .pr(px(date_picker::TITLE_PAD_END_DP))
                 .pb(px(date_picker::HEADLINE_PAD_BOTTOM_DP))
@@ -9747,6 +9757,13 @@ mod tests {
             date_picker::RANGE_END_ONLY_HEADLINE
         );
         assert!(date_picker::HEADER_PADDINGS);
+        assert!(date_picker::HEADER_CONTAINER_HEIGHTS);
+        assert_eq!(date_picker::HEADER_CONTAINER_H_DP, 120.0);
+        assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);
+        assert_eq!(date_picker::RANGE_HEADER_HEIGHT_OFFSET_DP, 60.0);
+        assert_eq!(date_picker::RANGE_HEADER_MIN_H_DP, 68.0);
+        assert_eq!(date_picker::header_min_height_css(), "120px");
+        assert_eq!(date_picker::range_header_min_height_css(), "68px");
         assert_eq!(date_picker::TITLE_PAD_START_DP, 24.0);
         assert_eq!(date_picker::TITLE_PAD_END_DP, 12.0);
         assert_eq!(date_picker::TITLE_PAD_TOP_DP, 16.0);
