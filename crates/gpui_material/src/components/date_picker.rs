@@ -456,11 +456,16 @@ pub const INPUT_ERROR_FORMAT: &str = "Date format not recognized";
 pub const RANGE_INPUT_ERROR_ORDER: &str = "End date can't be before start date";
 /// Catalog format-error sample (invalid month/day).
 pub const INPUT_ERROR_FORMAT_SAMPLE: &str = "13/40/2026";
+/// `m3c_date_input_invalid_year_range` with Compose `YearRange` 1900–2100.
+pub const INPUT_ERROR_YEAR_RANGE: &str = "Date out of expected year range 1900 - 2100";
+/// Catalog year-range sample (parsed calendar day, outside YearRange).
+pub const INPUT_ERROR_YEAR_SAMPLE: &str = "09/15/1890";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DateInputError {
     None,
     Format,
+    YearRange,
     Order,
 }
 
@@ -469,6 +474,7 @@ impl DateInputError {
         match self {
             Self::None => None,
             Self::Format => Some(INPUT_ERROR_FORMAT),
+            Self::YearRange => Some(INPUT_ERROR_YEAR_RANGE),
             Self::Order => Some(RANGE_INPUT_ERROR_ORDER),
         }
     }
@@ -672,7 +678,11 @@ pub fn is_range_input_valid(start: &str, end: &str) -> bool {
         && parse_input_field(end).is_some()
 }
 
-/// Compose `DateInputValidator`: pattern first, then end-before-start.
+fn year_out_of_expected_range(d: CivilDate) -> bool {
+    d.year < YEAR_RANGE_START || d.year > YEAR_RANGE_END
+}
+
+/// Compose `DateInputValidator`: pattern, then year range, then end-before-start.
 pub fn range_input_error(start: &str, end: &str) -> DateInputError {
     let start_trim = start.trim();
     let end_trim = end.trim();
@@ -694,6 +704,11 @@ pub fn range_input_error(start: &str, end: &str) -> DateInputError {
         }
         parsed
     };
+    if start_date.is_some_and(year_out_of_expected_range)
+        || end_date.is_some_and(year_out_of_expected_range)
+    {
+        return DateInputError::YearRange;
+    }
     match (start_date, end_date) {
         (Some(s), Some(e)) if !range_input_ordered(s, e) => DateInputError::Order,
         _ => DateInputError::None,

@@ -8519,6 +8519,10 @@ mod tests {
             date_picker::DateInputError::Format
         );
         assert_eq!(
+            date_picker::range_input_error("09/15/1890", "09/21/2026"),
+            date_picker::DateInputError::YearRange
+        );
+        assert_eq!(
             date_picker::range_input_error("09/21/2026", "09/15/2026"),
             date_picker::DateInputError::Order
         );

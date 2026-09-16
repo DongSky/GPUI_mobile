@@ -919,8 +919,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-datepicker-range-input="1""#));
     assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
     assert!(html.contains(r#"data-range-input-errors="1""#));
+    assert!(html.contains(r#"data-range-error="year""#));
     assert!(html.contains("Date format not recognized"));
+    assert!(html.contains("Date out of expected year range 1900 - 2100"));
     assert!(html.contains("End date can't be before start date"));
+    assert!(html.contains(date_picker::INPUT_ERROR_YEAR_SAMPLE));
     assert!(html.contains(r#"data-date-range-start="1""#));
     assert!(html.contains(r#"data-date-range-end="1""#));
     assert!(html.contains("Enter dates"));
@@ -1280,6 +1283,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("live day select")
             && e.notes.contains("DateRange")
             && e.notes.contains("DateInputValidator")
+            && e.notes.contains("year range")
             && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
@@ -2439,10 +2443,18 @@ fn date_picker_grid_and_weekday() {
         "09/21/2026",
         "09/15/2026"
     ));
+    assert!(!date_picker::is_range_input_valid(
+        "09/15/1890",
+        "09/21/2026"
+    ));
     assert!(date_picker::RANGE_INPUT_ERRORS);
     assert_eq!(
         date_picker::INPUT_ERROR_FORMAT,
         "Date format not recognized"
+    );
+    assert_eq!(
+        date_picker::INPUT_ERROR_YEAR_RANGE,
+        "Date out of expected year range 1900 - 2100"
     );
     assert_eq!(
         date_picker::RANGE_INPUT_ERROR_ORDER,
@@ -2451,6 +2463,18 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(
         date_picker::range_input_error("13/40/2026", "09/21/2026"),
         date_picker::DateInputError::Format
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/15/1890", "09/21/2026"),
+        date_picker::DateInputError::YearRange
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/15/2026", "09/21/2101"),
+        date_picker::DateInputError::YearRange
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/21/1890", "09/15/1890"),
+        date_picker::DateInputError::YearRange
     );
     assert_eq!(
         date_picker::range_input_error("09/21/2026", "09/15/2026"),
