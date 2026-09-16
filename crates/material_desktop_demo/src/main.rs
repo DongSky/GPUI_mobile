@@ -7512,8 +7512,8 @@ fn time_picker_hero(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = time_picker::resolve(theme);
-    let clock = a.clock_dp * 0.75;
-    let number = 32.0;
+    let clock = time_picker::demo_host_clock_dp();
+    let number = time_picker::NUMBER_DP;
     let hour_on = this.time_dial == DialFace::Hour;
     let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
         DialFace::Hour => time_picker::hour_cells(this.time_format, clock, number)
@@ -10129,6 +10129,21 @@ mod tests {
         );
         assert_eq!(input.title_style.name, "labelMedium");
         assert!(time_picker::DIALOG_ACTIONS);
+        assert!(time_picker::CLOCK_DIAL_SIZES);
+        assert_eq!(time_picker::demo_host_clock_dp(), 200.0);
+        assert_eq!(time_picker::NUMBER_DP, 48.0);
+        assert_eq!(
+            time_picker::clock_dial_size_for_max_height(384.0),
+            time_picker::ClockDialSize::Max
+        );
+        assert_eq!(
+            time_picker::clock_dial_size_for_max_height(330.0),
+            time_picker::ClockDialSize::Mid
+        );
+        assert_eq!(
+            time_picker::clock_dial_size_for_max_height(320.0),
+            time_picker::ClockDialSize::Min
+        );
         assert_eq!(time_picker::PORT_ACTIONS_BOTTOM_DP, 24.0);
         assert_eq!(time_picker::LAND_ACTIONS_BOTTOM_DP, 8.0);
         assert_eq!(time_picker::LAND_CONTENT_TOP_DP, 16.0);

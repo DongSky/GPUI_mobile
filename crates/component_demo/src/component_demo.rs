@@ -6414,8 +6414,8 @@ fn android_time_picker(
     cx: &mut Context<CatalogView>,
 ) -> impl IntoElement {
     let a = time_picker::resolve(theme);
-    let clock = 192.0_f32;
-    let number = 32.0_f32;
+    let clock = time_picker::demo_host_clock_dp();
+    let number = time_picker::NUMBER_DP;
     let hour_on = this.time_dial == DialFace::Hour;
     let labels: Vec<(u8, String, f32, f32, bool)> = match this.time_dial {
         DialFace::Hour => time_picker::hour_cells(this.time_format, clock, number)

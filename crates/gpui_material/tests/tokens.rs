@@ -1078,6 +1078,14 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-period-toggle-margin="1""#));
     assert!(html.contains(r#"data-time-layout="horizontal""#));
     assert!(html.contains(r#"data-hero="timepicker-horizontal""#));
+    assert!(html.contains(r#"data-clock-dial-sizes="1""#));
+    assert!(html.contains(r#"data-clock-dial-size="max""#));
+    assert!(html.contains(r#"data-clock-dial-size="mid""#));
+    assert!(html.contains(r#"data-clock-dial-size="min""#));
+    assert!(html.contains(r#"data-hero="timepicker-clock-mid""#));
+    assert!(html.contains(r#"data-hero="timepicker-clock-min""#));
+    assert!(html.contains("width:238px;height:238px"));
+    assert!(html.contains("width:200px;height:200px"));
     assert!(html.contains("data-time-scroll=\"1\""));
     assert!(html.contains(r#"data-time-picker-style="scroll""#));
     assert!(html.contains(r#"data-time-picker-style="input""#));
@@ -1373,6 +1381,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("labelMedium")
             && e.notes.contains("TimePickerCustomLayout")
             && e.notes.contains("Cancel/OK")
+            && e.notes.contains("ClockFaceSizeModifier")
+            && e.notes.contains("238")
+            && e.notes.contains("200dp")
     }));
     assert!(INVENTORY.iter().any(|e| {
         e.name == "Search"
@@ -3736,6 +3747,35 @@ fn search_bar_and_time_picker_tokens() {
     let time = time_picker::resolve(&theme);
     assert_eq!(time.clock_dp, 256.0);
     assert_eq!(time.number_dp, 48.0);
+    assert!(time_picker::CLOCK_DIAL_SIZES);
+    assert_eq!(time_picker::TIME_PICKER_MAX_HEIGHT_DP, 384.0);
+    assert_eq!(time_picker::TIME_PICKER_MID_HEIGHT_DP, 330.0);
+    assert_eq!(time_picker::CLOCK_DIAL_MID_CONTAINER_SIZE_DP, 238.0);
+    assert_eq!(time_picker::CLOCK_DIAL_MIN_CONTAINER_SIZE_DP, 200.0);
+    assert_eq!(
+        time_picker::clock_dial_size_for_max_height(384.0),
+        time_picker::ClockDialSize::Max
+    );
+    assert_eq!(
+        time_picker::clock_dial_size_for_max_height(330.0),
+        time_picker::ClockDialSize::Mid
+    );
+    assert_eq!(
+        time_picker::clock_dial_size_for_max_height(329.0),
+        time_picker::ClockDialSize::Min
+    );
+    assert_eq!(
+        time_picker::clock_dial_size_for_max_height(time_picker::DEMO_HOST_CLOCK_MAX_HEIGHT_DP),
+        time_picker::ClockDialSize::Min
+    );
+    assert_eq!(time_picker::demo_host_clock_dp(), 200.0);
+    assert_eq!(time_picker::ClockDialSize::Max.container_dp(), 256.0);
+    assert_eq!(time_picker::ClockDialSize::Mid.container_dp(), 238.0);
+    assert_eq!(time_picker::ClockDialSize::Min.container_dp(), 200.0);
+    assert_eq!(
+        time_picker::clock_dial_container_size_css(time_picker::ClockDialSize::Min),
+        "200px"
+    );
     assert_eq!(time.time_style.name, "displaySmallEmphasized");
     assert_eq!(time.time_style.weight, 500);
     assert_eq!(time.container, theme.color.surface_container_high);

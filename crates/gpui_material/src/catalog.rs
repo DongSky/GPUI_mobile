@@ -8201,6 +8201,114 @@ fn paint_scroll_field(
     )
 }
 
+fn time_clock_html(
+    theme: &Theme,
+    clock_dp: f32,
+    number_dp: f32,
+    format: time_picker::TimeFormat,
+) -> String {
+    let a = time_picker::resolve(theme);
+    let mut hours = String::new();
+    for fmt in time_picker::TimeFormat::ALL {
+        let selected_hour = time_picker::demo_hour(fmt);
+        let visible = fmt == format && time_picker::DEMO_DIAL == time_picker::DialFace::Hour;
+        for cell in time_picker::hour_cells(fmt, clock_dp, number_dp) {
+            let selected = cell.hour == selected_hour;
+            let (bg, fg, fw) = if selected {
+                (
+                    a.number_selected_container.css_hex(),
+                    a.number_selected.css_hex(),
+                    a.time_style.weight,
+                )
+            } else {
+                (
+                    "transparent".into(),
+                    a.number.css_hex(),
+                    a.number_style.weight,
+                )
+            };
+            hours.push_str(&format!(
+                r#"<div class="hour" data-hour="{h}" data-ring="{ring}" data-format="{fmt}" data-selected="{sel}" style="display:{disp};left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+                h = cell.hour,
+                ring = cell.ring.label(),
+                fmt = fmt.label(),
+                sel = selected as u8,
+                disp = if visible { "flex" } else { "none" },
+                x = cell.x,
+                y = cell.y,
+                n = number_dp,
+                bg = bg,
+                fg = fg,
+                fw = fw,
+                label = cell.label,
+            ));
+        }
+    }
+    let mut minutes = String::new();
+    for m in time_picker::minute_labels() {
+        let (x, y) = time_picker::minute_offset(m, clock_dp, number_dp);
+        let selected = m == time_picker::DEMO_MINUTE;
+        let (bg, fg, fw) = if selected {
+            (
+                a.number_selected_container.css_hex(),
+                a.number_selected.css_hex(),
+                a.time_style.weight,
+            )
+        } else {
+            (
+                "transparent".into(),
+                a.number.css_hex(),
+                a.number_style.weight,
+            )
+        };
+        minutes.push_str(&format!(
+            r#"<div class="minute" data-minute="{m}" data-selected="{sel}" style="left:{x}px;top:{y}px;width:{n}px;height:{n}px;background:{bg};color:{fg};font-weight:{fw}">{label}</div>"#,
+            m = m,
+            sel = selected as u8,
+            x = x,
+            y = y,
+            n = number_dp,
+            bg = bg,
+            fg = fg,
+            fw = fw,
+            label = format!("{:02}", m),
+        ));
+    }
+    let hand_d = time_picker::hand_svg_d_at_angle(clock_dp, 0.0, number_dp);
+    let second_d = time_picker::second_hand_svg_d(clock_dp, 0.0, number_dp);
+    let dial_hour = time_picker::demo_hour(format);
+    let hand_deg =
+        time_picker::hand_angle_deg(time_picker::DEMO_DIAL, dial_hour, time_picker::DEMO_MINUTE);
+    let hand_scale = if time_picker::hour_ring(dial_hour, format) == time_picker::DialRing::Inner
+        && time_picker::DEMO_DIAL == time_picker::DialFace::Hour
+    {
+        time_picker::inner_to_outer_scale()
+    } else {
+        1.0
+    };
+    format!(
+        r#"<div class="clock" style="width:{clock}px;height:{clock}px;background:{clk}">
+    <svg class="hand-svg" data-hand-path="1" viewBox="0 0 {clock} {clock}" aria-hidden="true" style="transform:rotate({hdeg}deg) scale({hscale});--hand-base:{hdeg}deg;--hand-scale:{hscale}">
+      <path d="{handd}" fill="{hand}"/>
+    </svg>
+    <svg class="second-hand-svg" data-second-hand="1" data-second-wall="1" viewBox="0 0 {clock} {clock}" aria-hidden="true">
+      <path d="{secondd}" fill="{hand}"/>
+    </svg>
+    <div class="hub" style="background:{hand}"></div>
+    {hours}{minutes}
+  </div>"#,
+        clock = clock_dp,
+        clk = a.clock.css_hex(),
+        hours = hours,
+        minutes = minutes,
+        hand = a.hand.css_hex(),
+        handd = hand_d,
+        secondd = second_d,
+        hdeg = hand_deg,
+        hscale = hand_scale,
+    )
+}
+
 fn time_picker_section(theme: &Theme) -> String {
     let scroll = time_picker::resolve_scroll(theme);
     let input = time_picker::resolve_input(theme);
@@ -8478,6 +8586,18 @@ fn time_picker_section(theme: &Theme) -> String {
         hdeg = hand_deg,
         hscale = hand_scale,
     );
+    let clock_mid = time_clock_html(
+        theme,
+        time_picker::ClockDialSize::Mid.container_dp(),
+        a.number_dp,
+        format,
+    );
+    let clock_min = time_clock_html(
+        theme,
+        time_picker::ClockDialSize::Min.container_dp(),
+        a.number_dp,
+        format,
+    );
     let selectors = format!(
         r#"<div class="time-fields">
       <div class="time-field" data-time-field="hour" data-active="{ha}" style="font-size:{ds}px;font-weight:{dw};color:{hd};background:{clk}">{hh}</div>
@@ -8504,8 +8624,8 @@ fn time_picker_section(theme: &Theme) -> String {
         pm = pm.label(),
     );
     out.push_str(&format!(
-        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace.</p>
-<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-time-dialog-layout="portrait" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+        r#"<p class="note">Compose 24-hour dial: outer 00–11 (OuterCircle 101dp) + inner 12–23 (InnerCircle 69dp), no AM/PM, time selector 114dp. Vertical uses <code>ClockDisplayBottomMargin</code> 36 above the ClockFace and <code>ClockFaceBottomMargin</code> 24 below. Hour:minute uses <code>DisplaySeparatorWidth</code> 24; AM/PM uses <code>PeriodToggleMargin</code> 12 (start vertical / top horizontal). <code>TimePickerCustomLayout</code> portrait title top 24 / actions bottom 24 + Cancel / OK. Header fields toggle the face; format toggle above remaps 12/24. Vertical is the compact default; horizontal (landscape) puts selectors beside the ClockFace. <code>ClockFaceSizeModifier</code> picks 256 / 238 / 200 from available height.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-face-margins="1" data-clock-dial-sizes="1" data-clock-dial-size="max" data-time-dialog-layout="portrait" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
   <div class="time-row" data-period-toggle-margin="1">
     {selectors}
@@ -8518,7 +8638,7 @@ fn time_picker_section(theme: &Theme) -> String {
 </div>
 <h3>horizontal (landscape)</h3>
 <p class="note">Compose <code>TimePickerLayoutType.Horizontal</code> + <code>TimePickerCustomLayout</code> landscape: title 24 / content top 16 / actions bottom 8. Time selectors + 216×38 period sit beside the 256dp ClockFace (24dp gap). Used on medium+ / landscape so the dial is not cropped.</p>
-<div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-time-dialog-layout="landscape" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="horizontal" data-hero="timepicker-horizontal" data-clock-dial-sizes="1" data-clock-dial-size="max" data-time-dialog-layout="landscape" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
   <div class="time-body" data-time-land-content="1">
     <div class="time-col">
       <div class="time-dialog-title" data-time-dialog-title="picker" style="color:{hy};font-size:{ys}px;padding-bottom:{tpb}px">{title}</div>
@@ -8530,6 +8650,14 @@ fn time_picker_section(theme: &Theme) -> String {
     <button type="button" class="btn" data-time-dialog-cancel="1" style="background:transparent;color:{act}">{cancel}</button>
     <button type="button" class="btn" data-time-dialog-ok="1" style="background:transparent;color:{act}">{ok}</button>
   </div>
+</div>
+<h3>ClockFaceSizeModifier (responsive)</h3>
+<p class="note">Compose <code>ClockFaceSizeModifier</code>: available height ≥ <code>TimePickerMaxHeight</code> 384 → <code>ClockDialContainerSize</code> 256; ≥ <code>TimePickerMidHeight</code> 330 → <code>ClockDialMidContainerSize</code> 238; else <code>ClockDialMinContainerSize</code> 200. Compact hosts sit below 330 and use Min 200 (replaces the unofficial 192dp 0.75 scale). Selector handle stays <code>ClockDialSelectorHandleContainerSize</code> 48.</p>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-dial-sizes="1" data-clock-dial-size="mid" data-hero="timepicker-clock-mid" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  {clock_mid}
+</div>
+<div class="timepicker dialog" data-timepicker="1" data-time-layout="vertical" data-clock-dial-sizes="1" data-clock-dial-size="min" data-hero="timepicker-clock-min" data-dial="{dial}" data-time-format="{fmt}" data-hour="{hour}" data-minute="{minute}" data-period="{period}" style="background:{bg};border-radius:{r}px;box-shadow:{sh}">
+  {clock_min}
 </div>"#,
         hour = dial_hour,
         minute = time_picker::DEMO_MINUTE,
@@ -8545,6 +8673,8 @@ fn time_picker_section(theme: &Theme) -> String {
         title = time_picker::TITLE,
         selectors = selectors,
         clock = clock_html,
+        clock_mid = clock_mid,
+        clock_min = clock_min,
         act = theme.color.primary.css_hex(),
         cancel = time_picker::DIALOG_CANCEL,
         ok = time_picker::DIALOG_OK,

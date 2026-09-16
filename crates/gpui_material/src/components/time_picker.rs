@@ -5,6 +5,8 @@
 //! interpolate the hand angle when the face or value changes (spatial-fast).
 //! 24-hour (`is24Hour`) paints Compose `ClockFace` dual rings: outer 00–11
 //! (`OuterCircleToSizeRatio` 101/256) and inner 12–23 (`InnerCircle` 69/256).
+//! `ClockFaceSizeModifier` picks 256 / 238 / 200 from available height
+//! (`TimePickerMaxHeight` 384 / `TimePickerMidHeight` 330).
 //!
 //! Expressive (I/O 2026, recommended): Compose `TimeScroll` with two
 //! `ScrollField`s (hours + minutes), `TimePickerDefaults.vibrantColors()`,
@@ -17,9 +19,20 @@ use crate::shape::Corners;
 use crate::theme::Theme;
 use crate::typography::TypeStyle;
 
+/// Compose `ClockDialContainerSize` — full ClockFace when height ≥ `TimePickerMaxHeight`.
 pub const CLOCK_DP: f32 = 256.0;
-/// Compose `ClockDialSelectorHandleContainerSize`.
+/// Compose `ClockDialSelectorHandleContainerSize` (stays 48 at every ClockFace size).
 pub const NUMBER_DP: f32 = 48.0;
+/// Compose `TimePickerMaxHeight` — ClockFace uses `ClockDialContainerSize` at/above this.
+pub const TIME_PICKER_MAX_HEIGHT_DP: f32 = 384.0;
+/// Compose `TimePickerMidHeight` — ClockFace uses `ClockDialMidContainerSize` at/above this.
+pub const TIME_PICKER_MID_HEIGHT_DP: f32 = 330.0;
+/// Compose `ClockDialMidContainerSize`.
+pub const CLOCK_DIAL_MID_CONTAINER_SIZE_DP: f32 = 238.0;
+/// Compose `ClockDialMinContainerSize`.
+pub const CLOCK_DIAL_MIN_CONTAINER_SIZE_DP: f32 = 200.0;
+/// Catalog / hosts apply official `ClockFaceSizeModifier` sizes.
+pub const CLOCK_DIAL_SIZES: bool = true;
 /// Compose `OuterCircleToSizeRatio` × `ClockDialContainerSize` (101/256).
 pub const OUTER_CIRCLE_RADIUS_DP: f32 = 101.0;
 /// Compose `InnerCircleToSizeRatio` × `ClockDialContainerSize` (69/256).
@@ -55,6 +68,58 @@ pub const CLOCK_FACE_MARGINS: bool = true;
 pub const PERIOD_TOGGLE_MARGIN_DP: f32 = 12.0;
 /// Catalog / hosts apply official period-toggle inset.
 pub const PERIOD_TOGGLE_MARGIN: bool = true;
+
+/// Compose `ClockFaceSizeModifier` container — Max 256 / Mid 238 / Min 200.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClockDialSize {
+    Max,
+    Mid,
+    Min,
+}
+
+impl ClockDialSize {
+    pub const ALL: [Self; 3] = [Self::Max, Self::Mid, Self::Min];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Max => "max",
+            Self::Mid => "mid",
+            Self::Min => "min",
+        }
+    }
+
+    pub const fn container_dp(self) -> f32 {
+        match self {
+            Self::Max => CLOCK_DP,
+            Self::Mid => CLOCK_DIAL_MID_CONTAINER_SIZE_DP,
+            Self::Min => CLOCK_DIAL_MIN_CONTAINER_SIZE_DP,
+        }
+    }
+}
+
+/// Compose `ClockFaceSizeModifier` — size from the ClockFace max-height constraint.
+pub fn clock_dial_size_for_max_height(max_height_dp: f32) -> ClockDialSize {
+    if max_height_dp >= TIME_PICKER_MAX_HEIGHT_DP {
+        ClockDialSize::Max
+    } else if max_height_dp >= TIME_PICKER_MID_HEIGHT_DP {
+        ClockDialSize::Mid
+    } else {
+        ClockDialSize::Min
+    }
+}
+
+pub fn clock_dial_container_size_css(size: ClockDialSize) -> String {
+    format!("{:.0}px", size.container_dp())
+}
+
+/// Compact host / catalog-column ClockFace sits below `TimePickerMidHeight`.
+pub const DEMO_HOST_CLOCK_MAX_HEIGHT_DP: f32 = 320.0;
+/// Compact hosts use `ClockDialMinContainerSize` 200 (replaces the old 192dp 0.75 scale).
+pub const DEMO_HOST_CLOCK_SIZE: ClockDialSize = ClockDialSize::Min;
+
+pub fn demo_host_clock_dp() -> f32 {
+    DEMO_HOST_CLOCK_SIZE.container_dp()
+}
 
 /// Compose `TimePickerLayoutType` — vertical (portrait) vs horizontal (landscape).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
