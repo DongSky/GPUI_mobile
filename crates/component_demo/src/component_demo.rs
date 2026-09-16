@@ -1451,10 +1451,11 @@ fn catalog_body(
                             .children(date_picker::WEEKDAYS.iter().map(|d| {
                                 div()
                                     .w(px(pick.day_dp))
-                                    .h(px(32.))
+                                    .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                                     .flex()
                                     .items_center()
                                     .justify_center()
+                                    .text_size(px(pick.weekday_style.size_sp))
                                     .text_color(paint(pick.weekday))
                                     .child(*d)
                             })),
@@ -7371,7 +7372,7 @@ fn android_date_picker_empty(
                 .children(date_picker::WEEKDAYS.iter().map(|d| {
                     div()
                         .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
+                        .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -7960,7 +7961,7 @@ fn android_date_range_picker_empty(
                 .children(date_picker::WEEKDAYS.iter().map(|d| {
                     div()
                         .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
+                        .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -8205,10 +8206,11 @@ fn android_date_range(
                     date_picker::WEEKDAYS.iter().map(|d| {
                         div()
                             .w(px(pick.day_dp))
-                            .h(px(32.))
+                            .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                             .flex()
                             .items_center()
                             .justify_center()
+                            .text_size(px(pick.weekday_style.size_sp))
                             .text_color(paint(pick.weekday))
                             .child(*d)
                     }),

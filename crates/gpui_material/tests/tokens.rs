@@ -934,6 +934,8 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("height: 56px; min-height: 56px"));
     assert!(html.contains(r#"data-date-header-min="1""#));
     assert!(html.contains(r#"data-date-container="1""#));
+    assert!(html.contains(r#"data-date-weekdays="1""#));
+    assert!(html.contains(r#"data-date-weekday="1""#));
     assert!(html.contains("max-width: 360px; max-height: 568px"));
     assert!(html.contains(r#"data-date-entry-divider="1""#));
     assert!(html.contains(r#"class="dp-entry-divider" data-date-entry-divider="1""#));
@@ -1444,6 +1446,9 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("Disabled")
             && e.notes.contains("YearPicker")
             && e.notes.contains("YearPicker trailing HorizontalDivider")
+            && e.notes.contains("WeekDays")
+            && e.notes.contains("BodyLarge")
+            && e.notes.contains("OnSurface")
     }));
     assert!(INVENTORY
         .iter()
@@ -2493,6 +2498,11 @@ fn date_picker_grid_and_weekday() {
     assert_eq!(a.day_dp, 40.0);
     assert_eq!(a.corners.top_left, 28.0);
     assert_eq!(a.container, theme.color.surface_container_high);
+    assert_eq!(a.weekday, theme.color.on_surface);
+    assert_eq!(a.weekday_style.name, "bodyLarge");
+    assert!(date_picker::WEEKDAYS_LABEL);
+    assert_eq!(date_picker::WEEKDAY_ROW_MIN_H_DP, 48.0);
+    assert_eq!(date_picker::weekday_row_min_height_css(), "48px");
     assert_eq!(a.date_style.name, "headlineLargeEmphasized");
     assert_eq!(a.date_style.weight, 500);
     // 2026-09-01 is Tuesday → Sunday=0 → 2; Monday=0 → 1

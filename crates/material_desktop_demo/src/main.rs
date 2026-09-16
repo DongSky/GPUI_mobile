@@ -3497,10 +3497,11 @@ fn weekday_row(pick: &date_picker::DatePickerAppearance, cal_w: f32) -> impl Int
         .children(date_picker::WEEKDAYS.iter().map(|d| {
             div()
                 .w(px(pick.day_dp))
-                .h(px(32.))
+                .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                 .flex()
                 .items_center()
                 .justify_center()
+                .text_size(px(pick.weekday_style.size_sp))
                 .text_color(paint(pick.weekday))
                 .child(*d)
         }))
@@ -3615,7 +3616,7 @@ fn date_range_picker_empty_card(
                 .children(date_picker::WEEKDAYS.iter().map(|d| {
                     div()
                         .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
+                        .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -5165,7 +5166,7 @@ fn date_picker_empty_card(
                 .children(date_picker::WEEKDAYS.iter().map(|d| {
                     div()
                         .w(px(pick.day_dp))
-                        .h(px(pick.day_dp))
+                        .h(px(date_picker::WEEKDAY_ROW_MIN_H_DP))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -9907,6 +9908,9 @@ mod tests {
         assert_eq!(date_picker::RANGE_HEADER_CONTAINER_H_DP, 128.0);
         assert_eq!(date_picker::RANGE_HEADER_HEIGHT_OFFSET_DP, 60.0);
         assert_eq!(date_picker::RANGE_HEADER_MIN_H_DP, 68.0);
+        assert!(date_picker::WEEKDAYS_LABEL);
+        assert_eq!(date_picker::WEEKDAY_ROW_MIN_H_DP, 48.0);
+        assert_eq!(date_picker::resolve(&theme).weekday, theme.color.on_surface);
         assert_eq!(date_picker::header_min_height_css(), "120px");
         assert_eq!(date_picker::range_header_min_height_css(), "68px");
         assert_eq!(date_picker::TITLE_PAD_START_DP, 24.0);

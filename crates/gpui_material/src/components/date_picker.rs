@@ -176,7 +176,7 @@ pub fn resolve(theme: &Theme) -> DatePickerAppearance {
         container: c.surface_container_high,
         header_year: c.on_surface_variant,
         header_date: c.on_surface,
-        weekday: c.on_surface_variant,
+        weekday: c.on_surface,
         day: c.on_surface,
         day_selected_container: c.primary,
         day_selected: c.on_primary,
@@ -192,7 +192,7 @@ pub fn resolve(theme: &Theme) -> DatePickerAppearance {
         day_dp: DAY_DP,
         year_style: theme.typography.label_large,
         date_style: theme.typography.headline_large.emphasized(),
-        weekday_style: theme.typography.body_small,
+        weekday_style: theme.typography.body_large,
         day_style: theme.typography.body_large,
         month_subhead_style: theme.typography.title_small,
     }
@@ -288,6 +288,15 @@ pub fn day_accepts_tap(kind: DayKind) -> bool {
 /// Sunday-first, matching official modal date picker columns.
 pub const WEEKDAYS: [&str; 7] = ["S", "M", "T", "W", "T", "F", "S"];
 pub const WEEKDAYS_FULL: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/// Catalog / hosts apply official `WeekDays` color / type / row min-height.
+pub const WEEKDAYS_LABEL: bool = true;
+/// Compose `WeekDays` `defaultMinSize(minHeight = RecommendedSizeForAccessibility)`.
+pub const WEEKDAY_ROW_MIN_H_DP: f32 = 48.0;
+
+/// CSS `min-height` for the official weekday letter row.
+pub fn weekday_row_min_height_css() -> String {
+    format!("{:.0}px", WEEKDAY_ROW_MIN_H_DP)
+}
 pub const MONTHS: [&str; 12] = [
     "January",
     "February",
