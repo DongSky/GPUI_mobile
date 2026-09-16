@@ -448,6 +448,31 @@ pub const RANGE_INPUT_HEADLINE: &str = "Enter dates";
 pub const RANGE_START_LABEL: &str = "Start date";
 pub const RANGE_END_LABEL: &str = "End date";
 pub const RANGE_INPUT_GAP_DP: f32 = 8.0;
+/// Compose `DateInputValidator` supporting-text errors on range Input.
+pub const RANGE_INPUT_ERRORS: bool = true;
+/// `m3c_date_input_invalid_for_pattern`.
+pub const INPUT_ERROR_FORMAT: &str = "Date format not recognized";
+/// `m3c_date_range_input_invalid_range_input`.
+pub const RANGE_INPUT_ERROR_ORDER: &str = "End date can't be before start date";
+/// Catalog format-error sample (invalid month/day).
+pub const INPUT_ERROR_FORMAT_SAMPLE: &str = "13/40/2026";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DateInputError {
+    None,
+    Format,
+    Order,
+}
+
+impl DateInputError {
+    pub const fn label(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::Format => Some(INPUT_ERROR_FORMAT),
+            Self::Order => Some(RANGE_INPUT_ERROR_ORDER),
+        }
+    }
+}
 
 pub fn apply_display_toggle(mode: DatePickerDisplayMode) -> DatePickerDisplayMode {
     mode.toggle()
@@ -642,9 +667,36 @@ pub fn range_input_ordered(start: CivilDate, end: CivilDate) -> bool {
 }
 
 pub fn is_range_input_valid(start: &str, end: &str) -> bool {
-    match (parse_input_field(start), parse_input_field(end)) {
-        (Some(s), Some(e)) => range_input_ordered(s, e),
-        _ => false,
+    matches!(range_input_error(start, end), DateInputError::None)
+        && parse_input_field(start).is_some()
+        && parse_input_field(end).is_some()
+}
+
+/// Compose `DateInputValidator`: pattern first, then end-before-start.
+pub fn range_input_error(start: &str, end: &str) -> DateInputError {
+    let start_trim = start.trim();
+    let end_trim = end.trim();
+    let start_date = if start_trim.is_empty() {
+        None
+    } else {
+        let parsed = parse_input_field(start_trim);
+        if parsed.is_none() {
+            return DateInputError::Format;
+        }
+        parsed
+    };
+    let end_date = if end_trim.is_empty() {
+        None
+    } else {
+        let parsed = parse_input_field(end_trim);
+        if parsed.is_none() {
+            return DateInputError::Format;
+        }
+        parsed
+    };
+    match (start_date, end_date) {
+        (Some(s), Some(e)) if !range_input_ordered(s, e) => DateInputError::Order,
+        _ => DateInputError::None,
     }
 }
 

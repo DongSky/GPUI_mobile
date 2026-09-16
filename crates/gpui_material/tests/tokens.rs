@@ -917,6 +917,10 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-hero="datepicker-year""#));
     assert!(html.contains(r#"data-hero="datepicker-range-input""#));
     assert!(html.contains(r#"data-datepicker-range-input="1""#));
+    assert!(html.contains(r#"data-hero="datepicker-range-input-errors""#));
+    assert!(html.contains(r#"data-range-input-errors="1""#));
+    assert!(html.contains("Date format not recognized"));
+    assert!(html.contains("End date can't be before start date"));
     assert!(html.contains(r#"data-date-range-start="1""#));
     assert!(html.contains(r#"data-date-range-end="1""#));
     assert!(html.contains("Enter dates"));
@@ -1275,6 +1279,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("docked popup")
             && e.notes.contains("live day select")
             && e.notes.contains("DateRange")
+            && e.notes.contains("DateInputValidator")
             && e.notes.contains("YearPicker")
     }));
     assert!(INVENTORY
@@ -2434,6 +2439,31 @@ fn date_picker_grid_and_weekday() {
         "09/21/2026",
         "09/15/2026"
     ));
+    assert!(date_picker::RANGE_INPUT_ERRORS);
+    assert_eq!(
+        date_picker::INPUT_ERROR_FORMAT,
+        "Date format not recognized"
+    );
+    assert_eq!(
+        date_picker::RANGE_INPUT_ERROR_ORDER,
+        "End date can't be before start date"
+    );
+    assert_eq!(
+        date_picker::range_input_error("13/40/2026", "09/21/2026"),
+        date_picker::DateInputError::Format
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/21/2026", "09/15/2026"),
+        date_picker::DateInputError::Order
+    );
+    assert_eq!(
+        date_picker::range_input_error("09/15/2026", "09/21/2026"),
+        date_picker::DateInputError::None
+    );
+    assert_eq!(
+        date_picker::range_input_error("", ""),
+        date_picker::DateInputError::None
+    );
     assert!(date_picker::range_input_ordered(
         date_picker::RANGE_DEMO_START,
         date_picker::RANGE_DEMO_END

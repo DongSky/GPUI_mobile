@@ -3700,6 +3700,24 @@ fn date_range_hero(
                         paint(field.input),
                     )),
             )
+            .children(
+                date_picker::RANGE_INPUT_ERRORS
+                    .then(|| {
+                        date_picker::range_input_error(
+                            &date_picker::range_field_value(this.date_range, false),
+                            &date_picker::range_field_value(this.date_range, true),
+                        )
+                        .label()
+                    })
+                    .flatten()
+                    .map(|msg| {
+                        spaced_line(
+                            msg,
+                            field.supporting_style.size_sp,
+                            paint(theme.color.error),
+                        )
+                    }),
+            )
         })
         .when(date_picker::RANGE_ACTIONS, |el| {
             el.child(
@@ -8495,6 +8513,15 @@ mod tests {
             "09/15/2026",
             "09/21/2026"
         ));
+        assert!(date_picker::RANGE_INPUT_ERRORS);
+        assert_eq!(
+            date_picker::range_input_error("13/40/2026", "09/21/2026"),
+            date_picker::DateInputError::Format
+        );
+        assert_eq!(
+            date_picker::range_input_error("09/21/2026", "09/15/2026"),
+            date_picker::DateInputError::Order
+        );
         assert!(date_picker::RANGE_LIVE);
         let restarted = date_picker::apply_range_tap(
             date_picker::DateRangeSelection::demo(),

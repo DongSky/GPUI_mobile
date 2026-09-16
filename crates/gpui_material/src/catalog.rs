@@ -1312,6 +1312,10 @@ table.inv th {{ font-weight: 500; }}
 .cal[data-date-actions-live] .grid .day[data-kind="OutOfMonth"] {{ cursor: default; }}
 .cal[data-date-range-live][data-date-display="picker"] .dp-range-input {{ display: none; }}
 .dp-range-input {{ display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 16px; }}
+.dp-range-error {{
+  font-size: 12px; line-height: 16px; padding: 0 12px 8px;
+}}
+.cal[data-range-input-errors] .dp-range-error-card {{ margin-bottom: 12px; }}
 .dp-divider {{ height: 1px; margin: 0 12px 8px; }}
 .cal .dp-toggle {{
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
@@ -7021,7 +7025,7 @@ fn date_pickers(theme: &Theme) -> String {
   </div>
 </div>
 <h3>range input</h3>
-<p class="note">Compose <code>DateRangePicker</code> <code>DisplayMode.Input</code>: <code>Enter dates</code>, two outlined <code>Start date</code> / <code>End date</code> fields, calendar toggle, Cancel / OK.</p>
+<p class="note">Compose <code>DateRangePicker</code> <code>DisplayMode.Input</code>: <code>Enter dates</code>, two outlined <code>Start date</code> / <code>End date</code> fields, calendar toggle, Cancel / OK. Supporting-text errors use Compose <code>DateInputValidator</code> (<code>Date format not recognized</code> / <code>End date can't be before start date</code>).</p>
 <div class="cal dialog" data-datepicker-range-input="1" data-hero="datepicker-range-input" data-date-display="input" data-date-display-mode="input">
   <div class="head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
     <div>
@@ -7038,6 +7042,24 @@ fn date_pickers(theme: &Theme) -> String {
   <div class="actions" style="padding:8px 12px 0">
     <button class="btn" style="background:transparent;color:{act}">{cancel}</button>
     <button class="btn" style="background:transparent;color:{act}">{ok}</button>
+  </div>
+</div>
+<h3>range input errors</h3>
+<p class="note">Compose <code>DateInputValidator</code>: invalid pattern shows <code>Date format not recognized</code>; end before start shows <code>End date can't be before start date</code>.</p>
+<div class="cal dialog" data-datepicker-range-input-errors="1" data-hero="datepicker-range-input-errors" data-range-input-errors="1" data-date-display="input">
+  <div class="dp-range-error-card" data-range-error="format">
+    <div class="dp-range-input">
+      {range_format_start}
+      {range_format_end}
+    </div>
+    <div class="dp-range-error" data-range-error-label="format" style="color:{errc}">{format_err}</div>
+  </div>
+  <div class="dp-range-error-card" data-range-error="order">
+    <div class="dp-range-input">
+      {range_order_start}
+      {range_order_end}
+    </div>
+    <div class="dp-range-error" data-range-error-label="order" style="color:{errc}">{order_err}</div>
   </div>
 </div>
 <h3>year picker</h3>
@@ -7163,6 +7185,65 @@ fn date_pickers(theme: &Theme) -> String {
             ),
             r#"data-range-live-start="1""#,
             date_picker::RANGE_START_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(date_picker::RANGE_DEMO_START)
+            ),
+        ),
+        errc = theme.color.error.css_hex(),
+        format_err = date_picker::INPUT_ERROR_FORMAT,
+        order_err = date_picker::RANGE_INPUT_ERROR_ORDER,
+        range_format_start = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-range-error-start="1" data-field-error="1""#,
+            date_picker::RANGE_START_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::INPUT_ERROR_FORMAT_SAMPLE
+            ),
+        ),
+        range_format_end = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Enabled,
+                true,
+            ),
+            r#"data-date-range-error-end="1""#,
+            date_picker::RANGE_END_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(date_picker::RANGE_DEMO_END)
+            ),
+        ),
+        range_order_start = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-range-order-start="1" data-field-error="1""#,
+            date_picker::RANGE_START_LABEL,
+            &format!(
+                r#"<div class="val">{}</div>"#,
+                date_picker::input_field_value(date_picker::RANGE_DEMO_END)
+            ),
+        ),
+        range_order_end = paint_outlined_field(
+            &text_field::resolve(
+                theme,
+                text_field::TextFieldVariant::Outlined,
+                InteractionState::Error,
+                true,
+            ),
+            r#"data-date-range-order-end="1" data-field-error="1""#,
+            date_picker::RANGE_END_LABEL,
             &format!(
                 r#"<div class="val">{}</div>"#,
                 date_picker::input_field_value(date_picker::RANGE_DEMO_START)

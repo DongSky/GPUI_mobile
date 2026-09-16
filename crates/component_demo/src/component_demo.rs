@@ -7617,6 +7617,23 @@ fn android_date_range(
                             .child(date_picker::range_field_value(this.date_range, true)),
                     ),
             )
+            .children(
+                date_picker::RANGE_INPUT_ERRORS
+                    .then(|| {
+                        date_picker::range_input_error(
+                            &date_picker::range_field_value(this.date_range, false),
+                            &date_picker::range_field_value(this.date_range, true),
+                        )
+                        .label()
+                    })
+                    .flatten()
+                    .map(|msg| {
+                        div()
+                            .text_size(px(field.supporting_style.size_sp))
+                            .text_color(paint(theme.color.error))
+                            .child(msg)
+                    }),
+            )
         })
         .when(date_picker::RANGE_ACTIONS, |el| {
             el.child(
