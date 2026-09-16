@@ -7272,14 +7272,18 @@ fn desktop_period_column(
     div()
         .flex()
         .flex_col()
-        .gap(px(time_picker::PERIOD_GAP_DP))
+        .w(px(time_picker::PERIOD_W_DP))
+        .h(px(time_picker::PERIOD_CONTAINER_H_DP))
+        .rounded(px(8.))
+        .border_1()
+        .border_color(paint(a.period_outline))
+        .overflow_hidden()
         .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
             let selected = this.time_period == period;
             div()
                 .id(SharedString::from(format!("scroll-{}", period.label())))
                 .w(px(time_picker::PERIOD_W_DP))
                 .h(px(time_picker::PERIOD_H_DP))
-                .rounded(px(8.))
                 .bg(paint(if selected {
                     a.period_selected_container
                 } else {
@@ -7343,14 +7347,18 @@ fn desktop_time_input(
                     .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
                     .flex()
                     .flex_col()
-                    .gap(px(time_picker::PERIOD_GAP_DP))
+                    .w(px(a.period_w_dp))
+                    .h(px(a.period_h_dp))
+                    .rounded(px(8.))
+                    .border_1()
+                    .border_color(paint(a.period_outline))
+                    .overflow_hidden()
                     .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
                         let selected = this.time_period == period;
                         div()
                             .id(SharedString::from(format!("input-{}", period.label())))
                             .w(px(a.period_w_dp))
-                            .h(px(a.period_h_dp / 2.0 - 4.0))
-                            .rounded(px(8.))
+                            .h(px(a.period_h_dp / 2.0))
                             .bg(paint(if selected {
                                 a.period_selected_container
                             } else {
@@ -7672,6 +7680,10 @@ fn time_picker_hero(
                                     .h(px(time_picker::period_h_dp(
                                         time_picker::TimePickerLayoutType::Horizontal,
                                     )))
+                                    .rounded(px(8.))
+                                    .border_1()
+                                    .border_color(paint(a.period_outline))
+                                    .overflow_hidden()
                                     .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(
                                         |period| {
                                             let selected = this.time_period == period;
@@ -7679,7 +7691,6 @@ fn time_picker_hero(
                                                 .id(SharedString::from(period.label()))
                                                 .flex_1()
                                                 .h_full()
-                                                .rounded(px(8.))
                                                 .bg(paint(if selected {
                                                     a.period_selected_container
                                                 } else {
@@ -10124,6 +10135,9 @@ mod tests {
         assert_eq!(input.field_h_dp, 72.0);
         assert!(time_picker::TIME_FIELD_OUTLINE);
         assert!(time_picker::TIME_SELECTOR_COLORS);
+        assert!(time_picker::PERIOD_OUTLINE);
+        assert_eq!(time_picker::PERIOD_CONTAINER_H_DP, 80.0);
+        assert_eq!(time_picker::PERIOD_GAP_DP, 0.0);
         let dial = time_picker::resolve(&theme);
         assert_eq!(
             dial.time_selector_selected_container,

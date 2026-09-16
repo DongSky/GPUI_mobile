@@ -1095,6 +1095,7 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains("data-time-input=\"1\""));
     assert!(html.contains(r#"data-time-field-outline="1""#));
     assert!(html.contains(r#"data-time-selector-colors="1""#));
+    assert!(html.contains(r#"data-period-outline="1""#));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1396,6 +1397,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("ClockFaceSizeModifier")
             && e.notes.contains("TimeSelector")
             && e.notes.contains("PrimaryContainer")
+            && e.notes.contains("PeriodSelector")
             && e.notes.contains("238")
             && e.notes.contains("200dp")
     }));
@@ -3785,6 +3787,17 @@ fn search_bar_and_time_picker_tokens() {
         theme.color.surface_container_highest
     );
     assert_eq!(time.time_selector_content, theme.color.on_surface);
+    assert!(time_picker::PERIOD_OUTLINE);
+    assert_eq!(time_picker::PERIOD_OUTLINE_W_DP, 1.0);
+    assert_eq!(time_picker::period_outline_w_css(), "1px");
+    assert_eq!(time_picker::PERIOD_CONTAINER_H_DP, 80.0);
+    assert_eq!(time_picker::PERIOD_H_DP, 40.0);
+    assert_eq!(time_picker::PERIOD_GAP_DP, 0.0);
+    assert_eq!(time.period_outline, theme.color.outline);
+    assert_eq!(
+        time_picker::resolve_input(&theme).period_outline,
+        theme.color.outline
+    );
     assert!(time_picker::CLOCK_DIAL_SIZES);
     assert_eq!(time_picker::TIME_PICKER_MAX_HEIGHT_DP, 384.0);
     assert_eq!(time_picker::TIME_PICKER_MID_HEIGHT_DP, 330.0);

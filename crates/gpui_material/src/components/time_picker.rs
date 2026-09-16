@@ -55,8 +55,21 @@ pub const DISPLAY_SEPARATOR: bool = true;
 pub const CONTAINER_PAD_DP: f32 = 24.0;
 pub const CORNER_DP: f32 = 28.0;
 pub const PERIOD_W_DP: f32 = 52.0;
-pub const PERIOD_H_DP: f32 = 36.0;
-pub const PERIOD_GAP_DP: f32 = 8.0;
+/// Half of `PeriodSelectorVerticalContainerHeight` (no unofficial 8dp gap).
+pub const PERIOD_H_DP: f32 = 40.0;
+/// Official PeriodSelector is a single outlined shell (no item gap).
+pub const PERIOD_GAP_DP: f32 = 0.0;
+/// Compose `PeriodSelectorVerticalContainerHeight`.
+pub const PERIOD_CONTAINER_H_DP: f32 = 80.0;
+/// Compose `PeriodSelectorOutlineWidth`.
+pub const PERIOD_OUTLINE_W_DP: f32 = 1.0;
+/// Catalog / hosts apply official PeriodSelector outline.
+pub const PERIOD_OUTLINE: bool = true;
+
+/// CSS `border-width` for the PeriodSelector shell.
+pub fn period_outline_w_css() -> String {
+    format!("{:.0}px", PERIOD_OUTLINE_W_DP)
+}
 /// Specs: period selector in horizontal (landscape) layout.
 pub const PERIOD_HORIZONTAL_W_DP: f32 = 216.0;
 pub const PERIOD_HORIZONTAL_H_DP: f32 = 38.0;
@@ -160,7 +173,7 @@ pub fn period_w_dp(layout: TimePickerLayoutType) -> f32 {
 
 pub fn period_h_dp(layout: TimePickerLayoutType) -> f32 {
     match layout {
-        TimePickerLayoutType::Vertical => PERIOD_H_DP,
+        TimePickerLayoutType::Vertical => PERIOD_CONTAINER_H_DP,
         TimePickerLayoutType::Horizontal => PERIOD_HORIZONTAL_H_DP,
     }
 }
@@ -414,6 +427,8 @@ pub struct TimePickerAppearance {
     pub time_selector_container: Argb,
     /// `TimePickerTokens.TimeSelectorUnselectedLabelColor` (`OnSurface`).
     pub time_selector_content: Argb,
+    /// `TimePickerTokens.PeriodSelectorOutlineColor`.
+    pub period_outline: Argb,
 }
 
 pub fn resolve(theme: &Theme) -> TimePickerAppearance {
@@ -442,6 +457,7 @@ pub fn resolve(theme: &Theme) -> TimePickerAppearance {
         time_selector_selected: c.on_primary_container,
         time_selector_container: c.surface_container_highest,
         time_selector_content: c.on_surface,
+        period_outline: c.outline,
     }
 }
 
@@ -1418,6 +1434,8 @@ pub struct TimeScrollAppearance {
     pub period_selected: Argb,
     pub period_idle_container: Argb,
     pub period_idle: Argb,
+    /// `TimePickerTokens.PeriodSelectorOutlineColor`.
+    pub period_outline: Argb,
     pub elevation_dp: f32,
     pub field_w_dp: f32,
     pub field_h_dp: f32,
@@ -1445,6 +1463,7 @@ pub fn resolve_scroll(theme: &Theme) -> TimeScrollAppearance {
         period_selected: c.primary_container,
         period_idle_container: c.primary,
         period_idle: c.on_primary,
+        period_outline: c.outline,
         elevation_dp: theme.elevation.level3,
         field_w_dp: SCROLL_FIELD_W_DP,
         field_h_dp: SCROLL_FIELD_H_DP,
@@ -1491,6 +1510,8 @@ pub struct TimeInputAppearance {
     pub field_outline: Argb,
     /// Vibrant focused outline (`Primary`, 2dp).
     pub field_focused_outline: Argb,
+    /// `TimePickerTokens.PeriodSelectorOutlineColor`.
+    pub period_outline: Argb,
 }
 
 pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
@@ -1523,6 +1544,7 @@ pub fn resolve_input(theme: &Theme) -> TimeInputAppearance {
         support_label_style: theme.typography.body_small,
         field_outline: Argb::TRANSPARENT,
         field_focused_outline: c.primary,
+        period_outline: c.outline,
     }
 }
 

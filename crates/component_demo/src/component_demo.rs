@@ -6175,14 +6175,18 @@ fn android_period_column(
     div()
         .flex()
         .flex_col()
-        .gap(px(time_picker::PERIOD_GAP_DP))
+        .w(px(time_picker::PERIOD_W_DP))
+        .h(px(time_picker::PERIOD_CONTAINER_H_DP))
+        .rounded(px(8.))
+        .border_1()
+        .border_color(paint(a.period_outline))
+        .overflow_hidden()
         .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
             let selected = this.time_period == period;
             div()
                 .id(SharedString::from(format!("scroll-{}", period.label())))
                 .w(px(time_picker::PERIOD_W_DP))
                 .h(px(time_picker::PERIOD_H_DP))
-                .rounded(px(8.))
                 .bg(paint(if selected {
                     a.period_selected_container
                 } else {
@@ -6246,14 +6250,18 @@ fn android_time_input(
                     .ml(px(time_picker::PERIOD_TOGGLE_MARGIN_DP))
                     .flex()
                     .flex_col()
-                    .gap(px(time_picker::PERIOD_GAP_DP))
+                    .w(px(a.period_w_dp))
+                    .h(px(a.period_h_dp))
+                    .rounded(px(8.))
+                    .border_1()
+                    .border_color(paint(a.period_outline))
+                    .overflow_hidden()
                     .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
                         let selected = this.time_period == period;
                         div()
                             .id(SharedString::from(format!("input-{}", period.label())))
                             .w(px(a.period_w_dp))
-                            .h(px(a.period_h_dp / 2.0 - 4.0))
-                            .rounded(px(8.))
+                            .h(px(a.period_h_dp / 2.0))
                             .bg(paint(if selected {
                                 a.period_selected_container
                             } else {
@@ -6530,33 +6538,41 @@ fn android_time_picker(
                         ),
                 )
                 .when(this.time_format.shows_period(), |col| {
-                    col.child(div().flex().gap(px(8.)).children(
-                        [DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
-                            let selected = this.time_period == period;
-                            div()
-                                .id(SharedString::from(period.label()))
-                                .px(px(12.))
-                                .h(px(time_picker::PERIOD_H_DP))
-                                .rounded(px(8.))
-                                .bg(paint(if selected {
-                                    a.period_selected_container
-                                } else {
-                                    a.period_idle_container
-                                }))
-                                .text_color(paint(if selected {
-                                    a.period_selected
-                                } else {
-                                    a.period_idle
-                                }))
-                                .flex()
-                                .items_center()
-                                .child(period.label())
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.time_period = period;
-                                    cx.notify();
-                                }))
-                        }),
-                    ))
+                    col.child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .w(px(time_picker::PERIOD_W_DP))
+                            .h(px(time_picker::PERIOD_CONTAINER_H_DP))
+                            .rounded(px(8.))
+                            .border_1()
+                            .border_color(paint(a.period_outline))
+                            .overflow_hidden()
+                            .children([DayPeriod::Am, DayPeriod::Pm].into_iter().map(|period| {
+                                let selected = this.time_period == period;
+                                div()
+                                    .id(SharedString::from(period.label()))
+                                    .w_full()
+                                    .h(px(time_picker::PERIOD_H_DP))
+                                    .bg(paint(if selected {
+                                        a.period_selected_container
+                                    } else {
+                                        a.period_idle_container
+                                    }))
+                                    .text_color(paint(if selected {
+                                        a.period_selected
+                                    } else {
+                                        a.period_idle
+                                    }))
+                                    .flex()
+                                    .items_center()
+                                    .child(period.label())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.time_period = period;
+                                        cx.notify();
+                                    }))
+                            })),
+                    )
                 }),
         )
         .child(
