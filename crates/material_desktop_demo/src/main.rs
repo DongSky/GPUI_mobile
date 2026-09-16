@@ -10308,6 +10308,11 @@ mod tests {
             time_picker::TimePickerDisplayMode::Scroll
         );
         assert!(time_picker::DISPLAY_MODE_TOGGLE);
+        assert!(time_picker::SWIPE_VERTICAL);
+        assert_eq!(
+            time_picker::TimePickerDisplayMode::Input.toggle_icon(),
+            time_picker::SWIPE_VERTICAL_ICON
+        );
         assert_eq!(
             time_picker::TimePickerDisplayMode::Input.toggle_label(),
             time_picker::TOGGLE_SCROLL

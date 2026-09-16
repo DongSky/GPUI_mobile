@@ -1108,6 +1108,8 @@ fn catalog_html_embeds_token_evidence() {
     )));
     assert!(html.contains("data-scroll-display-mode-toggle=\"1\""));
     assert!(html.contains(r#"data-display-mode-toggle="1""#));
+    assert!(html.contains(r#"data-swipe-vertical="1""#));
+    assert!(html.contains(time_picker::SWIPE_VERTICAL_ICON));
     assert!(html.contains(time_picker::TOGGLE_KEYBOARD));
     assert!(html.contains(time_picker::TOGGLE_SCROLL));
     assert!(html.contains(time_picker::TOGGLE_TOUCH));
@@ -1392,6 +1394,7 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("vibrant field outline")
             && e.notes.contains("SurfaceContainerLowest")
             && e.notes.contains("ScrollDisplayModeToggle")
+            && e.notes.contains("SwipeVertical")
             && e.notes.contains("DisplayModeToggle")
             && e.notes.contains("Switch to text input mode")
             && e.notes.contains("Switch to clock mode")
@@ -3998,6 +4001,11 @@ fn search_bar_and_time_picker_tokens() {
     );
     assert_eq!(
         time_picker::TimePickerDisplayMode::Input.toggle_icon(),
+        time_picker::SWIPE_VERTICAL_ICON
+    );
+    assert!(time_picker::SWIPE_VERTICAL);
+    assert_eq!(
+        time_picker::display_mode_toggle_icon(false),
         time_picker::SCHEDULE_ICON
     );
     assert!(time_picker::DISPLAY_MODE_TOGGLE);

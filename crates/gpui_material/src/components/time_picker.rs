@@ -771,11 +771,11 @@ impl TimePickerDisplayMode {
         }
     }
 
-    /// Icon for the *other* mode (keyboard when scrolling, schedule when typing).
+    /// Icon for the *other* mode (`ScrollDisplayModeToggle`: Keyboard / SwipeVertical).
     pub const fn toggle_icon(self) -> &'static str {
         match self {
             Self::Scroll => KEYBOARD_ICON,
-            Self::Input => SCHEDULE_ICON,
+            Self::Input => SWIPE_VERTICAL_ICON,
         }
     }
 
@@ -1021,10 +1021,23 @@ pub fn header_label_for(hour: u8, minute: u8, period: DayPeriod, format: TimeFor
 /// Compose `TimePickerDialogDefaults.ScrollDisplayModeToggle` 48dp target.
 pub const TOGGLE_SIZE_DP: f32 = 48.0;
 pub const TOGGLE_ICON_DP: f32 = 24.0;
-/// Keyboard — switch Scroll / Picker → Input.
+/// Keyboard — Scroll/Picker → Input (`Icons.Filled.Keyboard`).
 pub const KEYBOARD_ICON: &str = "⌨";
-/// Schedule / clock — switch Input → Scroll / Picker.
+/// Schedule / clock — `DisplayModeToggle` Input → Picker (`Icons.Filled.Schedule`).
 pub const SCHEDULE_ICON: &str = "◷";
+/// SwipeVertical — `ScrollDisplayModeToggle` Input → Scroll (`Icons.Filled.SwipeVertical`).
+pub const SWIPE_VERTICAL_ICON: &str = "⇅";
+/// Catalog / hosts apply official ScrollDisplayModeToggle SwipeVertical.
+pub const SWIPE_VERTICAL: bool = true;
+
+/// Compose `TimePickerDialogDefaults.DisplayModeToggle` icon (Keyboard / Schedule).
+pub const fn display_mode_toggle_icon(is_picker: bool) -> &'static str {
+    if is_picker {
+        KEYBOARD_ICON
+    } else {
+        SCHEDULE_ICON
+    }
+}
 /// Compose `m3c_time_picker_toggle_keyboard` (`DisplayModeToggle` / `ScrollDisplayModeToggle`).
 pub const TOGGLE_KEYBOARD: &str = "Switch to text input mode";
 /// Compose `m3c_time_picker_toggle_scroll` (`ScrollDisplayModeToggle` while Input).
