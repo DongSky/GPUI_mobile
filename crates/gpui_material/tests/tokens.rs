@@ -1111,6 +1111,11 @@ fn catalog_html_embeds_token_evidence() {
     assert!(html.contains(r#"data-period-outline="1""#));
     assert!(html.contains(r#"data-period-toggle-a11y="1""#));
     assert!(html.contains(time_picker::PERIOD_TOGGLE_LABEL));
+    assert!(html.contains(r#"data-hour-minute-a11y="1""#));
+    assert!(html.contains(time_picker::HOUR_SELECTION));
+    assert!(html.contains(time_picker::MINUTE_SELECTION));
+    assert!(html.contains(time_picker::INPUT_HOUR_FIELD));
+    assert!(html.contains(time_picker::INPUT_MINUTE_FIELD));
     assert!(html.contains(r#"data-time-support-label="hour""#));
     assert!(html.contains(r#"data-time-support-label="minute""#));
     assert!(html.contains("time-input-support"));
@@ -1429,6 +1434,8 @@ fn inventory_covers_claimed_and_followups() {
             && e.notes.contains("PeriodSelector")
             && e.notes.contains("PeriodToggle a11y")
             && e.notes.contains("Select AM or PM")
+            && e.notes.contains("Select hour")
+            && e.notes.contains("for hour")
             && e.notes.contains("238")
             && e.notes.contains("200dp")
     }));
@@ -3957,6 +3964,27 @@ fn search_bar_and_time_picker_tokens() {
     assert_eq!(time_picker::PERIOD_TOGGLE_MARGIN_DP, 12.0);
     assert!(time_picker::PERIOD_TOGGLE_A11Y);
     assert_eq!(time_picker::PERIOD_TOGGLE_LABEL, "Select AM or PM");
+    assert!(time_picker::HOUR_MINUTE_A11Y);
+    assert_eq!(time_picker::HOUR_SELECTION, "Select hour");
+    assert_eq!(time_picker::MINUTE_SELECTION, "Select minutes");
+    assert_eq!(time_picker::INPUT_HOUR_FIELD, "for hour");
+    assert_eq!(time_picker::INPUT_MINUTE_FIELD, "for minutes");
+    assert_eq!(
+        time_picker::ScrollKind::Hour.selection_label(),
+        time_picker::HOUR_SELECTION
+    );
+    assert_eq!(
+        time_picker::ScrollKind::Minute.selection_label(),
+        time_picker::MINUTE_SELECTION
+    );
+    assert_eq!(
+        time_picker::ScrollKind::Hour.input_field_label(),
+        time_picker::INPUT_HOUR_FIELD
+    );
+    assert_eq!(
+        time_picker::ScrollKind::Minute.input_field_label(),
+        time_picker::INPUT_MINUTE_FIELD
+    );
     assert_eq!(
         time_picker::DEMO_STYLE,
         time_picker::TimePickerStyle::Scroll

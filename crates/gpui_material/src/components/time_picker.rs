@@ -14,7 +14,9 @@
 //! `ScrollFieldDefaults.shape` CornerLarge. `TimeInput` (96×72
 //! fields, `TimePickerDefaults.shapes().timeFieldShape` CornerLarge) +
 //! `ScrollDisplayModeToggle` switch Scroll ↔ Input + official
-//! `TimePickerDialogDefaults.DisplayModeToggle` a11y strings. 24-hour
+//! `TimePickerDialogDefaults.DisplayModeToggle` a11y strings +
+//! TimeSelector `Select hour` / `Select minutes` and TimeInput
+//! `for hour` / `for minutes`. 24-hour
 //! (`is24Hour`) uses 00–23 and hides the AM/PM selector.
 
 use crate::argb::Argb;
@@ -70,6 +72,16 @@ pub const PERIOD_OUTLINE: bool = true;
 pub const PERIOD_TOGGLE_LABEL: &str = "Select AM or PM";
 /// Catalog / hosts apply official PeriodToggle contentDescription.
 pub const PERIOD_TOGGLE_A11Y: bool = true;
+/// Compose `TimePickerHourSelection`.
+pub const HOUR_SELECTION: &str = "Select hour";
+/// Compose `TimePickerMinuteSelection`.
+pub const MINUTE_SELECTION: &str = "Select minutes";
+/// Compose `TimeInputHourTextField`.
+pub const INPUT_HOUR_FIELD: &str = "for hour";
+/// Compose `TimeInputMinuteTextField`.
+pub const INPUT_MINUTE_FIELD: &str = "for minutes";
+/// Catalog / hosts apply official hour/minute selection a11y.
+pub const HOUR_MINUTE_A11Y: bool = true;
 
 /// CSS `border-width` for the PeriodSelector shell.
 pub fn period_outline_w_css() -> String {
@@ -1162,6 +1174,22 @@ impl ScrollKind {
         match self {
             Self::Hour => INPUT_HOUR_LABEL,
             Self::Minute => INPUT_MINUTE_LABEL,
+        }
+    }
+
+    /// Official TimeSelector contentDescription (`Select hour` / `Select minutes`).
+    pub const fn selection_label(self) -> &'static str {
+        match self {
+            Self::Hour => HOUR_SELECTION,
+            Self::Minute => MINUTE_SELECTION,
+        }
+    }
+
+    /// Official TimeInput text-field a11y (`for hour` / `for minutes`).
+    pub const fn input_field_label(self) -> &'static str {
+        match self {
+            Self::Hour => INPUT_HOUR_FIELD,
+            Self::Minute => INPUT_MINUTE_FIELD,
         }
     }
 

@@ -395,6 +395,7 @@ struct CatalogView {
     time_format: time_picker::TimeFormat,
     time_toggle_tooltip_open: bool,
     period_toggle_tooltip_open: bool,
+    hour_minute_tooltip: Option<&'static str>,
     date_toggle_tooltip_open: bool,
     range_toggle_tooltip_open: bool,
     date_month_nav_tooltip: Option<&'static str>,
@@ -6454,12 +6455,28 @@ fn android_time_input_field(
     focused: bool,
     a: &time_picker::TimeInputAppearance,
 ) -> impl IntoElement {
+    let theme = this.theme();
+    let a11y = kind.input_field_label();
+    let tip_id = match kind {
+        time_picker::ScrollKind::Hour => "time-input-hour-tooltip",
+        time_picker::ScrollKind::Minute => "time-input-minute-tooltip",
+    };
     let label = match kind {
         time_picker::ScrollKind::Hour => this.time_input.hour.display(),
         time_picker::ScrollKind::Minute => this.time_input.minute.display(),
     };
     div()
         .id(SharedString::from(format!("time-input-{}", kind.label())))
+        .relative()
+        .when(this.hour_minute_tooltip == Some(a11y), |el| {
+            el.child(android_date_display_mode_toggle_tooltip(
+                &theme, a11y, tip_id,
+            ))
+        })
+        .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+            this.hour_minute_tooltip = hovered.then_some(kind.input_field_label());
+            cx.notify();
+        }))
         .w(px(a.field_w_dp))
         .h(px(a.field_h_dp))
         .rounded(px(a.field_corners.top_left))
@@ -6622,6 +6639,22 @@ fn android_time_picker(
                         .child(
                             div()
                                 .id("time-hour-field")
+                                .relative()
+                                .when(
+                                    this.hour_minute_tooltip == Some(time_picker::HOUR_SELECTION),
+                                    |el| {
+                                        el.child(android_date_display_mode_toggle_tooltip(
+                                            theme,
+                                            time_picker::HOUR_SELECTION,
+                                            "time-hour-field-tooltip",
+                                        ))
+                                    },
+                                )
+                                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                    this.hour_minute_tooltip =
+                                        hovered.then_some(time_picker::HOUR_SELECTION);
+                                    cx.notify();
+                                }))
                                 .px(px(8.))
                                 .bg(paint(if hour_on {
                                     a.time_selector_selected_container
@@ -6655,6 +6688,22 @@ fn android_time_picker(
                         .child(
                             div()
                                 .id("time-minute-field")
+                                .relative()
+                                .when(
+                                    this.hour_minute_tooltip == Some(time_picker::MINUTE_SELECTION),
+                                    |el| {
+                                        el.child(android_date_display_mode_toggle_tooltip(
+                                            theme,
+                                            time_picker::MINUTE_SELECTION,
+                                            "time-minute-field-tooltip",
+                                        ))
+                                    },
+                                )
+                                .on_hover(cx.listener(|this, hovered: &bool, _, cx| {
+                                    this.hour_minute_tooltip =
+                                        hovered.then_some(time_picker::MINUTE_SELECTION);
+                                    cx.notify();
+                                }))
                                 .px(px(8.))
                                 .bg(paint(if !hour_on {
                                     a.time_selector_selected_container
@@ -10081,6 +10130,7 @@ fn android_main(app: AndroidApp) {
                 time_format: time_picker::DEMO_FORMAT,
                 time_toggle_tooltip_open: false,
                 period_toggle_tooltip_open: false,
+                hour_minute_tooltip: None,
                 date_toggle_tooltip_open: false,
                 range_toggle_tooltip_open: false,
                 date_month_nav_tooltip: None,
